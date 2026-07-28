@@ -32,9 +32,6 @@ Das Projekt besteht aus einer React-Weboberfläche, einer nativen Android-App un
 - Bluetooth-Erkennung
 - automatischer Fahrzeugwechsel
 - Kennzeichen
-- VIN
-- Kilometerstand
-- Farbe
 - Notizen
 
 ---
