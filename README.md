@@ -346,28 +346,6 @@ ghcr.io/cheinisch/fahrtenbuch:dev-a1b2c3d
 - CSV-Export
 - GPX-Export
 
-## Version 1.1
-
-- OBD-Unterstützung
-- Tankbuch
-- Wartungen
-- Erinnerungen
-
-## Version 1.2
-
-- Wear OS
-- iOS-App
-- Apple Watch
-- Apple CarPlay
-
-## Version 2.0
-
-- Teams
-- Flottenverwaltung
-- Freigaben
-- Webhooks
-- Integrationen
-
 ---
 
 # Lizenz
