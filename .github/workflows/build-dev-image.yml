@@ -24,6 +24,17 @@ jobs:
       - name: Repository auschecken
         uses: actions/checkout@v7
 
+      # Node.js wird benötigt, um die package-lock.json zu erzeugen
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Erzeugt die Lockdatei im Root-Verzeichnis,
+      # ohne node_modules auf dem GitHub-Runner zu installieren
+      - name: package-lock.json erzeugen
+        run: npm install --package-lock-only
+
       - name: Image-Namen vorbereiten
         id: image
         shell: bash
