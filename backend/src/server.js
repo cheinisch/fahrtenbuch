@@ -36,6 +36,12 @@ app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
+        imgSrc: [
+          "'self'",
+          "data:",
+          "https://www.gravatar.com",
+          "https://secure.gravatar.com",
+        ],
         upgradeInsecureRequests: null,
       },
     },
