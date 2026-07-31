@@ -202,6 +202,32 @@ export function getAdminUsers(accessToken) {
   );
 }
 
+export function getAdminUser(
+  accessToken,
+  userId,
+) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/admin/users/${encodeURIComponent(
+      userId,
+    )}`,
+  );
+}
+
+export function createAdminUser(
+  accessToken,
+  user,
+) {
+  return apiRequest(
+    accessToken,
+    "/api/v1/admin/users",
+    {
+      method: "POST",
+      body: JSON.stringify(user),
+    },
+  );
+}
+
 export function updateAdminUser(
   accessToken,
   userId,
@@ -209,10 +235,27 @@ export function updateAdminUser(
 ) {
   return apiRequest(
     accessToken,
-    `/api/v1/admin/users/${userId}`,
+    `/api/v1/admin/users/${encodeURIComponent(
+      userId,
+    )}`,
     {
-      method: "PATCH",
+      method: "PUT",
       body: JSON.stringify(changes),
+    },
+  );
+}
+
+export function deleteAdminUser(
+  accessToken,
+  userId,
+) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/admin/users/${encodeURIComponent(
+      userId,
+    )}`,
+    {
+      method: "DELETE",
     },
   );
 }
