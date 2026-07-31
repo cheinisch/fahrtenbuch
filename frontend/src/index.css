@@ -33,6 +33,22 @@
   }
 }
 
+/*
+ * Macht die CSS-Variablen als Tailwind-Klassen verfügbar.
+ */
+@theme inline {
+  --color-fb-main: var(--color-main);
+  --color-fb-text: var(--color-text);
+  --color-fb-accent: var(--color-accent);
+  --color-fb-accent-secondary: var(--color-accent-secondary);
+  --color-fb-accent-text: var(--color-accent-text);
+  --color-fb-surface: var(--color-surface);
+  --color-fb-border: var(--color-border);
+  --color-fb-muted: var(--color-muted-text);
+  --color-fb-accent-soft: var(--color-accent-soft);
+  --color-fb-danger: var(--color-danger);
+}
+
 * {
   box-sizing: border-box;
 }
