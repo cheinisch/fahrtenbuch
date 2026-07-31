@@ -1,22 +1,25 @@
 {
-  "name": "@fahrtenbuch/frontend",
+  "name": "fahrtenbuch-web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "test": "node -e \"console.log('Frontend tests pending')\""
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
-    "axios": "^1.7.7",
-    "lucide-react": "^0.468.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
-    "vite": "^5.4.10"
+    "@vitejs/plugin-react": "^4.5.2",
+    "vite": "^6.3.5",
+    "typescript": "^5.8.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "lucide-react": "^0.525.0",
+    "tailwindcss": "^4.1.10",
+    "@tailwindcss/vite": "^4.1.10",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^5.0.0",
+    "@simplewebauthn/browser": "13.3.0"
   },
   "devDependencies": {}
 }

@@ -1,0 +1,41 @@
+@import "leaflet/dist/leaflet.css";
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: var(--color-text);
+  background: var(--color-surface);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; }
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  color: var(--color-text);
+  background: var(--color-surface);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+button, input, select, textarea { font: inherit; }
+button { color: inherit; }
+input, select, textarea {
+  color: var(--color-text);
+  background: var(--color-main);
+  border-color: var(--color-border);
+}
+input::placeholder, textarea::placeholder { color: var(--color-muted-text); }
+
+.leaflet-container { font-family: inherit; }
+
+/* Bestehende Tailwind-Neutralwerte folgen dem aktiven Theme. */
+.text-neutral-400, .text-neutral-500 { color: var(--color-muted-text) !important; }
+.bg-white { background-color: var(--color-main) !important; }
+.bg-neutral-100 { background-color: var(--color-surface) !important; }
+.bg-neutral-200 { background-color: var(--color-border) !important; }
+.bg-amber-50 { background-color: var(--color-accent-soft) !important; }
+.border-amber-500 { border-color: var(--color-accent) !important; }
+.border, .border-b { border-color: var(--color-border); }
+code { color: var(--color-accent-secondary); }
