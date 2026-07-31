@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   packages: write
 
 concurrency:
@@ -21,33 +21,25 @@ jobs:
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Buildnummer erhöhen
+      - name: Buildnummer festlegen
         id: build_number
         shell: bash
         run: |
-          current="$(tr -d '[:space:]' < BUILD)"
-          next=$((current + 1))
-          printf '%s\n' "$next" > BUILD
-          echo "number=$next" >> "$GITHUB_OUTPUT"
-
-      - name: Buildnummer zurückschreiben
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BUILD
-          git commit -m "chore: build ${{ steps.build_number.outputs.number }} [skip ci]" || exit 0
-          git push
+          echo "number=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Version lesen
         id: version
         shell: bash
         run: |
-          echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+          version="$(tr -d '[:space:]' < VERSION)"
+
+          if [[ -z "$version" ]]; then
+            echo "Die Datei VERSION ist leer."
+            exit 1
+          fi
+
+          echo "value=$version" >> "$GITHUB_OUTPUT"
 
       - name: Bei GHCR anmelden
         uses: docker/login-action@v3
@@ -68,10 +60,10 @@ jobs:
           build="${{ steps.build_number.outputs.number }}"
 
           {
-            echo 'value<<EOF'
+            echo "value<<EOF"
             echo "${image}:dev"
             echo "${image}:${version}-build${build}"
-            echo EOF
+            echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Image bauen und veröffentlichen
@@ -81,9 +73,14 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ${{ steps.tags.outputs.value }}
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.value }}
+            BUILD_NUMBER=${{ steps.build_number.outputs.number }}
           labels: |
             org.opencontainers.image.title=Fahrtenbuch
             org.opencontainers.image.version=${{ steps.version.outputs.value }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             de.fahrtenbuch.build=${{ steps.build_number.outputs.number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
