@@ -8,7 +8,7 @@ const currentDirectory = path.dirname(currentFile);
 
 const migrationsDirectory = path.resolve(
   currentDirectory,
-  "../../../database/migrations",
+  "migrations",
 );
 
 export async function runMigrations() {
