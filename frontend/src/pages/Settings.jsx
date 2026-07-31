@@ -208,8 +208,9 @@ export default function Settings() {
         </h1>
 
         <p className="mt-2 text-fb-muted">
-          Verwalte zentrale Vorgaben und
-          Benutzerkonten.
+          Verwalte zentrale Vorgaben,
+          Benutzerkonten und das vollständige
+          System-Backup.
         </p>
       </header>
 
@@ -233,12 +234,12 @@ export default function Settings() {
         </TabButton>
 
         <TabButton
-          active={activeTab === "data"}
+          active={activeTab === "backup"}
           onClick={() =>
-            setActiveTab("data")
+            setActiveTab("backup")
           }
         >
-          Systemdaten
+          Backup & Restore
         </TabButton>
       </nav>
 

@@ -2,7 +2,7 @@ import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
   CheckCircleIcon,
-  DocumentArrowDownIcon,
+  CircleStackIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -58,8 +58,12 @@ function ResultSummary({
     ["Tags", result.tags],
     ["Fahrten", result.trips],
     [
-      "GPS-Punkte",
+      "GPS-Datenpunkte",
       result.trackPoints,
+    ],
+    [
+      "GPS-Upload-Batches",
+      result.trackPointBatches,
     ],
     [
       "Tag-Zuordnungen",
@@ -158,14 +162,14 @@ export default function UserDataTransfer() {
 
       setMessage(
         download.checksum
-          ? `Der persönliche Datenexport wurde erstellt. SHA-256: ${download.checksum}`
-          : "Der persönliche Datenexport wurde erstellt.",
+          ? `Das persönliche Backup wurde erstellt. SHA-256: ${download.checksum}`
+          : "Das persönliche Backup wurde erstellt.",
       );
     } catch (exportError) {
       setError(
         exportError instanceof Error
           ? exportError.message
-          : "Der Datenexport ist fehlgeschlagen.",
+          : "Das persönliche Backup konnte nicht erstellt werden.",
       );
     } finally {
       setBusy("");
@@ -184,7 +188,7 @@ export default function UserDataTransfer() {
   async function validateFile() {
     if (!file) {
       setError(
-        "Bitte wähle zuerst eine JSON-Datei aus.",
+        "Bitte wähle zuerst eine JSON-Backupdatei aus.",
       );
       return;
     }
@@ -205,14 +209,14 @@ export default function UserDataTransfer() {
       );
 
       setMessage(
-        "Die Datei wurde vollständig geprüft. Es wurden noch keine Daten gespeichert.",
+        "Das Backup wurde vollständig geprüft. Es wurden noch keine Daten gespeichert.",
       );
     } catch (validationError) {
       setValidationResult(null);
       setError(
         validationError instanceof Error
           ? validationError.message
-          : "Die Importdatei ist ungültig.",
+          : "Die Backupdatei ist ungültig.",
       );
     } finally {
       setBusy("");
@@ -240,13 +244,13 @@ export default function UserDataTransfer() {
       );
 
       setMessage(
-        "Deine Daten wurden zusammengeführt. Bereits vorhandene Datensätze mit derselben ID wurden aktualisiert.",
+        "Dein Backup wurde wiederhergestellt. Vorhandene Datensätze wurden anhand ihrer IDs zusammengeführt.",
       );
     } catch (importError) {
       setError(
         importError instanceof Error
           ? importError.message
-          : "Der Datenimport ist fehlgeschlagen.",
+          : "Das Backup konnte nicht wiederhergestellt werden.",
       );
     } finally {
       setBusy("");
@@ -254,149 +258,156 @@ export default function UserDataTransfer() {
   }
 
   return (
-    <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
-      <div className="flex items-start gap-3">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-fb-accent-soft text-fb-accent">
-          <DocumentArrowDownIcon className="size-6" />
-        </span>
-
-        <div>
-          <h2 className="text-lg font-bold">
-            Persönliche Datensicherung
-          </h2>
-
-          <p className="mt-1 text-sm text-fb-muted">
-            Sichere Profil,
-            Einstellungen, Fahrzeuge, Tags,
-            Fahrten, GPS-Punkte und
-            Änderungsnachweise als portable
-            JSON-Datei.
-          </p>
-        </div>
-      </div>
-
+    <div className="space-y-6">
       {message && (
-        <div className="mt-5 rounded-lg border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent">
+        <div className="rounded-xl border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent">
           {message}
         </div>
       )}
 
       {error && (
-        <div className="mt-5 rounded-lg border border-fb-danger px-4 py-3 text-sm text-fb-danger">
+        <div className="rounded-xl border border-fb-danger px-4 py-3 text-sm text-fb-danger">
           {error}
         </div>
       )}
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <div className="rounded-xl border border-fb-border p-4">
-          <h3 className="font-semibold">
-            Eigene Daten exportieren
-          </h3>
+      <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
+        <div className="flex items-start gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-fb-accent-soft text-fb-accent">
+            <CircleStackIcon className="size-6" />
+          </span>
 
-          <p className="mt-2 text-sm text-fb-muted">
-            Sicherheitsdaten wie
-            Passwort-Hashes, TOTP-Secrets,
-            Passkeys und aktive Sitzungen
-            werden nicht exportiert.
-          </p>
+          <div>
+            <h2 className="text-lg font-bold">
+              Persönliches Backup
+            </h2>
+
+            <p className="mt-1 text-sm text-fb-muted">
+              Das Backup enthält dein Profil,
+              deine Einstellungen, alle Fahrzeuge,
+              alle Fahrten, sämtliche GPS-Datenpunkte,
+              GPS-Upload-Batches, Tags,
+              Tag-Zuordnungen, archivierte Daten
+              und Änderungsnachweise.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-lg border border-fb-border bg-fb-surface p-4">
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="mt-0.5 size-5 shrink-0 text-fb-danger" />
+
+            <div className="text-sm">
+              <div className="font-semibold">
+                Anmeldedaten werden nicht gesichert
+              </div>
+
+              <p className="mt-1 text-fb-muted">
+                Passwort-Hashes, TOTP-Secrets,
+                Passkeys, aktive Sitzungen,
+                Reset- und Pairing-Tokens sowie
+                Push-Tokens sind aus
+                Sicherheitsgründen ausgeschlossen.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={Boolean(busy)}
+          className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
+        >
+          <ArrowDownTrayIcon className="size-5" />
+          {busy === "export"
+            ? "Backup wird erstellt …"
+            : "Persönliches Backup herunterladen"}
+        </button>
+      </section>
+
+      <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
+        <h2 className="text-lg font-bold">
+          Persönliches Backup
+          wiederherstellen
+        </h2>
+
+        <p className="mt-2 text-sm text-fb-muted">
+          Der Import arbeitet im
+          Zusammenführen-Modus. E-Mail-Adresse,
+          Anmeldename, Rolle, Passwort, TOTP und
+          Passkeys werden nicht verändert.
+        </p>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json"
+          onChange={(event) =>
+            selectFile(
+              event.target.files?.[0],
+            )
+          }
+          className="mt-5 block w-full text-sm text-fb-muted file:mr-4 file:rounded-lg file:border-0 file:bg-fb-surface file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-fb-text hover:file:bg-fb-accent-soft"
+        />
+
+        {file && (
+          <div className="mt-3 text-xs text-fb-muted">
+            {file.name}
+            {" · "}
+            {(
+              file.size /
+              1024 /
+              1024
+            ).toLocaleString(
+              "de-DE",
+              {
+                maximumFractionDigits: 2,
+              },
+            )}{" "}
+            MB
+          </div>
+        )}
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={validateFile}
+            disabled={
+              !file ||
+              Boolean(busy)
+            }
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
+          >
+            <CheckCircleIcon className="size-5" />
+            {busy === "validate"
+              ? "Prüfung läuft …"
+              : "Backup prüfen"}
+          </button>
 
           <button
             type="button"
-            onClick={handleExport}
-            disabled={Boolean(busy)}
-            className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
+            onClick={importFile}
+            disabled={
+              !file ||
+              !validationResult ||
+              Boolean(busy)
+            }
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-50"
           >
-            <ArrowDownTrayIcon className="size-5" />
-            {busy === "export"
-              ? "Export wird erstellt …"
-              : "Meine Daten exportieren"}
+            <ArrowUpTrayIcon className="size-5" />
+            {busy === "import"
+              ? "Wiederherstellung läuft …"
+              : "Geprüftes Backup wiederherstellen"}
           </button>
         </div>
 
-        <div className="rounded-xl border border-fb-border p-4">
-          <h3 className="font-semibold">
-            Eigene Daten importieren
-          </h3>
-
-          <p className="mt-2 text-sm text-fb-muted">
-            Der Import arbeitet im
-            Zusammenführen-Modus. Deine
-            E-Mail-Adresse, dein
-            Anmeldename, deine Rolle und
-            deine Sicherheitsverfahren
-            werden dabei nicht verändert.
-          </p>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json,.json"
-            onChange={(event) =>
-              selectFile(
-                event.target.files?.[0],
-              )
-            }
-            className="mt-4 block w-full text-sm text-fb-muted file:mr-4 file:rounded-lg file:border-0 file:bg-fb-surface file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-fb-text hover:file:bg-fb-accent-soft"
-          />
-
-          {file && (
-            <div className="mt-3 text-xs text-fb-muted">
-              {file.name}
-              {" · "}
-              {(
-                file.size /
-                1024 /
-                1024
-              ).toLocaleString(
-                "de-DE",
-                {
-                  maximumFractionDigits: 2,
-                },
-              )}{" "}
-              MB
-            </div>
-          )}
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={validateFile}
-              disabled={
-                !file ||
-                Boolean(busy)
-              }
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
-            >
-              <CheckCircleIcon className="size-5" />
-              {busy === "validate"
-                ? "Prüfung läuft …"
-                : "Import prüfen"}
-            </button>
-
-            <button
-              type="button"
-              onClick={importFile}
-              disabled={
-                !file ||
-                !validationResult ||
-                Boolean(busy)
-              }
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-50"
-            >
-              <ArrowUpTrayIcon className="size-5" />
-              {busy === "import"
-                ? "Import läuft …"
-                : "Geprüfte Daten importieren"}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <ResultSummary
-        result={
-          validationResult?.result
-        }
-      />
-    </section>
+        <ResultSummary
+          result={
+            validationResult?.result
+          }
+        />
+      </section>
+    </div>
   );
 }

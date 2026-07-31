@@ -2,6 +2,9 @@ import {
   useEffect,
   useState,
 } from "react";
+import {
+  useSearchParams,
+} from "react-router-dom";
 
 import {
   changePassword,
@@ -15,8 +18,12 @@ import {
   updatePersonalSettings,
   updateProfile,
 } from "../api/app.js";
+import {
+  getExportCountryOptions,
+} from "../api/countryExport.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import AddNewDeviceModal from "../components/addNewDeviceModal.jsx";
+import UserDataTransfer from "../components/UserDataTransfer.jsx";
 
 function Section({
   title,
@@ -37,6 +44,27 @@ function Section({
   );
 }
 
+function TabButton({
+  active,
+  onClick,
+  children,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-semibold transition",
+        active
+          ? "border-fb-accent text-fb-accent"
+          : "border-transparent text-fb-muted hover:border-fb-border hover:text-fb-text",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+
 const fieldClass =
   "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
 
@@ -50,6 +78,36 @@ export default function ProfileSettings() {
     updateUser,
   } = useAuth();
 
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
+
+  const activeTab =
+    searchParams.get("tab") === "backup"
+      ? "backup"
+      : "settings";
+
+  function openTab(tab) {
+    const next =
+      new URLSearchParams(searchParams);
+
+    if (tab === "backup") {
+      next.set("tab", "backup");
+    } else {
+      next.delete("tab");
+    }
+
+    setSearchParams(next, {
+      replace: true,
+    });
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
   const [profile, setProfile] = useState({
     email: "",
     username: "",
@@ -58,6 +116,16 @@ export default function ProfileSettings() {
     timezone: "Europe/Berlin",
     themeMode: "system",
   });
+
+  const [
+    supportedCountries,
+    setSupportedCountries,
+  ] = useState([]);
+
+  const [
+    homeCountry,
+    setHomeCountry,
+  ] = useState("DE");
 
   const [tracking, setTracking] = useState({
     automaticTrackingEnabled: false,
@@ -108,11 +176,17 @@ export default function ProfileSettings() {
     setError("");
 
     try {
-      const [settingsResult, devicesResult] =
-        await Promise.all([
-          getPersonalSettings(accessToken),
-          getDevices(accessToken),
-        ]);
+      const [
+        settingsResult,
+        devicesResult,
+        countryResult,
+      ] = await Promise.all([
+        getPersonalSettings(accessToken),
+        getDevices(accessToken),
+        getExportCountryOptions(
+          accessToken,
+        ),
+      ]);
 
       setProfile({
         email: settingsResult.user.email,
@@ -142,6 +216,19 @@ export default function ProfileSettings() {
       });
 
       setDevices(devicesResult);
+
+      setSupportedCountries(
+        countryResult.countries || [],
+      );
+
+      setHomeCountry(
+        String(
+          settingsResult.settings.homeCountry ||
+            countryResult.selectedCountry
+              ?.code ||
+            "DE",
+        ).toUpperCase(),
+      );
 
       const loadedHomeLocation =
         settingsResult.settings.homeLocation ||
@@ -326,6 +413,36 @@ export default function ProfileSettings() {
     }
   }
 
+  async function saveHomeCountry(
+    event,
+  ) {
+    event.preventDefault();
+    setSaving("home-country");
+
+    try {
+      const updated =
+        await updatePersonalSettings(
+          accessToken,
+          {
+            homeCountry,
+          },
+        );
+
+      setHomeCountry(
+        updated.homeCountry ||
+          homeCountry,
+      );
+
+      showSuccess(
+        "Das Heimatland und das Exportprofil wurden gespeichert.",
+      );
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
   async function saveTracking(event) {
     event.preventDefault();
     setSaving("tracking");
@@ -438,11 +555,37 @@ export default function ProfileSettings() {
 
         <p className="mt-2 text-fb-muted">
           Verwalte dein Profil, deine
-          Tracking-Vorgaben und die Sicherheit
-          deines Kontos.
+          Tracking-Vorgaben, die Sicherheit
+          deines Kontos und dein persönliches
+          Backup.
         </p>
       </header>
 
+      <nav
+        aria-label="Persönliche Einstellungen"
+        className="flex gap-7 overflow-x-auto border-b border-fb-border"
+      >
+        <TabButton
+          active={activeTab === "settings"}
+          onClick={() =>
+            openTab("settings")
+          }
+        >
+          Profil und Sicherheit
+        </TabButton>
+
+        <TabButton
+          active={activeTab === "backup"}
+          onClick={() =>
+            openTab("backup")
+          }
+        >
+          Backup & Restore
+        </TabButton>
+      </nav>
+
+      {activeTab === "settings" ? (
+        <>
       {message && (
         <div className="rounded-xl border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent">
           {message}
@@ -574,6 +717,107 @@ export default function ProfileSettings() {
               {saving === "profile"
                 ? "Speichern …"
                 : "Profil speichern"}
+            </button>
+          </div>
+        </Section>
+      </form>
+
+
+      <form onSubmit={saveHomeCountry}>
+        <Section
+          title="Heimatland und Steuerexport"
+          description="Das gewählte Land bestimmt Aufbau, Sprache, Einheit und Hinweise des PDF-Exports."
+        >
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <label className={labelClass}>
+              Heimatland
+              <select
+                value={homeCountry}
+                onChange={(event) =>
+                  setHomeCountry(
+                    event.target.value,
+                  )
+                }
+                className={fieldClass}
+              >
+                {supportedCountries.map(
+                  (country) => (
+                    <option
+                      key={country.code}
+                      value={country.code}
+                    >
+                      {country.name}
+                      {country.localName &&
+                      country.localName !==
+                        country.name
+                        ? ` (${country.localName})`
+                        : ""}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+
+            <div className="rounded-lg border border-fb-border bg-fb-surface p-4">
+              <div className="text-sm font-semibold text-fb-text">
+                Aktives Exportprofil
+              </div>
+
+              {(() => {
+                const selected =
+                  supportedCountries.find(
+                    (country) =>
+                      country.code ===
+                      homeCountry,
+                  );
+
+                if (!selected) {
+                  return (
+                    <p className="mt-2 text-sm text-fb-muted">
+                      Das Länderprofil wird
+                      geladen.
+                    </p>
+                  );
+                }
+
+                return (
+                  <>
+                    <p className="mt-2 text-sm text-fb-text">
+                      {selected.reportTitle}
+                    </p>
+
+                    <p className="mt-1 text-xs text-fb-muted">
+                      Zeitraum:{" "}
+                      {
+                        selected.taxYearLabel
+                      }
+                      {" · "}
+                      Einheit:{" "}
+                      {
+                        selected.distanceUnit
+                      }
+                      {" · "}
+                      Währung:{" "}
+                      {selected.currency}
+                    </p>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              type="submit"
+              disabled={
+                saving === "home-country" ||
+                supportedCountries.length === 0
+              }
+              className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
+            >
+              {saving === "home-country"
+                ? "Speichern …"
+                : "Heimatland speichern"}
             </button>
           </div>
         </Section>
@@ -1169,6 +1413,10 @@ export default function ProfileSettings() {
           );
         }}
       />
+        </>
+      ) : (
+        <UserDataTransfer />
+      )}
     </div>
   );
 }

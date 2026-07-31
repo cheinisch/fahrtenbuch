@@ -22,7 +22,6 @@ import {
 import {
   useAuth,
 } from "../auth/AuthProvider.jsx";
-import UserDataTransfer from "../components/UserDataTransfer.jsx";
 
 const fieldClass =
   "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
@@ -535,8 +534,6 @@ export default function ExportPage() {
           </section>
         </>
       )}
-
-      <UserDataTransfer />
     </div>
   );
 }

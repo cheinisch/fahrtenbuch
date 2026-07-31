@@ -107,7 +107,7 @@ export default function AdminDataTransfer() {
       setError(
         exportError instanceof Error
           ? exportError.message
-          : "Der Systemexport ist fehlgeschlagen.",
+          : "Das System-Backup ist fehlgeschlagen.",
       );
     } finally {
       setBusy("");
@@ -158,7 +158,7 @@ export default function AdminDataTransfer() {
       setError(
         validationError instanceof Error
           ? validationError.message
-          : "Der Systemexport ist ungültig.",
+          : "Das System-Backup ist ungültig.",
       );
     } finally {
       setBusy("");
@@ -201,7 +201,7 @@ export default function AdminDataTransfer() {
       setError(
         importError instanceof Error
           ? importError.message
-          : "Der Systemimport ist fehlgeschlagen.",
+          : "Der System-Wiederherstellung ist fehlgeschlagen.",
       );
     } finally {
       setBusy("");
@@ -233,16 +233,16 @@ export default function AdminDataTransfer() {
 
           <div>
             <h2 className="text-lg font-bold">
-              Systemweite Datensicherung
+              Systemweites Backup
             </h2>
 
             <p className="mt-1 text-sm text-fb-muted">
-              Exportiert Benutzerprofile,
-              Benutzereinstellungen,
-              Fahrzeuge, Fahrten, Tags,
-              GPS-Punkte,
-              Änderungsnachweise und
-              optional die zentralen
+              Sichert alle Benutzerprofile,
+              Benutzereinstellungen, Fahrzeuge,
+              Fahrten, sämtliche GPS-Datenpunkte,
+              GPS-Upload-Batches, Tags,
+              Zuordnungen, Änderungsnachweise,
+              archivierte Daten und die zentralen
               Systemeinstellungen.
             </p>
           </div>
@@ -277,14 +277,14 @@ export default function AdminDataTransfer() {
         >
           <ArrowDownTrayIcon className="size-5" />
           {busy === "export"
-            ? "Systemexport wird erstellt …"
-            : "Alle Systemdaten exportieren"}
+            ? "System-Backup wird erstellt …"
+            : "Komplettes System-Backup herunterladen"}
         </button>
       </section>
 
       <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
         <h2 className="text-lg font-bold">
-          Systemdaten importieren
+          System-Backup wiederherstellen
         </h2>
 
         <p className="mt-2 text-sm text-fb-muted">
@@ -370,7 +370,7 @@ export default function AdminDataTransfer() {
             <CheckCircleIcon className="size-5" />
             {busy === "validate"
               ? "Prüfung läuft …"
-              : "Systemimport prüfen"}
+              : "System-Wiederherstellung prüfen"}
           </button>
         </div>
 
@@ -405,6 +405,13 @@ export default function AdminDataTransfer() {
                 label="GPS-Punkte"
                 value={
                   result.trackPoints
+                }
+              />
+
+              <SummaryValue
+                label="GPS-Upload-Batches"
+                value={
+                  result.trackPointBatches
                 }
               />
 
@@ -476,8 +483,8 @@ export default function AdminDataTransfer() {
               >
                 <ArrowUpTrayIcon className="size-5" />
                 {busy === "import"
-                  ? "Systemimport läuft …"
-                  : "Geprüfte Systemdaten importieren"}
+                  ? "System-Wiederherstellung läuft …"
+                  : "Geprüftes System-Backup wiederherstellen"}
               </button>
             </div>
           </div>

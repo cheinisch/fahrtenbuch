@@ -9,7 +9,9 @@ import {
   conflict,
 } from "../lib/errors.js";
 
-export const DATA_TRANSFER_SCHEMA_VERSION = 1;
+export const DATA_TRANSFER_SCHEMA_VERSION = 2;
+export const SUPPORTED_DATA_TRANSFER_SCHEMA_VERSIONS =
+  Object.freeze([1, 2]);
 export const USER_DATA_KIND =
   "fahrtenbuch-user-data";
 export const SYSTEM_DATA_KIND =
@@ -21,6 +23,7 @@ const DATA_TABLES = Object.freeze({
   tags: "tags",
   trips: "trips",
   trackPoints: "track_points",
+  trackPointBatches: "track_point_batches",
   tripTags: "trip_tags",
   tripChangeLog: "trip_change_log",
   appSettings: "app_settings",
@@ -452,6 +455,39 @@ async function resolveVehicleId(
   return randomUUID();
 }
 
+async function resolveTrackPointBatchId(
+  client,
+  sourceId,
+  targetTripId,
+) {
+  const candidate =
+    normalizedUuid(sourceId);
+
+  if (!candidate) {
+    return randomUUID();
+  }
+
+  const result = await client.query(
+    `
+      SELECT trip_id
+      FROM track_point_batches
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [candidate],
+  );
+
+  if (result.rowCount === 0) {
+    return candidate;
+  }
+
+  return String(
+    result.rows[0].trip_id,
+  ) === String(targetTripId)
+    ? candidate
+    : randomUUID();
+}
+
 async function resolveTagId(
   client,
   source,
@@ -600,6 +636,7 @@ function createImportResult() {
     tags: 0,
     trips: 0,
     trackPoints: 0,
+    trackPointBatches: 0,
     tripTags: 0,
     tripChangeLog: 0,
     appSettings: 0,
@@ -642,6 +679,12 @@ async function importOwnedData(
     ensureArray(
       source.trackPoints || [],
       "data.trackPoints",
+    );
+
+  const batchRecords =
+    ensureArray(
+      source.trackPointBatches || [],
+      "data.trackPointBatches",
     );
 
   const tripTagRecords =
@@ -866,6 +909,53 @@ async function importOwnedData(
     );
 
     result.trackPoints += 1;
+  }
+
+  for (
+    const batch of batchRecords
+  ) {
+    const sourceBatch =
+      ensureObject(
+        batch,
+        "GPS-Punkt-Batch",
+      );
+
+    const targetTripId =
+      tripIds.get(
+        String(
+          sourceBatch.trip_id || "",
+        ),
+      );
+
+    if (!targetTripId) {
+      continue;
+    }
+
+    const targetBatchId =
+      await resolveTrackPointBatchId(
+        client,
+        sourceBatch.id,
+        targetTripId,
+      );
+
+    await upsertRecord(
+      client,
+      DATA_TABLES.trackPointBatches,
+      {
+        ...sourceBatch,
+        id: targetBatchId,
+        trip_id: targetTripId,
+
+        // Geräte und aktive Sitzungen werden
+        // bewusst nicht wiederhergestellt.
+        device_id: null,
+      },
+      {
+        conflictColumns: ["id"],
+      },
+    );
+
+    result.trackPointBatches += 1;
   }
 
   for (
@@ -1407,6 +1497,8 @@ function mergeImportResults(
   target.trips += source.trips;
   target.trackPoints +=
     source.trackPoints;
+  target.trackPointBatches +=
+    source.trackPointBatches;
   target.tripTags +=
     source.tripTags;
   target.tripChangeLog +=
@@ -1450,6 +1542,7 @@ export async function createUserDataBundle(
     tags,
     trips,
     trackPoints,
+    trackPointBatches,
     tripTags,
     tripChangeLog,
   ] = await Promise.all([
@@ -1511,6 +1604,24 @@ export async function createUserDataBundle(
     ),
     fetchJsonRows(
       client,
+      DATA_TABLES.trackPointBatches,
+      {
+        where: `
+          EXISTS (
+            SELECT 1
+            FROM trips t
+            WHERE t.id =
+              source_row.trip_id
+              AND t.user_id = $1
+          )
+        `,
+        parameters: [userId],
+        orderBy:
+          "source_row.trip_id, source_row.received_at, source_row.id",
+      },
+    ),
+    fetchJsonRows(
+      client,
       DATA_TABLES.tripTags,
       {
         where: "source_row.user_id = $1",
@@ -1534,12 +1645,36 @@ export async function createUserDataBundle(
   return {
     ...baseBundle(USER_DATA_KIND),
     owner: portableOwner(user),
+    coverage: {
+      included: [
+        "profile",
+        "user settings",
+        "vehicles",
+        "trips",
+        "all GPS track points",
+        "GPS upload batches",
+        "tags and trip assignments",
+        "trip change history",
+        "archived application data",
+      ],
+      excluded: [
+        "password hashes",
+        "TOTP secrets",
+        "passkeys",
+        "refresh sessions",
+        "password reset tokens",
+        "pairing tokens",
+        "device push tokens",
+        "transient synchronization operations",
+      ],
+    },
     data: {
       userSettings,
       vehicles,
       tags,
       trips,
       trackPoints,
+      trackPointBatches,
       tripTags,
       tripChangeLog,
     },
@@ -1564,6 +1699,7 @@ export async function createSystemDataBundle(
     tags,
     trips,
     trackPoints,
+    trackPointBatches,
     tripTags,
     tripChangeLog,
     appSettings,
@@ -1610,6 +1746,14 @@ export async function createSystemDataBundle(
     ),
     fetchJsonRows(
       client,
+      DATA_TABLES.trackPointBatches,
+      {
+        orderBy:
+          "source_row.trip_id, source_row.received_at, source_row.id",
+      },
+    ),
+    fetchJsonRows(
+      client,
       DATA_TABLES.tripTags,
       {
         orderBy:
@@ -1638,6 +1782,20 @@ export async function createSystemDataBundle(
     ...baseBundle(
       SYSTEM_DATA_KIND,
     ),
+    coverage: {
+      included: [
+        "all users without authentication secrets",
+        "all user settings",
+        "all vehicles",
+        "all trips",
+        "all GPS track points",
+        "all GPS upload batches",
+        "all tags and trip assignments",
+        "all trip change history",
+        "application settings",
+        "archived application data",
+      ],
+    },
     security: {
       included: false,
       excluded: [
@@ -1662,6 +1820,7 @@ export async function createSystemDataBundle(
       tags,
       trips,
       trackPoints,
+      trackPointBatches,
       tripTags,
       tripChangeLog,
       appSettings,
@@ -1702,8 +1861,9 @@ export function validateDataBundle(
   }
 
   if (
-    Number(input.schemaVersion) !==
-    DATA_TRANSFER_SCHEMA_VERSION
+    !SUPPORTED_DATA_TRANSFER_SCHEMA_VERSIONS.includes(
+      Number(input.schemaVersion),
+    )
   ) {
     throw badRequest(
       "UNSUPPORTED_DATA_EXPORT_VERSION",
@@ -1821,6 +1981,12 @@ export async function importSystemDataBundle(
       "data.trackPoints",
     );
 
+  const trackPointBatches =
+    ensureArray(
+      input.data.trackPointBatches || [],
+      "data.trackPointBatches",
+    );
+
   const tripTags =
     ensureArray(
       input.data.tripTags || [],
@@ -1899,6 +2065,11 @@ export async function importSystemDataBundle(
           trackPoints:
             pointsForTrips(
               trackPoints,
+              sourceTripIds,
+            ),
+          trackPointBatches:
+            pointsForTrips(
+              trackPointBatches,
               sourceTripIds,
             ),
           tripTags:
