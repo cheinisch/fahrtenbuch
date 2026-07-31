@@ -10,6 +10,7 @@ import {
   updateAdminSettings,
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import AdminDataTransfer from "../components/admin/AdminDataTransfer.jsx";
 import UserManagement from "../components/users/UserManagement.jsx";
 
 const fieldClass =
@@ -212,7 +213,7 @@ export default function Settings() {
         </p>
       </header>
 
-      <nav className="flex gap-7 border-b border-fb-border">
+      <nav className="flex gap-7 overflow-x-auto border-b border-fb-border">
         <TabButton
           active={activeTab === "system"}
           onClick={() =>
@@ -229,6 +230,15 @@ export default function Settings() {
           }
         >
           Benutzerverwaltung
+        </TabButton>
+
+        <TabButton
+          active={activeTab === "data"}
+          onClick={() =>
+            setActiveTab("data")
+          }
+        >
+          Systemdaten
         </TabButton>
       </nav>
 
@@ -494,10 +504,12 @@ export default function Settings() {
             </form>
           )}
         </div>
-      ) : (
+      ) : activeTab === "users" ? (
         <UserManagement
           onUsersChanged={loadOverview}
         />
+      ) : (
+        <AdminDataTransfer />
       )}
     </div>
   );

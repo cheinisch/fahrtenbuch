@@ -11,6 +11,11 @@ import { config } from "./config.js";
 import { adminRoutes } from "./routes/adminRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { dashboardRoutes } from "./routes/dashboardRoutes.js";
+import {
+  adminDataRoutes,
+  userDataExportRoutes,
+  userDataImportRoutes,
+} from "./routes/dataTransferRoutes.js";
 import { healthRoutes } from "./routes/healthRoutes.js";
 import {
   exportRoutes,
@@ -137,8 +142,20 @@ app.use("/api/v1/statistics", statisticsRoutes);
 app.use("/api/v1/config", configRoutes);
 app.use("/api/v1/geocoding", geocodingRoutes);
 app.use("/api/v1/settings", settingsRoutes);
+app.use(
+  "/api/v1/export",
+  userDataExportRoutes,
+);
 app.use("/api/v1/export", exportRoutes);
+app.use(
+  "/api/v1/import",
+  userDataImportRoutes,
+);
 app.use("/api/v1/import", importRoutes);
+app.use(
+  "/api/v1/admin/data",
+  adminDataRoutes,
+);
 app.use("/api/v1/admin", adminRoutes);
 
 const openApiCandidates = [

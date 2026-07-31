@@ -1,0 +1,96 @@
+# In `paths:` der bestehenden OpenAPI-Datei ergänzen.
+
+  /export/data:
+    get:
+      tags: [Export]
+      summary: Persönliche Daten als portable JSON-Datei exportieren
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Persönlicher Datenexport
+          headers:
+            X-Fahrtenbuch-SHA256:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /import/data:
+    post:
+      tags: [Import]
+      summary: Persönlichen Datenexport prüfen oder importieren
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                dryRun:
+                  type: boolean
+                  default: true
+      responses:
+        "200":
+          description: Ergebnis der Prüfung oder des Imports
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/data/export:
+    get:
+      tags: [Administration]
+      summary: Systemweiten Datenexport erstellen
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Systemweiter Datenexport ohne Authentifizierungsgeheimnisse
+          headers:
+            X-Fahrtenbuch-SHA256:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/data/import:
+    post:
+      tags: [Administration]
+      summary: Systemweiten Datenexport prüfen oder importieren
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                dryRun:
+                  type: boolean
+                  default: true
+                restoreSystemSettings:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: Ergebnis der systemweiten Prüfung oder des Imports
+          content:
+            application/json:
+              schema:
+                type: object
