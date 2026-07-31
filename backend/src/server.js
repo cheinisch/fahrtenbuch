@@ -32,7 +32,15 @@ if (process.env.TRUST_PROXY === "true") {
   app.set("trust proxy", 1);
 }
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        upgradeInsecureRequests: null,
+      },
+    },
+  }),
+);
 app.use(compression());
 app.use(morgan("combined"));
 app.use(express.json({ limit: "1mb" }));
