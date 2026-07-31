@@ -113,7 +113,7 @@ export default function Example() {
               <div>
                 <button
                   type="submit"
-                  className="flex w-full justify-center rounded-md bg-fb-accent-secondary px-3 py-1.5 text-sm/6 font-semibold text-fb-accent-text hover:bg-fb-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent-secondary"
+                  className="flex w-full justify-center rounded-md bg-fb-accent px-3 py-1.5 text-sm/6 font-semibold text-fb-accent-text hover:bg-fb-accent-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent-secondary"
                 >
                   Anmelden
                 </button>
