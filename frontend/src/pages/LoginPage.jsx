@@ -112,7 +112,7 @@ export default function Example() {
                 <div className="text-sm/6">
                   <a
                     href="#"
-                    className="font-semibold text-indigo-400 hover:text-indigo-300"
+                    className="font-semibold text-fb-accent-secondary hover:text-fb-accent"
                   >
                     Passwort vergessen?
                   </a>
@@ -122,7 +122,7 @@ export default function Example() {
               <div>
                 <button
                   type="submit"
-                  className="flex w-full justify-center rounded-md bg-indigo-500 px-3 py-1.5 text-sm/6 font-semibold text-white hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+                  className="flex w-full justify-center rounded-md bg-fb-accent-secondary px-3 py-1.5 text-sm/6 font-semibold text-fb-accent-text hover:bg-fb-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent-secondary"
                 >
                   Anmelden
                 </button>
