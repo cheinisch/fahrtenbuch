@@ -1,32 +1,14 @@
-import { pool } from "../database/pool.js";
+import { forbidden } from "../lib/errors.js";
 
-export async function requireAdmin(request, response, next) {
-  try {
-    const result = await pool.query(
-      `
-        SELECT role, status
-        FROM users
-        WHERE id = $1
-          AND deleted_at IS NULL
-        LIMIT 1
-      `,
-      [request.auth.userId],
+export function requireAdmin(request, _response, next) {
+  if (request.auth?.role !== "admin") {
+    return next(
+      forbidden(
+        "ADMIN_REQUIRED",
+        "Für diese Funktion sind Administratorrechte erforderlich.",
+      ),
     );
-
-    const user = result.rows[0];
-
-    if (!user || user.status !== "active" || user.role !== "admin") {
-      return response.status(403).json({
-        error: {
-          code: "FORBIDDEN",
-          message: "Für diesen Bereich sind Administratorrechte erforderlich.",
-        },
-      });
-    }
-
-    request.auth.role = user.role;
-    next();
-  } catch (error) {
-    next(error);
   }
+
+  next();
 }

@@ -1,78 +1,64 @@
 import { pool } from "./pool.js";
 import { hashPassword } from "../security/password.js";
 
-function readRequiredEnvironment(name) {
-  const value = process.env[name]?.trim();
+function requiredEnvironment(name) {
+  const value = process.env[name];
 
   if (!value) {
-    throw new Error(`${name} muss in der .env gesetzt sein.`);
+    return null;
   }
 
-  return value;
-}
-
-function readBoolean(value, fallback) {
-  if (value === undefined) {
-    return fallback;
-  }
-
-  return ["1", "true", "yes", "on"].includes(
-    String(value).trim().toLowerCase(),
-  );
+  return value.trim();
 }
 
 export async function seedDefaultAdmin() {
-  const email = readRequiredEnvironment("DEFAULT_ADMIN_EMAIL").toLowerCase();
-  const username = readRequiredEnvironment("DEFAULT_ADMIN_USERNAME");
-  const password = readRequiredEnvironment("DEFAULT_ADMIN_PASSWORD");
+  const email = requiredEnvironment("DEFAULT_ADMIN_EMAIL");
+  const username = requiredEnvironment("DEFAULT_ADMIN_USERNAME");
+  const password = process.env.DEFAULT_ADMIN_PASSWORD;
 
-  // Unterstützt beide bisher verwendeten Schreibweisen.
+  if (!email || !username || !password) {
+    console.warn(
+      "Default-Admin wurde übersprungen: DEFAULT_ADMIN_EMAIL, " +
+        "DEFAULT_ADMIN_USERNAME und DEFAULT_ADMIN_PASSWORD sind nicht vollständig gesetzt.",
+    );
+    return;
+  }
+
   const displayName =
-    process.env.DEFAULT_ADMIN_DISPLAYNAME?.trim() ||
-    process.env.DEFAULT_ADMIN_DISPLAY_NAME?.trim() ||
+    requiredEnvironment("DEFAULT_ADMIN_DISPLAYNAME") ||
+    requiredEnvironment("DEFAULT_ADMIN_DISPLAY_NAME") ||
     username;
 
-  const forcePasswordChange = readBoolean(
-    process.env.FORCE_ADMIN_PASSWORD_CHANGE,
-    true,
+  const forcePasswordChange = !["false", "0", "no", "off"].includes(
+    String(process.env.FORCE_ADMIN_PASSWORD_CHANGE ?? "true").toLowerCase(),
   );
-
-  // Das Passwort wird vor jedem Datenbankzugriff mit scrypt gehasht.
-  // Der Klartext wird niemals gespeichert oder protokolliert.
-  const passwordHash = await hashPassword(password);
 
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('fahrtenbuch-default-admin'))");
 
-    // Verhindert bei mehreren gleichzeitigen App-Instanzen doppelte Seeds.
-    await client.query(
-      "SELECT pg_advisory_xact_lock(hashtext($1))",
-      ["fahrtenbuch-default-admin"],
-    );
-
-    const existingUser = await client.query(
+    const existing = await client.query(
       `
-        SELECT id, email, username
+        SELECT id
         FROM users
         WHERE deleted_at IS NULL
-          AND (
-            lower(email) = lower($1)
-            OR lower(username) = lower($2)
-          )
+          AND (lower(email) = lower($1) OR lower(username) = lower($2))
         LIMIT 1
       `,
       [email, username],
     );
 
-    if (existingUser.rowCount > 0) {
+    if (existing.rowCount > 0) {
       await client.query("COMMIT");
       console.log("Default-Admin ist bereits vorhanden.");
-      return existingUser.rows[0].id;
+      return;
     }
 
-    const insertedUser = await client.query(
+    const passwordHash = await hashPassword(password);
+
+    const result = await client.query(
       `
         INSERT INTO users (
           email,
@@ -87,23 +73,11 @@ export async function seedDefaultAdmin() {
           theme_mode,
           force_password_change
         )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4,
-          now(),
-          'admin',
-          'active',
-          'de',
-          COALESCE(NULLIF($5, ''), 'Europe/Berlin'),
-          'system',
-          $6
-        )
+        VALUES ($1, $2, $3, $4, now(), 'admin', 'active', 'de', $5, 'system', $6)
         RETURNING id
       `,
       [
-        email,
+        email.toLowerCase(),
         username,
         displayName,
         passwordHash,
@@ -112,15 +86,9 @@ export async function seedDefaultAdmin() {
       ],
     );
 
-    const userId = insertedUser.rows[0].id;
-
     await client.query(
-      `
-        INSERT INTO user_settings (user_id)
-        VALUES ($1)
-        ON CONFLICT (user_id) DO NOTHING
-      `,
-      [userId],
+      `INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING`,
+      [result.rows[0].id],
     );
 
     await client.query(
@@ -132,21 +100,13 @@ export async function seedDefaultAdmin() {
           entity_id,
           metadata
         )
-        VALUES (
-          $1,
-          'user.created.default_admin',
-          'user',
-          $1,
-          '{"source":"environment"}'::jsonb
-        )
+        VALUES ($1, 'admin.seeded', 'user', $1, '{"source":"environment"}'::jsonb)
       `,
-      [userId],
+      [result.rows[0].id],
     );
 
     await client.query("COMMIT");
     console.log(`Default-Admin angelegt: ${email}`);
-
-    return userId;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

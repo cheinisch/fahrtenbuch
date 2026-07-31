@@ -1,0 +1,10 @@
+# Ergänzung für die bestehende docker-compose.yml.
+# Der /data-Bereich bleibt dadurch bei Container-Neuerstellungen erhalten.
+services:
+  app:
+    volumes:
+      - fahrtenbuch-app-data:/data
+
+volumes:
+  fahrtenbuch-app-data:
+    name: fahrtenbuch-app-data

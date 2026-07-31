@@ -1,115 +1,45 @@
-import "dotenv/config";
-
-import compression from "compression";
-import express from "express";
-import helmet from "helmet";
-import morgan from "morgan";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-import { runMigrations } from "./database/migrate.js";
+import { app } from "./app.js";
+import { config } from "./config.js";
 import { pool } from "./database/pool.js";
+import { runMigrations } from "./database/migrate.js";
 import { seedDefaultAdmin } from "./database/seedDefaultAdmin.js";
-import { authRoutes } from "./routes/authRoutes.js";
-import { userRoutes } from "./routes/userRoutes.js";
 
-const currentFile = fileURLToPath(import.meta.url);
-const currentDirectory = path.dirname(currentFile);
-
-const frontendDirectory = path.resolve(
-  currentDirectory,
-  "../../frontend/dist",
-);
-
-const app = express();
-
-const port = Number(process.env.PORT || 3000);
-const host = process.env.APP_HOST || "0.0.0.0";
-
-app.disable("x-powered-by");
-
-if (process.env.TRUST_PROXY === "true") {
-  app.set("trust proxy", 1);
-}
-
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        imgSrc: [
-          "'self'",
-          "data:",
-          "https://www.gravatar.com",
-          "https://secure.gravatar.com",
-        ],
-        upgradeInsecureRequests: null,
-      },
-    },
-  }),
-);
-app.use(compression());
-app.use(morgan("combined"));
-app.use(express.json({ limit: "1mb" }));
-
-app.get("/api/v1/health", (request, response) => {
-  response.json({
-    status: "ok",
-    service: "fahrtenbuch",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-app.use("/api/v1/auth", authRoutes);
-app.use("/api/v1/users", userRoutes);
-
-app.use("/api", (request, response) => {
-  response.status(404).json({
-    error: {
-      code: "NOT_FOUND",
-      message: "Die angeforderte API-Route wurde nicht gefunden.",
-    },
-  });
-});
-
-app.use(express.static(frontendDirectory));
-
-app.use((request, response, next) => {
-  response.sendFile(
-    path.join(frontendDirectory, "index.html"),
-    (error) => {
-      if (error) {
-        next(error);
-      }
-    },
-  );
-});
-
-app.use((error, request, response, next) => {
-  console.error(error);
-
-  if (response.headersSent) {
-    return next(error);
-  }
-
-  response.status(500).json({
-    error: {
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Es ist ein interner Fehler aufgetreten.",
-    },
-  });
-});
+let server;
 
 async function startServer() {
   await runMigrations();
   await seedDefaultAdmin();
 
-  app.listen(port, host, () => {
-    console.log(`Fahrtenbuch läuft auf http://${host}:${port}`);
+  server = app.listen(config.port, "0.0.0.0", () => {
+    console.log(
+      `Fahrtenbuch ${config.version} läuft auf http://0.0.0.0:${config.port}`,
+    );
   });
 }
 
+async function shutdown(signal) {
+  console.log(`${signal} empfangen. Fahrtenbuch wird beendet …`);
+
+  const forceExit = setTimeout(() => {
+    console.error("Beenden dauerte zu lange. Prozess wird abgebrochen.");
+    process.exit(1);
+  }, 15_000);
+  forceExit.unref();
+
+  if (server) {
+    await new Promise((resolve) => server.close(resolve));
+  }
+
+  await pool.end();
+  clearTimeout(forceExit);
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
 startServer().catch(async (error) => {
   console.error("Fahrtenbuch konnte nicht gestartet werden:", error);
-  await pool.end();
+  await pool.end().catch(() => {});
   process.exit(1);
 });

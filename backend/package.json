@@ -1,23 +1,34 @@
 {
   "name": "@fahrtenbuch/backend",
-  "version": "0.1.0-dev",
+  "version": "1.0.0-dev",
   "private": true,
   "type": "module",
-  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "migrate": "node src/database/migrate.js"
+    "dev": "node --watch src/server.js",
+    "migrate": "node src/database/migrate.js",
+    "check": "node scripts/check-api-files.js && node scripts/check-openapi-coverage.js",
+    "test": "node --test",
+    "check:coverage": "node scripts/check-openapi-coverage.js"
   },
   "dependencies": {
+    "@simplewebauthn/server": "^13.3.2",
     "compression": "^1.8.1",
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.6.1",
+    "fast-xml-parser": "^5.2.5",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
-    "pg": "^8.16.3"
+    "multer": "^2.0.2",
+    "otplib": "^13.4.1",
+    "pdfkit": "^0.17.2",
+    "pg": "^8.16.3",
+    "qrcode": "^1.5.4"
   }
 }

@@ -1,55 +1,52 @@
-import {
-  createHash,
-  randomBytes,
-} from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import jwt from "jsonwebtoken";
 
-function requiredEnvironment(name) {
-  const value = process.env[name];
+import { config } from "../config.js";
 
-  if (!value) {
-    throw new Error(`${name} ist nicht konfiguriert.`);
-  }
-
-  return value;
-}
-
-function durationToMilliseconds(value) {
-  const match = /^(\d+)(s|m|h|d)$/.exec(String(value));
+export function durationToMilliseconds(value) {
+  const match = /^(\d+)(s|m|h|d)$/i.exec(String(value).trim());
 
   if (!match) {
-    throw new Error(`Ungültige Zeitangabe: ${value}`);
+    throw new Error(`Ungültige Zeitangabe „${value}“.`);
   }
 
   const amount = Number(match[1]);
-
   const factors = {
-    s: 1000,
+    s: 1_000,
     m: 60_000,
     h: 3_600_000,
     d: 86_400_000,
   };
 
-  return amount * factors[match[2]];
+  return amount * factors[match[2].toLowerCase()];
+}
+
+export function createOpaqueToken(bytes = 48) {
+  return randomBytes(bytes).toString("base64url");
 }
 
 export function createRefreshToken() {
-  return randomBytes(48).toString("base64url");
+  return createOpaqueToken(48);
 }
 
 export function hashToken(token) {
-  return createHash("sha256").update(token).digest("hex");
+  return createHash("sha256").update(String(token)).digest("hex");
 }
 
 export function getRefreshExpiration() {
-  const duration =
-    process.env.REFRESH_TOKEN_EXPIRES_IN || "7d";
+  return new Date(
+    Date.now() + durationToMilliseconds(config.jwt.refreshExpiresIn),
+  );
+}
 
-  return new Date(Date.now() + durationToMilliseconds(duration));
+export function getAccessTokenLifetimeSeconds() {
+  return Math.floor(durationToMilliseconds(config.jwt.accessExpiresIn) / 1000);
 }
 
 export function createAccessToken(user, sessionId) {
-  const secret = requiredEnvironment("JWT_SECRET");
+  if (!user?.id || !sessionId) {
+    throw new Error("Benutzer-ID und Session-ID fehlen.");
+  }
 
   return jwt.sign(
     {
@@ -58,32 +55,27 @@ export function createAccessToken(user, sessionId) {
       role: user.role,
       typ: "access",
     },
-    secret,
+    config.jwt.secret,
     {
-      expiresIn: process.env.JWT_EXPIRES_IN || "15m",
-      issuer: process.env.JWT_ISSUER || "fahrtenbuch",
-      audience:
-        process.env.JWT_AUDIENCE || "fahrtenbuch-web",
+      expiresIn: config.jwt.accessExpiresIn,
+      issuer: config.jwt.issuer,
+      audience: config.jwt.audience,
     },
   );
 }
 
 export function verifyAccessToken(token) {
-  const payload = jwt.verify(
-    token,
-    requiredEnvironment("JWT_SECRET"),
-    {
-      issuer: process.env.JWT_ISSUER || "fahrtenbuch",
-      audience:
-        process.env.JWT_AUDIENCE || "fahrtenbuch-web",
-    },
-  );
+  const payload = jwt.verify(token, config.jwt.secret, {
+    issuer: config.jwt.issuer,
+    audience: config.jwt.audience,
+  });
 
   if (
     typeof payload !== "object" ||
+    payload === null ||
     payload.typ !== "access" ||
-    !payload.sub ||
-    !payload.sid
+    typeof payload.sub !== "string" ||
+    typeof payload.sid !== "string"
   ) {
     throw new Error("Ungültiges Access-Token.");
   }
@@ -96,6 +88,7 @@ export function getAccessTokenExpiration(token) {
 
   if (
     typeof payload !== "object" ||
+    payload === null ||
     typeof payload.exp !== "number"
   ) {
     throw new Error("Access-Token enthält keine Ablaufzeit.");
