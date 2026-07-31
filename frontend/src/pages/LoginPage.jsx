@@ -1,77 +1,34 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { login } from "../api/auth.js";
 
-function MailIcon() {
+function EyeIcon({ crossed = false }) {
+  if (crossed) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        className="size-5"
+        aria-hidden="true"
+      >
+        <path d="m3 3 18 18" />
+        <path d="M10.6 10.7a2 2 0 0 0 2.7 2.7" />
+        <path d="M9.8 4.3A10.8 10.8 0 0 1 12 4c5.5 0 9 5 9 8a10 10 0 0 1-2.2 3.8" />
+        <path d="M6.2 6.2C4.1 7.7 3 10.2 3 12c0 3 3.5 8 9 8a10.5 10.5 0 0 0 4.1-.8" />
+      </svg>
+    );
+  }
+
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
+      className="size-5"
       aria-hidden="true"
-      className="h-5 w-5"
-    >
-      <path d="M4 6.5h16v11H4z" />
-      <path d="m4.5 7 7.5 6 7.5-6" />
-    </svg>
-  );
-}
-
-function LockIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      aria-hidden="true"
-      className="h-5 w-5"
-    >
-      <rect x="5" y="10" width="14" height="10" rx="2" />
-      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-    </svg>
-  );
-}
-
-function ShieldIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      aria-hidden="true"
-      className="h-5 w-5"
-    >
-      <path d="M12 3 19 6v5c0 4.7-2.8 8.2-7 10-4.2-1.8-7-5.3-7-10V6z" />
-    </svg>
-  );
-}
-
-function EyeIcon({ hidden = false }) {
-  return hidden ? (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      aria-hidden="true"
-      className="h-5 w-5"
-    >
-      <path d="M3 3l18 18" />
-      <path d="M10.6 10.7A2 2 0 0 0 13.3 13.4" />
-      <path d="M9.8 4.3A10.8 10.8 0 0 1 12 4c5.5 0 9 5 9 8a9.8 9.8 0 0 1-2.2 3.8" />
-      <path d="M6.2 6.2C4.1 7.7 3 10.2 3 12c0 3 3.5 8 9 8a10.5 10.5 0 0 0 4.1-.8" />
-    </svg>
-  ) : (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      aria-hidden="true"
-      className="h-5 w-5"
     >
       <path d="M3 12s3.5-7 9-7 9 7 9 7-3.5 7-9 7-9-7-9-7Z" />
       <circle cx="12" cy="12" r="2.5" />
@@ -86,8 +43,8 @@ function KeyIcon() {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
+      className="size-5"
       aria-hidden="true"
-      className="h-5 w-5"
     >
       <circle cx="8" cy="15" r="4" />
       <path d="m11 12 7-7" />
@@ -101,6 +58,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -139,6 +98,12 @@ export default function LoginPage() {
         sessionStorage.setItem("accessToken", result.accessToken);
       }
 
+      if (rememberMe) {
+        localStorage.setItem("fahrtenbuchRememberEmail", form.email);
+      } else {
+        localStorage.removeItem("fahrtenbuchRememberEmail");
+      }
+
       navigate("/", { replace: true });
     } catch (error) {
       setStatus({
@@ -154,182 +119,196 @@ export default function LoginPage() {
   function handlePasskeyLogin() {
     setStatus({
       loading: false,
-      error: "Die Passkey-Anmeldung wird im nächsten Schritt eingebunden.",
+      error: "Die Passkey-Anmeldung ist noch nicht angebunden.",
     });
   }
 
   return (
-    <main className="login-background relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
-      <div
-        className="pointer-events-none absolute -left-32 bottom-[-180px] h-[420px] w-[620px] rotate-[-8deg] rounded-[50%] border-[42px] border-fb-accent-soft opacity-60"
-        aria-hidden="true"
-      />
+    <main className="flex min-h-screen flex-col justify-center bg-fb-surface px-4 py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-fb-accent text-2xl font-bold text-fb-accent-text shadow-sm">
+          F
+        </div>
 
-      <div
-        className="pointer-events-none absolute right-[-100px] top-[-80px] h-80 w-80 rounded-full bg-fb-accent-soft opacity-50 blur-3xl"
-        aria-hidden="true"
-      />
+        <h1 className="mt-6 text-center text-3xl font-bold tracking-tight text-fb-text">
+          Fahrtenbuch
+        </h1>
 
-      <section className="relative z-10 w-full max-w-[500px] rounded-[28px] border border-fb-border bg-fb-main px-6 py-8 shadow-[0_24px_70px_rgba(0,0,0,0.12)] sm:px-10 sm:py-10">
-        <header className="mb-8 text-center">
-          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-fb-accent-soft">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-fb-accent text-3xl font-bold text-fb-accent-text shadow-md">
-              F
-            </div>
-          </div>
+        <p className="mt-2 text-center text-sm text-fb-muted">
+          Melde dich an, um deine Fahrten zu verwalten.
+        </p>
+      </div>
 
-          <h1 className="text-3xl font-bold tracking-tight text-fb-text sm:text-4xl">
-            Fahrtenbuch
-          </h1>
-
-          <p className="mt-3 text-base text-fb-muted">
-            Melde dich an, um deine Fahrten zu verwalten.
-          </p>
-
-          <div className="mx-auto mt-6 h-0.5 w-20 rounded-full bg-fb-accent" />
-        </header>
-
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <div>
-            <label
-              htmlFor="email"
-              className="mb-2 block text-sm font-semibold text-fb-text"
-            >
-              E-Mail-Adresse
-            </label>
-
-            <div className="group relative">
-              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-fb-accent">
-                <MailIcon />
-              </span>
-
-              <input
-                id="email"
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={updateField}
-                autoComplete="email"
-                placeholder="deine@email.de"
-                required
-                disabled={status.loading}
-                className="h-14 w-full rounded-xl border border-fb-border bg-fb-surface pl-12 pr-4 text-base text-fb-text outline-none transition placeholder:text-fb-muted focus:border-fb-accent focus:ring-4 focus:ring-fb-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-2 block text-sm font-semibold text-fb-text"
-            >
-              Passwort
-            </label>
-
-            <div className="group relative">
-              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-fb-accent">
-                <LockIcon />
-              </span>
-
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                name="password"
-                value={form.password}
-                onChange={updateField}
-                autoComplete="current-password"
-                placeholder="Dein Passwort"
-                required
-                disabled={status.loading}
-                className="h-14 w-full rounded-xl border border-fb-border bg-fb-surface pl-12 pr-12 text-base text-fb-text outline-none transition placeholder:text-fb-muted focus:border-fb-accent focus:ring-4 focus:ring-fb-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowPassword((current) => !current)}
-                className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-fb-muted transition hover:text-fb-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fb-accent"
-                aria-label={
-                  showPassword ? "Passwort verbergen" : "Passwort anzeigen"
-                }
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-[480px]">
+        <section className="border border-fb-border bg-fb-main px-6 py-10 shadow-xl sm:rounded-2xl sm:px-10">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-fb-text"
               >
-                <EyeIcon hidden={showPassword} />
-              </button>
-            </div>
-          </div>
+                E-Mail-Adresse
+              </label>
 
-          <div>
-            <label
-              htmlFor="totp"
-              className="mb-2 block text-sm font-semibold text-fb-text"
+              <div className="mt-2">
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={updateField}
+                  required
+                  autoComplete="email"
+                  placeholder="deine@email.de"
+                  disabled={status.loading}
+                  className="block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-base text-fb-text outline-none transition placeholder:text-fb-muted focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-4">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-fb-text"
+                >
+                  Passwort
+                </label>
+
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-semibold text-fb-accent transition hover:text-fb-accent-secondary"
+                >
+                  Passwort vergessen?
+                </Link>
+              </div>
+
+              <div className="relative mt-2">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={updateField}
+                  required
+                  autoComplete="current-password"
+                  placeholder="Dein Passwort"
+                  disabled={status.loading}
+                  className="block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 pr-11 text-base text-fb-text outline-none transition placeholder:text-fb-muted focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((current) => !current)}
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-fb-muted transition hover:text-fb-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fb-accent"
+                  aria-label={
+                    showPassword
+                      ? "Passwort verbergen"
+                      : "Passwort anzeigen"
+                  }
+                >
+                  <EyeIcon crossed={showPassword} />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="totp"
+                className="block text-sm font-medium text-fb-text"
+              >
+                Zwei-Faktor-Code
+                <span className="ml-1 font-normal text-fb-muted">
+                  (optional)
+                </span>
+              </label>
+
+              <div className="mt-2">
+                <input
+                  id="totp"
+                  name="totp"
+                  type="text"
+                  value={form.totp}
+                  onChange={updateField}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="123456"
+                  maxLength={6}
+                  disabled={status.loading}
+                  className="block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-base tracking-[0.2em] text-fb-text outline-none transition placeholder:tracking-normal placeholder:text-fb-muted focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <div className="group grid size-4 grid-cols-1">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                  className="col-start-1 row-start-1 appearance-none rounded border border-fb-border bg-fb-surface checked:border-fb-accent checked:bg-fb-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent"
+                />
+
+                <svg
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-fb-accent-text opacity-0 group-has-checked:opacity-100"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 8L6 11L11 3.5"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <label
+                htmlFor="remember-me"
+                className="ml-3 block text-sm text-fb-text"
+              >
+                E-Mail-Adresse merken
+              </label>
+            </div>
+
+            {status.error && (
+              <div
+                role="alert"
+                className="rounded-lg border border-fb-danger bg-fb-danger-soft px-4 py-3 text-sm text-fb-danger"
+              >
+                {status.error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={status.loading}
+              className="flex w-full justify-center rounded-lg bg-fb-accent px-3 py-2.5 text-sm font-semibold text-fb-accent-text shadow-sm transition hover:bg-fb-accent-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Zwei-Faktor-Code{" "}
-              <span className="font-normal text-fb-muted">(optional)</span>
-            </label>
+              {status.loading ? "Anmeldung läuft …" : "Anmelden"}
+            </button>
+          </form>
 
-            <div className="group relative">
-              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-fb-accent">
-                <ShieldIcon />
-              </span>
-
-              <input
-                id="totp"
-                type="text"
-                name="totp"
-                value={form.totp}
-                onChange={updateField}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="123456"
-                maxLength={6}
-                disabled={status.loading}
-                className="h-14 w-full rounded-xl border border-fb-border bg-fb-surface pl-12 pr-4 text-base tracking-[0.25em] text-fb-text outline-none transition placeholder:tracking-normal placeholder:text-fb-muted focus:border-fb-accent focus:ring-4 focus:ring-fb-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
-              />
-            </div>
+          <div className="mt-8 flex items-center gap-5">
+            <div className="h-px flex-1 bg-fb-border" />
+            <p className="text-sm font-medium text-fb-muted">oder</p>
+            <div className="h-px flex-1 bg-fb-border" />
           </div>
-
-          {status.error && (
-            <div
-              role="alert"
-              className="rounded-xl border border-fb-danger bg-fb-danger-soft px-4 py-3 text-sm text-fb-danger"
-            >
-              {status.error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={status.loading}
-            className="flex h-14 w-full items-center justify-center rounded-xl bg-fb-accent px-5 text-base font-bold text-fb-accent-text shadow-sm transition hover:bg-fb-accent-secondary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fb-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {status.loading ? "Anmeldung läuft …" : "Anmelden"}
-          </button>
 
           <button
             type="button"
             onClick={handlePasskeyLogin}
             disabled={status.loading}
-            className="flex h-14 w-full items-center justify-center gap-3 rounded-xl border-2 border-fb-accent bg-transparent px-5 text-base font-semibold text-fb-accent transition hover:bg-fb-accent-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fb-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-6 flex w-full items-center justify-center gap-3 rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:bg-fb-accent-soft hover:text-fb-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent disabled:cursor-not-allowed disabled:opacity-60"
           >
             <KeyIcon />
             Mit Passkey anmelden
           </button>
-        </form>
-
-        <div className="my-7 flex items-center gap-4">
-          <div className="h-px flex-1 bg-fb-border" />
-          <span className="text-sm text-fb-muted">oder</span>
-          <div className="h-px flex-1 bg-fb-border" />
-        </div>
-
-        <footer className="text-center">
-          <a
-            href="/forgot-password"
-            className="text-sm font-semibold text-fb-accent transition hover:text-fb-accent-secondary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-accent"
-          >
-            Passwort vergessen?
-          </a>
-        </footer>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }
