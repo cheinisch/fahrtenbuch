@@ -1,11 +1,38 @@
+import "maplibre-gl/dist/maplibre-gl.css";
+
+import maplibregl from "maplibre-gl";
 import {
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import { getDashboard } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+
+const MAP_STYLE = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: [
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution:
+        "© OpenStreetMap-Mitwirkende",
+    },
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm",
+    },
+  ],
+};
 
 const tripTypeLabels = {
   business: "Dienstlich",
@@ -14,83 +41,438 @@ const tripTypeLabels = {
   unclassified: "Nicht zugeordnet",
 };
 
-const tripStatusLabels = {
-  recording: "Wird aufgezeichnet",
-  completed: "Abgeschlossen",
-  cancelled: "Abgebrochen",
-};
-
 function formatDistance(meters) {
-  const kilometers = Number(meters || 0) / 1000;
-
-  return new Intl.NumberFormat("de-DE", {
-    minimumFractionDigits: kilometers < 100 ? 1 : 0,
+  return `${(
+    Number(meters || 0) / 1000
+  ).toLocaleString("de-DE", {
+    minimumFractionDigits: 1,
     maximumFractionDigits: 1,
-  }).format(kilometers);
+  })} km`;
 }
 
 function formatDate(value) {
-  if (!value) {
-    return "–";
-  }
-
   return new Intl.DateTimeFormat("de-DE", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
 }
 
-function StatCard({
-  label,
-  value,
-  suffix,
-  hint,
-}) {
-  return (
-    <div className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm">
-      <div className="text-sm font-medium text-fb-muted">
-        {label}
-      </div>
+function toLineFeatures(trips) {
+  return trips
+    .filter((trip) => trip.route.length >= 2)
+    .map((trip) => ({
+      type: "Feature",
+      id: trip.id,
+      properties: {
+        tripId: trip.id,
+        type: trip.type,
+        label: tripTypeLabels[trip.type] || trip.type,
+        startedAt: trip.startedAt,
+      },
+      geometry: {
+        type: "LineString",
+        coordinates: trip.route.map((point) => [
+          point.longitude,
+          point.latitude,
+        ]),
+      },
+    }));
+}
 
-      <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-3xl font-bold tracking-tight">
-          {value}
-        </span>
+function toEndpointFeatures(trips) {
+  const features = [];
 
-        {suffix && (
-          <span className="text-sm text-fb-muted">
-            {suffix}
-          </span>
-        )}
-      </div>
+  for (const trip of trips) {
+    if (trip.route.length === 0) {
+      continue;
+    }
 
-      {hint && (
-        <div className="mt-2 text-xs text-fb-muted">
-          {hint}
-        </div>
-      )}
-    </div>
+    const start = trip.route[0];
+    const end =
+      trip.route[trip.route.length - 1];
+
+    features.push({
+      type: "Feature",
+      properties: {
+        tripId: trip.id,
+        pointType: "start",
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [
+          start.longitude,
+          start.latitude,
+        ],
+      },
+    });
+
+    if (
+      start.latitude !== end.latitude ||
+      start.longitude !== end.longitude
+    ) {
+      features.push({
+        type: "Feature",
+        properties: {
+          tripId: trip.id,
+          pointType: "end",
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [
+            end.longitude,
+            end.latitude,
+          ],
+        },
+      });
+    }
+  }
+
+  return features;
+}
+
+function collectCoordinates(trips) {
+  return trips.flatMap((trip) =>
+    trip.route.map((point) => [
+      point.longitude,
+      point.latitude,
+    ]),
   );
 }
 
-export default function Dashboard() {
-  const { accessToken, user } = useAuth();
+function createBounds(coordinates) {
+  if (coordinates.length === 0) {
+    return null;
+  }
 
-  const [data, setData] = useState(null);
+  const bounds = new maplibregl.LngLatBounds(
+    coordinates[0],
+    coordinates[0],
+  );
+
+  for (const coordinate of coordinates.slice(1)) {
+    bounds.extend(coordinate);
+  }
+
+  return bounds;
+}
+
+export default function Dashboard() {
+  const { accessToken } = useAuth();
+
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const mapLoadedRef = useRef(false);
+
+  const [filters, setFilters] = useState({
+    from: "",
+    to: "",
+    type: "",
+    tagId: "",
+  });
+
+  const [data, setData] = useState({
+    trips: [],
+    filters: {
+      tags: [],
+    },
+    map: {
+      homeLocation: null,
+    },
+  });
+
+  const [selectedTripId, setSelectedTripId] =
+    useState(null);
+
   const [status, setStatus] = useState({
     loading: true,
     error: "",
   });
 
+  const lineFeatures = useMemo(
+    () => toLineFeatures(data.trips),
+    [data.trips],
+  );
+
+  const endpointFeatures = useMemo(
+    () => toEndpointFeatures(data.trips),
+    [data.trips],
+  );
+
+  const fitAllTrips = useCallback(() => {
+    const map = mapRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    const coordinates = collectCoordinates(
+      data.trips,
+    );
+
+    if (coordinates.length === 1) {
+      map.easeTo({
+        center: coordinates[0],
+        zoom: 13,
+        duration: 500,
+      });
+      return;
+    }
+
+    const bounds = createBounds(coordinates);
+
+    if (bounds) {
+      map.fitBounds(bounds, {
+        padding: 70,
+        maxZoom: 15,
+        duration: 500,
+      });
+      return;
+    }
+
+    const homeLocation =
+      data.map.homeLocation;
+
+    if (homeLocation) {
+      map.easeTo({
+        center: [
+          homeLocation.longitude,
+          homeLocation.latitude,
+        ],
+        zoom: 12,
+        duration: 500,
+      });
+      return;
+    }
+
+    map.easeTo({
+      center: [10.4515, 51.1657],
+      zoom: 5,
+      duration: 500,
+    });
+  }, [data]);
+
+  const updateMapData = useCallback(() => {
+    const map = mapRef.current;
+
+    if (!map || !mapLoadedRef.current) {
+      return;
+    }
+
+    const routeSource =
+      map.getSource("trip-routes");
+
+    routeSource?.setData({
+      type: "FeatureCollection",
+      features: lineFeatures,
+    });
+
+    const pointSource =
+      map.getSource("trip-endpoints");
+
+    pointSource?.setData({
+      type: "FeatureCollection",
+      features: endpointFeatures,
+    });
+
+    const homeLocation =
+      data.map.homeLocation;
+
+    const homeSource =
+      map.getSource("home-location");
+
+    homeSource?.setData({
+      type: "FeatureCollection",
+      features: homeLocation
+        ? [
+            {
+              type: "Feature",
+              properties: {
+                label: homeLocation.address,
+              },
+              geometry: {
+                type: "Point",
+                coordinates: [
+                  homeLocation.longitude,
+                  homeLocation.latitude,
+                ],
+              },
+            },
+          ]
+        : [],
+    });
+
+    map.setPaintProperty(
+      "trip-routes",
+      "line-width",
+      [
+        "case",
+        [
+          "==",
+          ["get", "tripId"],
+          selectedTripId || "",
+        ],
+        6,
+        4,
+      ],
+    );
+
+    map.setPaintProperty(
+      "trip-routes",
+      "line-opacity",
+      [
+        "case",
+        [
+          "==",
+          ["get", "tripId"],
+          selectedTripId || "",
+        ],
+        1,
+        0.72,
+      ],
+    );
+  }, [
+    data.map.homeLocation,
+    endpointFeatures,
+    lineFeatures,
+    selectedTripId,
+  ]);
+
+  useEffect(() => {
+    if (
+      !mapContainerRef.current ||
+      mapRef.current
+    ) {
+      return;
+    }
+
+    const rootStyles = getComputedStyle(
+      document.documentElement,
+    );
+
+    const accent =
+      rootStyles
+        .getPropertyValue("--color-accent")
+        .trim() || "#f48120";
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: MAP_STYLE,
+      center: [10.4515, 51.1657],
+      zoom: 5,
+      attributionControl: true,
+    });
+
+    map.addControl(
+      new maplibregl.NavigationControl(),
+      "top-right",
+    );
+
+    map.on("load", () => {
+      map.addSource("trip-routes", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "trip-routes",
+        type: "line",
+        source: "trip-routes",
+        layout: {
+          "line-cap": "round",
+          "line-join": "round",
+        },
+        paint: {
+          "line-color": accent,
+          "line-width": 4,
+          "line-opacity": 0.72,
+        },
+      });
+
+      map.addSource("trip-endpoints", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "trip-endpoints",
+        type: "circle",
+        source: "trip-endpoints",
+        paint: {
+          "circle-radius": 5,
+          "circle-color": accent,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
+
+      map.addSource("home-location", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "home-location",
+        type: "circle",
+        source: "home-location",
+        paint: {
+          "circle-radius": 8,
+          "circle-color": "#ffffff",
+          "circle-stroke-width": 4,
+          "circle-stroke-color": accent,
+        },
+      });
+
+      mapLoadedRef.current = true;
+      updateMapData();
+      fitAllTrips();
+    });
+
+    mapRef.current = map;
+
+    return () => {
+      mapLoadedRef.current = false;
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    updateMapData();
+  }, [updateMapData]);
+
+  useEffect(() => {
+    if (mapLoadedRef.current) {
+      fitAllTrips();
+    }
+  }, [data.trips, data.map.homeLocation]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function loadDashboard() {
+      setStatus({
+        loading: true,
+        error: "",
+      });
+
       try {
-        const result = await getDashboard(accessToken);
+        const result = await getDashboard(
+          accessToken,
+          filters,
+        );
 
         if (!cancelled) {
           setData(result);
+          setSelectedTripId(null);
           setStatus({
             loading: false,
             error: "",
@@ -103,217 +485,330 @@ export default function Dashboard() {
             error:
               error instanceof Error
                 ? error.message
-                : "Das Dashboard konnte nicht geladen werden.",
+                : "Die Fahrten konnten nicht geladen werden.",
           });
         }
       }
     }
 
-    loadDashboard();
+    const timeout = setTimeout(
+      loadDashboard,
+      200,
+    );
 
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
     };
-  }, [accessToken]);
+  }, [
+    accessToken,
+    filters.from,
+    filters.to,
+    filters.type,
+    filters.tagId,
+  ]);
 
-  const maximumMonthlyDistance = useMemo(
-    () =>
-      Math.max(
-        1,
-        ...(data?.monthlyDistance || []).map(
-          (item) => item.distanceMeters,
-        ),
-      ),
-    [data],
-  );
+  function selectTrip(trip) {
+    setSelectedTripId(trip.id);
 
-  if (status.loading) {
-    return (
-      <div className="rounded-xl border border-fb-border bg-fb-main p-8 text-fb-muted">
-        Dashboard wird geladen …
-      </div>
+    const coordinates = trip.route.map(
+      (point) => [
+        point.longitude,
+        point.latitude,
+      ],
     );
+
+    const map = mapRef.current;
+
+    if (!map || coordinates.length === 0) {
+      return;
+    }
+
+    if (coordinates.length === 1) {
+      map.easeTo({
+        center: coordinates[0],
+        zoom: 14,
+        duration: 500,
+      });
+      return;
+    }
+
+    map.fitBounds(createBounds(coordinates), {
+      padding: 80,
+      maxZoom: 16,
+      duration: 500,
+    });
+  }
+
+  function resetFilters() {
+    setFilters({
+      from: "",
+      to: "",
+      type: "",
+      tagId: "",
+    });
   }
 
   return (
-    <div className="space-y-8">
-      <header>
-        <p className="text-sm font-semibold text-fb-accent">
-          Übersicht
-        </p>
+    <div className="grid h-[calc(100vh-6rem)] min-h-[640px] gap-4 xl:grid-cols-[430px_minmax(0,1fr)]">
+      <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-sm">
+        <header className="border-b border-fb-border p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-bold">
+                Fahrten
+              </h1>
 
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">
-          Willkommen, {user?.displayName || user?.username}
-        </h1>
+              <p className="mt-1 text-sm text-fb-muted">
+                {data.trips.length} Treffer
+              </p>
+            </div>
 
-        <p className="mt-2 text-fb-muted">
-          Hier siehst du den aktuellen Stand deines
-          Fahrtenbuchs.
-        </p>
-      </header>
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="rounded-lg border border-fb-border px-3 py-2 text-xs font-semibold text-fb-muted transition hover:border-fb-accent hover:text-fb-accent"
+            >
+              Filter löschen
+            </button>
+          </div>
 
-      {status.error && (
-        <div className="rounded-xl border border-fb-danger px-4 py-3 text-sm text-fb-danger">
-          {status.error}
-        </div>
-      )}
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <label className="text-xs font-medium text-fb-muted">
+              Von
+              <input
+                type="date"
+                value={filters.from}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    from: event.target.value,
+                  }))
+                }
+                className="mt-1 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm text-fb-text outline-none focus:border-fb-accent"
+              />
+            </label>
 
-      {data && (
-        <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label="Gesamtstrecke"
-              value={formatDistance(
-                data.stats.totalDistanceMeters,
-              )}
-              suffix="km"
-              hint={`${data.stats.totalTrips} abgeschlossene Fahrten`}
-            />
+            <label className="text-xs font-medium text-fb-muted">
+              Bis
+              <input
+                type="date"
+                value={filters.to}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    to: event.target.value,
+                  }))
+                }
+                className="mt-1 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm text-fb-text outline-none focus:border-fb-accent"
+              />
+            </label>
 
-            <StatCard
-              label="Dieser Monat"
-              value={formatDistance(
-                data.stats.monthDistanceMeters,
-              )}
-              suffix="km"
-              hint={`${data.stats.monthTrips} Fahrten`}
-            />
+            <label className="text-xs font-medium text-fb-muted">
+              Typ
+              <select
+                value={filters.type}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    type: event.target.value,
+                  }))
+                }
+                className="mt-1 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm text-fb-text outline-none focus:border-fb-accent"
+              >
+                <option value="">
+                  Alle Typen
+                </option>
+                <option value="business">
+                  Dienstlich
+                </option>
+                <option value="private">
+                  Privat
+                </option>
+                <option value="commute">
+                  Arbeitsweg
+                </option>
+                <option value="unclassified">
+                  Nicht zugeordnet
+                </option>
+              </select>
+            </label>
 
-            <StatCard
-              label="Nicht zugeordnet"
-              value={data.stats.unclassifiedTrips}
-              hint="Fahrten ohne Kategorie"
-            />
+            <label className="text-xs font-medium text-fb-muted">
+              Tag
+              <select
+                value={filters.tagId}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    tagId: event.target.value,
+                  }))
+                }
+                className="mt-1 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm text-fb-text outline-none focus:border-fb-accent"
+              >
+                <option value="">
+                  Alle Tags
+                </option>
 
-            <StatCard
-              label="Fahrzeuge"
-              value={data.stats.vehicleCount}
-              hint="Aktive Fahrzeuge"
-            />
-          </section>
+                {data.filters.tags.map((tag) => (
+                  <option
+                    key={tag.id}
+                    value={tag.id}
+                  >
+                    {tag.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </header>
 
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-            <div className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-bold">
-                    Letzte Fahrten
-                  </h2>
+        {status.error && (
+          <div className="m-4 rounded-lg border border-fb-danger px-3 py-2 text-sm text-fb-danger">
+            {status.error}
+          </div>
+        )}
 
-                  <p className="mt-1 text-sm text-fb-muted">
-                    Deine zuletzt erfassten Fahrten
-                  </p>
-                </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {status.loading ? (
+            <div className="p-8 text-center text-sm text-fb-muted">
+              Fahrten werden geladen …
+            </div>
+          ) : data.trips.length === 0 ? (
+            <div className="p-8 text-center">
+              <div className="font-semibold">
+                Keine Fahrten gefunden
               </div>
 
-              <div className="mt-5 divide-y divide-fb-border">
-                {data.recentTrips.length === 0 ? (
-                  <div className="py-10 text-center text-sm text-fb-muted">
-                    Es wurden noch keine Fahrten erfasst.
-                  </div>
-                ) : (
-                  data.recentTrips.map((trip) => (
-                    <article
-                      key={trip.id}
-                      className="grid gap-3 py-4 sm:grid-cols-[1fr_auto] sm:items-center"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold">
-                            {tripTypeLabels[trip.type] ||
-                              trip.type}
-                          </span>
+              <p className="mt-2 text-sm text-fb-muted">
+                Passe die Filter an oder erfasse
+                deine erste Fahrt.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-fb-border">
+              {data.trips.map((trip) => (
+                <button
+                  key={trip.id}
+                  type="button"
+                  onClick={() => selectTrip(trip)}
+                  className={[
+                    "block w-full p-4 text-left transition",
+                    selectedTripId === trip.id
+                      ? "bg-fb-accent-soft"
+                      : "hover:bg-fb-surface",
+                  ].join(" ")}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold">
+                          {tripTypeLabels[
+                            trip.type
+                          ] || trip.type}
+                        </span>
 
-                          <span className="rounded-full bg-fb-accent-soft px-2 py-0.5 text-xs font-medium text-fb-accent">
-                            {tripStatusLabels[trip.status] ||
-                              trip.status}
-                          </span>
-                        </div>
-
-                        <div className="mt-1 truncate text-sm text-fb-muted">
-                          {trip.startAddress || "Unbekannter Start"}
-                          {" → "}
-                          {trip.endAddress || "Unbekanntes Ziel"}
-                        </div>
-
-                        <div className="mt-1 text-xs text-fb-muted">
-                          {formatDate(trip.startedAt)}
-                          {" · "}
+                        <span className="text-xs text-fb-muted">
                           {trip.vehicle.name}
-                        </div>
+                        </span>
                       </div>
 
-                      <div className="text-left sm:text-right">
-                        <div className="font-bold">
-                          {formatDistance(
-                            trip.distanceMeters,
-                          )}{" "}
-                          km
-                        </div>
+                      <div className="mt-2 truncate text-sm">
+                        {trip.startAddress ||
+                          "Unbekannter Start"}
                       </div>
-                    </article>
-                  ))
+
+                      <div className="mt-1 truncate text-sm text-fb-muted">
+                        →{" "}
+                        {trip.endAddress ||
+                          "Unbekanntes Ziel"}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      <div className="font-bold text-fb-accent">
+                        {formatDistance(
+                          trip.distanceMeters,
+                        )}
+                      </div>
+
+                      <div className="mt-1 text-xs text-fb-muted">
+                        {formatDate(
+                          trip.startedAt,
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {trip.tags.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {trip.tags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="rounded-full border border-fb-border px-2 py-0.5 text-xs text-fb-muted"
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="relative min-h-[420px] overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-sm">
+        <div
+          ref={mapContainerRef}
+          className="absolute inset-0"
+        />
+
+        <div className="absolute left-3 top-3 z-10 flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedTripId(null);
+              fitAllTrips();
+            }}
+            className="rounded-lg border border-fb-border bg-fb-main/95 px-3 py-2 text-sm font-semibold text-fb-text shadow-sm backdrop-blur hover:border-fb-accent hover:text-fb-accent"
+          >
+            Alle Fahrten anzeigen
+          </button>
+        </div>
+
+        {!status.loading &&
+          data.trips.length === 0 && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
+              <div className="rounded-lg border border-fb-border bg-fb-main/95 px-4 py-3 text-center text-sm shadow-lg backdrop-blur">
+                {data.map.homeLocation ? (
+                  <>
+                    <div className="font-semibold">
+                      Heimatort
+                    </div>
+                    <div className="mt-1 text-fb-muted">
+                      {
+                        data.map.homeLocation
+                          .address
+                      }
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="font-semibold">
+                      Kein Heimatort hinterlegt
+                    </div>
+                    <div className="mt-1 text-fb-muted">
+                      Lege ihn unter Eigene
+                      Einstellungen fest.
+                    </div>
+                  </>
                 )}
               </div>
             </div>
-
-            <div className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
-              <h2 className="text-lg font-bold">
-                Strecke pro Monat
-              </h2>
-
-              <p className="mt-1 text-sm text-fb-muted">
-                Die vergangenen sechs Monate
-              </p>
-
-              <div className="mt-6 space-y-4">
-                {data.monthlyDistance.map((item) => {
-                  const width = Math.max(
-                    3,
-                    (item.distanceMeters /
-                      maximumMonthlyDistance) *
-                      100,
-                  );
-
-                  const label =
-                    new Intl.DateTimeFormat("de-DE", {
-                      month: "short",
-                      year: "2-digit",
-                    }).format(
-                      new Date(`${item.month}-01T12:00:00`),
-                    );
-
-                  return (
-                    <div key={item.month}>
-                      <div className="mb-1.5 flex items-center justify-between text-sm">
-                        <span className="font-medium">
-                          {label}
-                        </span>
-
-                        <span className="text-fb-muted">
-                          {formatDistance(
-                            item.distanceMeters,
-                          )}{" "}
-                          km
-                        </span>
-                      </div>
-
-                      <div className="h-2.5 overflow-hidden rounded-full bg-fb-surface">
-                        <div
-                          className="h-full rounded-full bg-fb-accent"
-                          style={{
-                            width: `${width}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        </>
-      )}
+          )}
+      </section>
     </div>
   );
 }

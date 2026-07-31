@@ -35,10 +35,35 @@ async function apiRequest(
   return body;
 }
 
-export function getDashboard(accessToken) {
+export function getDashboard(
+  accessToken,
+  filters = {},
+) {
+  const query = new URLSearchParams();
+
+  if (filters.from) {
+    query.set("from", filters.from);
+  }
+
+  if (filters.to) {
+    query.set("to", filters.to);
+  }
+
+  if (filters.type) {
+    query.set("type", filters.type);
+  }
+
+  if (filters.tagId) {
+    query.set("tagId", filters.tagId);
+  }
+
+  const suffix = query.size
+    ? `?${query.toString()}`
+    : "";
+
   return apiRequest(
     accessToken,
-    "/api/v1/dashboard",
+    `/api/v1/dashboard${suffix}`,
   );
 }
 
@@ -105,6 +130,58 @@ export function revokeDevice(
   return apiRequest(
     accessToken,
     `/api/v1/users/me/devices/${deviceId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function searchHomeLocations(
+  accessToken,
+  query,
+) {
+  return apiRequest(
+    accessToken,
+    "/api/v1/users/me/home-location/search",
+    {
+      method: "POST",
+      body: JSON.stringify({ query }),
+    },
+  );
+}
+
+export function reverseHomeLocation(
+  accessToken,
+  coordinates,
+) {
+  return apiRequest(
+    accessToken,
+    "/api/v1/users/me/home-location/reverse",
+    {
+      method: "POST",
+      body: JSON.stringify(coordinates),
+    },
+  );
+}
+
+export function saveHomeLocation(
+  accessToken,
+  homeLocation,
+) {
+  return apiRequest(
+    accessToken,
+    "/api/v1/users/me/home-location",
+    {
+      method: "PUT",
+      body: JSON.stringify(homeLocation),
+    },
+  );
+}
+
+export function deleteHomeLocation(accessToken) {
+  return apiRequest(
+    accessToken,
+    "/api/v1/users/me/home-location",
     {
       method: "DELETE",
     },

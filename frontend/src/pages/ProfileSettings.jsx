@@ -5,9 +5,13 @@ import {
 
 import {
   changePassword,
+  deleteHomeLocation,
   getDevices,
   getPersonalSettings,
+  reverseHomeLocation,
   revokeDevice,
+  saveHomeLocation,
+  searchHomeLocations,
   updatePersonalSettings,
   updateProfile,
 } from "../api/app.js";
@@ -69,6 +73,22 @@ export default function ProfileSettings() {
   });
 
   const [devices, setDevices] = useState([]);
+
+  const [homeLocation, setHomeLocation] =
+    useState(null);
+
+  const [homeQuery, setHomeQuery] =
+    useState("");
+
+  const [homeCandidates, setHomeCandidates] =
+    useState([]);
+
+  const [homeSearchLoading, setHomeSearchLoading] =
+    useState(false);
+
+  const [gpsLoading, setGpsLoading] =
+    useState(false);
+
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -113,6 +133,13 @@ export default function ProfileSettings() {
       });
 
       setDevices(devicesResult);
+
+      setHomeLocation(
+        settingsResult.settings.homeLocation ||
+          settingsResult.settings.customSettings
+            ?.homeLocation ||
+          null,
+      );
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -557,6 +584,289 @@ export default function ProfileSettings() {
           </div>
         </Section>
       </form>
+
+
+      <Section
+        title="Heimatort"
+        description="Wird auf dem Dashboard als Kartenmittelpunkt verwendet, wenn noch keine Fahrt vorhanden ist."
+      >
+        {homeLocation && (
+          <div className="mb-5 rounded-lg border border-fb-border bg-fb-surface p-4">
+            <div className="text-sm font-semibold">
+              Aktuell hinterlegt
+            </div>
+
+            <div className="mt-1 text-sm text-fb-text">
+              {homeLocation.address}
+            </div>
+
+            <div className="mt-1 text-xs text-fb-muted">
+              {Number(
+                homeLocation.latitude,
+              ).toFixed(6)}
+              ,{" "}
+              {Number(
+                homeLocation.longitude,
+              ).toFixed(6)}
+              {" · "}
+              {homeLocation.source === "gps"
+                ? "per GPS bestimmt"
+                : "manuell gewählt"}
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <label className={labelClass}>
+            Adresse oder Ort
+            <input
+              type="text"
+              value={homeQuery}
+              onChange={(event) =>
+                setHomeQuery(event.target.value)
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                }
+              }}
+              placeholder="z. B. Geisenheim"
+              className={fieldClass}
+            />
+          </label>
+
+          <button
+            type="button"
+            disabled={
+              homeSearchLoading ||
+              homeQuery.trim().length < 3
+            }
+            onClick={async () => {
+              setHomeSearchLoading(true);
+              setError("");
+              setMessage("");
+
+              try {
+                const result =
+                  await searchHomeLocations(
+                    accessToken,
+                    homeQuery.trim(),
+                  );
+
+                setHomeCandidates(
+                  result.candidates,
+                );
+
+                if (
+                  result.candidates.length === 0
+                ) {
+                  setError(
+                    "Für diese Eingabe wurde kein Ort gefunden.",
+                  );
+                }
+              } catch (searchError) {
+                showError(searchError);
+              } finally {
+                setHomeSearchLoading(false);
+              }
+            }}
+            className="self-end rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
+          >
+            {homeSearchLoading
+              ? "Suche …"
+              : "Adresse suchen"}
+          </button>
+        </div>
+
+        {homeCandidates.length > 0 && (
+          <div className="mt-4 divide-y divide-fb-border overflow-hidden rounded-lg border border-fb-border">
+            {homeCandidates.map(
+              (candidate, index) => (
+                <button
+                  key={`${candidate.latitude}-${candidate.longitude}-${index}`}
+                  type="button"
+                  onClick={() => {
+                    setHomeLocation(candidate);
+                    setHomeCandidates([]);
+                    setHomeQuery(
+                      candidate.address,
+                    );
+                  }}
+                  className="block w-full bg-fb-main px-4 py-3 text-left transition hover:bg-fb-surface"
+                >
+                  <div className="text-sm font-medium">
+                    {candidate.address}
+                  </div>
+
+                  <div className="mt-1 text-xs text-fb-muted">
+                    {candidate.latitude.toFixed(
+                      6,
+                    )}
+                    ,{" "}
+                    {candidate.longitude.toFixed(
+                      6,
+                    )}
+                  </div>
+                </button>
+              ),
+            )}
+          </div>
+        )}
+
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            disabled={gpsLoading}
+            onClick={() => {
+              if (!navigator.geolocation) {
+                setError(
+                  "Dieses Gerät unterstützt keine Standortbestimmung.",
+                );
+                return;
+              }
+
+              setGpsLoading(true);
+              setError("");
+              setMessage("");
+
+              navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                  try {
+                    const result =
+                      await reverseHomeLocation(
+                        accessToken,
+                        {
+                          latitude:
+                            position.coords
+                              .latitude,
+                          longitude:
+                            position.coords
+                              .longitude,
+                        },
+                      );
+
+                    setHomeLocation(
+                      result.candidate,
+                    );
+
+                    setHomeQuery(
+                      result.candidate.address,
+                    );
+
+                    setHomeCandidates([]);
+                    setMessage(
+                      "Der aktuelle Standort wurde ermittelt. Speichere ihn jetzt als Heimatort.",
+                    );
+                  } catch (gpsError) {
+                    showError(gpsError);
+                  } finally {
+                    setGpsLoading(false);
+                  }
+                },
+                (gpsError) => {
+                  const messages = {
+                    1: "Der Zugriff auf den Standort wurde abgelehnt.",
+                    2: "Der Standort konnte nicht bestimmt werden.",
+                    3: "Die Standortbestimmung hat zu lange gedauert.",
+                  };
+
+                  setError(
+                    messages[gpsError.code] ||
+                      "Der Standort konnte nicht bestimmt werden.",
+                  );
+
+                  setGpsLoading(false);
+                },
+                {
+                  enableHighAccuracy: true,
+                  timeout: 15_000,
+                  maximumAge: 0,
+                },
+              );
+            }}
+            className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
+          >
+            {gpsLoading
+              ? "Standort wird bestimmt …"
+              : "Aktuellen Standort verwenden"}
+          </button>
+
+          {!window.isSecureContext && (
+            <p className="text-xs text-fb-danger">
+              GPS im Browser benötigt in der
+              Regel HTTPS oder localhost.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+          {homeLocation && (
+            <button
+              type="button"
+              disabled={saving === "home-delete"}
+              onClick={async () => {
+                setSaving("home-delete");
+
+                try {
+                  await deleteHomeLocation(
+                    accessToken,
+                  );
+
+                  setHomeLocation(null);
+                  setHomeQuery("");
+                  setHomeCandidates([]);
+                  showSuccess(
+                    "Der Heimatort wurde entfernt.",
+                  );
+                } catch (deleteError) {
+                  showError(deleteError);
+                } finally {
+                  setSaving("");
+                }
+              }}
+              className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-danger transition hover:border-fb-danger disabled:opacity-60"
+            >
+              Heimatort entfernen
+            </button>
+          )}
+
+          <button
+            type="button"
+            disabled={
+              !homeLocation ||
+              saving === "home-save"
+            }
+            onClick={async () => {
+              setSaving("home-save");
+
+              try {
+                const result =
+                  await saveHomeLocation(
+                    accessToken,
+                    homeLocation,
+                  );
+
+                setHomeLocation(
+                  result.homeLocation,
+                );
+
+                showSuccess(
+                  "Der Heimatort wurde gespeichert.",
+                );
+              } catch (saveError) {
+                showError(saveError);
+              } finally {
+                setSaving("");
+              }
+            }}
+            className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
+          >
+            {saving === "home-save"
+              ? "Speichern …"
+              : "Heimatort speichern"}
+          </button>
+        </div>
+      </Section>
 
       <form onSubmit={savePassword}>
         <Section

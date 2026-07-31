@@ -16,6 +16,7 @@ import { useMemo } from "react";
 import {
   NavLink,
   Outlet,
+  useLocation,
   useNavigate,
 } from "react-router-dom";
 
@@ -49,8 +50,12 @@ function menuLinkClass({ focus }) {
 }
 
 export default function AppShell() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+
+  const dashboardIsOpen =
+    location.pathname === "/";
 
   const gravatarUrl = useMemo(() => {
     const normalizedEmail = String(user?.email || "")
@@ -230,7 +235,13 @@ export default function AppShell() {
       </Disclosure>
 
       <main>
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div
+          className={
+            dashboardIsOpen
+              ? "w-full px-3 py-3 sm:px-4 sm:py-4"
+              : "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"
+          }
+        >
           <Outlet />
         </div>
       </main>
