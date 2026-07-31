@@ -1,15 +1,6 @@
 export default function Example() {
   return (
     <>
-      {/*
-        This example requires updating your template:
-
-        ```
-        <html class="h-full bg-gray-900">
-        <body class="h-full">
-        ```
-      */}
-
       <div className="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <img
@@ -24,7 +15,7 @@ export default function Example() {
         </div>
 
         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-[480px]">
-          <div className="bg-gray-800/50 px-6 py-12 outline -outline-offset-1 outline-white/10 sm:rounded-lg sm:px-12">
+          <div className="bg-fb-main px-6 py-12 outline -outline-offset-1 outline-white/10 sm:rounded-lg sm:px-12">
             <form action="#" method="POST" className="space-y-6">
               <div>
                 <label
