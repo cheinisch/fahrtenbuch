@@ -16,10 +16,9 @@ import {
   xmlEscape,
 } from "../lib/exportFormat.js";
 import { routeDistance } from "../lib/geo.js";
+import { mapTrip } from "../lib/mappers.js";
 import {
-  mapTrip,
-} from "../lib/mappers.js";
-import {
+  dateQuery,
   isUuid,
   uuidValue,
 } from "../lib/validation.js";
@@ -40,56 +39,260 @@ const upload = multer({
   },
 });
 
-async function loadExportTrips(userId, tripId = null) {
-  const parameters = [userId];
-  let tripCondition = "";
+const TRIP_TYPES = [
+  "business",
+  "private",
+  "commute",
+  "unclassified",
+];
 
-  if (tripId) {
-    parameters.push(tripId);
-    tripCondition = `AND t.id = $${parameters.length}`;
+const TYPE_LABELS = {
+  business: "Dienstlich",
+  private: "Privat",
+  commute: "Arbeitsweg",
+  unclassified: "Nicht zugeordnet",
+};
+
+function buildExportFilter(request, { allowTripId = false } = {}) {
+  const parameters = [request.auth.userId];
+  const conditions = [
+    "t.user_id = $1",
+    "t.archived_at IS NULL",
+    "t.status = 'completed'",
+  ];
+
+  const from = dateQuery(request.query.from, "from");
+  const to = dateQuery(request.query.to, "to");
+
+  if (from) {
+    parameters.push(from);
+    conditions.push(`t.started_at >= $${parameters.length}::date`);
   }
 
+  if (to) {
+    parameters.push(to);
+    conditions.push(
+      `t.started_at < $${parameters.length}::date + interval '1 day'`,
+    );
+  }
+
+  if (request.query.vehicleId) {
+    parameters.push(
+      uuidValue(String(request.query.vehicleId), "vehicleId"),
+    );
+    conditions.push(`t.vehicle_id = $${parameters.length}`);
+  }
+
+  if (request.query.type) {
+    const type = String(request.query.type);
+
+    if (!TRIP_TYPES.includes(type)) {
+      throw badRequest(
+        "VALIDATION_ERROR",
+        "Der Fahrttyp ist ungültig.",
+      );
+    }
+
+    parameters.push(type);
+    conditions.push(`t.type = $${parameters.length}::trip_type`);
+  }
+
+  if (allowTripId && request.query.tripId) {
+    parameters.push(
+      uuidValue(String(request.query.tripId), "tripId"),
+    );
+    conditions.push(`t.id = $${parameters.length}`);
+  }
+
+  return {
+    parameters,
+    where: conditions.join(" AND "),
+    from,
+    to,
+  };
+}
+
+async function loadExportTrips(request, options = {}) {
+  const filter = buildExportFilter(request, options);
   const result = await pool.query(
     `
       SELECT
         t.*,
         v.name AS vehicle_name,
-        v.license_plate
+        v.manufacturer,
+        v.model,
+        v.license_plate,
+        v.vin
       FROM trips t
       INNER JOIN vehicles v
         ON v.id = t.vehicle_id
         AND v.user_id = t.user_id
-      WHERE t.user_id = $1
-        AND t.archived_at IS NULL
-        ${tripCondition}
-      ORDER BY t.started_at
+      WHERE ${filter.where}
+      ORDER BY t.started_at, t.id
     `,
-    parameters,
+    filter.parameters,
   );
 
-  return result.rows;
+  return {
+    ...filter,
+    trips: result.rows,
+  };
 }
+
+function summarizeTrips(trips) {
+  const byType = Object.fromEntries(
+    TRIP_TYPES.map((type) => [
+      type,
+      {
+        type,
+        tripCount: 0,
+        distanceMeters: 0,
+      },
+    ]),
+  );
+
+  let distanceMeters = 0;
+  let durationSeconds = 0;
+  let missingPurposeCount = 0;
+  let missingOdometerCount = 0;
+  let changedTripCount = 0;
+
+  for (const trip of trips) {
+    const distance = Number(trip.distance_meters || 0);
+    distanceMeters += distance;
+    durationSeconds += Number(trip.duration_seconds || 0);
+
+    const bucket = byType[trip.type] || byType.unclassified;
+    bucket.tripCount += 1;
+    bucket.distanceMeters += distance;
+
+    if (
+      trip.type === "business" &&
+      !String(trip.purpose || "").trim() &&
+      !String(trip.contact || "").trim()
+    ) {
+      missingPurposeCount += 1;
+    }
+
+    if (
+      trip.start_odometer_meters == null ||
+      trip.end_odometer_meters == null
+    ) {
+      missingOdometerCount += 1;
+    }
+
+    if (Number(trip.change_count || 0) > 0) {
+      changedTripCount += 1;
+    }
+  }
+
+  return {
+    tripCount: trips.length,
+    distanceMeters,
+    distanceKm: distanceMeters / 1000,
+    durationSeconds,
+    missingPurposeCount,
+    missingOdometerCount,
+    changedTripCount,
+    byType: Object.values(byType).map((entry) => ({
+      ...entry,
+      distanceKm: entry.distanceMeters / 1000,
+    })),
+  };
+}
+
+async function attachChangeCounts(trips) {
+  if (trips.length === 0) {
+    return trips;
+  }
+
+  const result = await pool.query(
+    `
+      SELECT trip_id, count(*)::integer AS change_count
+      FROM trip_change_log
+      WHERE trip_id = ANY($1::uuid[])
+      GROUP BY trip_id
+    `,
+    [trips.map((trip) => trip.id)],
+  );
+
+  const counts = new Map(
+    result.rows.map((row) => [
+      row.trip_id,
+      Number(row.change_count || 0),
+    ]),
+  );
+
+  return trips.map((trip) => ({
+    ...trip,
+    change_count: counts.get(trip.id) || 0,
+  }));
+}
+
+function formatKm(meters, digits = 1) {
+  return (Number(meters || 0) / 1000).toLocaleString("de-DE", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function formatOdometer(meters) {
+  if (meters == null) {
+    return "-";
+  }
+
+  return (Number(meters) / 1000).toLocaleString("de-DE", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
+function safeFilenamePart(value) {
+  return String(value || "fahrtenbuch")
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüß_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "") || "fahrtenbuch";
+}
+
+exportRoutes.get(
+  "/summary",
+  asyncHandler(async (request, response) => {
+    const loaded = await loadExportTrips(request);
+    const trips = await attachChangeCounts(loaded.trips);
+
+    response.json({
+      filters: {
+        from: loaded.from || null,
+        to: loaded.to || null,
+        vehicleId: request.query.vehicleId || null,
+        type: request.query.type || null,
+      },
+      summary: summarizeTrips(trips),
+    });
+  }),
+);
 
 exportRoutes.get(
   "/csv",
   asyncHandler(async (request, response) => {
-    const trips = await loadExportTrips(request.auth.userId);
+    const { trips } = await loadExportTrips(request);
     const headers = [
       "id",
       "vehicleId",
       "vehicleName",
       "licensePlate",
       "type",
-      "status",
       "startedAt",
       "endedAt",
       "startAddress",
       "endAddress",
       "purpose",
       "contact",
-      "notes",
+      "startOdometerKm",
+      "endOdometerKm",
       "distanceKm",
       "durationSeconds",
+      "updatedAt",
     ];
 
     const lines = [headers.join(";")];
@@ -102,18 +305,23 @@ exportRoutes.get(
           trip.vehicle_name,
           trip.license_plate,
           trip.type,
-          trip.status,
           trip.started_at?.toISOString?.() || trip.started_at,
           trip.ended_at?.toISOString?.() || trip.ended_at,
           trip.start_address,
           trip.end_address,
           trip.purpose,
           trip.contact,
-          trip.notes,
+          trip.start_odometer_meters == null
+            ? null
+            : Number(trip.start_odometer_meters) / 1000,
+          trip.end_odometer_meters == null
+            ? null
+            : Number(trip.end_odometer_meters) / 1000,
           trip.distance_meters == null
             ? null
             : Number(trip.distance_meters) / 1000,
           trip.duration_seconds,
+          trip.updated_at?.toISOString?.() || trip.updated_at,
         ]
           .map(csvCell)
           .join(";"),
@@ -134,13 +342,15 @@ exportRoutes.get(
 exportRoutes.get(
   "/gpx",
   asyncHandler(async (request, response) => {
-    const tripId = request.query.tripId
-      ? uuidValue(String(request.query.tripId), "tripId")
-      : null;
-    const trips = await loadExportTrips(request.auth.userId, tripId);
+    const { trips } = await loadExportTrips(request, {
+      allowTripId: true,
+    });
 
-    if (tripId && trips.length === 0) {
-      throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+    if (request.query.tripId && trips.length === 0) {
+      throw notFound(
+        "TRIP_NOT_FOUND",
+        "Die Fahrt wurde nicht gefunden.",
+      );
     }
 
     const trackParts = [];
@@ -166,7 +376,6 @@ exportRoutes.get(
             <trkpt lat="${point.lat}" lon="${point.lon}">
               ${point.altitude_meters == null ? "" : `<ele>${point.altitude_meters}</ele>`}
               <time>${new Date(point.recorded_at).toISOString()}</time>
-              ${point.speed_mps == null ? "" : `<extensions><speed>${point.speed_mps}</speed></extensions>`}
             </trkpt>
           `.trim(),
         )
@@ -175,10 +384,10 @@ exportRoutes.get(
       trackParts.push(`
         <trk>
           <name>${xmlEscape(
-            `${trip.vehicle_name} – ${new Date(trip.started_at).toLocaleString("de-DE")}`,
+            `${trip.vehicle_name} - ${new Date(trip.started_at).toLocaleString("de-DE")}`,
           )}</name>
           <desc>${xmlEscape(
-            `${trip.start_address || ""} → ${trip.end_address || ""}`,
+            `${trip.start_address || ""} -> ${trip.end_address || ""}`,
           )}</desc>
           <trkseg>${points}</trkseg>
         </trk>
@@ -192,91 +401,224 @@ ${trackParts.join("\n")}
 
     response.setHeader(
       "Content-Disposition",
-      `attachment; filename="fahrtenbuch-${tripId || "alle-fahrten"}.gpx"`,
+      `attachment; filename="fahrtenbuch-${request.query.tripId || "fahrten"}.gpx"`,
     );
     response.type("application/gpx+xml; charset=utf-8");
     response.send(xml);
   }),
 );
 
+function addPdfHeader(document, title, subtitle) {
+  document
+    .fillColor("#1d1d1d")
+    .font("Helvetica-Bold")
+    .fontSize(20)
+    .text(title, 36, 30);
+
+  document
+    .font("Helvetica")
+    .fontSize(8.5)
+    .fillColor("#666666")
+    .text(subtitle, 36, 55, {
+      width: 770,
+    });
+
+  document
+    .moveTo(36, 77)
+    .lineTo(806, 77)
+    .strokeColor("#dededb")
+    .stroke();
+}
+
+function addPdfFooter(document) {
+  const range = document.bufferedPageRange();
+
+  for (let index = range.start; index < range.start + range.count; index += 1) {
+    document.switchToPage(index);
+    document
+      .font("Helvetica")
+      .fontSize(7.5)
+      .fillColor("#666666")
+      .text(
+        `Fahrtenbuch - Seite ${index + 1} von ${range.count}`,
+        36,
+        566,
+        { width: 770, align: "right" },
+      );
+  }
+}
+
+function drawSummary(document, summary, y) {
+  const items = [
+    ["Fahrten", String(summary.tripCount)],
+    ["Gesamt", `${summary.distanceKm.toLocaleString("de-DE", { maximumFractionDigits: 1 })} km`],
+    ["Dienstlich", `${summary.byType.find((entry) => entry.type === "business")?.distanceKm.toLocaleString("de-DE", { maximumFractionDigits: 1 }) || "0"} km`],
+    ["Privat", `${summary.byType.find((entry) => entry.type === "private")?.distanceKm.toLocaleString("de-DE", { maximumFractionDigits: 1 }) || "0"} km`],
+    ["Arbeitsweg", `${summary.byType.find((entry) => entry.type === "commute")?.distanceKm.toLocaleString("de-DE", { maximumFractionDigits: 1 }) || "0"} km`],
+  ];
+
+  const width = 770 / items.length;
+
+  items.forEach(([label, value], index) => {
+    const x = 36 + index * width;
+    document
+      .roundedRect(x, y, width - 6, 42, 4)
+      .fillAndStroke("#f7f7f5", "#dededb");
+    document
+      .font("Helvetica")
+      .fontSize(7.5)
+      .fillColor("#666666")
+      .text(label, x + 8, y + 7, { width: width - 22 });
+    document
+      .font("Helvetica-Bold")
+      .fontSize(11)
+      .fillColor("#1d1d1d")
+      .text(value, x + 8, y + 20, { width: width - 22 });
+  });
+
+  return y + 50;
+}
+
+function drawTableHeader(document, y) {
+  document.rect(36, y, 770, 28).fill("#1d1d1d");
+  const columns = [
+    ["Datum", 40, 70],
+    ["Strecke", 112, 210],
+    ["Art / Zweck", 326, 180],
+    ["km Start", 510, 62],
+    ["km Ende", 575, 62],
+    ["Strecke", 640, 58],
+    ["Änd.", 702, 45],
+    ["Fahrzeug", 750, 52],
+  ];
+
+  document.font("Helvetica-Bold").fontSize(7).fillColor("#ffffff");
+  for (const [label, x, width] of columns) {
+    document.text(label, x, y + 9, { width, ellipsis: true });
+  }
+
+  return y + 28;
+}
+
+function drawTripRow(document, trip, y, rowIndex) {
+  const route = `${trip.start_address || "Unbekannter Start"} -> ${trip.end_address || "Unbekanntes Ziel"}`;
+  const purpose = [TYPE_LABELS[trip.type] || trip.type, trip.purpose, trip.contact]
+    .filter(Boolean)
+    .join(" - ");
+  const height = 38;
+
+  if (rowIndex % 2 === 1) {
+    document.rect(36, y, 770, height).fill("#f7f7f5");
+  }
+
+  document.font("Helvetica").fontSize(7.2).fillColor("#1d1d1d");
+  document.text(
+    new Date(trip.started_at).toLocaleString("de-DE", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }),
+    40,
+    y + 6,
+    { width: 68 },
+  );
+  document.text(route, 112, y + 5, { width: 208, height: 28, ellipsis: true });
+  document.text(purpose || "-", 326, y + 5, { width: 178, height: 28, ellipsis: true });
+  document.text(formatOdometer(trip.start_odometer_meters), 510, y + 6, { width: 60, align: "right" });
+  document.text(formatOdometer(trip.end_odometer_meters), 575, y + 6, { width: 60, align: "right" });
+  document.text(`${formatKm(trip.distance_meters)} km`, 640, y + 6, { width: 56, align: "right" });
+  document.text(String(trip.change_count || 0), 702, y + 6, { width: 40, align: "center" });
+  document.text(trip.license_plate || trip.vehicle_name, 750, y + 5, { width: 52, height: 28, ellipsis: true });
+  document.moveTo(36, y + height).lineTo(806, y + height).strokeColor("#dededb").stroke();
+
+  return y + height;
+}
+
 exportRoutes.get(
   "/pdf",
   asyncHandler(async (request, response) => {
-    const trips = await loadExportTrips(request.auth.userId);
+    const loaded = await loadExportTrips(request);
+    const trips = await attachChangeCounts(loaded.trips);
+    const summary = summarizeTrips(trips);
+    const userLabel =
+      request.auth.user.displayName || request.auth.user.email;
+    const period = [loaded.from || "Beginn", loaded.to || "heute"].join(" bis ");
+
     const document = new PDFDocument({
       size: "A4",
-      margin: 42,
+      layout: "landscape",
+      margin: 36,
+      bufferPages: true,
       info: {
-        Title: "Fahrtenbuch",
-        Author: request.auth.user.displayName || request.auth.user.email,
+        Title: `Fahrtenbuch ${period}`,
+        Author: userLabel,
+        Subject: "Fahrten- und Statistikexport",
+        Creator: "Fahrtenbuch",
       },
     });
 
+    const filename = `fahrtenbuch-${safeFilenamePart(loaded.from || "gesamt")}-${safeFilenamePart(loaded.to || new Date().toISOString().slice(0, 10))}.pdf`;
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader(
       "Content-Disposition",
-      `attachment; filename="fahrtenbuch-${new Date()
-        .toISOString()
-        .slice(0, 10)}.pdf"`,
+      `attachment; filename="${filename}"`,
     );
 
     document.pipe(response);
-    document.fontSize(22).text("Fahrtenbuch");
-    document
-      .moveDown(0.4)
-      .fontSize(10)
-      .fillColor("#666666")
-      .text(
-        `Erstellt am ${new Date().toLocaleString("de-DE")} für ${
-          request.auth.user.displayName || request.auth.user.email
-        }`,
-      );
-    document.moveDown().fillColor("#000000");
+    addPdfHeader(
+      document,
+      "Fahrtenbuch - Fahrten- und Statistikbericht",
+      `Inhaber: ${userLabel} | Zeitraum: ${period} | Erstellt: ${new Date().toLocaleString("de-DE")}`,
+    );
 
-    let totalMeters = 0;
+    let y = drawSummary(document, summary, 88);
 
-    for (const trip of trips) {
-      totalMeters += Number(trip.distance_meters || 0);
-      document
-        .fontSize(12)
-        .text(
-          `${new Date(trip.started_at).toLocaleString("de-DE")} · ${trip.vehicle_name}`,
-          { continued: false },
-        );
-      document
-        .fontSize(9)
-        .fillColor("#444444")
-        .text(`${trip.start_address || "Unbekannter Start"} → ${trip.end_address || "Unbekanntes Ziel"}`)
-        .text(
-          `Typ: ${trip.type} · Strecke: ${(
-            Number(trip.distance_meters || 0) / 1000
-          ).toLocaleString("de-DE", { maximumFractionDigits: 1 })} km`,
-        );
-
-      if (trip.purpose) {
-        document.text(`Zweck: ${trip.purpose}`);
-      }
-
-      if (trip.contact) {
-        document.text(`Kontakt: ${trip.contact}`);
-      }
-
-      document.moveDown(0.8).fillColor("#000000");
-
-      if (document.y > 730) {
-        document.addPage();
-      }
+    const warnings = [];
+    if (summary.missingOdometerCount > 0) {
+      warnings.push(`${summary.missingOdometerCount} Fahrt(en) ohne vollständigen Start-/Endkilometerstand`);
+    }
+    if (summary.missingPurposeCount > 0) {
+      warnings.push(`${summary.missingPurposeCount} dienstliche Fahrt(en) ohne Zweck oder Kontakt`);
+    }
+    if (summary.changedTripCount > 0) {
+      warnings.push(`${summary.changedTripCount} Fahrt(en) mit dokumentierten Änderungen`);
     }
 
-    document
-      .moveDown()
-      .fontSize(11)
-      .text(
-        `Gesamt: ${trips.length} Fahrten · ${(
-          totalMeters / 1000
-        ).toLocaleString("de-DE", { maximumFractionDigits: 1 })} km`,
-      );
+    if (warnings.length > 0) {
+      document
+        .roundedRect(36, y, 770, 34, 4)
+        .fillAndStroke("#fff0e2", "#f48120");
+      document
+        .font("Helvetica-Bold")
+        .fontSize(8)
+        .fillColor("#b42318")
+        .text("Hinweis zur Vollständigkeit: ", 44, y + 7, { continued: true })
+        .font("Helvetica")
+        .fillColor("#1d1d1d")
+        .text(warnings.join("; "), { width: 746 });
+      y += 42;
+    }
 
+    y = drawTableHeader(document, y);
+
+    trips.forEach((trip, index) => {
+      if (y + 38 > 552) {
+        document.addPage();
+        addPdfHeader(document, "Fahrtenbuch - Fortsetzung", `Inhaber: ${userLabel} | Zeitraum: ${period}`);
+        y = drawTableHeader(document, 88);
+      }
+
+      y = drawTripRow(document, trip, y, index);
+    });
+
+    if (trips.length === 0) {
+      document
+        .font("Helvetica")
+        .fontSize(10)
+        .fillColor("#666666")
+        .text("Für die gewählten Filter wurden keine abgeschlossenen Fahrten gefunden.", 36, y + 20, { width: 770, align: "center" });
+    }
+
+    addPdfFooter(document);
     document.end();
   }),
 );

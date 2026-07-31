@@ -288,22 +288,37 @@ adminRoutes.post(
       maximum: 1024,
       trim: false,
     });
+    const preferredUsername =
+      stringField(body, "loginName", {
+        nullable: true,
+        minimum: 3,
+        maximum: 64,
+      }) ??
+      stringField(body, "username", {
+        nullable: true,
+        minimum: 3,
+        maximum: 64,
+      });
     const displayName =
       stringField(body, "displayName", {
         nullable: true,
         maximum: 120,
       }) || email.split("@")[0];
     const role = enumField(body, "role", ["user", "admin"]) || "user";
+    const forcePasswordChange =
+      booleanField(body, "forcePasswordChange") ?? true;
     const client = await pool.connect();
 
     try {
       await client.query("BEGIN");
+
       const username = await createUniqueUsername(
         client,
         email,
-        body.loginName || body.username,
+        preferredUsername,
       );
       const passwordHash = await hashPassword(password);
+
       const result = await client.query(
         `
           INSERT INTO users (
@@ -319,15 +334,63 @@ adminRoutes.post(
             theme_mode,
             force_password_change
           )
-          VALUES ($1, $2, $3, $4, now(), $5, 'active', 'de', 'Europe/Berlin', 'system', true)
+          VALUES (
+            $1, $2, $3, $4, now(), $5,
+            'active', 'de', 'Europe/Berlin', 'system', $6
+          )
           RETURNING *
         `,
-        [email, username, displayName, passwordHash, role],
+        [
+          email,
+          username,
+          displayName,
+          passwordHash,
+          role,
+          forcePasswordChange,
+        ],
       );
+
       await client.query(
-        `INSERT INTO user_settings (user_id) VALUES ($1)`,
+        `
+          INSERT INTO user_settings (user_id)
+          VALUES ($1)
+          ON CONFLICT (user_id) DO NOTHING
+        `,
         [result.rows[0].id],
       );
+
+      await client.query(
+        `
+          INSERT INTO audit_log (
+            actor_user_id,
+            action,
+            entity_type,
+            entity_id,
+            request_id,
+            ip_address,
+            user_agent,
+            metadata
+          )
+          VALUES (
+            $1,
+            'admin.user.created',
+            'user',
+            $2,
+            $3,
+            NULL,
+            $4,
+            jsonb_build_object('role', $5)
+          )
+        `,
+        [
+          request.auth.userId,
+          result.rows[0].id,
+          request.requestId || null,
+          request.get("user-agent") || null,
+          role,
+        ],
+      );
+
       await client.query("COMMIT");
       response.status(201).json(mapUser(result.rows[0]));
     } catch (error) {

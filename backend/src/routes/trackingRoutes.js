@@ -33,6 +33,11 @@ trackingRoutes.post(
     const vehicleId = uuidField(body, "vehicleId", true);
     const startedAt =
       dateTimeField(body, "startedAt", { nullable: true }) || new Date();
+    const startOdometerKm = numberField(body, "startOdometerKm", {
+      nullable: true,
+      minimum: 0,
+      maximum: 1_000_000_000,
+    });
 
     if (!(await ensureOwnedVehicle(pool, request.auth.userId, vehicleId))) {
       throw badRequest(
@@ -69,12 +74,31 @@ trackingRoutes.post(
           type,
           status,
           started_at,
+          start_odometer_meters,
           source
         )
-        VALUES ($1, $2, 'unclassified', 'recording', $3, 'android')
+        SELECT
+          $1,
+          v.id,
+          'unclassified',
+          'recording',
+          $3,
+          COALESCE($4, v.odometer_meters),
+          'android'
+        FROM vehicles v
+        WHERE v.id = $2
+          AND v.user_id = $1
+          AND v.archived_at IS NULL
         RETURNING *
       `,
-      [request.auth.userId, vehicleId, startedAt],
+      [
+        request.auth.userId,
+        vehicleId,
+        startedAt,
+        startOdometerKm == null
+          ? null
+          : Math.round(startOdometerKm * 1000),
+      ],
     );
 
     response.status(201).json(mapTrip(result.rows[0]));
@@ -233,6 +257,11 @@ trackingRoutes.post(
     const tripId = uuidField(body, "tripId", true);
     const endedAt =
       dateTimeField(body, "endedAt", { nullable: true }) || new Date();
+    const endOdometerKm = numberField(body, "endOdometerKm", {
+      nullable: true,
+      minimum: 0,
+      maximum: 1_000_000_000,
+    });
     const client = await pool.connect();
 
     try {
@@ -271,17 +300,55 @@ trackingRoutes.post(
               duration_seconds,
               GREATEST(0, extract(epoch FROM ($3 - started_at))::integer)
             ),
+            end_odometer_meters = COALESCE(
+              $4,
+              end_odometer_meters,
+              CASE
+                WHEN start_odometer_meters IS NOT NULL
+                  AND distance_meters IS NOT NULL
+                THEN start_odometer_meters + distance_meters
+                ELSE NULL
+              END
+            ),
             completed_at = now(),
             version = version + 1
           WHERE id = $1
             AND user_id = $2
           RETURNING *
         `,
-        [tripId, request.auth.userId, endedAt],
+        [
+          tripId,
+          request.auth.userId,
+          endedAt,
+          endOdometerKm == null
+            ? null
+            : Math.round(endOdometerKm * 1000),
+        ],
       );
 
+      const completedTrip = result.rows[0];
+
+      if (completedTrip.end_odometer_meters != null) {
+        await client.query(
+          `
+            UPDATE vehicles
+            SET odometer_meters = GREATEST(
+              COALESCE(odometer_meters, 0),
+              $3
+            )
+            WHERE id = $1
+              AND user_id = $2
+          `,
+          [
+            completedTrip.vehicle_id,
+            request.auth.userId,
+            completedTrip.end_odometer_meters,
+          ],
+        );
+      }
+
       await client.query("COMMIT");
-      response.json(mapTrip(result.rows[0]));
+      response.json(mapTrip(completedTrip));
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

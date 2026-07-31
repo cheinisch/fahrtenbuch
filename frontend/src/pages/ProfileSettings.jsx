@@ -81,6 +81,11 @@ export default function ProfileSettings() {
   const [homeLocation, setHomeLocation] =
     useState(null);
 
+  const [
+    savedHomeLocation,
+    setSavedHomeLocation,
+  ] = useState(null);
+
   const [homeQuery, setHomeQuery] =
     useState("");
 
@@ -138,12 +143,18 @@ export default function ProfileSettings() {
 
       setDevices(devicesResult);
 
-      setHomeLocation(
+      const loadedHomeLocation =
         settingsResult.settings.homeLocation ||
-          settingsResult.settings.customSettings
-            ?.homeLocation ||
-          null,
+        settingsResult.settings.customSettings
+          ?.homeLocation ||
+        null;
+
+      setHomeLocation(loadedHomeLocation);
+      setSavedHomeLocation(loadedHomeLocation);
+      setHomeQuery(
+        loadedHomeLocation?.address || "",
       );
+      setHomeCandidates([]);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -171,6 +182,129 @@ export default function ProfileSettings() {
         ? saveError.message
         : "Die Änderung konnte nicht gespeichert werden.",
     );
+  }
+
+  async function findHomeCandidates() {
+    const query = homeQuery.trim();
+
+    if (query.length < 3) {
+      setError(
+        "Bitte gib mindestens drei Zeichen für den Heimatort ein.",
+      );
+      setMessage("");
+      return [];
+    }
+
+    setHomeSearchLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const result =
+        await searchHomeLocations(
+          accessToken,
+          query,
+        );
+
+      const candidates =
+        result.candidates || [];
+
+      setHomeCandidates(candidates);
+
+      if (candidates.length === 0) {
+        setError(
+          "Für diese Eingabe wurde kein Ort gefunden.",
+        );
+      }
+
+      return candidates;
+    } catch (searchError) {
+      showError(searchError);
+      return [];
+    } finally {
+      setHomeSearchLoading(false);
+    }
+  }
+
+  async function persistHomeLocation(candidate) {
+    if (!candidate) {
+      setError(
+        "Bitte gib einen Heimatort ein oder wähle einen Suchtreffer aus.",
+      );
+      setMessage("");
+      return false;
+    }
+
+    const result = await saveHomeLocation(
+      accessToken,
+      candidate,
+    );
+
+    const storedLocation =
+      result.homeLocation;
+
+    setHomeLocation(storedLocation);
+    setSavedHomeLocation(storedLocation);
+    setHomeQuery(storedLocation.address);
+    setHomeCandidates([]);
+
+    showSuccess(
+      "Der Heimatort wurde gespeichert.",
+    );
+
+    return true;
+  }
+
+  async function saveEnteredHomeLocation() {
+    setSaving("home-save");
+    setError("");
+    setMessage("");
+
+    try {
+      const normalizedQuery =
+        homeQuery.trim();
+
+      let candidate =
+        homeLocation &&
+        homeLocation.address.trim() ===
+          normalizedQuery
+          ? homeLocation
+          : null;
+
+      if (!candidate) {
+        const candidates =
+          await findHomeCandidates();
+
+        candidate = candidates[0] || null;
+      }
+
+      await persistHomeLocation(candidate);
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function removeSavedHomeLocation() {
+    setSaving("home-delete");
+
+    try {
+      await deleteHomeLocation(accessToken);
+
+      setHomeLocation(null);
+      setSavedHomeLocation(null);
+      setHomeQuery("");
+      setHomeCandidates([]);
+
+      showSuccess(
+        "Der Heimatort wurde entfernt.",
+      );
+    } catch (deleteError) {
+      showError(deleteError);
+    } finally {
+      setSaving("");
+    }
   }
 
   async function saveProfile(event) {
@@ -588,26 +722,26 @@ export default function ProfileSettings() {
         title="Heimatort"
         description="Wird auf dem Dashboard als Kartenmittelpunkt verwendet, wenn noch keine Fahrt vorhanden ist."
       >
-        {homeLocation && (
+        {savedHomeLocation && (
           <div className="mb-5 rounded-lg border border-fb-border bg-fb-surface p-4">
             <div className="text-sm font-semibold">
-              Aktuell hinterlegt
+              Aktuell gespeichert
             </div>
 
             <div className="mt-1 text-sm text-fb-text">
-              {homeLocation.address}
+              {savedHomeLocation.address}
             </div>
 
             <div className="mt-1 text-xs text-fb-muted">
               {Number(
-                homeLocation.latitude,
+                savedHomeLocation.latitude,
               ).toFixed(6)}
               ,{" "}
               {Number(
-                homeLocation.longitude,
+                savedHomeLocation.longitude,
               ).toFixed(6)}
               {" · "}
-              {homeLocation.source === "gps"
+              {savedHomeLocation.source === "gps"
                 ? "per GPS bestimmt"
                 : "manuell gewählt"}
             </div>
@@ -620,12 +754,24 @@ export default function ProfileSettings() {
             <input
               type="text"
               value={homeQuery}
-              onChange={(event) =>
-                setHomeQuery(event.target.value)
-              }
+              onChange={(event) => {
+                const value =
+                  event.target.value;
+
+                setHomeQuery(value);
+                setHomeCandidates([]);
+
+                if (
+                  homeLocation?.address !==
+                  value.trim()
+                ) {
+                  setHomeLocation(null);
+                }
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
+                  saveEnteredHomeLocation();
                 }
               }}
               placeholder="z. B. Geisenheim"
@@ -639,35 +785,7 @@ export default function ProfileSettings() {
               homeSearchLoading ||
               homeQuery.trim().length < 3
             }
-            onClick={async () => {
-              setHomeSearchLoading(true);
-              setError("");
-              setMessage("");
-
-              try {
-                const result =
-                  await searchHomeLocations(
-                    accessToken,
-                    homeQuery.trim(),
-                  );
-
-                setHomeCandidates(
-                  result.candidates,
-                );
-
-                if (
-                  result.candidates.length === 0
-                ) {
-                  setError(
-                    "Für diese Eingabe wurde kein Ort gefunden.",
-                  );
-                }
-              } catch (searchError) {
-                showError(searchError);
-              } finally {
-                setHomeSearchLoading(false);
-              }
-            }}
+            onClick={findHomeCandidates}
             className="self-end rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
           >
             {homeSearchLoading
@@ -685,9 +803,13 @@ export default function ProfileSettings() {
                   type="button"
                   onClick={() => {
                     setHomeLocation(candidate);
-                    setHomeCandidates([]);
                     setHomeQuery(
                       candidate.address,
+                    );
+                    setHomeCandidates([]);
+                    setError("");
+                    setMessage(
+                      "Adresse ausgewählt. Klicke auf „Heimatort speichern“.",
                     );
                   }}
                   className="block w-full bg-fb-main px-4 py-3 text-left transition hover:bg-fb-surface"
@@ -697,19 +819,33 @@ export default function ProfileSettings() {
                   </div>
 
                   <div className="mt-1 text-xs text-fb-muted">
-                    {candidate.latitude.toFixed(
-                      6,
-                    )}
+                    {Number(
+                      candidate.latitude,
+                    ).toFixed(6)}
                     ,{" "}
-                    {candidate.longitude.toFixed(
-                      6,
-                    )}
+                    {Number(
+                      candidate.longitude,
+                    ).toFixed(6)}
                   </div>
                 </button>
               ),
             )}
           </div>
         )}
+
+        {homeLocation &&
+          homeLocation.address !==
+            savedHomeLocation?.address && (
+            <div className="mt-4 rounded-lg border border-fb-accent bg-fb-accent-soft p-4">
+              <div className="text-sm font-semibold text-fb-accent">
+                Zum Speichern ausgewählt
+              </div>
+
+              <div className="mt-1 text-sm text-fb-text">
+                {homeLocation.address}
+              </div>
+            </div>
+          )}
 
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
           <button
@@ -752,8 +888,9 @@ export default function ProfileSettings() {
                     );
 
                     setHomeCandidates([]);
+
                     setMessage(
-                      "Der aktuelle Standort wurde ermittelt. Speichere ihn jetzt als Heimatort.",
+                      "Der aktuelle Standort wurde ermittelt. Klicke auf „Heimatort speichern“.",
                     );
                   } catch (gpsError) {
                     showError(gpsError);
@@ -798,65 +935,31 @@ export default function ProfileSettings() {
         </div>
 
         <div className="mt-6 flex flex-wrap justify-end gap-3">
-          {homeLocation && (
+          {savedHomeLocation && (
             <button
               type="button"
-              disabled={saving === "home-delete"}
-              onClick={async () => {
-                setSaving("home-delete");
-
-                try {
-                  await deleteHomeLocation(
-                    accessToken,
-                  );
-
-                  setHomeLocation(null);
-                  setHomeQuery("");
-                  setHomeCandidates([]);
-                  showSuccess(
-                    "Der Heimatort wurde entfernt.",
-                  );
-                } catch (deleteError) {
-                  showError(deleteError);
-                } finally {
-                  setSaving("");
-                }
-              }}
+              disabled={
+                saving === "home-delete" ||
+                saving === "home-save"
+              }
+              onClick={removeSavedHomeLocation}
               className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-danger transition hover:border-fb-danger disabled:opacity-60"
             >
-              Heimatort entfernen
+              {saving === "home-delete"
+                ? "Entfernen …"
+                : "Heimatort entfernen"}
             </button>
           )}
 
           <button
             type="button"
             disabled={
-              !homeLocation ||
-              saving === "home-save"
+              homeQuery.trim().length < 3 ||
+              homeSearchLoading ||
+              saving === "home-save" ||
+              saving === "home-delete"
             }
-            onClick={async () => {
-              setSaving("home-save");
-
-              try {
-                const result =
-                  await saveHomeLocation(
-                    accessToken,
-                    homeLocation,
-                  );
-
-                setHomeLocation(
-                  result.homeLocation,
-                );
-
-                showSuccess(
-                  "Der Heimatort wurde gespeichert.",
-                );
-              } catch (saveError) {
-                showError(saveError);
-              } finally {
-                setSaving("");
-              }
-            }}
+            onClick={saveEnteredHomeLocation}
             className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
           >
             {saving === "home-save"

@@ -406,6 +406,14 @@ paths:
         - $ref: '#/components/parameters/Id'
       responses:
         '204': { description: Fahrzeug gelöscht }
+  /vehicles/{id}/default:
+    put:
+      tags: [Vehicles]
+      summary: Eigenes Standardfahrzeug festlegen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: Standardfahrzeug aktualisiert }
   /vehicles/{id}/bluetooth:
     put:
       tags: [Vehicles]
@@ -675,6 +683,7 @@ paths:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
         - { name: vehicleId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [business, private, commute, unclassified] } }
       responses:
         '200': { description: Statistiken }
   /statistics/monthly:
@@ -759,10 +768,26 @@ paths:
       responses:
         '200': { description: Einstellungen aktualisiert }
 
+  /export/summary:
+    get:
+      tags: [Import Export]
+      summary: Exportstatistik mit Vollständigkeitshinweisen abrufen
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: vehicleId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [business, private, commute, unclassified] } }
+      responses:
+        '200': { description: Zusammenfassung }
   /export/csv:
     get:
       tags: [Import Export]
       summary: Fahrten als CSV exportieren
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: vehicleId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [business, private, commute, unclassified] } }
       responses:
         '200':
           description: CSV-Datei
@@ -784,7 +809,12 @@ paths:
   /export/pdf:
     get:
       tags: [Import Export]
-      summary: Fahrtenbuch als PDF exportieren
+      summary: Steuerorientierten Fahrten- und Statistikbericht als PDF exportieren
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: vehicleId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [business, private, commute, unclassified] } }
       responses:
         '200':
           description: PDF-Datei

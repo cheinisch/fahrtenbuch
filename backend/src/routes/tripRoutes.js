@@ -12,6 +12,7 @@ import {
 import {
   arrayField,
   dateTimeField,
+  numberField,
   enumField,
   objectBody,
   queryInteger,
@@ -54,6 +55,28 @@ function parseTripInput(body) {
     );
   }
 
+  const startOdometerKm = numberField(input, "startOdometerKm", {
+    nullable: true,
+    minimum: 0,
+    maximum: 1_000_000_000,
+  });
+  const endOdometerKm = numberField(input, "endOdometerKm", {
+    nullable: true,
+    minimum: 0,
+    maximum: 1_000_000_000,
+  });
+
+  if (
+    startOdometerKm != null &&
+    endOdometerKm != null &&
+    endOdometerKm < startOdometerKm
+  ) {
+    throw badRequest(
+      "VALIDATION_ERROR",
+      "Der Endkilometerstand darf nicht kleiner als der Startkilometerstand sein.",
+    );
+  }
+
   return {
     vehicleId: uuidField(input, "vehicleId", true),
     type:
@@ -81,6 +104,14 @@ function parseTripInput(body) {
       nullable: true,
       maximum: 20_000,
     }),
+    startOdometerMeters:
+      startOdometerKm == null
+        ? null
+        : Math.round(startOdometerKm * 1000),
+    endOdometerMeters:
+      endOdometerKm == null
+        ? null
+        : Math.round(endOdometerKm * 1000),
   };
 }
 
@@ -207,13 +238,15 @@ tripRoutes.post(
           purpose,
           contact,
           notes,
+          start_odometer_meters,
+          end_odometer_meters,
           duration_seconds,
           source,
           completed_at
         )
         VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8,
-          $9, $10, $11, $12, 'manual',
+          $9, $10, $11, $12, $13, $14, 'manual',
           CASE WHEN $4 = 'completed' THEN now() ELSE NULL END
         )
         RETURNING *
@@ -230,6 +263,8 @@ tripRoutes.post(
         input.purpose,
         input.contact,
         input.notes,
+        input.startOdometerMeters,
+        input.endOdometerMeters,
         durationSeconds,
       ],
     );
@@ -423,7 +458,9 @@ tripRoutes.put(
           purpose = $10,
           contact = $11,
           notes = $12,
-          duration_seconds = COALESCE(duration_seconds, $13),
+          start_odometer_meters = $13,
+          end_odometer_meters = $14,
+          duration_seconds = COALESCE(duration_seconds, $15),
           completed_at = CASE
             WHEN $5 = 'completed' THEN COALESCE(completed_at, now())
             ELSE NULL
@@ -447,6 +484,8 @@ tripRoutes.put(
         input.purpose,
         input.contact,
         input.notes,
+        input.startOdometerMeters,
+        input.endOdometerMeters,
         durationSeconds,
       ],
     );

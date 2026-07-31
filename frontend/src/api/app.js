@@ -25,10 +25,14 @@ async function apiRequest(
 
   if (!response.ok) {
     throw new ApiError(
-      body?.error?.message ||
+      body?.message ||
+        body?.error?.message ||
         "Die Anfrage ist fehlgeschlagen.",
       response.status,
-      body?.error?.code || "REQUEST_FAILED",
+      body?.error?.code ||
+        (typeof body?.error === "string"
+          ? body.error
+          : "REQUEST_FAILED"),
     );
   }
 
@@ -317,5 +321,96 @@ export function cancelPairing(
     {
       method: "DELETE",
     },
+  );
+}
+
+function buildQuery(filters = {}) {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, String(value));
+    }
+  }
+
+  return query.size ? `?${query.toString()}` : "";
+}
+
+async function downloadRequest(accessToken, path) {
+  const response = await fetch(path, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(
+      body?.message || "Der Export ist fehlgeschlagen.",
+      response.status,
+      typeof body?.error === "string"
+        ? body.error
+        : "EXPORT_FAILED",
+    );
+  }
+
+  const disposition = response.headers.get("content-disposition") || "";
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+
+  return {
+    blob: await response.blob(),
+    filename: filenameMatch?.[1] || "fahrtenbuch-export",
+  };
+}
+
+export function getVehicles(accessToken) {
+  return apiRequest(accessToken, "/api/v1/vehicles");
+}
+
+export function createVehicle(accessToken, vehicle) {
+  return apiRequest(accessToken, "/api/v1/vehicles", {
+    method: "POST",
+    body: JSON.stringify(vehicle),
+  });
+}
+
+export function updateVehicle(accessToken, vehicleId, vehicle) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/vehicles/${encodeURIComponent(vehicleId)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(vehicle),
+    },
+  );
+}
+
+export function deleteVehicle(accessToken, vehicleId) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/vehicles/${encodeURIComponent(vehicleId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function setDefaultVehicle(accessToken, vehicleId) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/default`,
+    { method: "PUT" },
+  );
+}
+
+export function getExportSummary(accessToken, filters) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/export/summary${buildQuery(filters)}`,
+  );
+}
+
+export function downloadExport(accessToken, format, filters) {
+  return downloadRequest(
+    accessToken,
+    `/api/v1/export/${encodeURIComponent(format)}${buildQuery(filters)}`,
   );
 }

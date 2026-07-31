@@ -127,6 +127,16 @@ export function mapTrip(row) {
     purpose: row.purpose ?? null,
     contact: row.contact ?? null,
     notes: row.notes ?? null,
+    startOdometerKm:
+      row.start_odometer_meters === null ||
+      row.start_odometer_meters === undefined
+        ? null
+        : Number(row.start_odometer_meters) / 1000,
+    endOdometerKm:
+      row.end_odometer_meters === null ||
+      row.end_odometer_meters === undefined
+        ? null
+        : Number(row.end_odometer_meters) / 1000,
     distanceKm:
       row.distance_meters === null || row.distance_meters === undefined
         ? null

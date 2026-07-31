@@ -122,6 +122,20 @@ export default function AppShell() {
                 >
                   Dashboard
                 </NavLink>
+
+                <NavLink
+                  to="/vehicles"
+                  className={desktopNavigationClass}
+                >
+                  Fahrzeuge
+                </NavLink>
+
+                <NavLink
+                  to="/export"
+                  className={desktopNavigationClass}
+                >
+                  Export
+                </NavLink>
               </div>
             </div>
 
@@ -229,6 +243,22 @@ export default function AppShell() {
               className={mobileNavigationClass}
             >
               Dashboard
+            </DisclosureButton>
+
+            <DisclosureButton
+              as={NavLink}
+              to="/vehicles"
+              className={mobileNavigationClass}
+            >
+              Fahrzeuge
+            </DisclosureButton>
+
+            <DisclosureButton
+              as={NavLink}
+              to="/export"
+              className={mobileNavigationClass}
+            >
+              Export
             </DisclosureButton>
           </div>
         </DisclosurePanel>

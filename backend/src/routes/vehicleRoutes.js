@@ -8,6 +8,7 @@ import {
 } from "../lib/errors.js";
 import { mapVehicle } from "../lib/mappers.js";
 import {
+  booleanField,
   numberField,
   objectBody,
   stringField,
@@ -87,6 +88,7 @@ function parseVehicleInput(body) {
       maximum: 10_000,
     }),
     bluetoothMac,
+    isDefault: booleanField(input, "isDefault") ?? false,
   };
 }
 
@@ -142,6 +144,21 @@ vehicleRoutes.post(
         [request.auth.userId],
       );
 
+      const shouldBeDefault =
+        input.isDefault || countResult.rows[0].count === 0;
+
+      if (shouldBeDefault) {
+        await client.query(
+          `
+            UPDATE vehicles
+            SET is_default = false
+            WHERE user_id = $1
+              AND archived_at IS NULL
+          `,
+          [request.auth.userId],
+        );
+      }
+
       const result = await client.query(
         `
           INSERT INTO vehicles (
@@ -171,7 +188,7 @@ vehicleRoutes.post(
           input.color,
           input.notes,
           input.bluetoothMac,
-          countResult.rows[0].count === 0,
+          shouldBeDefault,
         ],
       );
 
@@ -216,8 +233,25 @@ vehicleRoutes.put(
     const vehicleId = uuidValue(request.params.id);
     const input = parseVehicleInput(request.body);
 
+    const client = await pool.connect();
+
     try {
-      const result = await pool.query(
+      await client.query("BEGIN");
+
+      if (input.isDefault) {
+        await client.query(
+          `
+            UPDATE vehicles
+            SET is_default = false
+            WHERE user_id = $1
+              AND id <> $2
+              AND archived_at IS NULL
+          `,
+          [request.auth.userId, vehicleId],
+        );
+      }
+
+      const result = await client.query(
         `
           UPDATE vehicles
           SET
@@ -229,7 +263,11 @@ vehicleRoutes.put(
             odometer_meters = $8,
             color = $9,
             notes = $10,
-            bluetooth_identifier = $11
+            bluetooth_identifier = $11,
+            is_default = CASE
+              WHEN $12 THEN true
+              ELSE is_default
+            END
           WHERE id = $1
             AND user_id = $2
             AND archived_at IS NULL
@@ -247,6 +285,7 @@ vehicleRoutes.put(
           input.color,
           input.notes,
           input.bluetoothMac,
+          input.isDefault,
         ],
       );
 
@@ -254,8 +293,10 @@ vehicleRoutes.put(
         throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
       }
 
+      await client.query("COMMIT");
       response.json(mapVehicle(result.rows[0]));
     } catch (error) {
+      await client.query("ROLLBACK");
       if (
         error?.constraint === "vehicles_bluetooth_unique_per_user"
       ) {
@@ -266,6 +307,8 @@ vehicleRoutes.put(
       }
 
       throw error;
+    } finally {
+      client.release();
     }
   }),
 );
@@ -315,6 +358,67 @@ vehicleRoutes.delete(
     }
 
     response.status(204).end();
+  }),
+);
+
+vehicleRoutes.put(
+  "/:id/default",
+  asyncHandler(async (request, response) => {
+    const vehicleId = uuidValue(request.params.id);
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const owned = await client.query(
+        `
+          SELECT id
+          FROM vehicles
+          WHERE id = $1
+            AND user_id = $2
+            AND archived_at IS NULL
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [vehicleId, request.auth.userId],
+      );
+
+      if (owned.rowCount === 0) {
+        throw notFound(
+          "VEHICLE_NOT_FOUND",
+          "Das Fahrzeug wurde nicht gefunden.",
+        );
+      }
+
+      await client.query(
+        `
+          UPDATE vehicles
+          SET is_default = false
+          WHERE user_id = $1
+            AND archived_at IS NULL
+        `,
+        [request.auth.userId],
+      );
+
+      const result = await client.query(
+        `
+          UPDATE vehicles
+          SET is_default = true
+          WHERE id = $1
+            AND user_id = $2
+          RETURNING *
+        `,
+        [vehicleId, request.auth.userId],
+      );
+
+      await client.query("COMMIT");
+      response.json(mapVehicle(result.rows[0]));
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }),
 );
 

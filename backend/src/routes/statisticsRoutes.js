@@ -41,6 +41,20 @@ function buildConditions(request) {
     conditions.push(`t.vehicle_id = $${parameters.length}`);
   }
 
+  if (request.query.type) {
+    const type = String(request.query.type);
+
+    if (!["business", "private", "commute", "unclassified"].includes(type)) {
+      throw badRequest(
+        "VALIDATION_ERROR",
+        "Der Fahrttyp ist ungültig.",
+      );
+    }
+
+    parameters.push(type);
+    conditions.push(`t.type = $${parameters.length}::trip_type`);
+  }
+
   return { parameters, where: conditions.join(" AND ") };
 }
 

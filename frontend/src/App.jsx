@@ -10,8 +10,10 @@ import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import AppShell from "./components/AppShell.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
+import ExportPage from "./pages/Export.jsx";
 import ProfileSettings from "./pages/ProfileSettings.jsx";
 import Settings from "./pages/Settings.jsx";
+import Vehicles from "./pages/Vehicles.jsx";
 
 function LoginRoute() {
   const { isAuthenticated, loading } = useAuth();
@@ -40,6 +42,16 @@ export default function App() {
           <Route
             index
             element={<Dashboard />}
+          />
+
+          <Route
+            path="/vehicles"
+            element={<Vehicles />}
+          />
+
+          <Route
+            path="/export"
+            element={<ExportPage />}
           />
 
           <Route
