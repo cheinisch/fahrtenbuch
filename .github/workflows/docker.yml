@@ -1,0 +1,50 @@
+name: Docker
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, dev]
+    paths-ignore: [BUILD]
+permissions:
+  contents: write
+  packages: write
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Buildnummer erhöhen
+        id: build
+        run: |
+          current=$(tr -d '\r\n ' < BUILD)
+          next=$((current + 1))
+          printf "%s" "$next" > BUILD
+          echo "number=$next" >> "$GITHUB_OUTPUT"
+      - name: Version lesen
+        id: version
+        run: echo "number=$(tr -d '\r\n ' < VERSION)" >> "$GITHUB_OUTPUT"
+      - name: BUILD speichern
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BUILD
+          git commit -m "chore: build ${{ steps.build.outputs.number }} [skip ci]"
+          git push
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.number }}
+            BUILD_NUMBER=${{ steps.build.outputs.number }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/fahrtenbuch:dev
+            ghcr.io/${{ github.repository_owner }}/fahrtenbuch:${{ steps.version.outputs.number }}
+            ghcr.io/${{ github.repository_owner }}/fahrtenbuch:build-${{ steps.build.outputs.number }}
