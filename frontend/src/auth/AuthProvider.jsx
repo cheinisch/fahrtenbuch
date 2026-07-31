@@ -5,6 +5,7 @@ import {
   useMemo,
   useState,
 } from "react";
+
 import {
   getCurrentUser,
   login as loginRequest,
@@ -13,7 +14,6 @@ import {
 } from "../api/auth.js";
 
 const STORAGE_KEY = "fahrtenbuch.auth";
-
 const AuthContext = createContext(null);
 
 function clearStoredAuth() {
@@ -22,8 +22,10 @@ function clearStoredAuth() {
 }
 
 function readStoredAuth() {
-  const localValue = localStorage.getItem(STORAGE_KEY);
-  const sessionValue = sessionStorage.getItem(STORAGE_KEY);
+  const localValue =
+    localStorage.getItem(STORAGE_KEY);
+  const sessionValue =
+    sessionStorage.getItem(STORAGE_KEY);
 
   const rawValue = localValue || sessionValue;
 
@@ -42,7 +44,9 @@ function readStoredAuth() {
 function storeAuth(auth, remember) {
   clearStoredAuth();
 
-  const storage = remember ? localStorage : sessionStorage;
+  const storage = remember
+    ? localStorage
+    : sessionStorage;
 
   storage.setItem(
     STORAGE_KEY,
@@ -53,9 +57,26 @@ function storeAuth(auth, remember) {
   );
 }
 
+function applyTheme(themeMode) {
+  const root = document.documentElement;
+
+  if (
+    themeMode === "light" ||
+    themeMode === "dark"
+  ) {
+    root.dataset.theme = themeMode;
+  } else {
+    delete root.dataset.theme;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    applyTheme(auth?.user?.themeMode || "system");
+  }, [auth?.user?.themeMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +102,10 @@ export function AuthProvider({ children }) {
           user,
         };
 
-        storeAuth(restoredAuth, storedAuth.remember);
+        storeAuth(
+          restoredAuth,
+          storedAuth.remember,
+        );
 
         if (!cancelled) {
           setAuth(restoredAuth);
@@ -148,13 +172,33 @@ export function AuthProvider({ children }) {
     return result.user;
   }
 
+  function updateUser(user) {
+    setAuth((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const nextAuth = {
+        ...current,
+        user,
+      };
+
+      storeAuth(
+        nextAuth,
+        current.remember,
+      );
+
+      return nextAuth;
+    });
+  }
+
   async function signOut() {
     try {
       if (auth?.accessToken) {
         await logoutRequest(auth.accessToken);
       }
     } catch {
-      // Lokale Sitzung trotzdem löschen.
+      // Die lokale Sitzung wird trotzdem entfernt.
     } finally {
       clearStoredAuth();
       setAuth(null);
@@ -164,13 +208,15 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       user: auth?.user || null,
-      accessToken: auth?.accessToken || null,
+      accessToken:
+        auth?.accessToken || null,
       isAuthenticated: Boolean(
         auth?.accessToken && auth?.user,
       ),
       loading,
       signIn,
       signOut,
+      updateUser,
     }),
     [auth, loading],
   );

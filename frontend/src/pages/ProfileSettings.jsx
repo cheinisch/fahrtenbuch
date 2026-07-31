@@ -1,3 +1,735 @@
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  changePassword,
+  getDevices,
+  getPersonalSettings,
+  revokeDevice,
+  updatePersonalSettings,
+  updateProfile,
+} from "../api/app.js";
+import { useAuth } from "../auth/AuthProvider.jsx";
+
+function Section({
+  title,
+  description,
+  children,
+}) {
+  return (
+    <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
+      <div className="mb-6">
+        <h2 className="text-lg font-bold">{title}</h2>
+        <p className="mt-1 text-sm text-fb-muted">
+          {description}
+        </p>
+      </div>
+
+      {children}
+    </section>
+  );
+}
+
+const fieldClass =
+  "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
+
+const labelClass =
+  "block text-sm font-medium text-fb-text";
+
 export default function ProfileSettings() {
-  return null;
+  const {
+    accessToken,
+    user,
+    updateUser,
+  } = useAuth();
+
+  const [profile, setProfile] = useState({
+    email: "",
+    username: "",
+    displayName: "",
+    locale: "de",
+    timezone: "Europe/Berlin",
+    themeMode: "system",
+  });
+
+  const [tracking, setTracking] = useState({
+    automaticTrackingEnabled: false,
+    trackingAccuracyMode: "balanced",
+    stopDelaySeconds: 180,
+    saveAccuracy: true,
+    mapProvider: "osm",
+  });
+
+  const [passwords, setPasswords] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmation: "",
+  });
+
+  const [devices, setDevices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState("");
+
+  async function loadData() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [settingsResult, devicesResult] =
+        await Promise.all([
+          getPersonalSettings(accessToken),
+          getDevices(accessToken),
+        ]);
+
+      setProfile({
+        email: settingsResult.user.email,
+        username: settingsResult.user.username,
+        displayName:
+          settingsResult.user.displayName,
+        locale: settingsResult.user.locale,
+        timezone:
+          settingsResult.user.timezone,
+        themeMode:
+          settingsResult.user.themeMode,
+      });
+
+      setTracking({
+        automaticTrackingEnabled:
+          settingsResult.settings
+            .automaticTrackingEnabled,
+        trackingAccuracyMode:
+          settingsResult.settings
+            .trackingAccuracyMode,
+        stopDelaySeconds:
+          settingsResult.settings.stopDelaySeconds,
+        saveAccuracy:
+          settingsResult.settings.saveAccuracy,
+        mapProvider:
+          settingsResult.settings.mapProvider,
+      });
+
+      setDevices(devicesResult);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Die Einstellungen konnten nicht geladen werden.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+  }, [accessToken]);
+
+  function showSuccess(text) {
+    setMessage(text);
+    setError("");
+  }
+
+  function showError(saveError) {
+    setMessage("");
+    setError(
+      saveError instanceof Error
+        ? saveError.message
+        : "Die Änderung konnte nicht gespeichert werden.",
+    );
+  }
+
+  async function saveProfile(event) {
+    event.preventDefault();
+    setSaving("profile");
+
+    try {
+      const updated = await updateProfile(
+        accessToken,
+        profile,
+      );
+
+      updateUser(updated);
+      showSuccess("Profildaten wurden gespeichert.");
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function saveTracking(event) {
+    event.preventDefault();
+    setSaving("tracking");
+
+    try {
+      const updated =
+        await updatePersonalSettings(
+          accessToken,
+          tracking,
+        );
+
+      setTracking({
+        automaticTrackingEnabled:
+          updated.automaticTrackingEnabled,
+        trackingAccuracyMode:
+          updated.trackingAccuracyMode,
+        stopDelaySeconds:
+          updated.stopDelaySeconds,
+        saveAccuracy:
+          updated.saveAccuracy,
+        mapProvider:
+          updated.mapProvider,
+      });
+
+      showSuccess(
+        "Tracking-Einstellungen wurden gespeichert.",
+      );
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function savePassword(event) {
+    event.preventDefault();
+
+    if (
+      passwords.newPassword !==
+      passwords.confirmation
+    ) {
+      setError(
+        "Die neuen Passwörter stimmen nicht überein.",
+      );
+      return;
+    }
+
+    setSaving("password");
+
+    try {
+      await changePassword(accessToken, {
+        currentPassword:
+          passwords.currentPassword,
+        newPassword:
+          passwords.newPassword,
+      });
+
+      setPasswords({
+        currentPassword: "",
+        newPassword: "",
+        confirmation: "",
+      });
+
+      showSuccess("Das Passwort wurde geändert.");
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function removeDevice(deviceId) {
+    setSaving(deviceId);
+
+    try {
+      await revokeDevice(accessToken, deviceId);
+
+      setDevices((current) =>
+        current.map((device) =>
+          device.id === deviceId
+            ? {
+                ...device,
+                revokedAt:
+                  new Date().toISOString(),
+              }
+            : device,
+        ),
+      );
+
+      showSuccess("Das Gerät wurde abgemeldet.");
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-fb-border bg-fb-main p-8 text-fb-muted">
+        Einstellungen werden geladen …
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <header>
+        <p className="text-sm font-semibold text-fb-accent">
+          Benutzerkonto
+        </p>
+
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">
+          Persönliche Einstellungen
+        </h1>
+
+        <p className="mt-2 text-fb-muted">
+          Verwalte dein Profil, deine
+          Tracking-Vorgaben und die Sicherheit
+          deines Kontos.
+        </p>
+      </header>
+
+      {message && (
+        <div className="rounded-xl border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-fb-danger px-4 py-3 text-sm text-fb-danger">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={saveProfile}>
+        <Section
+          title="Profil"
+          description="Persönliche Angaben und Darstellung der Weboberfläche."
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className={labelClass}>
+              Anzeigename
+              <input
+                type="text"
+                value={profile.displayName}
+                onChange={(event) =>
+                  setProfile((current) => ({
+                    ...current,
+                    displayName:
+                      event.target.value,
+                  }))
+                }
+                className={fieldClass}
+                required
+              />
+            </label>
+
+            <label className={labelClass}>
+              Benutzername
+              <input
+                type="text"
+                value={profile.username}
+                onChange={(event) =>
+                  setProfile((current) => ({
+                    ...current,
+                    username: event.target.value,
+                  }))
+                }
+                className={fieldClass}
+                required
+              />
+            </label>
+
+            <label className={labelClass}>
+              E-Mail-Adresse
+              <input
+                type="email"
+                value={profile.email}
+                onChange={(event) =>
+                  setProfile((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
+                }
+                className={fieldClass}
+                required
+              />
+            </label>
+
+            <label className={labelClass}>
+              Sprache
+              <select
+                value={profile.locale}
+                onChange={(event) =>
+                  setProfile((current) => ({
+                    ...current,
+                    locale: event.target.value,
+                  }))
+                }
+                className={fieldClass}
+              >
+                <option value="de">Deutsch</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+
+            <label className={labelClass}>
+              Zeitzone
+              <input
+                type="text"
+                value={profile.timezone}
+                onChange={(event) =>
+                  setProfile((current) => ({
+                    ...current,
+                    timezone:
+                      event.target.value,
+                  }))
+                }
+                className={fieldClass}
+              />
+            </label>
+
+            <label className={labelClass}>
+              Darstellung
+              <select
+                value={profile.themeMode}
+                onChange={(event) =>
+                  setProfile((current) => ({
+                    ...current,
+                    themeMode:
+                      event.target.value,
+                  }))
+                }
+                className={fieldClass}
+              >
+                <option value="system">
+                  Systemeinstellung
+                </option>
+                <option value="light">Hell</option>
+                <option value="dark">Dunkel</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              type="submit"
+              disabled={saving === "profile"}
+              className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
+            >
+              {saving === "profile"
+                ? "Speichern …"
+                : "Profil speichern"}
+            </button>
+          </div>
+        </Section>
+      </form>
+
+      <form onSubmit={saveTracking}>
+        <Section
+          title="Tracking"
+          description="Vorgaben für die Android-App und die automatische Fahrterkennung."
+        >
+          <div className="space-y-5">
+            <label className="flex items-start justify-between gap-6 rounded-lg border border-fb-border bg-fb-surface p-4">
+              <span>
+                <span className="block text-sm font-semibold">
+                  Automatisches Tracking
+                </span>
+                <span className="mt-1 block text-sm text-fb-muted">
+                  Fahrten automatisch starten, sobald ein
+                  bekanntes Fahrzeug erkannt wird.
+                </span>
+              </span>
+
+              <input
+                type="checkbox"
+                checked={
+                  tracking.automaticTrackingEnabled
+                }
+                onChange={(event) =>
+                  setTracking((current) => ({
+                    ...current,
+                    automaticTrackingEnabled:
+                      event.target.checked,
+                  }))
+                }
+                className="mt-1 size-5 accent-[var(--color-accent)]"
+              />
+            </label>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className={labelClass}>
+                Genauigkeitsmodus
+                <select
+                  value={
+                    tracking.trackingAccuracyMode
+                  }
+                  onChange={(event) =>
+                    setTracking((current) => ({
+                      ...current,
+                      trackingAccuracyMode:
+                        event.target.value,
+                    }))
+                  }
+                  className={fieldClass}
+                >
+                  <option value="high">
+                    Hohe Genauigkeit
+                  </option>
+                  <option value="balanced">
+                    Ausgeglichen
+                  </option>
+                  <option value="battery">
+                    Akkuschonend
+                  </option>
+                </select>
+              </label>
+
+              <label className={labelClass}>
+                Stop-Verzögerung in Sekunden
+                <input
+                  type="number"
+                  min="0"
+                  max="3600"
+                  value={tracking.stopDelaySeconds}
+                  onChange={(event) =>
+                    setTracking((current) => ({
+                      ...current,
+                      stopDelaySeconds:
+                        Number(event.target.value),
+                    }))
+                  }
+                  className={fieldClass}
+                />
+              </label>
+
+              <label className={labelClass}>
+                Kartenanbieter
+                <select
+                  value={tracking.mapProvider}
+                  onChange={(event) =>
+                    setTracking((current) => ({
+                      ...current,
+                      mapProvider:
+                        event.target.value,
+                    }))
+                  }
+                  className={fieldClass}
+                >
+                  <option value="osm">
+                    OpenStreetMap
+                  </option>
+                  <option value="maplibre">
+                    MapLibre
+                  </option>
+                  <option value="atlas">
+                    Eigener Atlas
+                  </option>
+                </select>
+              </label>
+
+              <label className="flex items-center gap-3 self-end rounded-lg border border-fb-border bg-fb-surface px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={tracking.saveAccuracy}
+                  onChange={(event) =>
+                    setTracking((current) => ({
+                      ...current,
+                      saveAccuracy:
+                        event.target.checked,
+                    }))
+                  }
+                  className="size-5 accent-[var(--color-accent)]"
+                />
+                <span className="text-sm font-medium">
+                  GPS-Genauigkeit speichern
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              type="submit"
+              disabled={saving === "tracking"}
+              className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
+            >
+              {saving === "tracking"
+                ? "Speichern …"
+                : "Tracking speichern"}
+            </button>
+          </div>
+        </Section>
+      </form>
+
+      <form onSubmit={savePassword}>
+        <Section
+          title="Passwort"
+          description="Nach einer Änderung werden alle anderen Sitzungen beendet."
+        >
+          <div className="grid gap-5 sm:grid-cols-3">
+            <label className={labelClass}>
+              Aktuelles Passwort
+              <input
+                type="password"
+                value={passwords.currentPassword}
+                onChange={(event) =>
+                  setPasswords((current) => ({
+                    ...current,
+                    currentPassword:
+                      event.target.value,
+                  }))
+                }
+                className={fieldClass}
+                required
+              />
+            </label>
+
+            <label className={labelClass}>
+              Neues Passwort
+              <input
+                type="password"
+                value={passwords.newPassword}
+                onChange={(event) =>
+                  setPasswords((current) => ({
+                    ...current,
+                    newPassword:
+                      event.target.value,
+                  }))
+                }
+                className={fieldClass}
+                minLength={10}
+                required
+              />
+            </label>
+
+            <label className={labelClass}>
+              Passwort bestätigen
+              <input
+                type="password"
+                value={passwords.confirmation}
+                onChange={(event) =>
+                  setPasswords((current) => ({
+                    ...current,
+                    confirmation:
+                      event.target.value,
+                  }))
+                }
+                className={fieldClass}
+                minLength={10}
+                required
+              />
+            </label>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              type="submit"
+              disabled={saving === "password"}
+              className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
+            >
+              {saving === "password"
+                ? "Ändern …"
+                : "Passwort ändern"}
+            </button>
+          </div>
+        </Section>
+      </form>
+
+      <Section
+        title="Sicherheit"
+        description="Status der zusätzlichen Anmeldeverfahren."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-fb-border bg-fb-surface p-4">
+            <div className="font-semibold">
+              Zwei-Faktor-Authentifizierung
+            </div>
+            <div className="mt-1 text-sm text-fb-muted">
+              {user?.totpEnabled
+                ? "Für dein Konto aktiviert."
+                : "Für dein Konto noch nicht aktiviert."}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-fb-border bg-fb-surface p-4">
+            <div className="font-semibold">
+              Passkeys
+            </div>
+            <div className="mt-1 text-sm text-fb-muted">
+              Die Verwaltung der Passkeys folgt mit
+              der WebAuthn-Anbindung.
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Geräte und Sitzungen"
+        description="Geräte, die sich mit deinem Konto angemeldet haben."
+      >
+        <div className="divide-y divide-fb-border">
+          {devices.length === 0 ? (
+            <div className="py-6 text-sm text-fb-muted">
+              Keine Geräte gefunden.
+            </div>
+          ) : (
+            devices.map((device) => (
+              <div
+                key={device.id}
+                className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <div className="flex items-center gap-2 font-semibold">
+                    {device.deviceName}
+
+                    {device.isCurrent && (
+                      <span className="rounded-full bg-fb-accent-soft px-2 py-0.5 text-xs text-fb-accent">
+                        Aktuell
+                      </span>
+                    )}
+
+                    {device.revokedAt && (
+                      <span className="rounded-full border border-fb-border px-2 py-0.5 text-xs text-fb-muted">
+                        Abgemeldet
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-1 text-sm text-fb-muted">
+                    {device.platform || device.deviceType}
+                    {device.lastSeenAt
+                      ? ` · zuletzt ${new Intl.DateTimeFormat(
+                          "de-DE",
+                          {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          },
+                        ).format(
+                          new Date(device.lastSeenAt),
+                        )}`
+                      : ""}
+                  </div>
+                </div>
+
+                {!device.isCurrent &&
+                  !device.revokedAt && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        removeDevice(device.id)
+                      }
+                      disabled={
+                        saving === device.id
+                      }
+                      className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-text hover:border-fb-danger hover:text-fb-danger disabled:opacity-60"
+                    >
+                      {saving === device.id
+                        ? "Abmelden …"
+                        : "Gerät abmelden"}
+                    </button>
+                  )}
+              </div>
+            ))
+          )}
+        </div>
+      </Section>
+    </div>
+  );
 }

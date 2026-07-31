@@ -4,8 +4,10 @@ import {
   Routes,
 } from "react-router-dom";
 
+import AdminRoute from "./auth/AdminRoute.jsx";
 import { useAuth } from "./auth/AuthProvider.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
+import AppShell from "./components/AppShell.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import ProfileSettings from "./pages/ProfileSettings.jsx";
@@ -28,18 +30,36 @@ function LoginRoute() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginRoute />} />
+      <Route
+        path="/login"
+        element={<LoginRoute />}
+      />
 
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route
-          path="/profilesettings"
-          element={<ProfileSettings />}
-        />
-        <Route path="/settings" element={<Settings />} />
+        <Route element={<AppShell />}>
+          <Route
+            index
+            element={<Dashboard />}
+          />
+
+          <Route
+            path="/profilesettings"
+            element={<ProfileSettings />}
+          />
+
+          <Route element={<AdminRoute />}>
+            <Route
+              path="/settings"
+              element={<Settings />}
+            />
+          </Route>
+        </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route
+        path="*"
+        element={<Navigate to="/" replace />}
+      />
     </Routes>
   );
 }
