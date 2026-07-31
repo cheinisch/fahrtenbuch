@@ -16,6 +16,7 @@ import {
   updateProfile,
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import AddNewDeviceModal from "../components/addNewDeviceModal.jsx";
 
 function Section({
   title,
@@ -73,6 +74,9 @@ export default function ProfileSettings() {
   });
 
   const [devices, setDevices] = useState([]);
+
+  const [addDeviceModalOpen, setAddDeviceModalOpen] =
+    useState(false);
 
   const [homeLocation, setHomeLocation] =
     useState(null);
@@ -259,25 +263,25 @@ export default function ProfileSettings() {
     }
   }
 
-async function removeDevice(deviceId) {
-  setSaving(deviceId);
+  async function removeDevice(deviceId) {
+    setSaving(deviceId);
 
-  try {
-    await revokeDevice(accessToken, deviceId);
+    try {
+      await revokeDevice(accessToken, deviceId);
 
-    setDevices((current) =>
-      current.filter(
-        (device) => device.id !== deviceId,
-      ),
-    );
+      setDevices((current) =>
+        current.filter(
+          (device) => device.id !== deviceId,
+        ),
+      );
 
-    showSuccess("Das Gerät wurde abgemeldet.");
-  } catch (saveError) {
-    showError(saveError);
-  } finally {
-    setSaving("");
+      showSuccess("Das Gerät wurde abgemeldet.");
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
   }
-}
 
   if (loading) {
     return (
@@ -968,6 +972,18 @@ async function removeDevice(deviceId) {
         title="Geräte und Sitzungen"
         description="Geräte, die sich mit deinem Konto angemeldet haben."
       >
+        <div className="mb-5 flex justify-end">
+          <button
+            type="button"
+            onClick={() =>
+              setAddDeviceModalOpen(true)
+            }
+            className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent"
+          >
+            Neues Gerät hinzufügen
+          </button>
+        </div>
+
         <div className="divide-y divide-fb-border">
           {devices.length === 0 ? (
             <div className="py-6 text-sm text-fb-muted">
@@ -1034,6 +1050,22 @@ async function removeDevice(deviceId) {
           )}
         </div>
       </Section>
+
+      <AddNewDeviceModal
+        open={addDeviceModalOpen}
+        onClose={() =>
+          setAddDeviceModalOpen(false)
+        }
+        onPaired={async () => {
+          const updatedDevices =
+            await getDevices(accessToken);
+
+          setDevices(updatedDevices);
+          showSuccess(
+            "Das neue Gerät wurde erfolgreich verbunden.",
+          );
+        }}
+      />
     </div>
   );
 }

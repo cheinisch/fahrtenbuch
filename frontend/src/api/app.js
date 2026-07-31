@@ -237,3 +237,42 @@ export function updateAdminSettings(
     },
   );
 }
+
+export function createPairingOptions(
+  accessToken,
+) {
+  return apiRequest(
+    accessToken,
+    "/api/v1/auth/pair/options",
+    {
+      method: "POST",
+    },
+  );
+}
+
+export function getPairingStatus(
+  accessToken,
+  pairId,
+) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/auth/pair/${encodeURIComponent(
+      pairId,
+    )}/status`,
+  );
+}
+
+export function cancelPairing(
+  accessToken,
+  pairId,
+) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/auth/pair/${encodeURIComponent(
+      pairId,
+    )}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
