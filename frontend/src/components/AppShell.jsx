@@ -73,7 +73,7 @@ export default function AppShell() {
         as="nav"
         className="relative bg-fb-main after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-fb-border"
       >
-        <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
+        <div className="w-full px-2 sm:px-6 lg:px-8">
           <div className="relative flex h-16 justify-between">
             <div className="absolute inset-y-0 left-0 flex items-center sm:hidden">
               <DisclosureButton className="group relative inline-flex items-center justify-center rounded-md p-2 text-fb-muted hover:bg-fb-surface hover:text-fb-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent">
