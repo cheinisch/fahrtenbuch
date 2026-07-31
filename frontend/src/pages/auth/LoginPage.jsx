@@ -35,6 +35,9 @@ export default function LoginPage() {
           className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-main)] p-6 shadow-xl sm:p-8"
           onSubmit={submit}
         >
+          <div className="bg-red-500 text-white p-8 rounded-xl">
+  Tailwind funktioniert
+</div>
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-accent-soft)]">
               <svg
