@@ -70,35 +70,6 @@ async function createUniqueUsername(client, email, preferred = null) {
   );
 }
 
-async function loadAdminUser(userId) {
-  const result = await pool.query(
-    `
-      SELECT
-        id,
-        email,
-        username,
-        display_name,
-        role,
-        status,
-        locale,
-        timezone,
-        theme_mode,
-        totp_enabled,
-        force_password_change,
-        last_login_at,
-        created_at,
-        updated_at
-      FROM users
-      WHERE id = $1
-        AND deleted_at IS NULL
-      LIMIT 1
-    `,
-    [userId],
-  );
-
-  return result.rows[0] || null;
-}
-
 function parseMapSettings(body) {
   const input = objectBody(body);
   const provider = enumField(input, "provider", ["osm", "maplibre", "custom"], {
@@ -232,6 +203,144 @@ function parseOverpassSettings(body) {
   };
 }
 
+function mapAdminUser(row) {
+  return {
+    ...mapUser(row),
+    passkeyCount: Number(row.passkey_count || 0),
+    activeDeviceCount: Number(row.active_device_count || 0),
+    vehicleCount: Number(row.vehicle_count || 0),
+    tripCount: Number(row.trip_count || 0),
+    passkeys: Array.isArray(row.passkeys)
+      ? row.passkeys.map((passkey) => ({
+          id: passkey.id,
+          name: passkey.name || "Passkey",
+          transports: passkey.transports || [],
+          backedUp: Boolean(passkey.backed_up),
+          deviceType: passkey.device_type || null,
+          lastUsedAt: passkey.last_used_at || null,
+          createdAt: passkey.created_at,
+        }))
+      : [],
+  };
+}
+
+async function loadAdminUser(userId, database = pool) {
+  const result = await database.query(
+    `
+      SELECT
+        u.id,
+        u.email,
+        u.username,
+        u.display_name,
+        u.first_name,
+        u.last_name,
+        u.password_hash,
+        (u.password_hash IS NOT NULL) AS has_password,
+        u.role,
+        u.status,
+        u.locale,
+        u.timezone,
+        u.theme_mode,
+        u.totp_enabled,
+        u.totp_required,
+        u.passkey_enabled,
+        u.force_password_change,
+        u.last_login_at,
+        u.created_at,
+        u.updated_at,
+        (
+          SELECT count(*)::integer
+          FROM passkeys p
+          WHERE p.user_id = u.id
+        ) AS passkey_count,
+        (
+          SELECT count(*)::integer
+          FROM devices d
+          WHERE d.user_id = u.id
+            AND d.revoked_at IS NULL
+        ) AS active_device_count,
+        (
+          SELECT count(*)::integer
+          FROM vehicles v
+          WHERE v.user_id = u.id
+            AND v.archived_at IS NULL
+        ) AS vehicle_count,
+        (
+          SELECT count(*)::integer
+          FROM trips t
+          WHERE t.user_id = u.id
+            AND t.archived_at IS NULL
+        ) AS trip_count
+      FROM users u
+      WHERE u.id = $1
+        AND u.deleted_at IS NULL
+      LIMIT 1
+    `,
+    [userId],
+  );
+
+  const user = result.rows[0];
+
+  if (!user) {
+    return null;
+  }
+
+  const passkeys = await database.query(
+    `
+      SELECT
+        id,
+        name,
+        transports,
+        backed_up,
+        device_type,
+        last_used_at,
+        created_at
+      FROM passkeys
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+    `,
+    [userId],
+  );
+
+  return {
+    ...user,
+    passkeys: passkeys.rows,
+  };
+}
+
+async function writeAdminAudit(
+  database,
+  request,
+  action,
+  userId,
+  metadata = {},
+) {
+  await database.query(
+    `
+      INSERT INTO audit_log (
+        actor_user_id,
+        action,
+        entity_type,
+        entity_id,
+        request_id,
+        ip_address,
+        user_agent,
+        metadata
+      )
+      VALUES ($1, $2, 'user', $3, $4, $5, $6, $7::jsonb)
+    `,
+    [
+      request.auth.userId,
+      action,
+      userId,
+      request.requestId || null,
+      request.ip || null,
+      request.get("user-agent") || null,
+      JSON.stringify(metadata),
+    ],
+  );
+}
+
 adminRoutes.get(
   "/users",
   asyncHandler(async (_request, response) => {
@@ -242,38 +351,46 @@ adminRoutes.get(
           u.email,
           u.username,
           u.display_name,
+          u.first_name,
+          u.last_name,
+          (u.password_hash IS NOT NULL) AS has_password,
           u.role,
           u.status,
           u.locale,
           u.timezone,
           u.theme_mode,
           u.totp_enabled,
+          u.totp_required,
+          u.passkey_enabled,
           u.force_password_change,
           u.last_login_at,
           u.created_at,
           u.updated_at,
-          count(DISTINCT v.id)::integer AS vehicle_count,
-          count(DISTINCT t.id)::integer AS trip_count
+          count(DISTINCT p.id)::integer AS passkey_count,
+          count(DISTINCT d.id) FILTER (
+            WHERE d.revoked_at IS NULL
+          )::integer AS active_device_count,
+          count(DISTINCT v.id) FILTER (
+            WHERE v.archived_at IS NULL
+          )::integer AS vehicle_count,
+          count(DISTINCT t.id) FILTER (
+            WHERE t.archived_at IS NULL
+          )::integer AS trip_count
         FROM users u
-        LEFT JOIN vehicles v
-          ON v.user_id = u.id
-          AND v.archived_at IS NULL
-        LEFT JOIN trips t
-          ON t.user_id = u.id
-          AND t.archived_at IS NULL
+        LEFT JOIN passkeys p ON p.user_id = u.id
+        LEFT JOIN devices d ON d.user_id = u.id
+        LEFT JOIN vehicles v ON v.user_id = u.id
+        LEFT JOIN trips t ON t.user_id = u.id
         WHERE u.deleted_at IS NULL
         GROUP BY u.id
-        ORDER BY u.role, lower(u.display_name), lower(u.email)
+        ORDER BY
+          CASE WHEN u.role = 'admin' THEN 0 ELSE 1 END,
+          lower(u.display_name),
+          lower(u.email)
       `,
     );
 
-    response.json(
-      result.rows.map((row) => ({
-        ...mapUser(row),
-        vehicleCount: Number(row.vehicle_count || 0),
-        tripCount: Number(row.trip_count || 0),
-      })),
-    );
+    response.json(result.rows.map(mapAdminUser));
   }),
 );
 
@@ -299,14 +416,42 @@ adminRoutes.post(
         minimum: 3,
         maximum: 64,
       });
+    const firstName = stringField(body, "firstName", {
+      nullable: true,
+      minimum: 1,
+      maximum: 80,
+    });
+    const lastName = stringField(body, "lastName", {
+      nullable: true,
+      minimum: 1,
+      maximum: 80,
+    });
+    const fallbackName =
+      [firstName, lastName].filter(Boolean).join(" ") || email.split("@")[0];
     const displayName =
       stringField(body, "displayName", {
         nullable: true,
+        minimum: 1,
         maximum: 120,
-      }) || email.split("@")[0];
+      }) || fallbackName;
     const role = enumField(body, "role", ["user", "admin"]) || "user";
+    const status = enumField(body, "status", ["active", "disabled"]) || "active";
+    const locale =
+      stringField(body, "locale", {
+        minimum: 2,
+        maximum: 16,
+      }) || "de";
+    const timezone =
+      stringField(body, "timezone", {
+        minimum: 1,
+        maximum: 64,
+      }) || "Europe/Berlin";
+    const themeMode =
+      enumField(body, "themeMode", ["light", "dark", "system"]) || "system";
     const forcePasswordChange =
       booleanField(body, "forcePasswordChange") ?? true;
+    const totpRequired = booleanField(body, "totpRequired") ?? false;
+    const passkeyEnabled = booleanField(body, "passkeyEnabled") ?? true;
     const client = await pool.connect();
 
     try {
@@ -325,6 +470,8 @@ adminRoutes.post(
             email,
             username,
             display_name,
+            first_name,
+            last_name,
             password_hash,
             password_changed_at,
             role,
@@ -332,23 +479,35 @@ adminRoutes.post(
             locale,
             timezone,
             theme_mode,
+            totp_required,
+            passkey_enabled,
             force_password_change
           )
           VALUES (
-            $1, $2, $3, $4, now(), $5,
-            'active', 'de', 'Europe/Berlin', 'system', $6
+            $1, $2, $3, $4, $5, $6, now(), $7, $8,
+            $9, $10, $11, $12, $13, $14
           )
-          RETURNING *
+          RETURNING id
         `,
         [
           email,
           username,
           displayName,
+          firstName,
+          lastName,
           passwordHash,
           role,
+          status,
+          locale,
+          timezone,
+          themeMode,
+          totpRequired,
+          passkeyEnabled,
           forcePasswordChange,
         ],
       );
+
+      const userId = result.rows[0].id;
 
       await client.query(
         `
@@ -356,43 +515,26 @@ adminRoutes.post(
           VALUES ($1)
           ON CONFLICT (user_id) DO NOTHING
         `,
-        [result.rows[0].id],
+        [userId],
       );
 
-      await client.query(
-        `
-          INSERT INTO audit_log (
-            actor_user_id,
-            action,
-            entity_type,
-            entity_id,
-            request_id,
-            ip_address,
-            user_agent,
-            metadata
-          )
-          VALUES (
-            $1,
-            'admin.user.created',
-            'user',
-            $2,
-            $3,
-            NULL,
-            $4,
-            jsonb_build_object('role', $5)
-          )
-        `,
-        [
-          request.auth.userId,
-          result.rows[0].id,
-          request.requestId || null,
-          request.get("user-agent") || null,
+      await writeAdminAudit(
+        client,
+        request,
+        "admin.user.created",
+        userId,
+        {
           role,
-        ],
+          status,
+          totpRequired,
+          passkeyEnabled,
+        },
       );
 
+      const created = await loadAdminUser(userId, client);
       await client.query("COMMIT");
-      response.status(201).json(mapUser(result.rows[0]));
+
+      response.status(201).json(mapAdminUser(created));
     } catch (error) {
       await client.query("ROLLBACK");
 
@@ -419,7 +561,7 @@ adminRoutes.get(
       throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
     }
 
-    response.json(mapUser(user));
+    response.json(mapAdminUser(user));
   }),
 );
 
@@ -432,7 +574,10 @@ async function updateAdminUser(request, response) {
   }
 
   const body = objectBody(request.body);
-  const email = body.email ? emailField(body, "email", true) : current.email;
+  const email =
+    body.email !== undefined
+      ? emailField(body, "email", true)
+      : current.email;
   const username =
     stringField(body, "loginName", {
       nullable: true,
@@ -446,10 +591,29 @@ async function updateAdminUser(request, response) {
     }) ??
     current.username;
   const displayName =
-    stringField(body, "displayName", {
-      nullable: true,
-      maximum: 120,
-    }) ?? current.display_name;
+    body.displayName !== undefined
+      ? stringField(body, "displayName", {
+          required: true,
+          minimum: 1,
+          maximum: 120,
+        })
+      : current.display_name;
+  const firstName =
+    body.firstName !== undefined
+      ? stringField(body, "firstName", {
+          nullable: true,
+          minimum: 1,
+          maximum: 80,
+        })
+      : current.first_name;
+  const lastName =
+    body.lastName !== undefined
+      ? stringField(body, "lastName", {
+          nullable: true,
+          minimum: 1,
+          maximum: 80,
+        })
+      : current.last_name;
   const role = enumField(body, "role", ["user", "admin"]) ?? current.role;
   const status =
     enumField(body, "status", ["active", "disabled"]) ?? current.status;
@@ -467,7 +631,21 @@ async function updateAdminUser(request, response) {
     enumField(body, "themeMode", ["light", "dark", "system"]) ??
     current.theme_mode;
   const forcePasswordChange =
-    booleanField(body, "forcePasswordChange") ?? current.force_password_change;
+    booleanField(body, "forcePasswordChange") ??
+    current.force_password_change;
+  const requestedTotpRequired =
+    booleanField(body, "totpRequired") ?? current.totp_required;
+  const passkeyEnabled =
+    booleanField(body, "passkeyEnabled") ?? current.passkey_enabled;
+  const requestedTotpEnabled = booleanField(body, "totpEnabled");
+  const disableTotp = requestedTotpEnabled === false;
+
+  if (requestedTotpEnabled === true && !current.totp_enabled) {
+    throw badRequest(
+      "TOTP_USER_SETUP_REQUIRED",
+      "TOTP kann erst nach der Einrichtung und Code-Verifikation durch den Benutzer aktiviert werden.",
+    );
+  }
 
   if (
     userId === request.auth.userId &&
@@ -479,71 +657,122 @@ async function updateAdminUser(request, response) {
     );
   }
 
-  let passwordHash = null;
   const password = stringField(body, "password", {
     nullable: true,
     minimum: 8,
     maximum: 1024,
     trim: false,
   });
+  const passwordHash = password ? await hashPassword(password) : null;
 
-  if (password) {
-    passwordHash = await hashPassword(password);
+  if (!passkeyEnabled && !current.password_hash && !passwordHash) {
+    throw badRequest(
+      "LOGIN_METHOD_REQUIRED",
+      "Passkeys können für ein Passkey-only-Konto erst deaktiviert werden, nachdem ein Passwort gesetzt wurde.",
+    );
   }
 
+  const totpRequired = disableTotp ? false : requestedTotpRequired;
+  const client = await pool.connect();
+
   try {
-    const result = await pool.query(
+    await client.query("BEGIN");
+
+    await client.query(
       `
         UPDATE users
         SET
           email = $2,
           username = $3,
           display_name = $4,
-          role = $5,
-          status = $6,
-          locale = $7,
-          timezone = $8,
-          theme_mode = $9,
-          force_password_change = $10,
-          password_hash = COALESCE($11, password_hash),
+          first_name = $5,
+          last_name = $6,
+          role = $7,
+          status = $8,
+          locale = $9,
+          timezone = $10,
+          theme_mode = $11,
+          force_password_change = $12,
+          totp_required = $13,
+          passkey_enabled = $14,
+          password_hash = COALESCE($15, password_hash),
           password_changed_at = CASE
-            WHEN $11 IS NULL THEN password_changed_at
+            WHEN $15 IS NULL THEN password_changed_at
             ELSE now()
+          END,
+          totp_enabled = CASE
+            WHEN $16 THEN false
+            ELSE totp_enabled
+          END,
+          totp_secret_encrypted = CASE
+            WHEN $16 THEN NULL
+            ELSE totp_secret_encrypted
           END
         WHERE id = $1
-        RETURNING *
+          AND deleted_at IS NULL
       `,
       [
         userId,
         email,
         username,
         displayName,
+        firstName,
+        lastName,
         role,
         status,
         locale,
         timezone,
         themeMode,
         forcePasswordChange,
+        totpRequired,
+        passkeyEnabled,
         passwordHash,
+        disableTotp,
       ],
     );
 
-    if (status === "disabled" || passwordHash) {
-      await pool.query(
+    if (status === "disabled" || passwordHash || disableTotp) {
+      const parameters = [userId];
+      let currentSessionCondition = "";
+
+      if (userId === request.auth.userId) {
+        parameters.push(request.auth.sessionId);
+        currentSessionCondition = "AND id <> $2";
+      }
+
+      await client.query(
         `
           UPDATE refresh_sessions
           SET revoked_at = COALESCE(revoked_at, now())
           WHERE user_id = $1
-            ${userId === request.auth.userId ? "AND id <> $2" : ""}
+            ${currentSessionCondition}
         `,
-        userId === request.auth.userId
-          ? [userId, request.auth.sessionId]
-          : [userId],
+        parameters,
       );
     }
 
-    response.json(mapUser(result.rows[0]));
+    await writeAdminAudit(
+      client,
+      request,
+      "admin.user.updated",
+      userId,
+      {
+        passwordChanged: Boolean(passwordHash),
+        totpDisabled: disableTotp,
+        totpRequired,
+        passkeyEnabled,
+        role,
+        status,
+      },
+    );
+
+    const updated = await loadAdminUser(userId, client);
+    await client.query("COMMIT");
+
+    response.json(mapAdminUser(updated));
   } catch (error) {
+    await client.query("ROLLBACK");
+
     if (error?.code === "23505") {
       throw conflict(
         "USER_ALREADY_EXISTS",
@@ -552,11 +781,250 @@ async function updateAdminUser(request, response) {
     }
 
     throw error;
+  } finally {
+    client.release();
   }
 }
 
 adminRoutes.put("/users/:id", asyncHandler(updateAdminUser));
 adminRoutes.patch("/users/:id", asyncHandler(updateAdminUser));
+
+adminRoutes.delete(
+  "/users/:id/totp",
+  asyncHandler(async (request, response) => {
+    const userId = uuidValue(request.params.id);
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const result = await client.query(
+        `
+          UPDATE users
+          SET
+            totp_enabled = false,
+            totp_required = false,
+            totp_secret_encrypted = NULL
+          WHERE id = $1
+            AND deleted_at IS NULL
+          RETURNING id
+        `,
+        [userId],
+      );
+
+      if (result.rowCount === 0) {
+        throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
+      }
+
+      const parameters = [userId];
+      let currentSessionCondition = "";
+
+      if (userId === request.auth.userId) {
+        parameters.push(request.auth.sessionId);
+        currentSessionCondition = "AND id <> $2";
+      }
+
+      await client.query(
+        `
+          UPDATE refresh_sessions
+          SET revoked_at = COALESCE(revoked_at, now())
+          WHERE user_id = $1
+            ${currentSessionCondition}
+        `,
+        parameters,
+      );
+
+      await writeAdminAudit(
+        client,
+        request,
+        "admin.user.totp_disabled",
+        userId,
+      );
+
+      const updated = await loadAdminUser(userId, client);
+      await client.query("COMMIT");
+      response.json(mapAdminUser(updated));
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+adminRoutes.delete(
+  "/users/:id/passkeys",
+  asyncHandler(async (request, response) => {
+    const userId = uuidValue(request.params.id);
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const userResult = await client.query(
+        `
+          SELECT password_hash
+          FROM users
+          WHERE id = $1
+            AND deleted_at IS NULL
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [userId],
+      );
+
+      if (userResult.rowCount === 0) {
+        throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
+      }
+
+      if (!userResult.rows[0].password_hash) {
+        throw badRequest(
+          "LOGIN_METHOD_REQUIRED",
+          "Bei einem Passkey-only-Konto muss zuerst ein Passwort gesetzt werden.",
+        );
+      }
+
+      const deleted = await client.query(
+        `DELETE FROM passkeys WHERE user_id = $1 RETURNING id`,
+        [userId],
+      );
+
+      await writeAdminAudit(
+        client,
+        request,
+        "admin.user.passkeys_deleted",
+        userId,
+        { deletedCount: deleted.rowCount },
+      );
+
+      const updated = await loadAdminUser(userId, client);
+      await client.query("COMMIT");
+      response.json(mapAdminUser(updated));
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+adminRoutes.delete(
+  "/users/:id/passkeys/:passkeyId",
+  asyncHandler(async (request, response) => {
+    const userId = uuidValue(request.params.id);
+    const passkeyId = uuidValue(request.params.passkeyId, "passkeyId");
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const statusResult = await client.query(
+        `
+          SELECT
+            u.password_hash,
+            (
+              SELECT count(*)::integer
+              FROM passkeys p
+              WHERE p.user_id = u.id
+            ) AS passkey_count
+          FROM users u
+          WHERE u.id = $1
+            AND u.deleted_at IS NULL
+          FOR UPDATE
+        `,
+        [userId],
+      );
+
+      const account = statusResult.rows[0];
+
+      if (!account) {
+        throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
+      }
+
+      if (!account.password_hash && Number(account.passkey_count) <= 1) {
+        throw badRequest(
+          "LOGIN_METHOD_REQUIRED",
+          "Der letzte Passkey eines Passkey-only-Kontos kann nicht gelöscht werden.",
+        );
+      }
+
+      const deleted = await client.query(
+        `
+          DELETE FROM passkeys
+          WHERE id = $1
+            AND user_id = $2
+          RETURNING id
+        `,
+        [passkeyId, userId],
+      );
+
+      if (deleted.rowCount === 0) {
+        throw notFound("PASSKEY_NOT_FOUND", "Der Passkey wurde nicht gefunden.");
+      }
+
+      await writeAdminAudit(
+        client,
+        request,
+        "admin.user.passkey_deleted",
+        userId,
+        { passkeyId },
+      );
+
+      const updated = await loadAdminUser(userId, client);
+      await client.query("COMMIT");
+      response.json(mapAdminUser(updated));
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+adminRoutes.delete(
+  "/users/:id/sessions",
+  asyncHandler(async (request, response) => {
+    const userId = uuidValue(request.params.id);
+    const user = await loadAdminUser(userId);
+
+    if (!user) {
+      throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
+    }
+
+    const parameters = [userId];
+    let currentSessionCondition = "";
+
+    if (userId === request.auth.userId) {
+      parameters.push(request.auth.sessionId);
+      currentSessionCondition = "AND id <> $2";
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE refresh_sessions
+        SET revoked_at = COALESCE(revoked_at, now())
+        WHERE user_id = $1
+          AND revoked_at IS NULL
+          ${currentSessionCondition}
+        RETURNING id
+      `,
+      parameters,
+    );
+
+    await writeAdminAudit(
+      pool,
+      request,
+      "admin.user.sessions_revoked",
+      userId,
+      { revokedCount: result.rowCount },
+    );
+
+    response.json({ revokedSessions: result.rowCount });
+  }),
+);
 
 adminRoutes.delete(
   "/users/:id",
@@ -570,35 +1038,70 @@ adminRoutes.delete(
       );
     }
 
-    const result = await pool.query(
-      `
-        UPDATE users
-        SET
-          deleted_at = now(),
-          status = 'disabled',
-          email = email || '.deleted.' || id::text,
-          username = username || '.deleted.' || id::text
-        WHERE id = $1
-          AND deleted_at IS NULL
-        RETURNING id
-      `,
-      [userId],
-    );
+    const client = await pool.connect();
 
-    if (result.rowCount === 0) {
-      throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
+    try {
+      await client.query("BEGIN");
+
+      const result = await client.query(
+        `
+          UPDATE users
+          SET
+            deleted_at = now(),
+            status = 'disabled',
+            display_name = 'Gelöschter Benutzer',
+            first_name = NULL,
+            last_name = NULL,
+            totp_enabled = false,
+            totp_required = false,
+            totp_secret_encrypted = NULL,
+            passkey_enabled = false,
+            email = email || '.deleted.' || id::text,
+            username = username || '.deleted.' || id::text
+          WHERE id = $1
+            AND deleted_at IS NULL
+          RETURNING id
+        `,
+        [userId],
+      );
+
+      if (result.rowCount === 0) {
+        throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
+      }
+
+      await client.query(`DELETE FROM passkeys WHERE user_id = $1`, [userId]);
+      await client.query(
+        `
+          UPDATE devices
+          SET revoked_at = COALESCE(revoked_at, now())
+          WHERE user_id = $1
+        `,
+        [userId],
+      );
+      await client.query(
+        `
+          UPDATE refresh_sessions
+          SET revoked_at = COALESCE(revoked_at, now())
+          WHERE user_id = $1
+        `,
+        [userId],
+      );
+
+      await writeAdminAudit(
+        client,
+        request,
+        "admin.user.deleted",
+        userId,
+      );
+
+      await client.query("COMMIT");
+      response.status(204).end();
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
-
-    await pool.query(
-      `
-        UPDATE refresh_sessions
-        SET revoked_at = COALESCE(revoked_at, now())
-        WHERE user_id = $1
-      `,
-      [userId],
-    );
-
-    response.status(204).end();
   }),
 );
 

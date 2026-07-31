@@ -414,3 +414,66 @@ export function downloadExport(accessToken, format, filters) {
     `/api/v1/export/${encodeURIComponent(format)}${buildQuery(filters)}`,
   );
 }
+
+export function disableAdminUserTotp(
+  accessToken,
+  userId,
+) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/admin/users/${encodeURIComponent(
+      userId,
+    )}/totp`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function deleteAdminUserPasskeys(
+  accessToken,
+  userId,
+) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/admin/users/${encodeURIComponent(
+      userId,
+    )}/passkeys`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function deleteAdminUserPasskey(
+  accessToken,
+  userId,
+  passkeyId,
+) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/admin/users/${encodeURIComponent(
+      userId,
+    )}/passkeys/${encodeURIComponent(
+      passkeyId,
+    )}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function logoutAdminUserSessions(
+  accessToken,
+  userId,
+) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/admin/users/${encodeURIComponent(
+      userId,
+    )}/sessions`,
+    {
+      method: "DELETE",
+    },
+  );
+}

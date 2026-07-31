@@ -891,7 +891,7 @@ paths:
           description: Benutzer
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
+              schema: { $ref: '#/components/schemas/AdminUser' }
     put:
       tags: [Admin]
       summary: Benutzer aktualisieren
@@ -911,6 +911,63 @@ paths:
         - $ref: '#/components/parameters/Id'
       responses:
         '204': { description: Benutzer gelöscht }
+  /admin/users/{id}/totp:
+    delete:
+      tags: [Admin]
+      summary: TOTP für einen Benutzer deaktivieren
+      description: Entfernt das verschlüsselte TOTP-Secret und widerruft andere Sitzungen.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Aktualisierter Benutzer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+  /admin/users/{id}/passkeys:
+    delete:
+      tags: [Admin]
+      summary: Alle Passkeys eines Benutzers löschen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Aktualisierter Benutzer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+  /admin/users/{id}/passkeys/{passkeyId}:
+    delete:
+      tags: [Admin]
+      summary: Einen Passkey eines Benutzers löschen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: passkeyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Aktualisierter Benutzer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+  /admin/users/{id}/sessions:
+    delete:
+      tags: [Admin]
+      summary: Sitzungen eines Benutzers widerrufen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Anzahl widerrufener Sitzungen
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revokedSessions]
+                properties:
+                  revokedSessions: { type: integer, minimum: 0 }
   /admin/settings/services:
     get:
       tags: [Admin]
@@ -1034,16 +1091,52 @@ components:
         requestId: { type: [string, 'null'] }
     User:
       type: object
-      required: [id, email, role, createdAt]
+      required: [id, email, role, status, createdAt]
       properties:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
         loginName: { type: [string, 'null'] }
         displayName: { type: [string, 'null'] }
+        firstName: { type: [string, 'null'], maxLength: 80 }
+        lastName: { type: [string, 'null'], maxLength: 80 }
         role: { type: string, enum: [user, admin] }
+        status: { type: string, enum: [active, disabled] }
         locale: { type: string, default: de }
+        timezone: { type: string, default: Europe/Berlin }
+        themeMode: { type: string, enum: [light, dark, system] }
+        totpEnabled: { type: boolean }
+        totpRequired: { type: boolean }
+        passkeyEnabled: { type: boolean }
+        hasPassword: { type: boolean }
+        forcePasswordChange: { type: boolean }
+        lastLoginAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    AdminPasskey:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        transports:
+          type: array
+          items: { type: string }
+        backedUp: { type: boolean }
+        deviceType: { type: [string, 'null'] }
+        lastUsedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    AdminUser:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            passkeyCount: { type: integer, minimum: 0 }
+            activeDeviceCount: { type: integer, minimum: 0 }
+            vehicleCount: { type: integer, minimum: 0 }
+            tripCount: { type: integer, minimum: 0 }
+            passkeys:
+              type: array
+              items: { $ref: '#/components/schemas/AdminPasskey' }
     UserUpdate:
       type: object
       properties:
@@ -1055,9 +1148,19 @@ components:
       required: [email, password]
       properties:
         email: { type: string, format: email }
+        loginName: { type: [string, 'null'], minLength: 3, maxLength: 64 }
         password: { type: string, format: password, minLength: 8 }
-        displayName: { type: [string, 'null'] }
+        displayName: { type: [string, 'null'], maxLength: 120 }
+        firstName: { type: [string, 'null'], maxLength: 80 }
+        lastName: { type: [string, 'null'], maxLength: 80 }
         role: { type: string, enum: [user, admin], default: user }
+        status: { type: string, enum: [active, disabled], default: active }
+        locale: { type: string, default: de }
+        timezone: { type: string, default: Europe/Berlin }
+        themeMode: { type: string, enum: [light, dark, system], default: system }
+        forcePasswordChange: { type: boolean, default: true }
+        totpRequired: { type: boolean, default: false }
+        passkeyEnabled: { type: boolean, default: true }
     LoginRequest:
       type: object
       required: [identifier, password]

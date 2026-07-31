@@ -572,14 +572,44 @@ authRoutes.delete(
   "/mfa/totp",
   requireAuth,
   asyncHandler(async (request, response) => {
-    await pool.query(
+    const result = await pool.query(
       `
         UPDATE users
-        SET totp_enabled = false, totp_secret_encrypted = NULL
+        SET
+          totp_enabled = false,
+          totp_secret_encrypted = NULL
         WHERE id = $1
+          AND deleted_at IS NULL
+          AND totp_required = false
+        RETURNING id
       `,
       [request.auth.userId],
     );
+
+    if (result.rowCount === 0) {
+      const userResult = await pool.query(
+        `
+          SELECT totp_required
+          FROM users
+          WHERE id = $1
+            AND deleted_at IS NULL
+          LIMIT 1
+        `,
+        [request.auth.userId],
+      );
+
+      if (userResult.rowCount === 0) {
+        throw notFound(
+          "USER_NOT_FOUND",
+          "Der Benutzer wurde nicht gefunden.",
+        );
+      }
+
+      throw badRequest(
+        "TOTP_REQUIRED_BY_ADMIN",
+        "TOTP wird für dieses Konto durch die Administration verlangt.",
+      );
+    }
 
     response.status(204).end();
   }),
@@ -604,6 +634,13 @@ authRoutes.post(
 
     if (!user) {
       throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
+    }
+
+    if (!user.passkey_enabled) {
+      throw badRequest(
+        "PASSKEY_DISABLED_BY_ADMIN",
+        "Passkeys sind für dieses Benutzerkonto deaktiviert.",
+      );
     }
 
     const options = await createRegistrationOptions(user, passkeysResult.rows);
@@ -635,6 +672,25 @@ authRoutes.post(
   requireAuth,
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
+    const userResult = await pool.query(
+      `
+        SELECT passkey_enabled
+        FROM users
+        WHERE id = $1
+          AND status = 'active'
+          AND deleted_at IS NULL
+        LIMIT 1
+      `,
+      [request.auth.userId],
+    );
+
+    if (!userResult.rows[0]?.passkey_enabled) {
+      throw badRequest(
+        "PASSKEY_DISABLED_BY_ADMIN",
+        "Passkeys sind für dieses Benutzerkonto deaktiviert.",
+      );
+    }
+
     const challenges = await loadActiveChallenges(
       "register",
       request.auth.userId,
@@ -763,12 +819,17 @@ authRoutes.post(
           u.email,
           u.username,
           u.display_name,
+          u.first_name,
+          u.last_name,
           u.role,
           u.status,
           u.locale,
           u.timezone,
           u.theme_mode,
           u.totp_enabled,
+          u.totp_required,
+          u.passkey_enabled,
+          (u.password_hash IS NOT NULL) AS has_password,
           u.force_password_change,
           u.last_login_at,
           u.created_at,
@@ -777,6 +838,7 @@ authRoutes.post(
         INNER JOIN users u ON u.id = p.user_id
         WHERE p.credential_id = $1
           AND u.status = 'active'
+          AND u.passkey_enabled = true
           AND u.deleted_at IS NULL
         LIMIT 1
       `,
@@ -1025,12 +1087,17 @@ authRoutes.post(
             u.email,
             u.username,
             u.display_name,
+            u.first_name,
+            u.last_name,
             u.role,
             u.status,
             u.locale,
             u.timezone,
             u.theme_mode,
             u.totp_enabled,
+            u.totp_required,
+            u.passkey_enabled,
+            (u.password_hash IS NOT NULL) AS has_password,
             u.force_password_change,
             u.last_login_at,
             u.created_at,

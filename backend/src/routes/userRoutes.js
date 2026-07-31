@@ -77,6 +77,24 @@ async function updateProfile(request, response) {
       maximum: 120,
     }) ?? current.display_name;
 
+  const firstName =
+    body.firstName !== undefined
+      ? stringField(body, "firstName", {
+          nullable: true,
+          minimum: 1,
+          maximum: 80,
+        })
+      : current.first_name;
+
+  const lastName =
+    body.lastName !== undefined
+      ? stringField(body, "lastName", {
+          nullable: true,
+          minimum: 1,
+          maximum: 80,
+        })
+      : current.last_name;
+
   const locale =
     stringField(body, "locale", {
       minimum: 2,
@@ -106,21 +124,28 @@ async function updateProfile(request, response) {
           email = $2,
           username = $3,
           display_name = $4,
-          locale = $5,
-          timezone = $6,
-          theme_mode = $7
+          first_name = $5,
+          last_name = $6,
+          locale = $7,
+          timezone = $8,
+          theme_mode = $9
         WHERE id = $1
         RETURNING
           id,
           email,
           username,
           display_name,
+          first_name,
+          last_name,
           role,
           status,
           locale,
           timezone,
           theme_mode,
           totp_enabled,
+          totp_required,
+          passkey_enabled,
+          (password_hash IS NOT NULL) AS has_password,
           force_password_change,
           last_login_at,
           created_at,
@@ -131,6 +156,8 @@ async function updateProfile(request, response) {
         email,
         loginName,
         displayName,
+        firstName,
+        lastName,
         locale,
         timezone,
         themeMode,
@@ -261,10 +288,7 @@ userRoutes.get(
           d.last_seen_at DESC NULLS LAST,
           d.created_at DESC
       `,
-      [
-        request.auth.userId,
-        request.auth.sessionId,
-      ],
+      [request.auth.userId, request.auth.sessionId],
     );
 
     response.json(result.rows.map(mapDevice));

@@ -14,7 +14,12 @@ import {
 import {
   createAdminUser,
   deleteAdminUser,
+  deleteAdminUserPasskey,
+  deleteAdminUserPasskeys,
+  disableAdminUserTotp,
+  getAdminUser,
   getAdminUsers,
+  logoutAdminUserSessions,
   updateAdminUser,
 } from "../../api/app.js";
 import { useAuth } from "../../auth/AuthProvider.jsx";
@@ -94,6 +99,9 @@ export default function UserManagement({
     useState(null);
   const [saving, setSaving] =
     useState(false);
+
+  const [securityAction, setSecurityAction] =
+    useState("");
 
   const [deleteTarget, setDeleteTarget] =
     useState(null);
@@ -188,11 +196,35 @@ export default function UserManagement({
     setMessage("");
   }
 
-  function openEditModal(entry) {
-    setSelectedUser(entry);
-    setEditorOpen(true);
+  async function openEditModal(entry) {
     setError("");
     setMessage("");
+    setSelectedUser(entry);
+    setEditorOpen(true);
+
+    try {
+      const details = await getAdminUser(
+        accessToken,
+        entry.id,
+      );
+
+      setSelectedUser((current) =>
+        current?.id === entry.id
+          ? {
+              ...current,
+              ...details,
+            }
+          : current,
+      );
+    } catch (loadError) {
+      setEditorOpen(false);
+      setSelectedUser(null);
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Die Benutzerdetails konnten nicht geladen werden.",
+      );
+    }
   }
 
   async function handleSave(payload) {
@@ -262,6 +294,102 @@ export default function UserManagement({
       throw saveError;
     } finally {
       setSaving(false);
+    }
+  }
+
+  function applyDetailedUser(updated) {
+    setSelectedUser(updated);
+    setUsers((current) =>
+      current.map((entry) =>
+        entry.id === updated.id
+          ? {
+              ...entry,
+              ...updated,
+            }
+          : entry,
+      ),
+    );
+  }
+
+  async function handleDisableTotp() {
+    if (!selectedUser) {
+      return;
+    }
+
+    setSecurityAction("totp");
+
+    try {
+      const updated = await disableAdminUserTotp(
+        accessToken,
+        selectedUser.id,
+      );
+
+      applyDetailedUser(updated);
+      setMessage("TOTP wurde deaktiviert und das gespeicherte Secret entfernt.");
+    } finally {
+      setSecurityAction("");
+    }
+  }
+
+  async function handleDeletePasskey(passkeyId) {
+    if (!selectedUser) {
+      return;
+    }
+
+    setSecurityAction(`passkey:${passkeyId}`);
+
+    try {
+      const updated = await deleteAdminUserPasskey(
+        accessToken,
+        selectedUser.id,
+        passkeyId,
+      );
+
+      applyDetailedUser(updated);
+      setMessage("Der Passkey wurde gelöscht.");
+    } finally {
+      setSecurityAction("");
+    }
+  }
+
+  async function handleDeleteAllPasskeys() {
+    if (!selectedUser) {
+      return;
+    }
+
+    setSecurityAction("all-passkeys");
+
+    try {
+      const updated = await deleteAdminUserPasskeys(
+        accessToken,
+        selectedUser.id,
+      );
+
+      applyDetailedUser(updated);
+      setMessage("Alle Passkeys des Benutzers wurden gelöscht.");
+    } finally {
+      setSecurityAction("");
+    }
+  }
+
+  async function handleLogoutSessions() {
+    if (!selectedUser) {
+      return;
+    }
+
+    setSecurityAction("sessions");
+
+    try {
+      const result = await logoutAdminUserSessions(
+        accessToken,
+        selectedUser.id,
+      );
+
+      setMessage(
+        `${result.revokedSessions} Sitzung(en) wurden abgemeldet.`,
+      );
+    } finally {
+      setSecurityAction("");
     }
   }
 
@@ -488,6 +616,9 @@ export default function UserManagement({
                     Status
                   </th>
                   <th className="px-5 py-3">
+                    Sicherheit
+                  </th>
+                  <th className="px-5 py-3">
                     Nutzung
                   </th>
                   <th className="px-5 py-3">
@@ -589,6 +720,21 @@ export default function UserManagement({
 
                       <td className="px-5 py-4 text-sm text-fb-muted">
                         <div>
+                          TOTP: {entry.totpEnabled
+                            ? "aktiv"
+                            : entry.totpRequired
+                              ? "erforderlich"
+                              : "aus"}
+                        </div>
+                        <div className="mt-1">
+                          Passkeys: {entry.passkeyEnabled
+                            ? Number(entry.passkeyCount || 0)
+                            : "deaktiviert"}
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4 text-sm text-fb-muted">
+                        <div>
                           {Number(
                             entry.vehicleCount || 0,
                           )}{" "}
@@ -662,6 +808,11 @@ export default function UserManagement({
         user={selectedUser}
         currentUserId={currentUser?.id}
         saving={saving}
+        securityAction={securityAction}
+        onDisableTotp={handleDisableTotp}
+        onDeletePasskey={handleDeletePasskey}
+        onDeleteAllPasskeys={handleDeleteAllPasskeys}
+        onLogoutSessions={handleLogoutSessions}
         onClose={() => {
           if (!saving) {
             setEditorOpen(false);

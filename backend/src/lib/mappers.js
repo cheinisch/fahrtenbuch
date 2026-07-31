@@ -5,12 +5,23 @@ export function mapUser(row) {
     loginName: row.username ?? null,
     username: row.username ?? null,
     displayName: row.display_name ?? null,
+    firstName: row.first_name ?? null,
+    lastName: row.last_name ?? null,
     role: row.role,
     status: row.status,
     locale: row.locale || "de",
     timezone: row.timezone || "Europe/Berlin",
     themeMode: row.theme_mode || "system",
     totpEnabled: Boolean(row.totp_enabled),
+    totpRequired: Boolean(row.totp_required),
+    passkeyEnabled:
+      row.passkey_enabled === undefined
+        ? true
+        : Boolean(row.passkey_enabled),
+    hasPassword:
+      row.has_password === undefined
+        ? undefined
+        : Boolean(row.has_password),
     forcePasswordChange: Boolean(row.force_password_change),
     lastLoginAt: row.last_login_at ?? null,
     createdAt: row.created_at,
