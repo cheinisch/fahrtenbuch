@@ -10,9 +10,11 @@ import { mapTrip } from "../lib/mappers.js";
 import {
   arrayField,
   dateTimeField,
+  enumField,
   numberField,
   objectBody,
   uuidField,
+  uuidValue,
 } from "../lib/validation.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
@@ -20,6 +22,7 @@ import {
   ensureOwnedVehicle,
   getOwnedTrip,
   recalculateTripMetrics,
+  replaceTripTags,
 } from "../services/tripService.js";
 
 export const trackingRoutes = Router();
@@ -29,79 +32,164 @@ trackingRoutes.use(requireAuth);
 trackingRoutes.post(
   "/start",
   asyncHandler(async (request, response) => {
-    const body = objectBody(request.body);
-    const vehicleId = uuidField(body, "vehicleId", true);
+    const body = objectBody(
+      request.body,
+    );
+    const vehicleId = uuidField(
+      body,
+      "vehicleId",
+      true,
+    );
     const startedAt =
-      dateTimeField(body, "startedAt", { nullable: true }) || new Date();
-    const startOdometerKm = numberField(body, "startOdometerKm", {
-      nullable: true,
-      minimum: 0,
-      maximum: 1_000_000_000,
-    });
+      dateTimeField(
+        body,
+        "startedAt",
+        { nullable: true },
+      ) || new Date();
 
-    if (!(await ensureOwnedVehicle(pool, request.auth.userId, vehicleId))) {
-      throw badRequest(
-        "VEHICLE_NOT_FOUND",
-        "Das Fahrzeug wurde nicht gefunden.",
+    const category =
+      body.category !== undefined
+        ? enumField(
+            body,
+            "category",
+            [
+              "business",
+              "private",
+              "commute",
+              "unclassified",
+            ],
+            { required: true },
+          )
+        : enumField(
+            body,
+            "type",
+            [
+              "business",
+              "private",
+              "commute",
+              "unclassified",
+            ],
+          ) || "unclassified";
+
+    const rawTagIds =
+      arrayField(
+        body,
+        "tagIds",
+        { maximum: 100 },
+      ) || [];
+
+    const tagIds = [
+      ...new Set(
+        rawTagIds.map((tagId) =>
+          uuidValue(
+            String(tagId),
+            "tagId",
+          ),
+        ),
+      ),
+    ];
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      if (
+        !(await ensureOwnedVehicle(
+          client,
+          request.auth.userId,
+          vehicleId,
+        ))
+      ) {
+        throw badRequest(
+          "VEHICLE_NOT_FOUND",
+          "Das Fahrzeug wurde nicht gefunden.",
+        );
+      }
+
+      const existing = await client.query(
+        `
+          SELECT id
+          FROM trips
+          WHERE user_id = $1
+            AND status = 'recording'
+            AND archived_at IS NULL
+          LIMIT 1
+        `,
+        [request.auth.userId],
       );
-    }
 
-    const existing = await pool.query(
-      `
-        SELECT id
-        FROM trips
-        WHERE user_id = $1
-          AND status = 'recording'
-          AND archived_at IS NULL
-        LIMIT 1
-      `,
-      [request.auth.userId],
-    );
+      if (existing.rowCount > 0) {
+        throw conflict(
+          "TRACKING_ALREADY_ACTIVE",
+          "Es wird bereits eine Fahrt aufgezeichnet.",
+          {
+            tripId:
+              existing.rows[0].id,
+          },
+        );
+      }
 
-    if (existing.rowCount > 0) {
-      throw conflict(
-        "TRACKING_ALREADY_ACTIVE",
-        "Es wird bereits eine Fahrt aufgezeichnet.",
-        { tripId: existing.rows[0].id },
+      const result = await client.query(
+        `
+          INSERT INTO trips (
+            user_id,
+            vehicle_id,
+            type,
+            status,
+            started_at,
+            source
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'recording',
+            $4,
+            'android'
+          )
+          RETURNING id
+        `,
+        [
+          request.auth.userId,
+          vehicleId,
+          category,
+          startedAt,
+        ],
       );
-    }
 
-    const result = await pool.query(
-      `
-        INSERT INTO trips (
-          user_id,
-          vehicle_id,
-          type,
-          status,
-          started_at,
-          start_odometer_meters,
-          source
-        )
-        SELECT
-          $1,
-          v.id,
-          'unclassified',
-          'recording',
-          $3,
-          COALESCE($4, v.odometer_meters),
-          'android'
-        FROM vehicles v
-        WHERE v.id = $2
-          AND v.user_id = $1
-          AND v.archived_at IS NULL
-        RETURNING *
-      `,
-      [
+      await replaceTripTags(
+        client,
         request.auth.userId,
-        vehicleId,
-        startedAt,
-        startOdometerKm == null
-          ? null
-          : Math.round(startOdometerKm * 1000),
-      ],
-    );
+        result.rows[0].id,
+        tagIds,
+      );
 
-    response.status(201).json(mapTrip(result.rows[0]));
+      const trip = await getOwnedTrip(
+        client,
+        request.auth.userId,
+        result.rows[0].id,
+      );
+
+      await client.query("COMMIT");
+
+      response
+        .status(201)
+        .json(mapTrip(trip));
+    } catch (error) {
+      await client.query("ROLLBACK");
+
+      if (error?.code === "TAG_NOT_FOUND") {
+        throw badRequest(
+          "TAG_NOT_FOUND",
+          error.message,
+        );
+      }
+
+      throw error;
+    } finally {
+      client.release();
+    }
   }),
 );
 
@@ -257,11 +345,6 @@ trackingRoutes.post(
     const tripId = uuidField(body, "tripId", true);
     const endedAt =
       dateTimeField(body, "endedAt", { nullable: true }) || new Date();
-    const endOdometerKm = numberField(body, "endOdometerKm", {
-      nullable: true,
-      minimum: 0,
-      maximum: 1_000_000_000,
-    });
     const client = await pool.connect();
 
     try {
@@ -300,55 +383,17 @@ trackingRoutes.post(
               duration_seconds,
               GREATEST(0, extract(epoch FROM ($3 - started_at))::integer)
             ),
-            end_odometer_meters = COALESCE(
-              $4,
-              end_odometer_meters,
-              CASE
-                WHEN start_odometer_meters IS NOT NULL
-                  AND distance_meters IS NOT NULL
-                THEN start_odometer_meters + distance_meters
-                ELSE NULL
-              END
-            ),
             completed_at = now(),
             version = version + 1
           WHERE id = $1
             AND user_id = $2
           RETURNING *
         `,
-        [
-          tripId,
-          request.auth.userId,
-          endedAt,
-          endOdometerKm == null
-            ? null
-            : Math.round(endOdometerKm * 1000),
-        ],
+        [tripId, request.auth.userId, endedAt],
       );
 
-      const completedTrip = result.rows[0];
-
-      if (completedTrip.end_odometer_meters != null) {
-        await client.query(
-          `
-            UPDATE vehicles
-            SET odometer_meters = GREATEST(
-              COALESCE(odometer_meters, 0),
-              $3
-            )
-            WHERE id = $1
-              AND user_id = $2
-          `,
-          [
-            completedTrip.vehicle_id,
-            request.auth.userId,
-            completedTrip.end_odometer_meters,
-          ],
-        );
-      }
-
       await client.query("COMMIT");
-      response.json(mapTrip(completedTrip));
+      response.json(mapTrip(result.rows[0]));
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

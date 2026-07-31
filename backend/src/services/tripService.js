@@ -32,6 +32,10 @@ export const TRIP_SELECT = `
 export const TRIP_WITH_TAGS_SELECT = `
   ${TRIP_SELECT},
   v.name AS vehicle_name,
+  v.manufacturer AS vehicle_manufacturer,
+  v.model AS vehicle_model,
+  v.license_plate AS vehicle_license_plate,
+  v.color AS vehicle_color,
   COALESCE(
     jsonb_agg(
       DISTINCT jsonb_build_object(
@@ -158,4 +162,73 @@ export async function ensureOwnedVehicle(client, userId, vehicleId) {
   );
 
   return result.rowCount > 0;
+}
+
+
+export async function replaceTripTags(
+  client,
+  userId,
+  tripId,
+  tagIds = [],
+) {
+  const uniqueTagIds = [
+    ...new Set(
+      (tagIds || []).map(String),
+    ),
+  ];
+
+  if (uniqueTagIds.length > 100) {
+    throw new Error(
+      "Eine Fahrt darf höchstens 100 Tags besitzen.",
+    );
+  }
+
+  if (uniqueTagIds.length > 0) {
+    const tagsResult = await client.query(
+      `
+        SELECT id
+        FROM tags
+        WHERE user_id = $1
+          AND id = ANY($2::uuid[])
+      `,
+      [userId, uniqueTagIds],
+    );
+
+    if (
+      tagsResult.rowCount !==
+      uniqueTagIds.length
+    ) {
+      const error = new Error(
+        "Mindestens ein Tag wurde nicht gefunden oder gehört einem anderen Benutzer.",
+      );
+      error.code = "TAG_NOT_FOUND";
+      throw error;
+    }
+  }
+
+  await client.query(
+    `
+      DELETE FROM trip_tags
+      WHERE trip_id = $1
+        AND user_id = $2
+    `,
+    [tripId, userId],
+  );
+
+  if (uniqueTagIds.length > 0) {
+    await client.query(
+      `
+        INSERT INTO trip_tags (
+          user_id,
+          trip_id,
+          tag_id
+        )
+        SELECT
+          $1,
+          $2,
+          unnest($3::uuid[])
+      `,
+      [userId, tripId, uniqueTagIds],
+    );
+  }
 }

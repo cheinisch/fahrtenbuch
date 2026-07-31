@@ -1,0 +1,90 @@
+components:
+  schemas:
+    TripCategory:
+      type: string
+      enum:
+        - business
+        - private
+        - commute
+        - unclassified
+
+    TripTag:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: [string, "null"]
+
+    TripVehicleReference:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: [string, "null"]
+        manufacturer:
+          type: [string, "null"]
+        model:
+          type: [string, "null"]
+        licensePlate:
+          type: [string, "null"]
+        color:
+          type: [string, "null"]
+
+    TripWithRelations:
+      type: object
+      required:
+        - id
+        - vehicleId
+        - vehicle
+        - category
+        - tags
+      properties:
+        id:
+          type: string
+          format: uuid
+        vehicleId:
+          type: string
+          format: uuid
+        vehicle:
+          $ref: "#/components/schemas/TripVehicleReference"
+        category:
+          $ref: "#/components/schemas/TripCategory"
+        type:
+          description: Kompatibilitätsalias für category.
+          $ref: "#/components/schemas/TripCategory"
+        tags:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/TripTag"
+
+    TrackPointWithTrip:
+      type: object
+      required:
+        - tripId
+        - sequenceNumber
+        - lat
+        - lon
+        - recordedAt
+      properties:
+        tripId:
+          type: string
+          format: uuid
+        sequenceNumber:
+          type: integer
+          format: int64
+        lat:
+          type: number
+        lon:
+          type: number
+        recordedAt:
+          type: string
+          format: date-time

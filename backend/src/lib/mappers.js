@@ -5,23 +5,12 @@ export function mapUser(row) {
     loginName: row.username ?? null,
     username: row.username ?? null,
     displayName: row.display_name ?? null,
-    firstName: row.first_name ?? null,
-    lastName: row.last_name ?? null,
     role: row.role,
     status: row.status,
     locale: row.locale || "de",
     timezone: row.timezone || "Europe/Berlin",
     themeMode: row.theme_mode || "system",
     totpEnabled: Boolean(row.totp_enabled),
-    totpRequired: Boolean(row.totp_required),
-    passkeyEnabled:
-      row.passkey_enabled === undefined
-        ? true
-        : Boolean(row.passkey_enabled),
-    hasPassword:
-      row.has_password === undefined
-        ? undefined
-        : Boolean(row.has_password),
     forcePasswordChange: Boolean(row.force_password_change),
     lastLoginAt: row.last_login_at ?? null,
     createdAt: row.created_at,
@@ -113,6 +102,21 @@ export function mapTrip(row) {
     id: row.id,
     vehicleId: row.vehicle_id,
     vehicleName: row.vehicle_name ?? undefined,
+    vehicle: row.vehicle_id
+      ? {
+          id: row.vehicle_id,
+          name: row.vehicle_name ?? null,
+          manufacturer:
+            row.vehicle_manufacturer ?? null,
+          model:
+            row.vehicle_model ?? null,
+          licensePlate:
+            row.vehicle_license_plate ?? null,
+          color:
+            row.vehicle_color ?? null,
+        }
+      : null,
+    category: row.type,
     type: row.type,
     status: row.status,
     startedAt: row.started_at,
@@ -138,16 +142,6 @@ export function mapTrip(row) {
     purpose: row.purpose ?? null,
     contact: row.contact ?? null,
     notes: row.notes ?? null,
-    startOdometerKm:
-      row.start_odometer_meters === null ||
-      row.start_odometer_meters === undefined
-        ? null
-        : Number(row.start_odometer_meters) / 1000,
-    endOdometerKm:
-      row.end_odometer_meters === null ||
-      row.end_odometer_meters === undefined
-        ? null
-        : Number(row.end_odometer_meters) / 1000,
     distanceKm:
       row.distance_meters === null || row.distance_meters === undefined
         ? null

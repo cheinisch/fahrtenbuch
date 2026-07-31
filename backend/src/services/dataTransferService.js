@@ -9,9 +9,9 @@ import {
   conflict,
 } from "../lib/errors.js";
 
-export const DATA_TRANSFER_SCHEMA_VERSION = 2;
+export const DATA_TRANSFER_SCHEMA_VERSION = 3;
 export const SUPPORTED_DATA_TRANSFER_SCHEMA_VERSIONS =
-  Object.freeze([1, 2]);
+  Object.freeze([1, 2, 3]);
 export const USER_DATA_KIND =
   "fahrtenbuch-user-data";
 export const SYSTEM_DATA_KIND =
@@ -625,6 +625,236 @@ async function currentHomeLocation(
   );
 }
 
+const VALID_TRIP_CATEGORIES =
+  new Set([
+    "business",
+    "private",
+    "commute",
+    "unclassified",
+  ]);
+
+function relationshipId(value) {
+  return String(value || "").trim();
+}
+
+function duplicateKey(
+  first,
+  second,
+) {
+  return `${relationshipId(first)}::${relationshipId(second)}`;
+}
+
+function validateOwnedRelationships(data) {
+  const source = ensureObject(
+    data,
+    "data",
+  );
+
+  const vehicles = ensureArray(
+    source.vehicles || [],
+    "data.vehicles",
+  );
+  const tags = ensureArray(
+    source.tags || [],
+    "data.tags",
+  );
+  const trips = ensureArray(
+    source.trips || [],
+    "data.trips",
+  );
+  const points = ensureArray(
+    source.trackPoints || [],
+    "data.trackPoints",
+  );
+  const batches = ensureArray(
+    source.trackPointBatches || [],
+    "data.trackPointBatches",
+  );
+  const tripTags = ensureArray(
+    source.tripTags || [],
+    "data.tripTags",
+  );
+
+  const vehicleIds = new Set(
+    vehicles.map((record) =>
+      relationshipId(
+        ensureObject(
+          record,
+          "Fahrzeug",
+        ).id,
+      ),
+    ),
+  );
+
+  const tagIds = new Set(
+    tags.map((record) =>
+      relationshipId(
+        ensureObject(
+          record,
+          "Tag",
+        ).id,
+      ),
+    ),
+  );
+
+  const tripIds = new Set();
+
+  for (const record of trips) {
+    const trip = ensureObject(
+      record,
+      "Fahrt",
+    );
+    const tripId = relationshipId(
+      trip.id,
+    );
+    const vehicleId = relationshipId(
+      trip.vehicle_id,
+    );
+    const category = String(
+      trip.type || trip.category || "",
+    );
+
+    if (!tripId) {
+      throw badRequest(
+        "INVALID_TRIP_RELATION",
+        "Eine Fahrt im Backup besitzt keine ID.",
+      );
+    }
+
+    if (tripIds.has(tripId)) {
+      throw badRequest(
+        "DUPLICATE_TRIP",
+        `Die Fahrt ${tripId} ist im Backup mehrfach enthalten.`,
+      );
+    }
+
+    if (
+      !vehicleId ||
+      !vehicleIds.has(vehicleId)
+    ) {
+      throw badRequest(
+        "TRIP_VEHICLE_MISSING",
+        `Die Fahrt ${tripId} verweist nicht auf ein enthaltenes Fahrzeug.`,
+      );
+    }
+
+    if (
+      !VALID_TRIP_CATEGORIES.has(
+        category,
+      )
+    ) {
+      throw badRequest(
+        "TRIP_CATEGORY_INVALID",
+        `Die Fahrt ${tripId} besitzt keine gültige Kategorie.`,
+      );
+    }
+
+    trip.type = category;
+    tripIds.add(tripId);
+  }
+
+  const pointSequences = new Set();
+
+  for (const record of points) {
+    const point = ensureObject(
+      record,
+      "GPS-Punkt",
+    );
+    const tripId = relationshipId(
+      point.trip_id,
+    );
+
+    if (!tripIds.has(tripId)) {
+      throw badRequest(
+        "POINT_TRIP_MISSING",
+        `Ein GPS-Punkt verweist auf die nicht enthaltene Fahrt ${tripId || "(leer)"}.`,
+      );
+    }
+
+    const key = duplicateKey(
+      tripId,
+      point.sequence_number,
+    );
+
+    if (pointSequences.has(key)) {
+      throw badRequest(
+        "DUPLICATE_TRACK_POINT",
+        `Die Sequenznummer ${point.sequence_number} der Fahrt ${tripId} ist mehrfach vorhanden.`,
+      );
+    }
+
+    pointSequences.add(key);
+  }
+
+  for (const record of batches) {
+    const batch = ensureObject(
+      record,
+      "GPS-Punkt-Batch",
+    );
+    const tripId = relationshipId(
+      batch.trip_id,
+    );
+
+    if (!tripIds.has(tripId)) {
+      throw badRequest(
+        "BATCH_TRIP_MISSING",
+        `Ein GPS-Batch verweist auf die nicht enthaltene Fahrt ${tripId || "(leer)"}.`,
+      );
+    }
+  }
+
+  const assignmentKeys = new Set();
+
+  for (const record of tripTags) {
+    const assignment = ensureObject(
+      record,
+      "Fahrt-Tag-Zuordnung",
+    );
+    const tripId = relationshipId(
+      assignment.trip_id,
+    );
+    const tagId = relationshipId(
+      assignment.tag_id,
+    );
+
+    if (!tripIds.has(tripId)) {
+      throw badRequest(
+        "TRIP_TAG_TRIP_MISSING",
+        `Eine Tag-Zuordnung verweist auf die nicht enthaltene Fahrt ${tripId || "(leer)"}.`,
+      );
+    }
+
+    if (!tagIds.has(tagId)) {
+      throw badRequest(
+        "TRIP_TAG_TAG_MISSING",
+        `Eine Tag-Zuordnung verweist auf den nicht enthaltenen Tag ${tagId || "(leer)"}.`,
+      );
+    }
+
+    const key = duplicateKey(
+      tripId,
+      tagId,
+    );
+
+    if (assignmentKeys.has(key)) {
+      throw badRequest(
+        "DUPLICATE_TRIP_TAG",
+        `Der Tag ${tagId} ist der Fahrt ${tripId} mehrfach zugeordnet.`,
+      );
+    }
+
+    assignmentKeys.add(key);
+  }
+
+  return {
+    vehicleCount: vehicles.length,
+    tripCount: trips.length,
+    pointCount: points.length,
+    tagCount: tags.length,
+    tripTagCount: tripTags.length,
+  };
+}
+
 function createImportResult() {
   return {
     users: {
@@ -656,6 +886,8 @@ async function importOwnedData(
   const result = createImportResult();
   const source =
     ensureObject(data, "data");
+
+  validateOwnedRelationships(source);
 
   const vehicleRecords =
     ensureArray(
@@ -1651,8 +1883,9 @@ export async function createUserDataBundle(
         "user settings",
         "vehicles",
         "trips",
-        "all GPS track points",
-        "GPS upload batches",
+        "all GPS track points with mandatory trip references",
+        "GPS upload batches with mandatory trip references",
+        "trip categories",
         "tags and trip assignments",
         "trip change history",
         "archived application data",
@@ -1667,6 +1900,18 @@ export async function createUserDataBundle(
         "device push tokens",
         "transient synchronization operations",
       ],
+    },
+    relationships: {
+      tripVehicle:
+        "trips.vehicle_id -> vehicles.id",
+      tripCategory:
+        "trips.type (required)",
+      trackPointTrip:
+        "trackPoints.trip_id -> trips.id",
+      trackPointBatchTrip:
+        "trackPointBatches.trip_id -> trips.id",
+      tripTags:
+        "tripTags.trip_id + tripTags.tag_id",
     },
     data: {
       userSettings,
@@ -1788,8 +2033,9 @@ export async function createSystemDataBundle(
         "all user settings",
         "all vehicles",
         "all trips",
-        "all GPS track points",
-        "all GPS upload batches",
+        "all GPS track points with mandatory trip references",
+        "all GPS upload batches with mandatory trip references",
+        "all trip categories",
         "all tags and trip assignments",
         "all trip change history",
         "application settings",
@@ -1814,6 +2060,18 @@ export async function createSystemDataBundle(
           row.record,
         ),
     ),
+    relationships: {
+      tripVehicle:
+        "trips.vehicle_id -> vehicles.id",
+      tripCategory:
+        "trips.type (required)",
+      trackPointTrip:
+        "trackPoints.trip_id -> trips.id",
+      trackPointBatchTrip:
+        "trackPointBatches.trip_id -> trips.id",
+      tripTags:
+        "tripTags.trip_id + tripTags.tag_id",
+    },
     data: {
       userSettings,
       vehicles,
