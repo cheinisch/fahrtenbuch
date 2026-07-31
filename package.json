@@ -1,0 +1,33 @@
+{
+  "name": "fahrtenbuch",
+  "version": "0.1.0-dev",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Christian Heinisch",
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm:dev-backend\" \"npm:dev-frontend\"",
+    "dev-backend": "npm run dev --workspace backend",
+    "dev-frontend": "npm run dev --workspace frontend",
+
+    "build": "npm run build --workspace shared --if-present && npm run build --workspace frontend",
+
+    "start": "npm run start --workspace backend",
+
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+
+    "clean": "rimraf backend/node_modules frontend/node_modules shared/node_modules"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "rimraf": "^6.0.1"
+  }
+}
