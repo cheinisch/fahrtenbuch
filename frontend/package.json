@@ -9,6 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.0",
+    "@heroicons/react": "^2.2.0",
+    "blueimp-md5": "^2.19.0",
     "leaflet": "^1.9.4",
     "maplibre-gl": "^5.8.1",
     "react": "^19.1.1",
