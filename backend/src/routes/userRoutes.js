@@ -256,12 +256,15 @@ userRoutes.get(
           ) AS is_current
         FROM devices d
         WHERE d.user_id = $1
+          AND d.revoked_at IS NULL
         ORDER BY
-          d.revoked_at NULLS FIRST,
           d.last_seen_at DESC NULLS LAST,
           d.created_at DESC
       `,
-      [request.auth.userId, request.auth.sessionId],
+      [
+        request.auth.userId,
+        request.auth.sessionId,
+      ],
     );
 
     response.json(result.rows.map(mapDevice));

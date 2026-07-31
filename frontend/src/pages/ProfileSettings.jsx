@@ -259,31 +259,25 @@ export default function ProfileSettings() {
     }
   }
 
-  async function removeDevice(deviceId) {
-    setSaving(deviceId);
+async function removeDevice(deviceId) {
+  setSaving(deviceId);
 
-    try {
-      await revokeDevice(accessToken, deviceId);
+  try {
+    await revokeDevice(accessToken, deviceId);
 
-      setDevices((current) =>
-        current.map((device) =>
-          device.id === deviceId
-            ? {
-                ...device,
-                revokedAt:
-                  new Date().toISOString(),
-              }
-            : device,
-        ),
-      );
+    setDevices((current) =>
+      current.filter(
+        (device) => device.id !== deviceId,
+      ),
+    );
 
-      showSuccess("Das Gerät wurde abgemeldet.");
-    } catch (saveError) {
-      showError(saveError);
-    } finally {
-      setSaving("");
-    }
+    showSuccess("Das Gerät wurde abgemeldet.");
+  } catch (saveError) {
+    showError(saveError);
+  } finally {
+    setSaving("");
   }
+}
 
   if (loading) {
     return (
