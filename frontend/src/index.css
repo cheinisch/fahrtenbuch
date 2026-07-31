@@ -5,8 +5,8 @@
 
   --color-main: #ffffff;
   --color-text: #1d1d1d;
-  --color-accent: #f48120;
-  --color-accent-secondary: #e86f00;
+  --color-accent: #e86f00;
+  --color-accent-secondary: #f48120;
   --color-accent-text: #1d1d1d;
   --color-surface: #f7f7f5;
   --color-border: #dededb;
@@ -22,8 +22,8 @@
   :root {
     --color-main: #1d1d1d;
     --color-text: #f7f7f5;
-    --color-accent: #f48120;
-    --color-accent-secondary: #ffad42;
+    --color-accent: #e86f00;
+    --color-accent-secondary: #f48120;
     --color-accent-text: #1d1d1d;
     --color-surface: #121212;
     --color-border: #3a3a3a;
