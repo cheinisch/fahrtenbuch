@@ -3,12 +3,6 @@ export default function Example() {
     <>
       <div className="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <img
-            alt="Fahrtenbuch"
-            src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=500"
-            className="mx-auto h-10 w-auto"
-          />
-
           <h2 className="mt-6 text-center text-2xl/9 font-bold tracking-tight text-white">
             Bei Fahrtenbuch anmelden
           </h2>
@@ -32,7 +26,7 @@ export default function Example() {
                     type="email"
                     required
                     autoComplete="email"
-                    className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
+                    className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-fb-accent sm:text-sm/6"
                   />
                 </div>
               </div>
@@ -52,7 +46,7 @@ export default function Example() {
                     type="password"
                     required
                     autoComplete="current-password"
-                    className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
+                    className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-fb-accent sm:text-sm/6"
                   />
                 </div>
               </div>
@@ -103,7 +97,7 @@ export default function Example() {
                 <div className="text-sm/6">
                   <a
                     href="#"
-                    className="font-semibold text-fb-accent-secondary hover:text-fb-accent"
+                    className="font-semibold text-fb-accent hover:text-fb-accent-secondary"
                   >
                     Passwort vergessen?
                   </a>
