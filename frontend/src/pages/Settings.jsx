@@ -382,12 +382,7 @@ export default function Settings() {
                 <label className="block text-sm font-medium">
                   Kartenanbieter
                   <select
-                    value={
-                      settings.mapDefaults
-                        .provider === "protomaps"
-                        ? "protomaps"
-                        : "osm"
-                    }
+                    value={settings.mapDefaults?.provider || "osm"}
                     onChange={(event) =>
                       setSettings((current) => ({
                         ...current,
@@ -504,7 +499,7 @@ export default function Settings() {
                       Protomaps-Tileserver
                       <input
                         type="url"
-                        placeholder="http://172.16.2.20:8080/europe.json"
+                        placeholder="http://172.16.2.20:8080 oder http://172.16.2.20:8080/europe.json"
                         value={settings.mapDefaults.protomapsTileServerUrl || ""}
                         onChange={(event) =>
                           setSettings((current) => ({
@@ -518,7 +513,7 @@ export default function Settings() {
                         className={fieldClass}
                       />
                       <span className="mt-1 block text-xs text-fb-muted">
-                        HTTP(S)-Adresse des TileJSON-Endpunkts deines eigenen Protomaps-Tileservers. Der Endpunkt muss die Vector-Tile-URLs für MapLibre liefern, z. B. http://172.16.2.20:8080/europe.json.
+                        Adresse deines eigenen Protomaps-Tileservers. Du kannst entweder die Basis-URL oder direkt den TileJSON-Endpunkt eintragen. Bei einer Basis-URL wird /europe.json verwendet.
                       </span>
                     </label>
 

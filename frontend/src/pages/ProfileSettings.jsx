@@ -182,10 +182,11 @@ export default function ProfileSettings() {
         countryResult,
       ] = await Promise.all([
         getPersonalSettings(accessToken),
-        getDevices(accessToken),
-        getExportCountryOptions(
-          accessToken,
-        ),
+        getDevices(accessToken).catch(() => []),
+        getExportCountryOptions(accessToken).catch(() => ({
+          countries: [],
+          selectedCountry: null,
+        })),
       ]);
 
       setProfile({

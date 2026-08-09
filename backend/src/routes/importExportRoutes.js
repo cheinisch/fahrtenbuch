@@ -24,12 +24,32 @@ import {
 } from "../lib/validation.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { getUserSettings } from "../services/userSettingsService.js";
+import { getCountryExport, listCountryExports } from "../services/countryExports/index.js";
 
 export const exportRoutes = Router();
 export const importRoutes = Router();
 
 exportRoutes.use(requireAuth);
 importRoutes.use(requireAuth);
+
+exportRoutes.get(
+  "/countries",
+  asyncHandler(async (request, response) => {
+    const [countries, settings] = await Promise.all([
+      listCountryExports(),
+      getUserSettings(request.auth.userId),
+    ]);
+    const selectedCountry = await getCountryExport(
+      settings.homeCountry || "DE",
+    );
+
+    response.json({
+      countries,
+      selectedCountry: selectedCountry.toPublicDefinition(new Date()),
+    });
+  }),
+);
 
 const upload = multer({
   storage: multer.memoryStorage(),

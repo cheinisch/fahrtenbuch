@@ -159,7 +159,7 @@ function parseMapDefaultsSettings(body) {
   if (provider === "protomaps" && !protomapsTileServerUrl) {
     throw badRequest(
       "VALIDATION_ERROR",
-      "Für Protomaps ist die Adresse eines eigenen Tileservers (TileJSON-Endpunkt) erforderlich.",
+      "Für Protomaps ist die Adresse eines eigenen Tileservers erforderlich.",
     );
   }
 

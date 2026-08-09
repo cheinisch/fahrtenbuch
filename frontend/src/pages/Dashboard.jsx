@@ -45,9 +45,12 @@ function resolveProtomapsFlavor(value) {
 }
 
 function createMapStyle(settings) {
-  const tileServerUrl = String(
+  const configuredTileServerUrl = String(
     settings?.protomapsTileServerUrl || "",
   ).trim();
+  const tileServerUrl = configuredTileServerUrl && !/\.json(?:[?#].*)?$/i.test(configuredTileServerUrl)
+    ? `${configuredTileServerUrl.replace(/\/+$/, "")}/europe.json`
+    : configuredTileServerUrl;
 
   if (settings?.provider !== "protomaps" || !tileServerUrl) {
     return OSM_MAP_STYLE;
@@ -271,6 +274,8 @@ export default function Dashboard() {
     },
   });
 
+  const [mapError, setMapError] = useState("");
+
   const [selectedTripId, setSelectedTripId] =
     useState(null);
 
@@ -478,7 +483,14 @@ export default function Dashboard() {
     });
     resizeObserver.observe(mapContainerRef.current);
 
+    map.on("error", (event) => {
+      const message = event?.error?.message || "Die Karte konnte nicht geladen werden.";
+      setMapError(message);
+      console.error("MapLibre:", event?.error || event);
+    });
+
     map.on("load", () => {
+      setMapError("");
       map.resize();
       map.addSource("trip-routes", {
         type: "geojson",
@@ -930,6 +942,13 @@ export default function Dashboard() {
           ref={mapContainerRef}
           className="absolute inset-0"
         />
+
+        {mapError && (
+          <div className="absolute left-1/2 top-4 z-20 w-[min(720px,calc(100%-2rem))] -translate-x-1/2 rounded-lg border border-red-500/50 bg-fb-main/95 px-4 py-3 text-sm text-red-400 shadow-lg">
+            <strong className="block">MapLibre-Kartenfehler</strong>
+            <span className="mt-1 block break-words">{mapError}</span>
+          </div>
+        )}
 
         <div className="absolute left-3 top-3 z-10 flex gap-2">
           <button
