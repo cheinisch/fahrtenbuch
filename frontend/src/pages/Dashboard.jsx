@@ -515,6 +515,8 @@ export default function Dashboard() {
       console.error("MapLibre:", event?.error || event);
     });
 
+    mapRef.current = map;
+
     map.on("load", () => {
       map.resize();
       map.addSource("trip-routes", {
@@ -584,8 +586,6 @@ export default function Dashboard() {
       updateMapData();
       fitAllTrips();
     });
-
-    mapRef.current = map;
 
     return () => {
       resizeObserver?.disconnect();
