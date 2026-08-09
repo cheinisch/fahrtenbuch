@@ -1,4 +1,3 @@
-import "maplibre-gl/dist/maplibre-gl.css";
 
 import maplibregl from "maplibre-gl";
 import { layers, namedFlavor } from "@protomaps/basemaps";
@@ -964,10 +963,10 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <section className="relative min-h-[420px] overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-sm">
+      <section className="relative isolate min-h-[420px] overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-sm">
         <div
           ref={mapContainerRef}
-          className="absolute inset-0 overflow-hidden"
+          className="absolute inset-0 z-0 overflow-hidden"
         />
 
         {mapError && (
