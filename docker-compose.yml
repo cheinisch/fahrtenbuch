@@ -6,20 +6,37 @@ services:
     container_name: fahrtenbuch-app
     restart: unless-stopped
     pull_policy: always
-
     env_file:
       - .env
-
     environment:
-      NODE_ENV: production
-      PORT: 3000
-
+      NODE_ENV: ${APP_ENV:-production}
+      PORT: ${APP_PORT:-3000}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-fahrtenbuch}
+      POSTGRES_USER: ${POSTGRES_USER:-fahrtenbuch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss in der .env gesetzt sein}
+      TZ: ${TZ:-Europe/Berlin}
+      OSM_TILE_CACHE_DIR: /data/osm-tile-cache
+      OSM_TILE_CACHE_MAX_BYTES: ${OSM_TILE_CACHE_MAX_BYTES:-10737418240}
     ports:
-      - "${APP_PORT:-3000}:3000"
-
+      - "${APP_BIND_IP:-0.0.0.0}:${APP_PORT:-3000}:3000"
     volumes:
+      - fahrtenbuch-osm-cache:/data/osm-tile-cache
       - fahrtenbuch-backups:/data/backups
-
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - fahrtenbuch
 
@@ -27,19 +44,14 @@ services:
     image: postgres:16-alpine
     container_name: fahrtenbuch-db
     restart: unless-stopped
-
-    profiles:
-      - internal-db
-
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-fahrtenbuch}
       POSTGRES_USER: ${POSTGRES_USER:-fahrtenbuch}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss in der .env gesetzt sein}
       TZ: ${TZ:-Europe/Berlin}
-
+      PGTZ: ${TZ:-Europe/Berlin}
     volumes:
       - fahrtenbuch-db-data:/var/lib/postgresql/data
-
     healthcheck:
       test:
         - CMD-SHELL
@@ -47,14 +59,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-
+      start_period: 10s
     networks:
       - fahrtenbuch
 
 volumes:
   fahrtenbuch-db-data:
+    name: fahrtenbuch-db-data
+  fahrtenbuch-osm-cache:
+    name: fahrtenbuch-osm-cache
   fahrtenbuch-backups:
+    name: fahrtenbuch-backups
 
 networks:
   fahrtenbuch:
+    name: fahrtenbuch-network
     driver: bridge

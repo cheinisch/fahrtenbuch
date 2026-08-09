@@ -40,7 +40,8 @@ ENV NODE_ENV=production
 COPY --from=builder /app .
 
 # Upload-Verzeichnis
-RUN mkdir -p /data/uploads
+RUN mkdir -p /data/uploads /data/backups /data/osm-tile-cache \
+    && chown -R node:node /data
 
 # Nicht als root laufen
 USER node

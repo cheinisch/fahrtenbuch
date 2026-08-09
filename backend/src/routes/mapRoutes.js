@@ -1,9 +1,275 @@
 import { Router } from "express";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 import { pool } from "../database/pool.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 
 export const mapRoutes = Router();
+
+const OSM_TILE_CACHE_DIR =
+  process.env.OSM_TILE_CACHE_DIR ||
+  "/data/osm-tile-cache";
+const OSM_TILE_CACHE_MAX_BYTES = Number(
+  process.env.OSM_TILE_CACHE_MAX_BYTES ||
+    10 * 1024 * 1024 * 1024,
+);
+const OSM_MIN_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
+let osmCacheBytes = null;
+let osmCleanupPromise = null;
+
+function parseMaxAge(value) {
+  const match = String(value || "").match(/(?:^|,)\s*max-age=(\d+)/i);
+  return match ? Number(match[1]) * 1000 : null;
+}
+
+async function walkFiles(directory, result = []) {
+  let entries;
+
+  try {
+    entries = await fs.readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return result;
+    }
+    throw error;
+  }
+
+  for (const entry of entries) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      await walkFiles(absolute, result);
+    } else if (entry.isFile() && entry.name.endsWith(".png")) {
+      const stat = await fs.stat(absolute);
+      result.push({ path: absolute, size: stat.size, mtimeMs: stat.mtimeMs });
+    }
+  }
+
+  return result;
+}
+
+async function initializeOsmCacheSize() {
+  if (osmCacheBytes !== null) {
+    return osmCacheBytes;
+  }
+
+  await fs.mkdir(OSM_TILE_CACHE_DIR, { recursive: true });
+  const files = await walkFiles(OSM_TILE_CACHE_DIR);
+  osmCacheBytes = files.reduce((sum, file) => sum + file.size, 0);
+  return osmCacheBytes;
+}
+
+async function enforceOsmCacheLimit() {
+  if (osmCleanupPromise) {
+    return osmCleanupPromise;
+  }
+
+  osmCleanupPromise = (async () => {
+    await initializeOsmCacheSize();
+
+    if (osmCacheBytes <= OSM_TILE_CACHE_MAX_BYTES) {
+      return;
+    }
+
+    const files = await walkFiles(OSM_TILE_CACHE_DIR);
+    files.sort((left, right) => left.mtimeMs - right.mtimeMs);
+
+    for (const file of files) {
+      if (osmCacheBytes <= OSM_TILE_CACHE_MAX_BYTES) {
+        break;
+      }
+
+      await fs.rm(file.path, { force: true });
+      await fs.rm(`${file.path}.json`, { force: true });
+      osmCacheBytes = Math.max(0, osmCacheBytes - file.size);
+    }
+  })().finally(() => {
+    osmCleanupPromise = null;
+  });
+
+  return osmCleanupPromise;
+}
+
+function osmCachePaths(z, x, y) {
+  const tilePath = path.join(
+    OSM_TILE_CACHE_DIR,
+    String(z),
+    String(x),
+    `${y}.png`,
+  );
+
+  return {
+    tilePath,
+    metadataPath: `${tilePath}.json`,
+  };
+}
+
+async function readOsmMetadata(metadataPath) {
+  try {
+    return JSON.parse(await fs.readFile(metadataPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function osmUserAgent() {
+  const publicUrl = String(process.env.PUBLIC_BASE_URL || "").trim();
+  return publicUrl
+    ? `Fahrtenbuch/1.0 (+${publicUrl})`
+    : "Fahrtenbuch/1.0";
+}
+
+async function serveCachedOsmTile(response, tilePath, metadata) {
+  const body = await fs.readFile(tilePath);
+  response.setHeader("Content-Type", "image/png");
+  response.setHeader(
+    "Cache-Control",
+    metadata?.cacheControl || "public, max-age=604800",
+  );
+  if (metadata?.etag) response.setHeader("ETag", metadata.etag);
+  if (metadata?.lastModified) {
+    response.setHeader("Last-Modified", metadata.lastModified);
+  }
+  response.setHeader("X-Fahrtenbuch-Tile-Cache", "HIT");
+  response.send(body);
+  fs.utimes(tilePath, new Date(), new Date()).catch(() => {});
+}
+
+mapRoutes.get(
+  "/osm/:z/:x/:y.png",
+  asyncHandler(async (request, response) => {
+    const z = Number(request.params.z);
+    const x = Number(request.params.x);
+    const y = Number(request.params.y);
+
+    if (
+      !Number.isInteger(z) ||
+      !Number.isInteger(x) ||
+      !Number.isInteger(y) ||
+      z < 0 ||
+      z > 19 ||
+      x < 0 ||
+      y < 0
+    ) {
+      return response.status(400).json({
+        error: "INVALID_TILE",
+        message: "Ungültige OSM-Tile-Koordinaten.",
+      });
+    }
+
+    const { tilePath, metadataPath } = osmCachePaths(z, x, y);
+    const metadata = await readOsmMetadata(metadataPath);
+    const now = Date.now();
+
+    try {
+      await fs.access(tilePath);
+      if (metadata?.expiresAt && Number(metadata.expiresAt) > now) {
+        return serveCachedOsmTile(response, tilePath, metadata);
+      }
+    } catch {
+      // Cache miss.
+    }
+
+    const upstreamHeaders = {
+      Accept: "image/png,image/*;q=0.8,*/*;q=0.5",
+      "User-Agent": osmUserAgent(),
+    };
+
+    const referer =
+      request.get("referer") ||
+      String(process.env.PUBLIC_BASE_URL || "").trim();
+    if (referer) upstreamHeaders.Referer = referer;
+    if (metadata?.etag) upstreamHeaders["If-None-Match"] = metadata.etag;
+    if (metadata?.lastModified) {
+      upstreamHeaders["If-Modified-Since"] = metadata.lastModified;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    let upstream;
+
+    try {
+      upstream = await fetch(
+        `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+        {
+          signal: controller.signal,
+          headers: upstreamHeaders,
+        },
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (upstream.status === 304) {
+      const stat = await fs.stat(tilePath);
+      const cacheControl =
+        upstream.headers.get("cache-control") ||
+        metadata?.cacheControl ||
+        "public, max-age=604800";
+      const ttlMs = Math.max(
+        parseMaxAge(cacheControl) || 0,
+        OSM_MIN_CACHE_MS,
+      );
+      const refreshed = {
+        ...metadata,
+        cacheControl,
+        expiresAt: now + ttlMs,
+      };
+      await fs.writeFile(metadataPath, JSON.stringify(refreshed));
+      await fs.utimes(tilePath, new Date(), new Date());
+      osmCacheBytes = osmCacheBytes ?? stat.size;
+      return serveCachedOsmTile(response, tilePath, refreshed);
+    }
+
+    if (!upstream.ok) {
+      const cachedExists = await fs.access(tilePath).then(() => true).catch(() => false);
+      if (cachedExists) {
+        response.setHeader("Warning", '110 - "Response is stale"');
+        return serveCachedOsmTile(response, tilePath, metadata);
+      }
+
+      return response.status(upstream.status).json({
+        error: "OSM_TILE_UPSTREAM_ERROR",
+        message: `OpenStreetMap antwortete mit HTTP ${upstream.status}.`,
+      });
+    }
+
+    const body = Buffer.from(await upstream.arrayBuffer());
+    const cacheControl =
+      upstream.headers.get("cache-control") ||
+      "public, max-age=604800";
+    const ttlMs = Math.max(
+      parseMaxAge(cacheControl) || 0,
+      OSM_MIN_CACHE_MS,
+    );
+    const nextMetadata = {
+      cacheControl,
+      etag: upstream.headers.get("etag") || null,
+      lastModified: upstream.headers.get("last-modified") || null,
+      expiresAt: now + ttlMs,
+      storedAt: now,
+    };
+
+    await fs.mkdir(path.dirname(tilePath), { recursive: true });
+    const previousSize = await fs.stat(tilePath).then((stat) => stat.size).catch(() => 0);
+    await fs.writeFile(tilePath, body);
+    await fs.writeFile(metadataPath, JSON.stringify(nextMetadata));
+    await initializeOsmCacheSize();
+    osmCacheBytes += body.length - previousSize;
+    enforceOsmCacheLimit().catch((error) => {
+      console.error("OSM-Tile-Cache konnte nicht bereinigt werden:", error);
+    });
+
+    response.setHeader("Content-Type", "image/png");
+    response.setHeader("Cache-Control", cacheControl);
+    if (nextMetadata.etag) response.setHeader("ETag", nextMetadata.etag);
+    if (nextMetadata.lastModified) {
+      response.setHeader("Last-Modified", nextMetadata.lastModified);
+    }
+    response.setHeader("X-Fahrtenbuch-Tile-Cache", "MISS");
+    response.send(body);
+  }),
+);
 
 const TILEJSON_CACHE_MS = 60_000;
 let tileJsonCache = null;

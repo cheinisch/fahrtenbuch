@@ -18,7 +18,7 @@ const OSM_MAP_STYLE = {
     osm: {
       type: "raster",
       tiles: [
-        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "/api/v1/map/osm/{z}/{x}/{y}.png",
       ],
       tileSize: 256,
       attribution: "© OpenStreetMap-Mitwirkende",
