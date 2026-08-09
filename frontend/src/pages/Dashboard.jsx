@@ -967,7 +967,7 @@ export default function Dashboard() {
       <section className="relative min-h-[420px] overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-sm">
         <div
           ref={mapContainerRef}
-          className="absolute inset-0"
+          className="absolute inset-0 overflow-hidden"
         />
 
         {mapError && (
