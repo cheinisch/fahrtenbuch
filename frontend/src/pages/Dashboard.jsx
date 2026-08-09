@@ -1,3 +1,4 @@
+
 import maplibregl from "maplibre-gl";
 import { layers, namedFlavor } from "@protomaps/basemaps";
 import {
@@ -515,8 +516,6 @@ export default function Dashboard() {
       console.error("MapLibre:", event?.error || event);
     });
 
-    mapRef.current = map;
-
     map.on("load", () => {
       map.resize();
       map.addSource("trip-routes", {
@@ -587,13 +586,20 @@ export default function Dashboard() {
       fitAllTrips();
     });
 
+    mapRef.current = map;
+
     return () => {
       resizeObserver?.disconnect();
       mapLoadedRef.current = false;
       map.remove();
       mapRef.current = null;
     };
-  }, [data.map.settings]);
+  }, [
+    data.map.settings?.provider,
+    data.map.settings?.protomapsTileServerUrl,
+    data.map.settings?.protomapsAssetsUrl,
+    data.map.settings?.protomapsFlavor,
+  ]);
 
   useEffect(() => {
     updateMapData();
@@ -748,8 +754,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="grid h-[calc(100vh-6rem)] min-h-[640px] gap-4 xl:grid-cols-[430px_minmax(0,1fr)]">
-      <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-sm">
+    <div className="relative h-[calc(100vh-4.5rem)] min-h-[520px] overflow-hidden">
+      <section className="absolute bottom-4 left-4 top-4 z-20 flex w-[min(410px,calc(100%-2rem))] min-h-0 flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:w-[410px]">
         <header className="border-b border-fb-border p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -957,10 +963,10 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <section className="relative isolate min-h-[420px] overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-sm">
+      <section className="absolute inset-0 z-0 overflow-hidden">
         <div
           ref={mapContainerRef}
-          className="absolute inset-0 z-0 overflow-hidden"
+          className="h-full w-full"
         />
 
         {mapError && (
@@ -970,7 +976,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="absolute left-3 top-3 z-10 flex gap-2">
+        <div className="absolute right-4 top-4 z-20 flex gap-2">
           <button
             type="button"
             onClick={() => {
@@ -984,7 +990,7 @@ export default function Dashboard() {
         </div>
 
         {selectedTripId && (
-          <div className="absolute bottom-3 right-3 z-10 w-[min(420px,calc(100%-1.5rem))] overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-lg backdrop-blur">
+          <div className="absolute bottom-4 right-4 z-20 w-[min(420px,calc(100%-2rem))] overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur">
             <div className="flex items-center justify-between border-b border-fb-border px-4 py-3">
               <div>
                 <div className="font-semibold">Historie</div>
@@ -1056,7 +1062,7 @@ export default function Dashboard() {
 
         {!status.loading &&
           data.trips.length === 0 && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
+            <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 hidden justify-center px-4 md:flex">
               <div className="rounded-lg border border-fb-border bg-fb-main/95 px-4 py-3 text-center text-sm shadow-lg backdrop-blur">
                 {data.map.homeLocation ? (
                   <>
