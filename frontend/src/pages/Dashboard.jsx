@@ -1,4 +1,3 @@
-
 import maplibregl from "maplibre-gl";
 import { layers, namedFlavor } from "@protomaps/basemaps";
 import {
@@ -594,12 +593,7 @@ export default function Dashboard() {
       map.remove();
       mapRef.current = null;
     };
-  }, [
-    data.map.settings?.provider,
-    data.map.settings?.protomapsTileServerUrl,
-    data.map.settings?.protomapsAssetsUrl,
-    data.map.settings?.protomapsFlavor,
-  ]);
+  }, [data.map.settings]);
 
   useEffect(() => {
     updateMapData();
