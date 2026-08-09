@@ -384,7 +384,9 @@ export default function Settings() {
                   <select
                     value={
                       settings.mapDefaults
-                        .provider
+                        .provider === "protomaps"
+                        ? "protomaps"
+                        : "osm"
                     }
                     onChange={(event) =>
                       setSettings((current) => ({
@@ -393,21 +395,27 @@ export default function Settings() {
                           ...current.mapDefaults,
                           provider:
                             event.target.value,
+                          protomapsTileServerUrl:
+                            current.mapDefaults.protomapsTileServerUrl || "",
+                          protomapsAssetsUrl:
+                            current.mapDefaults.protomapsAssetsUrl || "",
+                          protomapsFlavor:
+                            current.mapDefaults.protomapsFlavor || "auto",
                         },
                       }))
                     }
                     className={fieldClass}
                   >
                     <option value="osm">
-                      OpenStreetMap
+                      OpenStreetMap (Raster)
                     </option>
-                    <option value="maplibre">
-                      MapLibre
-                    </option>
-                    <option value="atlas">
-                      Eigener Atlas
+                    <option value="protomaps">
+                      Protomaps (eigener Tileserver)
                     </option>
                   </select>
+                  <span className="mt-1 block text-xs text-fb-muted">
+                    Die Darstellung erfolgt immer mit MapLibre GL JS.
+                  </span>
                 </label>
 
                 <label className="block text-sm font-medium">
@@ -489,6 +497,78 @@ export default function Settings() {
                     className={fieldClass}
                   />
                 </label>
+
+                {settings.mapDefaults.provider === "protomaps" && (
+                  <>
+                    <label className="block text-sm font-medium sm:col-span-2">
+                      Protomaps-Tileserver
+                      <input
+                        type="url"
+                        placeholder="http://172.16.2.20:8080/europe.json"
+                        value={settings.mapDefaults.protomapsTileServerUrl || ""}
+                        onChange={(event) =>
+                          setSettings((current) => ({
+                            ...current,
+                            mapDefaults: {
+                              ...current.mapDefaults,
+                              protomapsTileServerUrl: event.target.value,
+                            },
+                          }))
+                        }
+                        className={fieldClass}
+                      />
+                      <span className="mt-1 block text-xs text-fb-muted">
+                        HTTP(S)-Adresse des TileJSON-Endpunkts deines eigenen Protomaps-Tileservers. Der Endpunkt muss die Vector-Tile-URLs für MapLibre liefern, z. B. http://172.16.2.20:8080/europe.json.
+                      </span>
+                    </label>
+
+                    <label className="block text-sm font-medium">
+                      Protomaps-Kartenstil
+                      <select
+                        value={settings.mapDefaults.protomapsFlavor || "auto"}
+                        onChange={(event) =>
+                          setSettings((current) => ({
+                            ...current,
+                            mapDefaults: {
+                              ...current.mapDefaults,
+                              protomapsFlavor: event.target.value,
+                            },
+                          }))
+                        }
+                        className={fieldClass}
+                      >
+                        <option value="auto">Automatisch (App-Theme)</option>
+                        <option value="light">Hell</option>
+                        <option value="dark">Dunkel</option>
+                        <option value="grayscale">Graustufen</option>
+                        <option value="white">Weiß</option>
+                        <option value="black">Schwarz</option>
+                      </select>
+                    </label>
+
+                    <label className="block text-sm font-medium sm:col-span-2">
+                      Eigene Protomaps-Assets (optional)
+                      <input
+                        type="url"
+                        placeholder="http://172.16.2.20/protomaps-assets"
+                        value={settings.mapDefaults.protomapsAssetsUrl || ""}
+                        onChange={(event) =>
+                          setSettings((current) => ({
+                            ...current,
+                            mapDefaults: {
+                              ...current.mapDefaults,
+                              protomapsAssetsUrl: event.target.value,
+                            },
+                          }))
+                        }
+                        className={fieldClass}
+                      />
+                      <span className="mt-1 block text-xs text-fb-muted">
+                        Leer lassen, um die öffentlichen Protomaps-Fonts und -Sprites zu verwenden. Für vollständig selbst gehostete Karten hier die Basis-URL der Assets eintragen.
+                      </span>
+                    </label>
+                  </>
+                )}
 
                 <label className="block text-sm font-medium">
                   Map-Matching

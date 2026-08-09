@@ -1,15 +1,86 @@
-import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 
-import L from "leaflet";
+import maplibregl from "maplibre-gl";
+import { layers, namedFlavor } from "@protomaps/basemaps";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 
 import { getDashboard, getTripHistory } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+
+const OSM_MAP_STYLE = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: [
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap-Mitwirkende",
+    },
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm",
+    },
+  ],
+};
+
+function resolveProtomapsFlavor(value) {
+  if (value && value !== "auto") {
+    return value;
+  }
+
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
+function createMapStyle(settings) {
+  const tileServerUrl = String(
+    settings?.protomapsTileServerUrl || "",
+  ).trim();
+
+  if (settings?.provider !== "protomaps" || !tileServerUrl) {
+    return OSM_MAP_STYLE;
+  }
+
+  const flavorName = resolveProtomapsFlavor(settings.protomapsFlavor);
+  const assetsBase = String(settings.protomapsAssetsUrl || "").replace(/\/+$/, "");
+  const glyphs = assetsBase
+    ? `${assetsBase}/fonts/{fontstack}/{range}.pbf`
+    : "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf";
+  const sprite = assetsBase
+    ? `${assetsBase}/sprites/v4/${flavorName}`
+    : `https://protomaps.github.io/basemaps-assets/sprites/v4/${flavorName}`;
+
+  return {
+    version: 8,
+    glyphs,
+    sprite,
+    sources: {
+      protomaps: {
+        type: "vector",
+        url: tileServerUrl,
+        attribution: "Protomaps © OpenStreetMap-Mitwirkende",
+      },
+    },
+    layers: layers(
+      "protomaps",
+      namedFlavor(flavorName),
+      { lang: "de" },
+    ),
+  };
+}
+
 
 const tripTypeLabels = {
   business: "Dienstlich",
@@ -76,28 +147,111 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function tripCoordinates(trip) {
-  return trip.route.map((point) => [
-    point.latitude,
-    point.longitude,
-  ]);
+function toLineFeatures(trips) {
+  return trips
+    .filter((trip) => trip.route.length >= 2)
+    .map((trip) => ({
+      type: "Feature",
+      id: trip.id,
+      properties: {
+        tripId: trip.id,
+        type: trip.type,
+        label: tripTypeLabels[trip.type] || trip.type,
+        startedAt: trip.startedAt,
+      },
+      geometry: {
+        type: "LineString",
+        coordinates: trip.route.map((point) => [
+          point.longitude,
+          point.latitude,
+        ]),
+      },
+    }));
+}
+
+function toEndpointFeatures(trips) {
+  const features = [];
+
+  for (const trip of trips) {
+    if (trip.route.length === 0) {
+      continue;
+    }
+
+    const start = trip.route[0];
+    const end =
+      trip.route[trip.route.length - 1];
+
+    features.push({
+      type: "Feature",
+      properties: {
+        tripId: trip.id,
+        pointType: "start",
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [
+          start.longitude,
+          start.latitude,
+        ],
+      },
+    });
+
+    if (
+      start.latitude !== end.latitude ||
+      start.longitude !== end.longitude
+    ) {
+      features.push({
+        type: "Feature",
+        properties: {
+          tripId: trip.id,
+          pointType: "end",
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [
+            end.longitude,
+            end.latitude,
+          ],
+        },
+      });
+    }
+  }
+
+  return features;
 }
 
 function collectCoordinates(trips) {
   return trips.flatMap((trip) =>
-    tripCoordinates(trip),
+    trip.route.map((point) => [
+      point.longitude,
+      point.latitude,
+    ]),
   );
 }
 
+function createBounds(coordinates) {
+  if (coordinates.length === 0) {
+    return null;
+  }
+
+  const bounds = new maplibregl.LngLatBounds(
+    coordinates[0],
+    coordinates[0],
+  );
+
+  for (const coordinate of coordinates.slice(1)) {
+    bounds.extend(coordinate);
+  }
+
+  return bounds;
+}
 
 export default function Dashboard() {
   const { accessToken } = useAuth();
 
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
-  const routeLayersRef = useRef(new Map());
-  const endpointLayersRef = useRef([]);
-  const homeLayerRef = useRef(null);
+  const mapLoadedRef = useRef(false);
 
   const [filters, setFilters] = useState({
     from: "",
@@ -113,6 +267,7 @@ export default function Dashboard() {
     },
     map: {
       homeLocation: null,
+      settings: null,
     },
   });
 
@@ -130,6 +285,16 @@ export default function Dashboard() {
     error: "",
   });
 
+  const lineFeatures = useMemo(
+    () => toLineFeatures(data.trips),
+    [data.trips],
+  );
+
+  const endpointFeatures = useMemo(
+    () => toEndpointFeatures(data.trips),
+    [data.trips],
+  );
+
   const fitAllTrips = useCallback(() => {
     const map = mapRef.current;
 
@@ -137,160 +302,276 @@ export default function Dashboard() {
       return;
     }
 
-    const coordinates = collectCoordinates(data.trips);
+    const coordinates = collectCoordinates(
+      data.trips,
+    );
 
-    if (coordinates.length > 1) {
-      map.fitBounds(L.latLngBounds(coordinates), {
-        padding: [70, 70],
-        maxZoom: 15,
+    if (coordinates.length === 1) {
+      map.easeTo({
+        center: coordinates[0],
+        zoom: 13,
+        duration: 500,
       });
       return;
     }
 
-    if (coordinates.length === 1) {
-      map.setView(coordinates[0], 13);
+    const bounds = createBounds(coordinates);
+
+    if (bounds) {
+      map.fitBounds(bounds, {
+        padding: 70,
+        maxZoom: 15,
+        duration: 500,
+      });
       return;
     }
 
-    const homeLocation = data.map.homeLocation;
+    const homeLocation =
+      data.map.homeLocation;
 
     if (homeLocation) {
-      map.setView(
-        [homeLocation.latitude, homeLocation.longitude],
-        12,
-      );
+      map.easeTo({
+        center: [
+          homeLocation.longitude,
+          homeLocation.latitude,
+        ],
+        zoom: 12,
+        duration: 500,
+      });
       return;
     }
 
-    map.setView([51.1657, 10.4515], 5);
-  }, [data.map.homeLocation, data.trips]);
+    map.easeTo({
+      center: [10.4515, 51.1657],
+      zoom: 5,
+      duration: 500,
+    });
+  }, [data]);
 
   const updateMapData = useCallback(() => {
     const map = mapRef.current;
 
-    if (!map) {
+    if (!map || !mapLoadedRef.current) {
       return;
     }
 
-    for (const layer of routeLayersRef.current.values()) {
-      layer.remove();
-    }
-    routeLayersRef.current.clear();
+    const routeSource =
+      map.getSource("trip-routes");
 
-    for (const layer of endpointLayersRef.current) {
-      layer.remove();
-    }
-    endpointLayersRef.current = [];
+    routeSource?.setData({
+      type: "FeatureCollection",
+      features: lineFeatures,
+    });
 
-    if (homeLayerRef.current) {
-      homeLayerRef.current.remove();
-      homeLayerRef.current = null;
-    }
+    const pointSource =
+      map.getSource("trip-endpoints");
 
-    const rootStyles = getComputedStyle(document.documentElement);
-    const accent =
-      rootStyles.getPropertyValue("--color-accent").trim() || "#f48120";
+    pointSource?.setData({
+      type: "FeatureCollection",
+      features: endpointFeatures,
+    });
 
-    for (const trip of data.trips) {
-      const coordinates = tripCoordinates(trip);
+    const homeLocation =
+      data.map.homeLocation;
 
-      if (coordinates.length >= 2) {
-        const selected = selectedTripId === trip.id;
-        const routeLayer = L.polyline(coordinates, {
-          color: accent,
-          weight: selected ? 6 : 4,
-          opacity: selected ? 1 : 0.72,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
+    const homeSource =
+      map.getSource("home-location");
 
-        routeLayer.on("click", () => setSelectedTripId(trip.id));
-        routeLayersRef.current.set(trip.id, routeLayer);
-      }
+    homeSource?.setData({
+      type: "FeatureCollection",
+      features: homeLocation
+        ? [
+            {
+              type: "Feature",
+              properties: {
+                label: homeLocation.address,
+              },
+              geometry: {
+                type: "Point",
+                coordinates: [
+                  homeLocation.longitude,
+                  homeLocation.latitude,
+                ],
+              },
+            },
+          ]
+        : [],
+    });
 
-      if (coordinates.length > 0) {
-        const start = coordinates[0];
-        const end = coordinates[coordinates.length - 1];
-        const markerOptions = {
-          radius: 5,
-          color: "#ffffff",
-          weight: 2,
-          fillColor: accent,
-          fillOpacity: 1,
-        };
+    map.setPaintProperty(
+      "trip-routes",
+      "line-width",
+      [
+        "case",
+        [
+          "==",
+          ["get", "tripId"],
+          selectedTripId || "",
+        ],
+        6,
+        4,
+      ],
+    );
 
-        endpointLayersRef.current.push(
-          L.circleMarker(start, markerOptions).addTo(map),
-        );
-
-        if (start[0] !== end[0] || start[1] !== end[1]) {
-          endpointLayersRef.current.push(
-            L.circleMarker(end, markerOptions).addTo(map),
-          );
-        }
-      }
-    }
-
-    const homeLocation = data.map.homeLocation;
-    if (homeLocation) {
-      homeLayerRef.current = L.circleMarker(
-        [homeLocation.latitude, homeLocation.longitude],
-        {
-          radius: 8,
-          color: accent,
-          weight: 4,
-          fillColor: "#ffffff",
-          fillOpacity: 1,
-        },
-      )
-        .bindTooltip(homeLocation.address || "Heimatort")
-        .addTo(map);
-    }
-  }, [data.map.homeLocation, data.trips, selectedTripId]);
+    map.setPaintProperty(
+      "trip-routes",
+      "line-opacity",
+      [
+        "case",
+        [
+          "==",
+          ["get", "tripId"],
+          selectedTripId || "",
+        ],
+        1,
+        0.72,
+      ],
+    );
+  }, [
+    data.map.homeLocation,
+    endpointFeatures,
+    lineFeatures,
+    selectedTripId,
+  ]);
 
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) {
+    if (
+      !mapContainerRef.current ||
+      mapRef.current
+    ) {
       return;
     }
 
-    const map = L.map(mapContainerRef.current, {
-      zoomControl: true,
+    const rootStyles = getComputedStyle(
+      document.documentElement,
+    );
+
+    const accent =
+      rootStyles
+        .getPropertyValue("--color-accent")
+        .trim() || "#f48120";
+
+    const mapSettings = data.map.settings;
+
+    if (!mapSettings) {
+      return;
+    }
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: createMapStyle(mapSettings),
+      center: [
+        Number(mapSettings.defaultLongitude ?? 10.4515),
+        Number(mapSettings.defaultLatitude ?? 51.1657),
+      ],
+      zoom: Number(mapSettings.defaultZoom ?? 5),
       attributionControl: true,
-    }).setView([51.1657, 10.4515], 5);
+    });
 
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      minZoom: 0,
-      maxZoom: 19,
-      attribution: "© OpenStreetMap-Mitwirkende",
-    }).addTo(map);
+    map.addControl(
+      new maplibregl.NavigationControl(),
+      "top-right",
+    );
 
-    mapRef.current = map;
-
-    // Das Dashboard liegt in einem responsiven Grid. Nach dem ersten Layout
-    // muss Leaflet die tatsächlich verfügbare Containergröße neu einlesen.
-    requestAnimationFrame(() => map.invalidateSize(false));
     const resizeObserver = new ResizeObserver(() => {
-      map.invalidateSize(false);
+      map.resize();
     });
     resizeObserver.observe(mapContainerRef.current);
 
+    map.on("load", () => {
+      map.resize();
+      map.addSource("trip-routes", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "trip-routes",
+        type: "line",
+        source: "trip-routes",
+        layout: {
+          "line-cap": "round",
+          "line-join": "round",
+        },
+        paint: {
+          "line-color": accent,
+          "line-width": 4,
+          "line-opacity": 0.72,
+        },
+      });
+
+      map.addSource("trip-endpoints", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "trip-endpoints",
+        type: "circle",
+        source: "trip-endpoints",
+        paint: {
+          "circle-radius": 5,
+          "circle-color": accent,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
+
+      map.addSource("home-location", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "home-location",
+        type: "circle",
+        source: "home-location",
+        paint: {
+          "circle-radius": 8,
+          "circle-color": "#ffffff",
+          "circle-stroke-width": 4,
+          "circle-stroke-color": accent,
+        },
+      });
+
+      mapLoadedRef.current = true;
+      updateMapData();
+      fitAllTrips();
+    });
+
+    mapRef.current = map;
+
     return () => {
       resizeObserver.disconnect();
+      mapLoadedRef.current = false;
       map.remove();
       mapRef.current = null;
-      routeLayersRef.current.clear();
-      endpointLayersRef.current = [];
-      homeLayerRef.current = null;
     };
-  }, []);
+  }, [
+    data.map.settings?.provider,
+    data.map.settings?.protomapsTileServerUrl,
+    data.map.settings?.protomapsAssetsUrl,
+    data.map.settings?.protomapsFlavor,
+  ]);
 
   useEffect(() => {
     updateMapData();
   }, [updateMapData]);
 
   useEffect(() => {
-    fitAllTrips();
-  }, [fitAllTrips]);
+    if (mapLoadedRef.current) {
+      fitAllTrips();
+    }
+  }, [data.trips, data.map.homeLocation]);
 
   useEffect(() => {
     let cancelled = false;
@@ -396,7 +677,12 @@ export default function Dashboard() {
   function selectTrip(trip) {
     setSelectedTripId(trip.id);
 
-    const coordinates = tripCoordinates(trip);
+    const coordinates = trip.route.map(
+      (point) => [
+        point.longitude,
+        point.latitude,
+      ],
+    );
 
     const map = mapRef.current;
 
@@ -405,13 +691,18 @@ export default function Dashboard() {
     }
 
     if (coordinates.length === 1) {
-      map.setView(coordinates[0], 14);
+      map.easeTo({
+        center: coordinates[0],
+        zoom: 14,
+        duration: 500,
+      });
       return;
     }
 
-    map.fitBounds(L.latLngBounds(coordinates), {
-      padding: [80, 80],
+    map.fitBounds(createBounds(coordinates), {
+      padding: 80,
       maxZoom: 16,
+      duration: 500,
     });
   }
 
@@ -637,10 +928,10 @@ export default function Dashboard() {
       <section className="relative min-h-[420px] overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-sm">
         <div
           ref={mapContainerRef}
-          className="absolute inset-0 z-0"
+          className="absolute inset-0"
         />
 
-        <div className="absolute left-3 top-3 z-[1000] flex gap-2">
+        <div className="absolute left-3 top-3 z-10 flex gap-2">
           <button
             type="button"
             onClick={() => {
@@ -654,7 +945,7 @@ export default function Dashboard() {
         </div>
 
         {selectedTripId && (
-          <div className="absolute bottom-3 right-3 z-[1000] w-[min(420px,calc(100%-1.5rem))] overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-lg backdrop-blur">
+          <div className="absolute bottom-3 right-3 z-10 w-[min(420px,calc(100%-1.5rem))] overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-lg backdrop-blur">
             <div className="flex items-center justify-between border-b border-fb-border px-4 py-3">
               <div>
                 <div className="font-semibold">Historie</div>
@@ -726,7 +1017,7 @@ export default function Dashboard() {
 
         {!status.loading &&
           data.trips.length === 0 && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[1000] flex justify-center px-4">
+            <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
               <div className="rounded-lg border border-fb-border bg-fb-main/95 px-4 py-3 text-center text-sm shadow-lg backdrop-blur">
                 {data.map.homeLocation ? (
                   <>

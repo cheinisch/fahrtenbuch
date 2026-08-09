@@ -131,6 +131,84 @@ function parseMapSettings(body) {
   };
 }
 
+
+function parseMapDefaultsSettings(body) {
+  const input = objectBody(body);
+  const provider = enumField(
+    input,
+    "provider",
+    ["osm", "protomaps", "maplibre", "atlas"],
+    { required: true },
+  );
+
+  const protomapsTileServerUrl = stringField(input, "protomapsTileServerUrl", {
+    nullable: true,
+    maximum: 2000,
+  }) || "";
+  const protomapsAssetsUrl = stringField(input, "protomapsAssetsUrl", {
+    nullable: true,
+    maximum: 2000,
+  }) || "";
+  const protomapsFlavor = enumField(
+    { protomapsFlavor: input.protomapsFlavor || "auto" },
+    "protomapsFlavor",
+    ["auto", "light", "dark", "grayscale", "white", "black"],
+    { required: true },
+  );
+
+  if (provider === "protomaps" && !protomapsTileServerUrl) {
+    throw badRequest(
+      "VALIDATION_ERROR",
+      "Für Protomaps ist die Adresse eines eigenen Tileservers (TileJSON-Endpunkt) erforderlich.",
+    );
+  }
+
+  for (const [label, value] of [
+    ["Protomaps-Tileserver", protomapsTileServerUrl],
+    ["Protomaps-Assets", protomapsAssetsUrl],
+  ]) {
+    if (!value) continue;
+    const normalized = value;
+    let parsed;
+    try {
+      parsed = new URL(normalized);
+    } catch {
+      throw badRequest(
+        "VALIDATION_ERROR",
+        `${label}-Adresse muss eine gültige URL inklusive http:// oder https:// sein.`,
+      );
+    }
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw badRequest(
+        "VALIDATION_ERROR",
+        `${label}-Adresse muss http:// oder https:// verwenden.`,
+      );
+    }
+  }
+
+  return {
+    provider: provider === "maplibre" ? "osm" : provider === "atlas" ? "osm" : provider,
+    defaultLatitude: numberField(input, "defaultLatitude", {
+      required: true,
+      minimum: -90,
+      maximum: 90,
+    }),
+    defaultLongitude: numberField(input, "defaultLongitude", {
+      required: true,
+      minimum: -180,
+      maximum: 180,
+    }),
+    defaultZoom: integerField(input, "defaultZoom", {
+      required: true,
+      minimum: 0,
+      maximum: 24,
+    }),
+    protomapsTileServerUrl: protomapsTileServerUrl.replace(/\/+$/, ""),
+    protomapsAssetsUrl: protomapsAssetsUrl.replace(/\/+$/, ""),
+    protomapsFlavor,
+  };
+}
+
 function parsePhotonSettings(body) {
   const input = objectBody(body);
   const provider = enumField(input, "provider", ["public", "custom"], {
@@ -1442,11 +1520,15 @@ adminRoutes.get(
         minimumTimeSeconds: 5,
       },
       pairingExpiresSeconds: Number(values["pairing.expiresSeconds"] || 120),
-      mapDefaults: values["map.defaults"] || {
+      mapDefaults: {
         provider: "osm",
         defaultLatitude: 50.1109,
         defaultLongitude: 8.6821,
         defaultZoom: 6,
+        protomapsTileServerUrl: "",
+        protomapsAssetsUrl: "",
+        protomapsFlavor: "auto",
+        ...(values["map.defaults"] || {}),
       },
       mapMatching: values["mapMatching"] || {
         provider: "disabled",
@@ -1461,6 +1543,10 @@ adminRoutes.patch(
   "/settings",
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
+
+    if (body.mapDefaults !== undefined) {
+      body.mapDefaults = parseMapDefaultsSettings(body.mapDefaults);
+    }
 
     if (body.mapMatching !== undefined) {
       body.mapMatching = parseMapMatchingSettings(body.mapMatching);

@@ -100,7 +100,7 @@ dashboardRoutes.get(
 
     const whereClause = conditions.join(" AND ");
 
-    const [tripsResult, tagsResult, homeResult, statsResult, monthlyResult] =
+    const [tripsResult, tagsResult, homeResult, statsResult, monthlyResult, mapDefaultsResult] =
       await Promise.all([
         pool.query(
           `
@@ -192,6 +192,9 @@ dashboardRoutes.get(
           `,
           [request.auth.userId],
         ),
+          pool.query(
+          `SELECT value FROM app_settings WHERE key = 'map.defaults' LIMIT 1`,
+        ),
       ]);
 
     const tripIds = tripsResult.rows.map((row) => row.id);
@@ -278,6 +281,16 @@ dashboardRoutes.get(
       },
       map: {
         homeLocation: homeResult.rows[0]?.home_location || null,
+        settings: {
+          provider: "osm",
+          defaultLatitude: 50.1109,
+          defaultLongitude: 8.6821,
+          defaultZoom: 6,
+          protomapsTileServerUrl: "",
+          protomapsAssetsUrl: "",
+          protomapsFlavor: "auto",
+          ...(mapDefaultsResult.rows[0]?.value || {}),
+        },
       },
       stats: {
         totalTrips: Number(stats.total_trips || 0),
