@@ -161,6 +161,65 @@ function parsePhotonSettings(body) {
   };
 }
 
+function parseMapMatchingSettings(body) {
+  const input = objectBody(body);
+  const provider = enumField(
+    input,
+    "provider",
+    ["disabled", "osrm", "valhalla"],
+    { required: true },
+  );
+  const osrmUrl = stringField(input, "osrmUrl", {
+    nullable: true,
+    maximum: 2000,
+  }) || "";
+  const valhallaUrl = stringField(input, "valhallaUrl", {
+    nullable: true,
+    maximum: 2000,
+  }) || "";
+
+  if (provider === "osrm" && !osrmUrl) {
+    throw badRequest(
+      "VALIDATION_ERROR",
+      "Für OSRM ist eine Serveradresse erforderlich.",
+    );
+  }
+
+  if (provider === "valhalla" && !valhallaUrl) {
+    throw badRequest(
+      "VALIDATION_ERROR",
+      "Für Valhalla ist eine Serveradresse erforderlich.",
+    );
+  }
+
+  for (const [label, value] of [["OSRM", osrmUrl], ["Valhalla", valhallaUrl]]) {
+    if (!value) continue;
+
+    let parsed;
+    try {
+      parsed = new URL(value);
+    } catch {
+      throw badRequest(
+        "VALIDATION_ERROR",
+        `${label}-Serveradresse muss eine gültige URL inklusive http:// oder https:// sein.`,
+      );
+    }
+
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw badRequest(
+        "VALIDATION_ERROR",
+        `${label}-Serveradresse muss http:// oder https:// verwenden.`,
+      );
+    }
+  }
+
+  return {
+    provider,
+    osrmUrl: osrmUrl.replace(/\/+$/, ""),
+    valhallaUrl: valhallaUrl.replace(/\/+$/, ""),
+  };
+}
+
 function parseOverpassSettings(body) {
   const input = objectBody(body);
   const provider = enumField(input, "provider", ["public", "custom"], {
@@ -1371,7 +1430,7 @@ adminRoutes.get(
       `
         SELECT key, value
         FROM app_settings
-        WHERE key IN ('tracking.defaults', 'pairing.expiresSeconds', 'map.defaults')
+        WHERE key IN ('tracking.defaults', 'pairing.expiresSeconds', 'map.defaults', 'mapMatching')
       `,
     );
     const values = Object.fromEntries(
@@ -1389,6 +1448,11 @@ adminRoutes.get(
         defaultLongitude: 8.6821,
         defaultZoom: 6,
       },
+      mapMatching: values["mapMatching"] || {
+        provider: "disabled",
+        osrmUrl: "",
+        valhallaUrl: "",
+      },
     });
   }),
 );
@@ -1397,6 +1461,11 @@ adminRoutes.patch(
   "/settings",
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
+
+    if (body.mapMatching !== undefined) {
+      body.mapMatching = parseMapMatchingSettings(body.mapMatching);
+    }
+
     const client = await pool.connect();
 
     try {
@@ -1405,6 +1474,7 @@ adminRoutes.patch(
         ["tracking.defaults", body.trackingDefaults],
         ["pairing.expiresSeconds", body.pairingExpiresSeconds],
         ["map.defaults", body.mapDefaults],
+        ["mapMatching", body.mapMatching],
       ].filter(([, value]) => value !== undefined);
 
       for (const [key, value] of entries) {
@@ -1424,7 +1494,7 @@ adminRoutes.patch(
       await client.query("COMMIT");
       request.method = "GET";
       const result = await pool.query(
-        `SELECT key, value FROM app_settings WHERE key IN ('tracking.defaults', 'pairing.expiresSeconds', 'map.defaults')`,
+        `SELECT key, value FROM app_settings WHERE key IN ('tracking.defaults', 'pairing.expiresSeconds', 'map.defaults', 'mapMatching')`,
       );
       const values = Object.fromEntries(
         result.rows.map((row) => [row.key, row.value]),
@@ -1433,6 +1503,11 @@ adminRoutes.patch(
         trackingDefaults: values["tracking.defaults"],
         pairingExpiresSeconds: Number(values["pairing.expiresSeconds"]),
         mapDefaults: values["map.defaults"],
+        mapMatching: values["mapMatching"] || {
+          provider: "disabled",
+          osrmUrl: "",
+          valhallaUrl: "",
+        },
       });
     } catch (error) {
       await client.query("ROLLBACK");

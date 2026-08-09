@@ -477,3 +477,10 @@ export function logoutAdminUserSessions(
     },
   );
 }
+
+export function getTripHistory(accessToken, tripId) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/trips/${encodeURIComponent(tripId)}/history`,
+  );
+}

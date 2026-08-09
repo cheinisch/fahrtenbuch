@@ -366,6 +366,70 @@ tripRoutes.post(
 );
 
 tripRoutes.get(
+  "/:id/history",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    const trip = await getOwnedTrip(
+      pool,
+      request.auth.userId,
+      tripId,
+      { includeArchived: true, includeTags: false },
+    );
+
+    if (!trip) {
+      throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          h.id,
+          h.trip_id,
+          h.user_id,
+          h.actor_user_id,
+          h.event_type,
+          h.changed_fields,
+          h.old_values,
+          h.new_values,
+          h.metadata,
+          h.created_at,
+          u.display_name AS actor_display_name,
+          u.username AS actor_username,
+          u.email AS actor_email
+        FROM trip_history h
+        LEFT JOIN users u
+          ON u.id = h.actor_user_id
+        WHERE h.trip_id = $1
+          AND h.user_id = $2
+        ORDER BY h.created_at ASC, h.id ASC
+      `,
+      [tripId, request.auth.userId],
+    );
+
+    response.json(
+      result.rows.map((row) => ({
+        id: String(row.id),
+        tripId: row.trip_id,
+        eventType: row.event_type,
+        changedFields: row.changed_fields || {},
+        oldValues: row.old_values ?? null,
+        newValues: row.new_values ?? null,
+        metadata: row.metadata || {},
+        actor: row.actor_user_id
+          ? {
+              id: row.actor_user_id,
+              displayName: row.actor_display_name ?? null,
+              username: row.actor_username ?? null,
+              email: row.actor_email ?? null,
+            }
+          : null,
+        createdAt: row.created_at,
+      })),
+    );
+  }),
+);
+
+tripRoutes.get(
   "/:id/points",
   asyncHandler(async (request, response) => {
     const tripId = uuidValue(request.params.id);

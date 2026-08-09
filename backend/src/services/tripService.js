@@ -211,8 +211,9 @@ export async function replaceTripTags(
       DELETE FROM trip_tags
       WHERE trip_id = $1
         AND user_id = $2
+        AND NOT (tag_id = ANY($3::uuid[]))
     `,
-    [tripId, userId],
+    [userId, tripId, uniqueTagIds],
   );
 
   if (uniqueTagIds.length > 0) {
@@ -226,9 +227,52 @@ export async function replaceTripTags(
         SELECT
           $1,
           $2,
-          unnest($3::uuid[])
+          tag_id
+        FROM unnest($3::uuid[]) AS requested(tag_id)
+        ON CONFLICT (trip_id, tag_id) DO NOTHING
       `,
       [userId, tripId, uniqueTagIds],
     );
   }
 }
+
+export async function appendTripHistory(
+  client,
+  {
+    tripId,
+    userId,
+    actorUserId = userId,
+    eventType,
+    changedFields = {},
+    oldValues = null,
+    newValues = null,
+    metadata = {},
+  },
+) {
+  await client.query(
+    `
+      INSERT INTO trip_history (
+        trip_id,
+        user_id,
+        actor_user_id,
+        event_type,
+        changed_fields,
+        old_values,
+        new_values,
+        metadata
+      )
+      VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb)
+    `,
+    [
+      tripId,
+      userId,
+      actorUserId,
+      eventType,
+      JSON.stringify(changedFields || {}),
+      oldValues === null ? null : JSON.stringify(oldValues),
+      newValues === null ? null : JSON.stringify(newValues),
+      JSON.stringify(metadata || {}),
+    ],
+  );
+}
+

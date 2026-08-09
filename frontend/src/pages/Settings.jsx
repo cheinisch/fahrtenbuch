@@ -489,6 +489,106 @@ export default function Settings() {
                     className={fieldClass}
                   />
                 </label>
+
+                <label className="block text-sm font-medium">
+                  Map-Matching
+                  <select
+                    value={
+                      settings.mapMatching
+                        ?.provider || "disabled"
+                    }
+                    onChange={(event) =>
+                      setSettings((current) => ({
+                        ...current,
+                        mapMatching: {
+                          provider:
+                            event.target.value,
+                          osrmUrl:
+                            current.mapMatching
+                              ?.osrmUrl || "",
+                          valhallaUrl:
+                            current.mapMatching
+                              ?.valhallaUrl || "",
+                        },
+                      }))
+                    }
+                    className={fieldClass}
+                  >
+                    <option value="disabled">
+                      Kein Map-Matching
+                    </option>
+                    <option value="osrm">
+                      OSRM
+                    </option>
+                    <option value="valhalla">
+                      Valhalla
+                    </option>
+                  </select>
+                </label>
+
+                <label className="block text-sm font-medium">
+                  OSRM Serveradresse
+                  <input
+                    type="text"
+                    placeholder="http://192.168.1.10:5000"
+                    value={
+                      settings.mapMatching
+                        ?.osrmUrl || ""
+                    }
+                    onChange={(event) =>
+                      setSettings((current) => ({
+                        ...current,
+                        mapMatching: {
+                          provider:
+                            current.mapMatching
+                              ?.provider ||
+                            "disabled",
+                          osrmUrl:
+                            event.target.value,
+                          valhallaUrl:
+                            current.mapMatching
+                              ?.valhallaUrl || "",
+                        },
+                      }))
+                    }
+                    className={fieldClass}
+                  />
+                  <span className="mt-1 block text-xs font-normal text-fb-muted">
+                    IP/Hostname inklusive Protokoll und Port, z. B. http://192.168.1.10:5000
+                  </span>
+                </label>
+
+                <label className="block text-sm font-medium">
+                  Valhalla Serveradresse
+                  <input
+                    type="text"
+                    placeholder="http://192.168.1.11:8002"
+                    value={
+                      settings.mapMatching
+                        ?.valhallaUrl || ""
+                    }
+                    onChange={(event) =>
+                      setSettings((current) => ({
+                        ...current,
+                        mapMatching: {
+                          provider:
+                            current.mapMatching
+                              ?.provider ||
+                            "disabled",
+                          osrmUrl:
+                            current.mapMatching
+                              ?.osrmUrl || "",
+                          valhallaUrl:
+                            event.target.value,
+                        },
+                      }))
+                    }
+                    className={fieldClass}
+                  />
+                  <span className="mt-1 block text-xs font-normal text-fb-muted">
+                    IP/Hostname inklusive Protokoll und Port, z. B. http://192.168.1.11:8002
+                  </span>
+                </label>
               </div>
 
               <div className="mt-6 flex justify-end">

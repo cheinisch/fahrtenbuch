@@ -502,6 +502,21 @@ paths:
         - $ref: '#/components/parameters/Id'
       responses:
         '204': { description: Fahrt gelöscht }
+  /trips/{id}/history:
+    get:
+      tags: [Trips]
+      summary: Unveränderliche Historie einer Fahrt abrufen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Fahrten-Historie
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TripHistoryEntry' }
+        '404': { description: Fahrt nicht gefunden }
   /trips/{id}/points:
     get:
       tags: [Trips]
@@ -1267,6 +1282,29 @@ components:
         durationSeconds: { type: [integer, 'null'] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    TripHistoryEntry:
+      type: object
+      required: [id, tripId, eventType, changedFields, metadata, createdAt]
+      properties:
+        id: { type: string }
+        tripId: { type: string, format: uuid }
+        eventType:
+          type: string
+          enum: [CREATED, UPDATED, CLASSIFIED, ARCHIVED, DELETED, TAG_ADDED, TAG_REMOVED, MAP_MATCHED, BASELINE]
+        changedFields: { type: object, additionalProperties: true }
+        oldValues: { type: [object, 'null'], additionalProperties: true }
+        newValues: { type: [object, 'null'], additionalProperties: true }
+        metadata: { type: object, additionalProperties: true }
+        actor:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                id: { type: string, format: uuid }
+                displayName: { type: [string, 'null'] }
+                username: { type: [string, 'null'] }
+                email: { type: [string, 'null'], format: email }
+        createdAt: { type: string, format: date-time }
     TripInput:
       type: object
       required: [vehicleId, startedAt]
