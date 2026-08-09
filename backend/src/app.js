@@ -17,6 +17,7 @@ import {
   userDataImportRoutes,
 } from "./routes/dataTransferRoutes.js";
 import { healthRoutes } from "./routes/healthRoutes.js";
+import { mapRoutes } from "./routes/mapRoutes.js";
 import {
   exportRoutes,
   importRoutes,
@@ -131,6 +132,7 @@ const authLimiter = rateLimit({
 });
 
 app.use("/api/v1/health", healthRoutes);
+app.use("/api/v1/map", mapRoutes);
 app.use("/api/v1/auth", authLimiter, authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/vehicles", vehicleRoutes);
