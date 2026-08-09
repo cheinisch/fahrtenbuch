@@ -45,35 +45,26 @@ function resolveProtomapsFlavor(value) {
 }
 
 function createMapStyle(settings) {
-  const configuredTileServerUrl = String(
-    settings?.protomapsTileServerUrl || "",
-  ).trim();
-  const tileServerUrl = configuredTileServerUrl && !/\.json(?:[?#].*)?$/i.test(configuredTileServerUrl)
-    ? `${configuredTileServerUrl.replace(/\/+$/, "")}/europe.json`
-    : configuredTileServerUrl;
-
-  if (settings?.provider !== "protomaps" || !tileServerUrl) {
+  if (settings?.provider !== "protomaps") {
     return OSM_MAP_STYLE;
   }
 
-  const flavorName = resolveProtomapsFlavor(settings.protomapsFlavor);
-  const assetsBase = String(settings.protomapsAssetsUrl || "").replace(/\/+$/, "");
-  const glyphs = assetsBase
-    ? `${assetsBase}/fonts/{fontstack}/{range}.pbf`
-    : "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf";
-  const sprite = assetsBase
-    ? `${assetsBase}/sprites/v4/${flavorName}`
-    : `https://protomaps.github.io/basemaps-assets/sprites/v4/${flavorName}`;
+  const flavorName = resolveProtomapsFlavor(
+    settings.protomapsFlavor,
+  );
 
   return {
     version: 8,
-    glyphs,
-    sprite,
+    glyphs:
+      "/api/v1/map/protomaps/fonts/{fontstack}/{range}.pbf",
+    sprite:
+      `/api/v1/map/protomaps/sprites/v4/${flavorName}`,
     sources: {
       protomaps: {
         type: "vector",
-        url: tileServerUrl,
-        attribution: "Protomaps © OpenStreetMap-Mitwirkende",
+        url: "/api/v1/map/protomaps/tilejson",
+        attribution:
+          "Protomaps © OpenStreetMap-Mitwirkende",
       },
     },
     layers: layers(
@@ -462,26 +453,63 @@ export default function Dashboard() {
       return;
     }
 
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: createMapStyle(mapSettings),
-      center: [
-        Number(mapSettings.defaultLongitude ?? 10.4515),
-        Number(mapSettings.defaultLatitude ?? 51.1657),
-      ],
-      zoom: Number(mapSettings.defaultZoom ?? 5),
-      attributionControl: true,
-    });
+    let map;
+    let resizeObserver;
 
-    map.addControl(
-      new maplibregl.NavigationControl(),
-      "top-right",
-    );
+    try {
+      setMapError("");
 
-    const resizeObserver = new ResizeObserver(() => {
-      map.resize();
-    });
-    resizeObserver.observe(mapContainerRef.current);
+      map = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: createMapStyle(mapSettings),
+        center: [
+          Number(
+            mapSettings.defaultLongitude ??
+              10.4515,
+          ),
+          Number(
+            mapSettings.defaultLatitude ??
+              51.1657,
+          ),
+        ],
+        zoom: Number(
+          mapSettings.defaultZoom ?? 5,
+        ),
+        attributionControl: true,
+      });
+
+      map.addControl(
+        new maplibregl.NavigationControl(),
+        "top-right",
+      );
+
+      if (typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(() => {
+          map.resize();
+        });
+        resizeObserver.observe(
+          mapContainerRef.current,
+        );
+      }
+
+      requestAnimationFrame(() => {
+        map.resize();
+      });
+    } catch (initializationError) {
+      const message =
+        initializationError instanceof Error
+          ? initializationError.message
+          : String(initializationError);
+
+      console.error(
+        "MapLibre konnte nicht initialisiert werden:",
+        initializationError,
+      );
+      setMapError(
+        `MapLibre konnte nicht gestartet werden: ${message}`,
+      );
+      return;
+    }
 
     map.on("error", (event) => {
       const message = event?.error?.message || "Die Karte konnte nicht geladen werden.";
@@ -490,7 +518,6 @@ export default function Dashboard() {
     });
 
     map.on("load", () => {
-      setMapError("");
       map.resize();
       map.addSource("trip-routes", {
         type: "geojson",
@@ -563,7 +590,7 @@ export default function Dashboard() {
     mapRef.current = map;
 
     return () => {
-      resizeObserver.disconnect();
+      resizeObserver?.disconnect();
       mapLoadedRef.current = false;
       map.remove();
       mapRef.current = null;

@@ -513,7 +513,7 @@ export default function Settings() {
                         className={fieldClass}
                       />
                       <span className="mt-1 block text-xs text-fb-muted">
-                        Adresse deines eigenen Protomaps-Tileservers. Du kannst entweder die Basis-URL oder direkt den TileJSON-Endpunkt eintragen. Bei einer Basis-URL wird /europe.json verwendet.
+                        Adresse deines eigenen Protomaps-Tileservers. Du kannst die Basis-URL oder direkt den TileJSON-Endpunkt eintragen. Das Fahrtenbuch-Backend proxyt TileJSON und Vector-Tiles, sodass der Browser den Tileserver nicht direkt erreichen muss. Bei einer Basis-URL wird /europe.json verwendet.
                       </span>
                     </label>
 
