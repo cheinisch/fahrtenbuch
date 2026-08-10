@@ -260,6 +260,8 @@ export default function Dashboard() {
     },
     map: {
       homeLocation: null,
+      workLocation: null,
+      locationRecognitionRadiusMeters: 250,
       settings: null,
     },
   });
@@ -321,14 +323,15 @@ export default function Dashboard() {
       return;
     }
 
-    const homeLocation =
-      data.map.homeLocation;
+    const homeLocation = data.map.homeLocation;
+    const fallbackLocation =
+      homeLocation || data.map.workLocation;
 
-    if (homeLocation) {
+    if (fallbackLocation) {
       map.easeTo({
         center: [
-          homeLocation.longitude,
-          homeLocation.latitude,
+          fallbackLocation.longitude,
+          fallbackLocation.latitude,
         ],
         zoom: 12,
         duration: 500,
@@ -393,6 +396,30 @@ export default function Dashboard() {
         : [],
     });
 
+    const workLocation = data.map.workLocation;
+    const workSource = map.getSource("work-location");
+
+    workSource?.setData({
+      type: "FeatureCollection",
+      features: workLocation
+        ? [
+            {
+              type: "Feature",
+              properties: {
+                label: workLocation.address,
+              },
+              geometry: {
+                type: "Point",
+                coordinates: [
+                  workLocation.longitude,
+                  workLocation.latitude,
+                ],
+              },
+            },
+          ]
+        : [],
+    });
+
     map.setPaintProperty(
       "trip-routes",
       "line-width",
@@ -424,6 +451,7 @@ export default function Dashboard() {
     );
   }, [
     data.map.homeLocation,
+    data.map.workLocation,
     endpointFeatures,
     lineFeatures,
     selectedTripId,
@@ -578,6 +606,27 @@ export default function Dashboard() {
           "circle-color": "#ffffff",
           "circle-stroke-width": 4,
           "circle-stroke-color": accent,
+        },
+      });
+
+
+      map.addSource("work-location", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "work-location",
+        type: "circle",
+        source: "work-location",
+        paint: {
+          "circle-radius": 8,
+          "circle-color": accent,
+          "circle-stroke-width": 3,
+          "circle-stroke-color": "#ffffff",
         },
       });
 
@@ -867,6 +916,19 @@ export default function Dashboard() {
           </div>
         </header>
 
+        <div className="border-b border-fb-border p-3">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedTripId(null);
+              fitAllTrips();
+            }}
+            className="w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent"
+          >
+            Alle Fahrten anzeigen
+          </button>
+        </div>
+
         {status.error && (
           <div className="m-4 rounded-lg border border-fb-danger px-3 py-2 text-sm text-fb-danger">
             {status.error}
@@ -975,19 +1037,6 @@ export default function Dashboard() {
             <span className="mt-1 block break-words">{mapError}</span>
           </div>
         )}
-
-        <div className="absolute right-4 top-4 z-20 flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedTripId(null);
-              fitAllTrips();
-            }}
-            className="rounded-lg border border-fb-border bg-fb-main/95 px-3 py-2 text-sm font-semibold text-fb-text shadow-sm backdrop-blur hover:border-fb-accent hover:text-fb-accent"
-          >
-            Alle Fahrten anzeigen
-          </button>
-        </div>
 
         {selectedTripId && (
           <div className="absolute bottom-4 right-4 z-20 w-[min(420px,calc(100%-2rem))] overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur">

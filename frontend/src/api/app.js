@@ -192,6 +192,30 @@ export function deleteHomeLocation(accessToken) {
   );
 }
 
+export function saveWorkLocation(
+  accessToken,
+  workLocation,
+) {
+  return apiRequest(
+    accessToken,
+    "/api/v1/users/me/work-location",
+    {
+      method: "PUT",
+      body: JSON.stringify(workLocation),
+    },
+  );
+}
+
+export function deleteWorkLocation(accessToken) {
+  return apiRequest(
+    accessToken,
+    "/api/v1/users/me/work-location",
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 export function getAdminOverview(accessToken) {
   return apiRequest(
     accessToken,

@@ -132,7 +132,10 @@ dashboardRoutes.get(
         ),
         pool.query(
           `
-            SELECT settings -> 'homeLocation' AS home_location
+            SELECT
+              settings -> 'homeLocation' AS home_location,
+              settings -> 'workLocation' AS work_location,
+              settings -> 'locationRecognitionRadiusMeters' AS location_recognition_radius_meters
             FROM user_settings
             WHERE user_id = $1
             LIMIT 1
@@ -281,6 +284,10 @@ dashboardRoutes.get(
       },
       map: {
         homeLocation: homeResult.rows[0]?.home_location || null,
+        workLocation: homeResult.rows[0]?.work_location || null,
+        locationRecognitionRadiusMeters: Number(
+          homeResult.rows[0]?.location_recognition_radius_meters ?? 250,
+        ),
         settings: {
           provider: "osm",
           defaultLatitude: 50.1109,

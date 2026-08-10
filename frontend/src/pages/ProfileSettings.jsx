@@ -9,11 +9,13 @@ import {
 import {
   changePassword,
   deleteHomeLocation,
+  deleteWorkLocation,
   getDevices,
   getPersonalSettings,
   reverseHomeLocation,
   revokeDevice,
   saveHomeLocation,
+  saveWorkLocation,
   searchHomeLocations,
   updatePersonalSettings,
   updateProfile,
@@ -166,6 +168,28 @@ export default function ProfileSettings() {
   const [gpsLoading, setGpsLoading] =
     useState(false);
 
+
+  const [workLocation, setWorkLocation] =
+    useState(null);
+
+  const [savedWorkLocation, setSavedWorkLocation] =
+    useState(null);
+
+  const [workQuery, setWorkQuery] =
+    useState("");
+
+  const [workCandidates, setWorkCandidates] =
+    useState([]);
+
+  const [workSearchLoading, setWorkSearchLoading] =
+    useState(false);
+
+  const [workGpsLoading, setWorkGpsLoading] =
+    useState(false);
+
+  const [locationRecognitionRadiusMeters, setLocationRecognitionRadiusMeters] =
+    useState(250);
+
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -243,6 +267,26 @@ export default function ProfileSettings() {
         loadedHomeLocation?.address || "",
       );
       setHomeCandidates([]);
+
+
+      const loadedWorkLocation =
+        settingsResult.settings.workLocation ||
+        settingsResult.settings.customSettings
+          ?.workLocation ||
+        null;
+
+      setWorkLocation(loadedWorkLocation);
+      setSavedWorkLocation(loadedWorkLocation);
+      setWorkQuery(loadedWorkLocation?.address || "");
+      setWorkCandidates([]);
+      setLocationRecognitionRadiusMeters(
+        Number(
+          settingsResult.settings.locationRecognitionRadiusMeters ||
+            settingsResult.settings.customSettings
+              ?.locationRecognitionRadiusMeters ||
+            250,
+        ),
+      );
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -390,6 +434,139 @@ export default function ProfileSettings() {
       );
     } catch (deleteError) {
       showError(deleteError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function findWorkCandidates() {
+    const query = workQuery.trim();
+
+    if (query.length < 3) {
+      setError(
+        "Bitte gib mindestens drei Zeichen für den Arbeitsort ein.",
+      );
+      setMessage("");
+      return [];
+    }
+
+    setWorkSearchLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const result = await searchHomeLocations(
+        accessToken,
+        query,
+      );
+      const candidates = result.candidates || [];
+      setWorkCandidates(candidates);
+
+      if (candidates.length === 0) {
+        setError("Für diese Eingabe wurde kein Ort gefunden.");
+      }
+
+      return candidates;
+    } catch (searchError) {
+      showError(searchError);
+      return [];
+    } finally {
+      setWorkSearchLoading(false);
+    }
+  }
+
+  async function persistWorkLocation(candidate) {
+    if (!candidate) {
+      setError(
+        "Bitte gib einen Arbeitsort ein oder wähle einen Suchtreffer aus.",
+      );
+      setMessage("");
+      return false;
+    }
+
+    const result = await saveWorkLocation(
+      accessToken,
+      candidate,
+    );
+    const storedLocation = result.workLocation;
+
+    setWorkLocation(storedLocation);
+    setSavedWorkLocation(storedLocation);
+    setWorkQuery(storedLocation.address);
+    setWorkCandidates([]);
+    showSuccess("Der Arbeitsort wurde gespeichert.");
+    return true;
+  }
+
+  async function saveEnteredWorkLocation() {
+    setSaving("work-save");
+    setError("");
+    setMessage("");
+
+    try {
+      const normalizedQuery = workQuery.trim();
+      let candidate =
+        workLocation &&
+        workLocation.address.trim() === normalizedQuery
+          ? workLocation
+          : null;
+
+      if (!candidate) {
+        const candidates = await findWorkCandidates();
+        candidate = candidates[0] || null;
+      }
+
+      await persistWorkLocation(candidate);
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function removeSavedWorkLocation() {
+    setSaving("work-delete");
+
+    try {
+      await deleteWorkLocation(accessToken);
+      setWorkLocation(null);
+      setSavedWorkLocation(null);
+      setWorkQuery("");
+      setWorkCandidates([]);
+      showSuccess("Der Arbeitsort wurde entfernt.");
+    } catch (deleteError) {
+      showError(deleteError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function saveRecognitionRadius() {
+    setSaving("location-radius");
+    setError("");
+    setMessage("");
+
+    try {
+      const radius = Math.round(
+        Number(locationRecognitionRadiusMeters),
+      );
+
+      if (!Number.isFinite(radius) || radius < 25 || radius > 5000) {
+        setError("Der Erkennungsradius muss zwischen 25 und 5000 Metern liegen.");
+        return;
+      }
+
+      const updated = await updatePersonalSettings(
+        accessToken,
+        { locationRecognitionRadiusMeters: radius },
+      );
+
+      setLocationRecognitionRadiusMeters(
+        Number(updated.locationRecognitionRadiusMeters || radius),
+      );
+      showSuccess("Der Radius zur Ortserkennung wurde gespeichert.");
+    } catch (saveError) {
+      showError(saveError);
     } finally {
       setSaving("");
     }
@@ -1210,6 +1387,209 @@ export default function ProfileSettings() {
             {saving === "home-save"
               ? "Speichern …"
               : "Heimatort speichern"}
+          </button>
+        </div>
+      </Section>
+
+      <Section
+        title="Arbeitsort (optional)"
+        description="Optionaler Arbeitsort für die Erkennung von Arbeitswegen. Die Adresse wird wie der Heimatort als Koordinate gespeichert."
+      >
+        {savedWorkLocation && (
+          <div className="mb-5 rounded-lg border border-fb-border bg-fb-surface p-4">
+            <div className="text-sm font-semibold">Aktuell gespeichert</div>
+            <div className="mt-1 text-sm text-fb-text">
+              {savedWorkLocation.address}
+            </div>
+            <div className="mt-1 text-xs text-fb-muted">
+              {Number(savedWorkLocation.latitude).toFixed(6)}, {" "}
+              {Number(savedWorkLocation.longitude).toFixed(6)}
+              {" · "}
+              {savedWorkLocation.source === "gps"
+                ? "per GPS bestimmt"
+                : "manuell gewählt"}
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <label className={labelClass}>
+            Adresse oder Ort
+            <input
+              type="text"
+              value={workQuery}
+              onChange={(event) => {
+                const value = event.target.value;
+                setWorkQuery(value);
+                setWorkCandidates([]);
+                if (workLocation?.address !== value.trim()) {
+                  setWorkLocation(null);
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  saveEnteredWorkLocation();
+                }
+              }}
+              placeholder="z. B. Darmstadt"
+              className={fieldClass}
+            />
+          </label>
+
+          <button
+            type="button"
+            disabled={workSearchLoading || workQuery.trim().length < 3}
+            onClick={findWorkCandidates}
+            className="self-end rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
+          >
+            {workSearchLoading ? "Suche …" : "Adresse suchen"}
+          </button>
+        </div>
+
+        {workCandidates.length > 0 && (
+          <div className="mt-4 divide-y divide-fb-border overflow-hidden rounded-lg border border-fb-border">
+            {workCandidates.map((candidate, index) => (
+              <button
+                key={`${candidate.latitude}-${candidate.longitude}-${index}`}
+                type="button"
+                onClick={() => {
+                  setWorkLocation(candidate);
+                  setWorkQuery(candidate.address);
+                  setWorkCandidates([]);
+                  setError("");
+                  setMessage(
+                    "Adresse ausgewählt. Klicke auf „Arbeitsort speichern“.",
+                  );
+                }}
+                className="block w-full bg-fb-main px-4 py-3 text-left transition hover:bg-fb-surface"
+              >
+                <div className="text-sm font-medium">{candidate.address}</div>
+                <div className="mt-1 text-xs text-fb-muted">
+                  {Number(candidate.latitude).toFixed(6)}, {" "}
+                  {Number(candidate.longitude).toFixed(6)}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            disabled={workGpsLoading}
+            onClick={() => {
+              if (!navigator.geolocation) {
+                setError("Dieses Gerät unterstützt keine Standortbestimmung.");
+                return;
+              }
+
+              setWorkGpsLoading(true);
+              setError("");
+              setMessage("");
+
+              navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                  try {
+                    const result = await reverseHomeLocation(
+                      accessToken,
+                      {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                      },
+                    );
+                    setWorkLocation(result.candidate);
+                    setWorkQuery(result.candidate.address);
+                    setWorkCandidates([]);
+                    setMessage(
+                      "Der aktuelle Standort wurde ermittelt. Klicke auf „Arbeitsort speichern“.",
+                    );
+                  } catch (gpsError) {
+                    showError(gpsError);
+                  } finally {
+                    setWorkGpsLoading(false);
+                  }
+                },
+                () => {
+                  setError("Der Standort konnte nicht bestimmt werden.");
+                  setWorkGpsLoading(false);
+                },
+                {
+                  enableHighAccuracy: true,
+                  timeout: 15_000,
+                  maximumAge: 0,
+                },
+              );
+            }}
+            className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
+          >
+            {workGpsLoading
+              ? "Standort wird bestimmt …"
+              : "Aktuellen Standort verwenden"}
+          </button>
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+          {savedWorkLocation && (
+            <button
+              type="button"
+              disabled={saving === "work-delete" || saving === "work-save"}
+              onClick={removeSavedWorkLocation}
+              className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-danger transition hover:border-fb-danger disabled:opacity-60"
+            >
+              {saving === "work-delete" ? "Entfernen …" : "Arbeitsort entfernen"}
+            </button>
+          )}
+
+          <button
+            type="button"
+            disabled={
+              workQuery.trim().length < 3 ||
+              workSearchLoading ||
+              saving === "work-save" ||
+              saving === "work-delete"
+            }
+            onClick={saveEnteredWorkLocation}
+            className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
+          >
+            {saving === "work-save" ? "Speichern …" : "Arbeitsort speichern"}
+          </button>
+        </div>
+      </Section>
+
+      <Section
+        title="Ortserkennung"
+        description="Legt fest, wie nah Start oder Ziel an Heimat- bzw. Arbeitsort liegen müssen, damit der Ort als Treffer erkannt wird."
+      >
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,320px)_1fr] sm:items-end">
+          <label className={labelClass}>
+            Erkennungsradius in Metern
+            <input
+              type="number"
+              min="25"
+              max="5000"
+              step="25"
+              value={locationRecognitionRadiusMeters}
+              onChange={(event) =>
+                setLocationRecognitionRadiusMeters(event.target.value)
+              }
+              className={fieldClass}
+            />
+          </label>
+
+          <div className="text-sm text-fb-muted">
+            Gilt gemeinsam für Heimatort und Arbeitsort. Empfohlen sind etwa 100–300 m; bei großen Firmen- oder Parkplatzgeländen kann ein größerer Radius sinnvoll sein.
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            type="button"
+            disabled={saving === "location-radius"}
+            onClick={saveRecognitionRadius}
+            className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
+          >
+            {saving === "location-radius" ? "Speichern …" : "Radius speichern"}
           </button>
         </div>
       </Section>

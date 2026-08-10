@@ -388,6 +388,13 @@ userRoutes.patch(
       });
     }
 
+    if (body.locationRecognitionRadiusMeters !== undefined) {
+      integerField(body, "locationRecognitionRadiusMeters", {
+        minimum: 25,
+        maximum: 5000,
+      });
+    }
+
     response.json(
       await updateUserSettings(request.auth.userId, body),
     );
@@ -489,6 +496,60 @@ userRoutes.delete(
       `
         UPDATE user_settings
         SET settings = COALESCE(settings, '{}'::jsonb) - 'homeLocation'
+        WHERE user_id = $1
+      `,
+      [request.auth.userId],
+    );
+
+    response.status(204).end();
+  }),
+);
+
+
+userRoutes.put(
+  "/me/work-location",
+  asyncHandler(async (request, response) => {
+    const body = objectBody(request.body);
+    const address = stringField(body, "address", {
+      required: true,
+      minimum: 1,
+      maximum: 500,
+    });
+    const latitude = numberField(body, "latitude", {
+      required: true,
+      minimum: -90,
+      maximum: 90,
+    });
+    const longitude = numberField(body, "longitude", {
+      required: true,
+      minimum: -180,
+      maximum: 180,
+    });
+    const source = enumField(body, "source", ["manual", "gps"], {
+      required: true,
+    });
+
+    const settings = await updateUserSettings(request.auth.userId, {
+      workLocation: {
+        address,
+        latitude,
+        longitude,
+        source,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+
+    response.json({ workLocation: settings.workLocation });
+  }),
+);
+
+userRoutes.delete(
+  "/me/work-location",
+  asyncHandler(async (request, response) => {
+    await pool.query(
+      `
+        UPDATE user_settings
+        SET settings = COALESCE(settings, '{}'::jsonb) - 'workLocation'
         WHERE user_id = $1
       `,
       [request.auth.userId],
