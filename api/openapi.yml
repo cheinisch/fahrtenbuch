@@ -799,6 +799,30 @@ paths:
       responses:
         '200': { description: Einstellungen aktualisiert }
 
+  /compliance/checks:
+    get:
+      tags: [Trips]
+      summary: Fahrten auf Plausibilität und Vollständigkeit prüfen
+      responses:
+        '200': { description: Prüfergebnis }
+  /compliance/integrity:
+    get:
+      tags: [Trips]
+      summary: Integrität der revisionssicheren Fahrtenhistorie prüfen
+      responses:
+        '200': { description: Integritätsstatus }
+  /compliance/periods:
+    get:
+      tags: [Trips]
+      summary: Abgeschlossene Zeiträume auflisten
+      responses:
+        '200': { description: Abgeschlossene Zeiträume }
+    post:
+      tags: [Trips]
+      summary: Zeitraum revisionssicher abschließen
+      responses:
+        '201': { description: Zeitraum abgeschlossen }
+
   /export/summary:
     get:
       tags: [Import Export]
