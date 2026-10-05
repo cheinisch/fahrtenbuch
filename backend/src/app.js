@@ -206,6 +206,7 @@ if (fs.existsSync(config.staticDirectory)) {
     response.json({
       application: "Fahrtenbuch",
       version: config.version,
+      build: config.build,
       api: "/api/v1",
       openapi: openApiPath ? "/api/v1/openapi.yml" : null,
     });
