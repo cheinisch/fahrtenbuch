@@ -1469,6 +1469,24 @@ components:
       responses:
         '200': { description: Monatliche Kilometerstatistik }
 
+  /trips/{id}/split:
+    post:
+      tags: [Trips]
+      summary: Fahrt an einem GPS-Punkt teilen
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Geteilte Fahrten }
+  /trips/merge:
+    post:
+      tags: [Trips]
+      summary: Mehrere Fahrten desselben Fahrzeugs zusammenführen
+      responses:
+        '200': { description: Zusammengeführte Fahrt }
+
   /statistics:
     get:
       tags: [Statistics]
