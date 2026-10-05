@@ -25,6 +25,14 @@ jobs:
       - name: Repository auschecken
         uses: actions/checkout@v7
 
+      - name: Build-Metadaten lesen
+        id: metadata
+        shell: bash
+        run: |
+          echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+          echo "build=$(tr -d '[:space:]' < BUILD)" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
       - name: Node.js einrichten
         uses: actions/setup-node@v4
         with:
@@ -86,5 +94,10 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
+          build-args: |
+            APP_VERSION=${{ steps.metadata.outputs.version }}
+            APP_BUILD=${{ steps.metadata.outputs.build }}
+            BUILD_DATE=${{ steps.metadata.outputs.date }}
+            VCS_REF=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
