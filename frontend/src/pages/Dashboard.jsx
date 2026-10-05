@@ -258,6 +258,8 @@ export default function Dashboard() {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const mapLoadedRef = useRef(false);
+  const selectedTripIdRef = useRef(null);
+  const mapModeRef = useRef(null);
 
   const [filters, setFilters] = useState({
     from: "",
@@ -294,6 +296,9 @@ export default function Dashboard() {
     error: "",
     entries: [],
   });
+
+  useEffect(() => { selectedTripIdRef.current = selectedTripId; }, [selectedTripId]);
+  useEffect(() => { mapModeRef.current = mapMode; }, [mapMode]);
 
   const [status, setStatus] = useState({
     loading: true,
@@ -661,10 +666,12 @@ export default function Dashboard() {
       });
 
       map.on("click", async (event) => {
-        if (!selectedTripId) return;
-        if (mapMode === "split") {
+        const activeTripId = selectedTripIdRef.current;
+        const activeMode = mapModeRef.current;
+        if (!activeTripId) return;
+        if (activeMode === "split") {
           try {
-            const points = await getTripPoints(accessToken, selectedTripId);
+            const points = await getTripPoints(accessToken, activeTripId);
             if (points.length < 3) return;
             let nearest = points[1], best = Infinity;
             for (const point of points.slice(1, -1)) {
@@ -672,11 +679,14 @@ export default function Dashboard() {
               const d = Math.hypot(p.x - event.point.x, p.y - event.point.y);
               if (d < best) { best = d; nearest = point; }
             }
-            if (best <= 40) await performSplit(nearest.id);
+            if (best <= 40) await splitTrip(accessToken, activeTripId, nearest.id).then(async () => {
+              setSelectedTripId(null); setMapMode(null);
+              setData(await getDashboard(accessToken, filters));
+            });
           } catch (error) {
             setTripAction((state) => ({ ...state, error: error.message }));
           }
-        } else if (mapMode === "correct") {
+        } else if (activeMode === "correct") {
           setRouteDraft((current) => [...current, { longitude: event.lngLat.lng, latitude: event.lngLat.lat }]);
         }
       });
