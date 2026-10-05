@@ -100,6 +100,57 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Release: $LAST_TAG -> $VERSION"
 
+      - name: VERSION und Paketversionen synchronisieren
+        id: sync
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          VERSION="${RELEASE_TAG#v}"
+          printf '%s\n' "$VERSION" > VERSION
+
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          npm version "$VERSION" --workspace backend --no-git-tag-version --allow-same-version
+          npm version "$VERSION" --workspace frontend --no-git-tag-version --allow-same-version
+          npm version "$VERSION" --workspace shared --no-git-tag-version --allow-same-version
+
+          python3 - "$VERSION" <<'PY'
+          import re, sys
+          from pathlib import Path
+
+          version = sys.argv[1]
+          for filename in ("api/openapi.yml", "backend/openapi.yml"):
+              path = Path(filename)
+              text = path.read_text(encoding="utf-8")
+              updated, count = re.subn(
+                  r"(?m)^(  version:)\s*[^\n]+$",
+                  rf"\1 {version}",
+                  text,
+                  count=1,
+              )
+              if count != 1:
+                  raise SystemExit(f"OpenAPI-Version in {filename} konnte nicht aktualisiert werden.")
+              path.write_text(updated, encoding="utf-8")
+          PY
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Versionsänderung committen
+        shell: bash
+        env:
+          VERSION: ${{ steps.sync.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add VERSION package.json package-lock.json backend/package.json frontend/package.json shared/package.json api/openapi.yml backend/openapi.yml
+          git commit -m "chore: release v${VERSION}"
+          git push origin HEAD:main
+
       - name: Änderungen sammeln
         id: changes
         shell: bash
@@ -207,6 +258,6 @@ jobs:
         run: |
           set -euo pipefail
           gh release create "$VERSION" \
-            --target "$GITHUB_SHA" \
+            --target "main" \
             --title "$VERSION" \
             --notes-file /tmp/changelog.md
