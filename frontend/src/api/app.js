@@ -562,3 +562,25 @@ export function saveMonthlyOdometerReading(accessToken, vehicleId, month, odomet
 export function getMonthlyOdometerStatistics(accessToken, months = 12) {
   return apiRequest(accessToken, `/api/v1/statistics/monthly-odometer?months=${months}`);
 }
+
+
+export function getTripSuggestions(accessToken, tripId) {
+  return apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/suggestions`);
+}
+export function correctTripRoute(accessToken, tripId, points) {
+  return apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/route-correction`, {
+    method: "POST", body: JSON.stringify({ points }),
+  });
+}
+export function getSavedPlaces(accessToken) {
+  return apiRequest(accessToken, "/api/v1/places");
+}
+export function createSavedPlace(accessToken, place) {
+  return apiRequest(accessToken, "/api/v1/places", { method: "POST", body: JSON.stringify(place) });
+}
+export function updateSavedPlace(accessToken, id, place) {
+  return apiRequest(accessToken, `/api/v1/places/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(place) });
+}
+export function deleteSavedPlace(accessToken, id) {
+  return apiRequest(accessToken, `/api/v1/places/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
