@@ -21,6 +21,7 @@ import {
 } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider.jsx";
+import MonthlyOdometerPrompt from "./MonthlyOdometerPrompt.jsx";
 
 function desktopNavigationClass({ isActive }) {
   return [
@@ -128,6 +129,13 @@ export default function AppShell() {
                   className={desktopNavigationClass}
                 >
                   Fahrzeuge
+                </NavLink>
+
+                <NavLink
+                  to="/statistics"
+                  className={desktopNavigationClass}
+                >
+                  Statistik
                 </NavLink>
 
                 <NavLink
@@ -262,6 +270,14 @@ export default function AppShell() {
 
             <DisclosureButton
               as={NavLink}
+              to="/statistics"
+              className={mobileNavigationClass}
+            >
+              Statistik
+            </DisclosureButton>
+
+            <DisclosureButton
+              as={NavLink}
               to="/export"
               className={mobileNavigationClass}
             >
@@ -278,6 +294,7 @@ export default function AppShell() {
           </div>
         </DisclosurePanel>
       </Disclosure>
+      <MonthlyOdometerPrompt />
 
       <main>
         <div
