@@ -3,6 +3,7 @@ import {
   closePeriod,
   getClosedPeriods,
   getComplianceChecks,
+  getMonthlyOdometerStatistics,
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 
@@ -15,6 +16,7 @@ export default function Compliance() {
   const now = new Date();
   const [checks, setChecks] = useState(null);
   const [periods, setPeriods] = useState([]);
+  const [monthly, setMonthly] = useState([]);
   const [from, setFrom] = useState(`${now.getFullYear()}-01-01`);
   const [to, setTo] = useState(dateValue(now));
   const [label, setLabel] = useState(String(now.getFullYear()));
@@ -23,12 +25,14 @@ export default function Compliance() {
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    const [nextChecks, nextPeriods] = await Promise.all([
+    const [nextChecks, nextPeriods, nextMonthly] = await Promise.all([
       getComplianceChecks(accessToken),
       getClosedPeriods(accessToken),
+      getMonthlyOdometerStatistics(accessToken, 3),
     ]);
     setChecks(nextChecks);
     setPeriods(nextPeriods);
+    setMonthly(nextMonthly);
   }
 
   useEffect(() => {
@@ -97,6 +101,20 @@ export default function Compliance() {
                 <span className="text-xs text-fb-muted">{new Date(issue.startedAt).toLocaleString("de-DE")}</span>
               </div>
               <p className="mt-1 text-sm">{issue.message}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+        <h2 className="text-lg font-bold">Monatskontrolle</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {monthly.filter((row)=>row.actualKm != null).slice(0,4).map((row)=>(
+            <div key={`${row.vehicleId}-${row.month}`} className="rounded-lg border border-fb-border bg-fb-surface p-4 text-sm">
+              <div className="font-semibold">{row.vehicleName} · {row.month}</div>
+              <div className="mt-2 text-fb-muted">
+                Tacho {row.actualKm.toLocaleString("de-DE")} km · erfasst {row.trackedKm.toLocaleString("de-DE")} km · unbekannt {(row.unknownKm || 0).toLocaleString("de-DE")} km
+              </div>
             </div>
           ))}
         </div>
