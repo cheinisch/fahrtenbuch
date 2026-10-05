@@ -67,3 +67,20 @@ export function logout(accessToken) {
     },
   });
 }
+
+export function getPasskeyLoginOptions() {
+  return request("/api/v1/auth/passkeys/login/options", {
+    method: "POST",
+  });
+}
+
+export function verifyPasskeyLogin(credential) {
+  return request("/api/v1/auth/passkeys/login/verify", {
+    method: "POST",
+    body: JSON.stringify({
+      ...credential,
+      deviceName: "Webbrowser",
+      platform: navigator.userAgentData?.platform || navigator.platform || "web",
+    }),
+  });
+}
