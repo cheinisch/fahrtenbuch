@@ -89,18 +89,18 @@ BEFORE INSERT ON trip_history
 FOR EACH ROW
 EXECUTE FUNCTION seal_trip_history_row();
 
-DO $$
+DO $
 DECLARE
   row_record record;
-  last_hash text;
+  last_hash text := NULL;
+  last_user uuid := NULL;
 BEGIN
   FOR row_record IN
     SELECT * FROM trip_history ORDER BY user_id, id
   LOOP
-    IF row_record.user_id IS DISTINCT FROM (
-      SELECT user_id FROM trip_history WHERE id < row_record.id ORDER BY id DESC LIMIT 1
-    ) THEN
+    IF last_user IS DISTINCT FROM row_record.user_id THEN
       last_hash := NULL;
+      last_user := row_record.user_id;
     END IF;
 
     UPDATE trip_history
