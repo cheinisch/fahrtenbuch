@@ -528,3 +528,19 @@ export function closePeriod(accessToken, period) {
     body: JSON.stringify(period),
   });
 }
+
+
+export function getPendingOdometerReadings(accessToken) {
+  return apiRequest(accessToken, "/api/v1/odometer/pending");
+}
+
+export function saveMonthlyOdometerReading(accessToken, vehicleId, month, odometerKm) {
+  return apiRequest(accessToken, `/api/v1/odometer/${vehicleId}/${month}`, {
+    method: "PUT",
+    body: JSON.stringify({ odometerKm }),
+  });
+}
+
+export function getMonthlyOdometerStatistics(accessToken, months = 12) {
+  return apiRequest(accessToken, `/api/v1/statistics/monthly-odometer?months=${months}`);
+}
