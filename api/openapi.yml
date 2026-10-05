@@ -706,6 +706,769 @@ paths:
       summary: Dashboarddaten abrufen
       responses:
         '200': { description: Dashboarddaten }
+  /odometer/pending:
+    get:
+      tags: [Vehicles]
+      summary: Fehlende monatliche Kilometerstände abrufen
+      responses:
+        '200': { description: Fehlende Messwerte }
+  /odometer/{vehicleId}/{month}:
+    put:
+      tags: [Vehicles]
+      summary: Monatlichen Kilometerstand speichern
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: path
+          name: month
+          required: true
+          schema: { type: string, pattern: '^\\d{4}-\\d{2}
+    get:
+      tags: [Statistics]
+      summary: Statistiken abrufen
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: vehicleId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [business, private, commute, unclassified] } }
+      responses:
+        '200': { description: Statistiken }
+  /statistics/monthly:
+    get:
+      tags: [Statistics]
+      summary: Monatsstatistik abrufen
+      responses:
+        '200': { description: Monatsstatistik }
+  /statistics/vehicles:
+    get:
+      tags: [Statistics]
+      summary: Fahrzeugstatistik abrufen
+      responses:
+        '200': { description: Fahrzeugstatistik }
+
+  /config/services:
+    get:
+      tags: [Services]
+      summary: Öffentliche Client-Konfiguration abrufen
+      description: |
+        Liefert nur die für Clients benötigte Konfiguration. Interne Photon-
+        und Overpass-URLs werden nicht ausgegeben. Web und Android verwenden
+        ausschließlich die Fahrtenbuch-Geocoding-Endpunkte.
+      security: []
+      responses:
+        '200':
+          description: Client-Konfiguration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceConfiguration' }
+  /geocoding/search:
+    get:
+      tags: [Geocoding]
+      summary: Orte über den konfigurierten Photon-Dienst suchen
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2 } }
+        - { name: lang, in: query, schema: { type: string, default: de } }
+        - { name: limit, in: query, schema: { type: integer, default: 10, maximum: 50 } }
+      responses:
+        '200': { description: Suchergebnisse }
+  /geocoding/reverse:
+    get:
+      tags: [Geocoding]
+      summary: Koordinaten über den konfigurierten Photon-Dienst auflösen
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: lon, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
+        - { name: lang, in: query, schema: { type: string, default: de } }
+      responses:
+        '200': { description: Adresse beziehungsweise Ort }
+  /geocoding/nearby:
+    get:
+      tags: [Geocoding]
+      summary: POIs über den konfigurierten Overpass-Dienst suchen
+      description: Die API erzeugt die Overpass-QL-Abfrage selbst. Freie Abfragen durch Clients sind nicht erlaubt.
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: lon, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [sight, restaurant, hotel, park, fuel, parking, supermarket, charging_station, hospital, pharmacy]
+      responses:
+        '200': { description: POI-Ergebnisse }
+
+  /settings:
+    get:
+      tags: [Settings]
+      summary: Eigene Einstellungen abrufen
+      responses:
+        '200': { description: Einstellungen }
+    put:
+      tags: [Settings]
+      summary: Eigene Einstellungen aktualisieren
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Einstellungen aktualisiert }
+
+  /compliance/checks:
+    get:
+      tags: [Trips]
+      summary: Fahrten auf Plausibilität und Vollständigkeit prüfen
+      responses:
+        '200': { description: Prüfergebnis }
+  /compliance/integrity:
+    get:
+      tags: [Trips]
+      summary: Integrität der revisionssicheren Fahrtenhistorie prüfen
+      responses:
+        '200': { description: Integritätsstatus }
+  /compliance/periods:
+    get:
+      tags: [Trips]
+      summary: Abgeschlossene Zeiträume auflisten
+      responses:
+        '200': { description: Abgeschlossene Zeiträume }
+    post:
+      tags: [Trips]
+      summary: Zeitraum revisionssicher abschließen
+      responses:
+        '201': { description: Zeitraum abgeschlossen }
+
+  /export/summary:
+    get:
+      tags: [Import Export]
+      summary: Exportstatistik mit Vollständigkeitshinweisen abrufen
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: vehicleId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [business, private, commute, unclassified] } }
+      responses:
+        '200': { description: Zusammenfassung }
+  /export/csv:
+    get:
+      tags: [Import Export]
+      summary: Fahrten als CSV exportieren
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: vehicleId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [business, private, commute, unclassified] } }
+      responses:
+        '200':
+          description: CSV-Datei
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+  /export/gpx:
+    get:
+      tags: [Import Export]
+      summary: Fahrten als GPX exportieren
+      parameters:
+        - { name: tripId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: GPX-Datei
+          content:
+            application/gpx+xml:
+              schema: { type: string, format: binary }
+  /export/pdf:
+    get:
+      tags: [Import Export]
+      summary: Steuerorientierten Fahrten- und Statistikbericht als PDF exportieren
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: vehicleId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { type: string, enum: [business, private, commute, unclassified] } }
+      responses:
+        '200':
+          description: PDF-Datei
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+  /import/csv:
+    post:
+      tags: [Import Export]
+      summary: Fahrten aus CSV importieren
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                dryRun: { type: boolean, default: false }
+      responses:
+        '200': { description: Importergebnis }
+  /import/gpx:
+    post:
+      tags: [Import Export]
+      summary: GPX importieren
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                vehicleId: { type: string, format: uuid }
+      responses:
+        '200': { description: Importergebnis }
+
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: Benutzer auflisten
+      responses:
+        '200':
+          description: Benutzer
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+    post:
+      tags: [Admin]
+      summary: Benutzer anlegen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUserInput' }
+      responses:
+        '201':
+          description: Benutzer angelegt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+  /admin/users/{id}:
+    get:
+      tags: [Admin]
+      summary: Benutzer abrufen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Benutzer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+    put:
+      tags: [Admin]
+      summary: Benutzer aktualisieren
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Benutzer aktualisiert }
+    delete:
+      tags: [Admin]
+      summary: Benutzer löschen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204': { description: Benutzer gelöscht }
+  /admin/users/{id}/totp:
+    delete:
+      tags: [Admin]
+      summary: TOTP für einen Benutzer deaktivieren
+      description: Entfernt das verschlüsselte TOTP-Secret und widerruft andere Sitzungen.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Aktualisierter Benutzer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+  /admin/users/{id}/passkeys:
+    delete:
+      tags: [Admin]
+      summary: Alle Passkeys eines Benutzers löschen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Aktualisierter Benutzer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+  /admin/users/{id}/passkeys/{passkeyId}:
+    delete:
+      tags: [Admin]
+      summary: Einen Passkey eines Benutzers löschen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: passkeyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Aktualisierter Benutzer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+  /admin/users/{id}/sessions:
+    delete:
+      tags: [Admin]
+      summary: Sitzungen eines Benutzers widerrufen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Anzahl widerrufener Sitzungen
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revokedSessions]
+                properties:
+                  revokedSessions: { type: integer, minimum: 0 }
+  /admin/settings/services:
+    get:
+      tags: [Admin]
+      summary: Interne Kartendienst-Konfiguration abrufen
+      responses:
+        '200':
+          description: Interne Servicekonfiguration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminServiceSettings' }
+  /admin/settings/services/map:
+    put:
+      tags: [Admin]
+      summary: Kartenquelle konfigurieren
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MapServiceSettings' }
+      responses:
+        '200': { description: Kartenquelle gespeichert }
+  /admin/settings/services/photon:
+    put:
+      tags: [Admin]
+      summary: Photon konfigurieren
+      description: Interne Server-URLs bleiben ausschließlich im Backend gespeichert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PhotonServiceSettings' }
+      responses:
+        '200': { description: Photon-Konfiguration gespeichert }
+  /admin/settings/services/overpass:
+    put:
+      tags: [Admin]
+      summary: Overpass konfigurieren
+      description: Interne Server-URLs bleiben ausschließlich im Backend gespeichert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OverpassServiceSettings' }
+      responses:
+        '200': { description: Overpass-Konfiguration gespeichert }
+  /admin/settings/services/test:
+    post:
+      tags: [Admin]
+      summary: Kartendienst-Verbindung testen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category, config]
+              properties:
+                category: { type: string, enum: [map, photon, overpass] }
+                config: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Testergebnis
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean }
+                  responseTimeMs: { type: [integer, 'null'] }
+                  message: { type: string }
+  /admin/backup:
+    post:
+      tags: [Admin]
+      summary: Vollständiges Backup erstellen
+      responses:
+        '202': { description: Backup gestartet }
+  /admin/system:
+    get:
+      tags: [Admin]
+      summary: Systeminformationen abrufen
+      responses:
+        '200': { description: Systeminformationen }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Unauthorized:
+      description: Nicht authentifiziert
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Keine Berechtigung
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Nicht gefunden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string, example: VALIDATION_ERROR }
+        message: { type: string }
+        details: { type: [object, array, 'null'] }
+        requestId: { type: [string, 'null'] }
+    User:
+      type: object
+      required: [id, email, role, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        loginName: { type: [string, 'null'] }
+        displayName: { type: [string, 'null'] }
+        firstName: { type: [string, 'null'], maxLength: 80 }
+        lastName: { type: [string, 'null'], maxLength: 80 }
+        role: { type: string, enum: [user, admin] }
+        status: { type: string, enum: [active, disabled] }
+        locale: { type: string, default: de }
+        timezone: { type: string, default: Europe/Berlin }
+        themeMode: { type: string, enum: [light, dark, system] }
+        totpEnabled: { type: boolean }
+        totpRequired: { type: boolean }
+        passkeyEnabled: { type: boolean }
+        hasPassword: { type: boolean }
+        forcePasswordChange: { type: boolean }
+        lastLoginAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AdminPasskey:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        transports:
+          type: array
+          items: { type: string }
+        backedUp: { type: boolean }
+        deviceType: { type: [string, 'null'] }
+        lastUsedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    AdminUser:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            passkeyCount: { type: integer, minimum: 0 }
+            activeDeviceCount: { type: integer, minimum: 0 }
+            vehicleCount: { type: integer, minimum: 0 }
+            tripCount: { type: integer, minimum: 0 }
+            passkeys:
+              type: array
+              items: { $ref: '#/components/schemas/AdminPasskey' }
+    UserUpdate:
+      type: object
+      properties:
+        loginName: { type: [string, 'null'] }
+        displayName: { type: [string, 'null'] }
+        locale: { type: string }
+    AdminUserInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        loginName: { type: [string, 'null'], minLength: 3, maxLength: 64 }
+        password: { type: string, format: password, minLength: 8 }
+        displayName: { type: [string, 'null'], maxLength: 120 }
+        firstName: { type: [string, 'null'], maxLength: 80 }
+        lastName: { type: [string, 'null'], maxLength: 80 }
+        role: { type: string, enum: [user, admin], default: user }
+        status: { type: string, enum: [active, disabled], default: active }
+        locale: { type: string, default: de }
+        timezone: { type: string, default: Europe/Berlin }
+        themeMode: { type: string, enum: [light, dark, system], default: system }
+        forcePasswordChange: { type: boolean, default: true }
+        totpRequired: { type: boolean, default: false }
+        passkeyEnabled: { type: boolean, default: true }
+    LoginRequest:
+      type: object
+      required: [identifier, password]
+      properties:
+        identifier: { type: string }
+        password: { type: string, format: password }
+        totpCode: { type: [string, 'null'], pattern: '^[0-9]{6}$' }
+        deviceName: { type: [string, 'null'] }
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, example: 900 }
+        tokenType: { type: string, const: Bearer }
+    AuthResponse:
+      allOf:
+        - $ref: '#/components/schemas/TokenPair'
+        - type: object
+          required: [user]
+          properties:
+            user: { $ref: '#/components/schemas/User' }
+    Device:
+      type: object
+      required: [deviceId, lastUsedAt]
+      properties:
+        deviceId: { type: string }
+        deviceName: { type: [string, 'null'] }
+        platform: { type: [string, 'null'] }
+        appVersion: { type: [string, 'null'] }
+        lastUsedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    PairOptionsResponse:
+      type: object
+      required: [pairId, payload, qrCodeDataUrl, expiresAt]
+      properties:
+        pairId: { type: string, format: uuid }
+        payload: { type: string }
+        qrCodeDataUrl: { type: string }
+        expiresAt: { type: string, format: date-time }
+    PairRequest:
+      type: object
+      required: [pairId, pairToken, deviceId, deviceName, platform]
+      properties:
+        pairId: { type: string, format: uuid }
+        pairToken: { type: string }
+        deviceId: { type: string }
+        deviceName: { type: string }
+        platform: { type: string, example: android }
+        appVersion: { type: [string, 'null'] }
+    PairStatusResponse:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [pending, completed, expired, cancelled] }
+        tokens:
+          oneOf:
+            - $ref: '#/components/schemas/TokenPair'
+            - type: 'null'
+    Vehicle:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        licensePlate: { type: [string, 'null'] }
+        vin: { type: [string, 'null'] }
+        odometerKm: { type: [number, 'null'], minimum: 0 }
+        color: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        bluetoothMac: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    VehicleInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        licensePlate: { type: [string, 'null'] }
+        vin: { type: [string, 'null'] }
+        odometerKm: { type: [number, 'null'], minimum: 0 }
+        color: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        bluetoothMac:
+          type: [string, 'null']
+          pattern: '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$'
+    Trip:
+      type: object
+      required: [id, vehicleId, type, status, startedAt]
+      properties:
+        id: { type: string, format: uuid }
+        vehicleId: { type: string, format: uuid }
+        type: { type: string, enum: [business, private, commute, unclassified] }
+        status: { type: string, enum: [recording, completed, cancelled] }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
+        startAddress: { type: [string, 'null'] }
+        endAddress: { type: [string, 'null'] }
+        purpose: { type: [string, 'null'] }
+        contact: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        distanceKm: { type: [number, 'null'] }
+        durationSeconds: { type: [integer, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TripHistoryEntry:
+      type: object
+      required: [id, tripId, eventType, changedFields, metadata, createdAt]
+      properties:
+        id: { type: string }
+        tripId: { type: string, format: uuid }
+        eventType:
+          type: string
+          enum: [CREATED, UPDATED, CLASSIFIED, ARCHIVED, DELETED, TAG_ADDED, TAG_REMOVED, MAP_MATCHED, BASELINE]
+        changedFields: { type: object, additionalProperties: true }
+        oldValues: { type: [object, 'null'], additionalProperties: true }
+        newValues: { type: [object, 'null'], additionalProperties: true }
+        metadata: { type: object, additionalProperties: true }
+        actor:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                id: { type: string, format: uuid }
+                displayName: { type: [string, 'null'] }
+                username: { type: [string, 'null'] }
+                email: { type: [string, 'null'], format: email }
+        createdAt: { type: string, format: date-time }
+    TripInput:
+      type: object
+      required: [vehicleId, startedAt]
+      properties:
+        vehicleId: { type: string, format: uuid }
+        type: { type: string, enum: [business, private, commute, unclassified], default: unclassified }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
+        startAddress: { type: [string, 'null'] }
+        endAddress: { type: [string, 'null'] }
+        purpose: { type: [string, 'null'] }
+        contact: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+    TrackPoint:
+      type: object
+      required: [lat, lon, recordedAt]
+      properties:
+        id: { type: [string, 'null'], format: uuid }
+        tripId: { type: [string, 'null'], format: uuid }
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lon: { type: number, minimum: -180, maximum: 180 }
+        altitude: { type: [number, 'null'] }
+        accuracy: { type: [number, 'null'] }
+        speed: { type: [number, 'null'] }
+        bearing: { type: [number, 'null'] }
+        recordedAt: { type: string, format: date-time }
+    Tag:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        color: { type: [string, 'null'] }
+    TagInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        color: { type: [string, 'null'] }
+    ServiceConfiguration:
+      type: object
+      required: [map, geocoding, overpass, updatedAt]
+      properties:
+        map: { $ref: '#/components/schemas/PublicMapConfig' }
+        geocoding:
+          type: object
+          required: [searchEndpoint, reverseEndpoint]
+          properties:
+            searchEndpoint: { type: string, example: /api/v1/geocoding/search }
+            reverseEndpoint: { type: string, example: /api/v1/geocoding/reverse }
+        overpass:
+          type: object
+          required: [nearbyEndpoint, searchRadiusMeters, maxResults]
+          properties:
+            nearbyEndpoint: { type: string, example: /api/v1/geocoding/nearby }
+            searchRadiusMeters: { type: integer, example: 2500 }
+            maxResults: { type: integer, example: 50 }
+        updatedAt: { type: string, format: date-time }
+    PublicMapConfig:
+      type: object
+      required: [provider, type, attribution, minZoom, maxZoom, tileSize]
+      properties:
+        provider: { type: string, enum: [osm, maplibre, custom] }
+        type: { type: string, enum: [raster, vector, style] }
+        tileUrl: { type: [string, 'null'], format: uri }
+        styleUrl: { type: [string, 'null'], format: uri }
+        attribution: { type: string }
+        minZoom: { type: integer }
+        maxZoom: { type: integer }
+        tileSize: { type: integer, enum: [256, 512] }
+    MapServiceSettings:
+      allOf:
+        - $ref: '#/components/schemas/PublicMapConfig'
+    PhotonServiceSettings:
+      type: object
+      required: [provider, timeoutMs]
+      properties:
+        provider: { type: string, enum: [public, custom] }
+        baseUrl: { type: [string, 'null'] }
+        timeoutMs: { type: integer, minimum: 1000, default: 10000 }
+    OverpassServiceSettings:
+      type: object
+      required: [provider, timeoutMs, searchRadiusMeters, maxResults]
+      properties:
+        provider: { type: string, enum: [public, custom] }
+        interpreterUrl: { type: [string, 'null'] }
+        timeoutMs: { type: integer, minimum: 1000, default: 30000 }
+        searchRadiusMeters: { type: integer, minimum: 1, default: 2500 }
+        maxResults: { type: integer, minimum: 1, maximum: 500, default: 50 }
+    AdminServiceSettings:
+      type: object
+      required: [map, photon, overpass]
+      properties:
+        map: { $ref: '#/components/schemas/MapServiceSettings' }
+        photon: { $ref: '#/components/schemas/PhotonServiceSettings' }
+        overpass: { $ref: '#/components/schemas/OverpassServiceSettings' }
+ }
+      responses:
+        '200': { description: Kilometerstand gespeichert }
+  /statistics/monthly-odometer:
+    get:
+      tags: [Statistics]
+      summary: Monatsstatistik mit Kilometerstand und unbekannter Strecke
+      responses:
+        '200': { description: Monatliche Kilometerstatistik }
+
   /statistics:
     get:
       tags: [Statistics]
