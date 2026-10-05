@@ -4,13 +4,19 @@ on:
   release:
     types:
       - published
+  workflow_call:
+    inputs:
+      release_tag:
+        description: Release tag to build
+        required: true
+        type: string
 
 permissions:
   contents: read
   packages: write
 
 concurrency:
-  group: release-${{ github.event.release.tag_name }}
+  group: release-${{ inputs.release_tag || github.event.release.tag_name }}
   cancel-in-progress: false
 
 env:
@@ -47,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="${{ inputs.release_tag || github.event.release.tag_name }}"
 
           if [[ ! "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             echo "Ungültiger Release-Tag: $TAG"
