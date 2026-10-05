@@ -88,7 +88,8 @@ complianceRoutes.post(
       throw badRequest("VALIDATION_ERROR", "Das Periodenende liegt vor dem Beginn.");
     }
 
-    const unfinished = await pool.query(
+    const [unfinished, odometers, periodIssues] = await Promise.all([
+      pool.query(
       `SELECT count(*)::int AS count
          FROM trips
         WHERE user_id = $1
@@ -96,11 +97,52 @@ complianceRoutes.post(
           AND started_at::date BETWEEN $2::date AND $3::date
           AND (status <> 'completed' OR type = 'unclassified')`,
       [request.auth.userId, periodStart, periodEnd],
-    );
+      ),
+      pool.query(
+        `SELECT v.id, v.name,
+           start_r.odometer_meters AS start_meter, end_r.odometer_meters AS end_meter
+         FROM vehicles v
+         LEFT JOIN vehicle_odometer_readings start_r
+           ON start_r.user_id=v.user_id AND start_r.vehicle_id=v.id
+          AND start_r.reading_month=date_trunc('month',$2::date)::date
+         LEFT JOIN vehicle_odometer_readings end_r
+           ON end_r.user_id=v.user_id AND end_r.vehicle_id=v.id
+          AND end_r.reading_month=(date_trunc('month',$3::date)+interval '1 month')::date
+        WHERE v.user_id=$1 AND v.archived_at IS NULL`,
+        [request.auth.userId, periodStart, periodEnd],
+      ),
+      pool.query(
+        `WITH ordered AS (
+           SELECT t.*, lag(t.ended_at) OVER(PARTITION BY vehicle_id ORDER BY started_at,id) previous_end
+           FROM trips t WHERE user_id=$1 AND archived_at IS NULL
+         )
+         SELECT count(*)::int AS count FROM ordered
+          WHERE started_at::date BETWEEN $2::date AND $3::date
+            AND (
+              (type='business' AND purpose IS NULL)
+              OR (previous_end IS NOT NULL AND started_at < previous_end)
+            )`,
+        [request.auth.userId, periodStart, periodEnd],
+      ),
+    ]);
     if (unfinished.rows[0].count > 0) {
       throw badRequest(
         "PERIOD_INCOMPLETE",
         `Der Zeitraum enthält noch ${unfinished.rows[0].count} nicht abgeschlossene oder unklassifizierte Fahrten.`,
+      );
+    }
+
+    const missingOdometer = odometers.filter((row) => row.start_meter == null || row.end_meter == null);
+    if (missingOdometer.length > 0) {
+      throw badRequest(
+        "PERIOD_ODOMETER_MISSING",
+        `Für den Monatsabschluss fehlen Kilometerstände für: ${missingOdometer.map((row) => row.name).join(", ")}.`,
+      );
+    }
+    if (periodIssues.rows[0].count > 0) {
+      throw badRequest(
+        "PERIOD_PLAUSIBILITY_FAILED",
+        `Der Zeitraum enthält noch ${periodIssues.rows[0].count} Fehler bei Pflichtangaben oder zeitlichen Überschneidungen.`,
       );
     }
 
