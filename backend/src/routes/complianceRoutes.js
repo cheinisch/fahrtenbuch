@@ -142,7 +142,7 @@ complianceRoutes.get(
         WHERE t.user_id = $1 AND t.archived_at IS NULL
       )
       SELECT id, started_at, type, status, start_address, end_address, purpose,
-             contact, start_odometer_meters, end_odometer_meters,
+             contact, distance_meters, start_odometer_meters, end_odometer_meters,
              previous_end, previous_odometer
       FROM ordered
       ORDER BY started_at DESC
@@ -165,9 +165,31 @@ complianceRoutes.get(
           Number(trip.end_odometer_meters) < Number(trip.start_odometer_meters)) {
         add("error", "ODOMETER_REVERSED", "Endkilometerstand liegt vor dem Startkilometerstand.");
       }
-      if (trip.previous_odometer != null && trip.start_odometer_meters != null &&
-          Number(trip.start_odometer_meters) < Number(trip.previous_odometer)) {
-        add("error", "ODOMETER_SEQUENCE", "Kilometerstand ist gegenüber der vorherigen Fahrt zurückgegangen.");
+      if (trip.previous_odometer != null && trip.start_odometer_meters != null) {
+        const gap = Number(trip.start_odometer_meters) - Number(trip.previous_odometer);
+        if (gap < 0) {
+          add("error", "ODOMETER_SEQUENCE", "Kilometerstand ist gegenüber der vorherigen Fahrt zurückgegangen.");
+        } else if (gap > 1000) {
+          add(
+            gap > 10000 ? "error" : "warning",
+            "ODOMETER_GAP",
+            `Zwischen dieser und der vorherigen Fahrt sind ${(gap / 1000).toLocaleString("de-DE", { maximumFractionDigits: 1 })} km nicht durch Fahrten erklärt.`,
+          );
+        }
+      }
+
+      if (trip.start_odometer_meters != null && trip.end_odometer_meters != null && trip.distance_meters != null) {
+        const odometerDistance = Number(trip.end_odometer_meters) - Number(trip.start_odometer_meters);
+        const recordedDistance = Number(trip.distance_meters);
+        const deviation = Math.abs(odometerDistance - recordedDistance);
+        const tolerance = Math.max(1000, recordedDistance * 0.05);
+        if (deviation > tolerance) {
+          add(
+            deviation > Math.max(5000, recordedDistance * 0.15) ? "error" : "warning",
+            "DISTANCE_ODOMETER_MISMATCH",
+            `Kilometerzähler und erfasste Strecke weichen um ${(deviation / 1000).toLocaleString("de-DE", { maximumFractionDigits: 1 })} km voneinander ab.`,
+          );
+        }
       }
     }
 
