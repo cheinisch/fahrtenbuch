@@ -33,6 +33,8 @@ jobs:
   release:
     name: Create GitHub release
     runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.version.outputs.version }}
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -273,3 +275,14 @@ jobs:
             --target "main" \
             --title "$VERSION" \
             --notes-file /tmp/changelog.md
+
+  release-image:
+    name: Build release Docker image
+    needs: release
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-release-image.yml
+    with:
+      release_tag: ${{ needs.release.outputs.release_tag }}
+    secrets: inherit
