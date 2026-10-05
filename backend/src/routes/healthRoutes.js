@@ -14,6 +14,7 @@ healthRoutes.get(
     response.json({
       status: result.rows[0]?.ok === 1 ? "ok" : "degraded",
       version: config.version,
+      build: config.build,
       database: result.rows[0]?.ok === 1 ? "ok" : "error",
     });
   }),
