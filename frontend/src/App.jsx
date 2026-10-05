@@ -9,6 +9,7 @@ import { useAuth } from "./auth/AuthProvider.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import AppShell from "./components/AppShell.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Compliance from "./pages/Compliance.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import ExportPage from "./pages/Export.jsx";
 import ProfileSettings from "./pages/ProfileSettings.jsx";
@@ -52,6 +53,11 @@ export default function App() {
           <Route
             path="/export"
             element={<ExportPage />}
+          />
+
+          <Route
+            path="/compliance"
+            element={<Compliance />}
           />
 
           <Route
