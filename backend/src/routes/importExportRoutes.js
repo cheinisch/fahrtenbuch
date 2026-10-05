@@ -267,6 +267,79 @@ function formatOdometer(meters) {
   });
 }
 
+async function loadExportIntegrity(userId, from, to) {
+  const historyResult = await pool.query(
+    `SELECT id, trip_id, actor_user_id, event_type, changed_fields, old_values,
+            new_values, metadata, created_at, previous_hash, entry_hash,
+            trip_history_hash_payload(
+              trip_id, user_id, actor_user_id, event_type, changed_fields,
+              old_values, new_values, metadata, created_at, previous_hash
+            ) AS calculated_hash
+       FROM trip_history
+      WHERE user_id = $1
+      ORDER BY id ASC`,
+    [userId],
+  );
+
+  let previous = null;
+  let valid = true;
+  for (const row of historyResult.rows) {
+    if (row.previous_hash !== previous || row.entry_hash !== row.calculated_hash) {
+      valid = false;
+    }
+    previous = row.entry_hash;
+  }
+
+  const lockResult = await pool.query(
+    `SELECT id, period_start, period_end, label, closed_at, integrity_hash
+       FROM trip_period_locks
+      WHERE user_id = $1
+        AND ($2::date IS NULL OR period_start <= $2::date)
+        AND ($3::date IS NULL OR period_end >= $3::date)
+      ORDER BY closed_at DESC
+      LIMIT 1`,
+    [userId, from || null, to || null],
+  );
+
+  const lock = lockResult.rows[0] || null;
+  return {
+    valid,
+    entries: historyResult.rows.length,
+    headHash: previous,
+    periodLock: lock
+      ? {
+          id: lock.id,
+          periodStart: lock.period_start,
+          periodEnd: lock.period_end,
+          label: lock.label,
+          closedAt: lock.closed_at,
+          integrityHash: lock.integrity_hash,
+        }
+      : null,
+  };
+}
+
+function drawIntegrityCertificate(document, integrity, y) {
+  const lock = integrity.periodLock;
+  const status = integrity.valid ? "Integrität geprüft: OK" : "Integritätsprüfung: FEHLER";
+  document
+    .roundedRect(36, y, 770, lock ? 68 : 52, 4)
+    .fillAndStroke(integrity.valid ? "#f2f7f2" : "#fff0e2", integrity.valid ? "#7aa37a" : "#f48120");
+  document.font("Helvetica-Bold").fontSize(9).fillColor("#1d1d1d")
+    .text(status, 44, y + 8);
+  document.font("Helvetica").fontSize(7.5).fillColor("#444444")
+    .text(`Revisionen: ${integrity.entries} | Aktueller SHA-256-Kettenkopf: ${integrity.headHash || "keine Revisionen"}`, 44, y + 23, { width: 746 });
+  if (lock) {
+    document.text(
+      `Abgeschlossener Zeitraum: ${String(lock.periodStart).slice(0, 10)} bis ${String(lock.periodEnd).slice(0, 10)} | Abschluss: ${new Date(lock.closedAt).toLocaleString("de-DE")} | Hash beim Abschluss: ${lock.integrityHash || "-"}`,
+      44, y + 39, { width: 746 },
+    );
+  } else {
+    document.text("Der exportierte Zeitraum ist nicht als abgeschlossener Zeitraum hinterlegt.", 44, y + 38, { width: 746 });
+  }
+  return y + (lock ? 76 : 60);
+}
+
 function safeFilenamePart(value) {
   return String(value || "fahrtenbuch")
     .toLowerCase()
@@ -559,6 +632,11 @@ exportRoutes.get(
     const loaded = await loadExportTrips(request);
     const trips = await attachChangeCounts(loaded.trips);
     const summary = summarizeTrips(trips);
+    const integrity = await loadExportIntegrity(
+      request.auth.userId,
+      loaded.from,
+      loaded.to,
+    );
     const userLabel =
       request.auth.user.displayName || request.auth.user.email;
     const period = [loaded.from || "Beginn", loaded.to || "heute"].join(" bis ");
@@ -591,6 +669,7 @@ exportRoutes.get(
     );
 
     let y = drawSummary(document, summary, 88);
+    y = drawIntegrityCertificate(document, integrity, y);
 
     const warnings = [];
     if (summary.missingOdometerCount > 0) {
@@ -601,6 +680,12 @@ exportRoutes.get(
     }
     if (summary.changedTripCount > 0) {
       warnings.push(`${summary.changedTripCount} Fahrt(en) mit dokumentierten Änderungen`);
+    }
+    if (!integrity.valid) {
+      warnings.push("Integritätsprüfung der Revisionskette fehlgeschlagen");
+    }
+    if (!integrity.periodLock) {
+      warnings.push("Exportzeitraum ist nicht abgeschlossen");
     }
 
     if (warnings.length > 0) {
