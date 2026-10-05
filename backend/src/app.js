@@ -19,6 +19,7 @@ import {
 } from "./routes/dataTransferRoutes.js";
 import { healthRoutes } from "./routes/healthRoutes.js";
 import { mapRoutes } from "./routes/mapRoutes.js";
+import { odometerRoutes } from "./routes/odometerRoutes.js";
 import {
   exportRoutes,
   importRoutes,
@@ -137,6 +138,7 @@ app.use("/api/v1/map", mapRoutes);
 app.use("/api/v1/auth", authLimiter, authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/vehicles", vehicleRoutes);
+app.use("/api/v1/odometer", odometerRoutes);
 app.use("/api/v1/trips", tripRoutes);
 app.use("/api/v1/tracking", trackingRoutes);
 app.use("/api/v1/tags", tagRoutes);
