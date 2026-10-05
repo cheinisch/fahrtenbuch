@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   increment:
-    if: ${{ github.actor != 'github-actions[bot]' && !startsWith(github.event.head_commit.message, 'chore: bump build') }}
+    if: "${{ github.actor != 'github-actions[bot]' && !startsWith(github.event.head_commit.message, 'chore: bump build') }}"
     runs-on: ubuntu-latest
 
     steps:
