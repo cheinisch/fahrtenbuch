@@ -123,7 +123,13 @@ export const config = Object.freeze({
 
   version: stringValue(
     "APP_VERSION",
-    "1.0.0-dev",
+    "dev",
+  ),
+
+  build: integerValue(
+    "APP_BUILD",
+    0,
+    0,
   ),
 
   buildDate: stringValue(
