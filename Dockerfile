@@ -34,7 +34,16 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-ENV NODE_ENV=production
+ARG APP_VERSION=dev
+ARG APP_BUILD=0
+ARG BUILD_DATE=unknown
+ARG VCS_REF=unknown
+
+ENV NODE_ENV=production \
+    APP_VERSION=${APP_VERSION} \
+    APP_BUILD=${APP_BUILD} \
+    BUILD_DATE=${BUILD_DATE} \
+    VCS_REF=${VCS_REF}
 
 # Dateien übernehmen
 COPY --from=builder /app .
