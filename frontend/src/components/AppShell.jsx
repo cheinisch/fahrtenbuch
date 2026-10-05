@@ -136,6 +136,13 @@ export default function AppShell() {
                 >
                   Export
                 </NavLink>
+
+                <NavLink
+                  to="/compliance"
+                  className={desktopNavigationClass}
+                >
+                  Prüfung
+                </NavLink>
               </div>
             </div>
 
@@ -259,6 +266,14 @@ export default function AppShell() {
               className={mobileNavigationClass}
             >
               Export
+            </DisclosureButton>
+
+            <DisclosureButton
+              as={NavLink}
+              to="/compliance"
+              className={mobileNavigationClass}
+            >
+              Prüfung
             </DisclosureButton>
           </div>
         </DisclosurePanel>
