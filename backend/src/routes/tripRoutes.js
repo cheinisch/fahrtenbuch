@@ -29,6 +29,7 @@ import {
   replaceTripTags,
   TRIP_WITH_TAGS_SELECT,
 } from "../services/tripService.js";
+import { getLocationSuggestions } from "../services/tripSuggestionService.js";
 
 export const tripRoutes = Router();
 
@@ -559,6 +560,57 @@ tripRoutes.post(
     } finally {
       client.release();
     }
+  }),
+);
+
+tripRoutes.get(
+  "/:id/suggestions",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    const trip = await getOwnedTrip(pool, request.auth.userId, tripId, { includeTags: false });
+    if (!trip) throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+    response.json({ suggestions: await getLocationSuggestions(request.auth.userId, trip) });
+  }),
+);
+
+tripRoutes.post(
+  "/:id/route-correction",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    const points = Array.isArray(request.body?.points) ? request.body.points : [];
+    if (points.length < 2 || points.length > 10000) {
+      throw badRequest("VALIDATION_ERROR", "Die korrigierte Route muss 2 bis 10000 Punkte enthalten.");
+    }
+    const normalized = points.map((point, index) => {
+      const lat=Number(point.latitude), lon=Number(point.longitude);
+      if(!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lon)||lon < -180||lon > 180)
+        throw badRequest("VALIDATION_ERROR", `Routenpunkt ${index + 1} ist ungültig.`);
+      return {lat,lon};
+    });
+    const client=await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const trip=await getOwnedTrip(client,request.auth.userId,tripId,{includeTags:false});
+      if(!trip) throw notFound("TRIP_NOT_FOUND","Die Fahrt wurde nicht gefunden.");
+      if(trip.status!=="completed") throw badRequest("TRIP_NOT_COMPLETED","Nur abgeschlossene Fahrten können korrigiert werden.");
+      const times=await client.query(`SELECT min(recorded_at) AS first_at,max(recorded_at) AS last_at FROM track_points WHERE trip_id=$1`,[tripId]);
+      const firstAt=new Date(times.rows[0]?.first_at || trip.started_at);
+      const lastAt=new Date(times.rows[0]?.last_at || trip.ended_at);
+      await client.query(`DELETE FROM track_points WHERE trip_id=$1`,[tripId]);
+      for(let i=0;i<normalized.length;i++){
+        const ratio=normalized.length===1?0:i/(normalized.length-1);
+        const at=new Date(firstAt.getTime()+(lastAt.getTime()-firstAt.getTime())*ratio);
+        await client.query(`INSERT INTO track_points(trip_id,sequence_number,lat,lon,recorded_at)
+          VALUES($1,$2,$3,$4,$5)`,[tripId,i,normalized[i].lat,normalized[i].lon,at]);
+      }
+      await recalculateTripMetrics(client,tripId);
+      await appendTripHistory(client,{tripId,userId:request.auth.userId,eventType:"ROUTE_CORRECTED",
+        metadata:{pointCount:normalized.length,method:"manual-map"}});
+      const updated=await getOwnedTrip(client,request.auth.userId,tripId);
+      await client.query("COMMIT");
+      response.json(mapTrip(updated));
+    } catch(error) { await client.query("ROLLBACK"); throw error; }
+    finally { client.release(); }
   }),
 );
 
