@@ -181,14 +181,14 @@ jobs:
           fi
 
       - name: Manuelles Changelog übernehmen
-        if: ${{ inputs.changelog != '' }}
+        if: "${{ inputs.changelog != '' }}"
         shell: bash
         env:
           CHANGELOG: ${{ inputs.changelog }}
         run: printf '%s\n' "$CHANGELOG" > /tmp/changelog.md
 
       - name: KI-Changelog generieren
-        if: ${{ inputs.changelog == '' && secrets.OPENAI_API_KEY != '' }}
+        if: "${{ inputs.changelog == '' && secrets.OPENAI_API_KEY != '' }}"
         shell: bash
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -246,7 +246,7 @@ jobs:
           PY
 
       - name: Changelog-Fallback aus Commits
-        if: ${{ inputs.changelog == '' && secrets.OPENAI_API_KEY == '' }}
+        if: "${{ inputs.changelog == '' && secrets.OPENAI_API_KEY == '' }}"
         shell: bash
         run: |
           {
