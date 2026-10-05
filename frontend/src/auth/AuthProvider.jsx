@@ -158,9 +158,7 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  async function signIn(credentials, remember) {
-    const result = await loginRequest(credentials);
-
+  function completeSignIn(result, remember) {
     const nextAuth = {
       ...result,
       remember,
@@ -170,6 +168,11 @@ export function AuthProvider({ children }) {
     setAuth(nextAuth);
 
     return result.user;
+  }
+
+  async function signIn(credentials, remember) {
+    const result = await loginRequest(credentials);
+    return completeSignIn(result, remember);
   }
 
   function updateUser(user) {
@@ -215,6 +218,7 @@ export function AuthProvider({ children }) {
       ),
       loading,
       signIn,
+      completeSignIn,
       signOut,
       updateUser,
     }),
