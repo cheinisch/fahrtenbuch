@@ -14,6 +14,7 @@ import LoginPage from "./pages/LoginPage.jsx";
 import ExportPage from "./pages/Export.jsx";
 import ProfileSettings from "./pages/ProfileSettings.jsx";
 import Settings from "./pages/Settings.jsx";
+import Statistics from "./pages/Statistics.jsx";
 import Vehicles from "./pages/Vehicles.jsx";
 
 function LoginRoute() {
@@ -48,6 +49,11 @@ export default function App() {
           <Route
             path="/vehicles"
             element={<Vehicles />}
+          />
+
+          <Route
+            path="/statistics"
+            element={<Statistics />}
           />
 
           <Route
