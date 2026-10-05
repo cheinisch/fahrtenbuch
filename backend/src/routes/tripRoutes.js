@@ -392,6 +392,8 @@ tripRoutes.get(
           h.old_values,
           h.new_values,
           h.metadata,
+          h.previous_hash,
+          h.entry_hash,
           h.created_at,
           u.display_name AS actor_display_name,
           u.username AS actor_username,
@@ -415,6 +417,8 @@ tripRoutes.get(
         oldValues: row.old_values ?? null,
         newValues: row.new_values ?? null,
         metadata: row.metadata || {},
+        previousHash: row.previous_hash ?? null,
+        entryHash: row.entry_hash ?? null,
         actor: row.actor_user_id
           ? {
               id: row.actor_user_id,
