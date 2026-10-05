@@ -19,6 +19,9 @@ import {
   searchHomeLocations,
   updatePersonalSettings,
   updateProfile,
+  getSavedPlaces,
+  createSavedPlace,
+  deleteSavedPlace,
 } from "../api/app.js";
 import {
   getExportCountryOptions,
@@ -200,6 +203,9 @@ export default function ProfileSettings() {
   const [locationRecognitionRadiusMeters, setLocationRecognitionRadiusMeters] =
     useState(250);
 
+  const [savedPlaces, setSavedPlaces] = useState([]);
+  const [newPlace, setNewPlace] = useState({ name: "", address: "", latitude: "", longitude: "", radiusMeters: 250, suggestedType: "" });
+
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -215,6 +221,7 @@ export default function ProfileSettings() {
         devicesResult,
         countryResult,
         passkeysResult,
+        placesResult,
       ] = await Promise.all([
         getPersonalSettings(accessToken),
         getDevices(accessToken).catch(() => []),
@@ -223,7 +230,9 @@ export default function ProfileSettings() {
           selectedCountry: null,
         })),
         getPasskeys(accessToken).catch(() => []),
+        getSavedPlaces(accessToken).catch(() => []),
       ]);
+      setSavedPlaces(placesResult);
 
       setProfile({
         email: settingsResult.user.email,
@@ -585,6 +594,31 @@ export default function ProfileSettings() {
     }
   }
 
+  async function addSavedPlace(event) {
+    event.preventDefault();
+    setSaving("saved-place");
+    try {
+      const created = await createSavedPlace(accessToken, {
+        ...newPlace,
+        latitude: Number(newPlace.latitude),
+        longitude: Number(newPlace.longitude),
+        radiusMeters: Number(newPlace.radiusMeters),
+        suggestedType: newPlace.suggestedType || null,
+      });
+      setSavedPlaces((items) => [...items, created]);
+      setNewPlace({ name: "", address: "", latitude: "", longitude: "", radiusMeters: locationRecognitionRadiusMeters, suggestedType: "" });
+      showSuccess("Der Ort wurde gespeichert.");
+    } catch (e) { showError(e); } finally { setSaving(""); }
+  }
+
+  async function removeSavedPlace(id) {
+    try {
+      await deleteSavedPlace(accessToken, id);
+      setSavedPlaces((items) => items.filter((p) => p.id !== id));
+      showSuccess("Der Ort wurde entfernt.");
+    } catch (e) { showError(e); }
+  }
+
   async function saveProfile(event) {
     event.preventDefault();
     setSaving("profile");
@@ -841,6 +875,30 @@ export default function ProfileSettings() {
           {error}
         </div>
       )}
+
+      <Section
+        title="Gespeicherte Orte"
+        description="Kunden, Niederlassungen und häufige Ziele für automatische Klassifizierungsvorschläge."
+      >
+        <form onSubmit={addSavedPlace} className="grid gap-3 md:grid-cols-3">
+          <input required placeholder="Name, z. B. Kunde Müller" value={newPlace.name} onChange={(e)=>setNewPlace(p=>({...p,name:e.target.value}))} className={fieldClass} />
+          <input placeholder="Adresse" value={newPlace.address} onChange={(e)=>setNewPlace(p=>({...p,address:e.target.value}))} className={fieldClass} />
+          <select value={newPlace.suggestedType} onChange={(e)=>setNewPlace(p=>({...p,suggestedType:e.target.value}))} className={fieldClass}>
+            <option value="">Keine Kategorie</option><option value="business">Dienstlich</option><option value="private">Privat</option><option value="commute">Arbeitsweg</option>
+          </select>
+          <input required type="number" step="any" placeholder="Breitengrad" value={newPlace.latitude} onChange={(e)=>setNewPlace(p=>({...p,latitude:e.target.value}))} className={fieldClass} />
+          <input required type="number" step="any" placeholder="Längengrad" value={newPlace.longitude} onChange={(e)=>setNewPlace(p=>({...p,longitude:e.target.value}))} className={fieldClass} />
+          <div className="flex gap-2"><input required type="number" min="25" max="5000" value={newPlace.radiusMeters} onChange={(e)=>setNewPlace(p=>({...p,radiusMeters:e.target.value}))} className={fieldClass} /><button disabled={saving==="saved-place"} className="mt-2 rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text">Speichern</button></div>
+        </form>
+        <div className="mt-5 divide-y divide-fb-border">
+          {savedPlaces.map((place)=>(
+            <div key={place.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+              <div><div className="font-semibold">{place.name}</div><div className="text-fb-muted">{place.address || `${place.latitude}, ${place.longitude}`} · {place.radiusMeters || locationRecognitionRadiusMeters} m</div></div>
+              <button type="button" onClick={()=>removeSavedPlace(place.id)} className="rounded border border-fb-border px-3 py-1.5 text-xs">Entfernen</button>
+            </div>
+          ))}
+        </div>
+      </Section>
 
       <form onSubmit={saveProfile}>
         <Section
