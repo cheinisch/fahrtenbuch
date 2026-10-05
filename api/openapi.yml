@@ -1348,7 +1348,7 @@ components:
         tripId: { type: string, format: uuid }
         eventType:
           type: string
-          enum: [CREATED, UPDATED, CLASSIFIED, ARCHIVED, DELETED, TAG_ADDED, TAG_REMOVED, MAP_MATCHED, BASELINE]
+          enum: [CREATED, UPDATED, CLASSIFIED, ARCHIVED, DELETED, TAG_ADDED, TAG_REMOVED, MAP_MATCHED, BASELINE, TRIP_SPLIT, TRIP_MERGED, ROUTE_CORRECTED, AUTO_CLASSIFIED]
         changedFields: { type: object, additionalProperties: true }
         oldValues: { type: [object, 'null'], additionalProperties: true }
         newValues: { type: [object, 'null'], additionalProperties: true }
@@ -1486,6 +1486,30 @@ components:
       summary: Mehrere Fahrten desselben Fahrzeugs zusammenführen
       responses:
         '200': { description: Zusammengeführte Fahrt }
+
+  /places:
+    get:
+      tags: [Places]
+      summary: Gespeicherte Orte abrufen
+      responses:
+        '200': { description: Gespeicherte Orte }
+    post:
+      tags: [Places]
+      summary: Ort für Klassifizierungsvorschläge speichern
+      responses:
+        '201': { description: Ort gespeichert }
+  /trips/{id}/suggestions:
+    get:
+      tags: [Trips]
+      summary: Ortsbasierte Klassifizierungsvorschläge abrufen
+      responses:
+        '200': { description: Vorschläge }
+  /trips/{id}/route-correction:
+    post:
+      tags: [Trips]
+      summary: Route einer Fahrt manuell korrigieren
+      responses:
+        '200': { description: Korrigierte Fahrt }
 
   /statistics:
     get:
