@@ -23,7 +23,15 @@ import {
 import {
   getExportCountryOptions,
 } from "../api/countryExport.js";
+import {
+  deletePasskey,
+  getPasskeyRegistrationOptions,
+  getPasskeys,
+  renamePasskey,
+  verifyPasskeyRegistration,
+} from "../api/passkeys.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import { createPasskey } from "../lib/webauthn.js";
 import AddNewDeviceModal from "../components/addNewDeviceModal.jsx";
 import UserDataTransfer from "../components/UserDataTransfer.jsx";
 
@@ -144,6 +152,8 @@ export default function ProfileSettings() {
   });
 
   const [devices, setDevices] = useState([]);
+  const [passkeys, setPasskeys] = useState([]);
+  const [newPasskeyName, setNewPasskeyName] = useState("");
 
   const [addDeviceModalOpen, setAddDeviceModalOpen] =
     useState(false);
@@ -204,6 +214,7 @@ export default function ProfileSettings() {
         settingsResult,
         devicesResult,
         countryResult,
+        passkeysResult,
       ] = await Promise.all([
         getPersonalSettings(accessToken),
         getDevices(accessToken).catch(() => []),
@@ -211,6 +222,7 @@ export default function ProfileSettings() {
           countries: [],
           selectedCountry: null,
         })),
+        getPasskeys(accessToken).catch(() => []),
       ]);
 
       setProfile({
@@ -241,6 +253,7 @@ export default function ProfileSettings() {
       });
 
       setDevices(devicesResult);
+      setPasskeys(passkeysResult);
 
       setSupportedCountries(
         countryResult.countries || [],
@@ -707,6 +720,59 @@ export default function ProfileSettings() {
       showSuccess("Das Gerät wurde abgemeldet.");
     } catch (saveError) {
       showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function addPasskey() {
+    setSaving("passkey-add");
+    setError("");
+    setMessage("");
+    try {
+      const options = await getPasskeyRegistrationOptions(accessToken);
+      const credential = await createPasskey(options);
+      await verifyPasskeyRegistration(
+        accessToken,
+        credential,
+        newPasskeyName.trim() || "Passkey",
+      );
+      setPasskeys(await getPasskeys(accessToken));
+      setNewPasskeyName("");
+      showSuccess("Der Passkey wurde registriert.");
+    } catch (passkeyError) {
+      if (passkeyError?.name !== "NotAllowedError") showError(passkeyError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function editPasskey(passkey) {
+    const name = window.prompt("Name des Passkeys", passkey.name);
+    if (!name?.trim() || name.trim() === passkey.name) return;
+    setSaving(`passkey-rename:${passkey.id}`);
+    try {
+      const updated = await renamePasskey(accessToken, passkey.id, name.trim());
+      setPasskeys((current) =>
+        current.map((item) => item.id === passkey.id ? updated : item),
+      );
+      showSuccess("Der Passkey wurde umbenannt.");
+    } catch (passkeyError) {
+      showError(passkeyError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function removePasskey(passkey) {
+    if (!window.confirm(`Passkey „${passkey.name}“ wirklich löschen?`)) return;
+    setSaving(`passkey-delete:${passkey.id}`);
+    try {
+      await deletePasskey(accessToken, passkey.id);
+      setPasskeys((current) => current.filter((item) => item.id !== passkey.id));
+      showSuccess("Der Passkey wurde gelöscht.");
+    } catch (passkeyError) {
+      showError(passkeyError);
     } finally {
       setSaving("");
     }
@@ -1684,13 +1750,60 @@ export default function ProfileSettings() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-fb-border bg-fb-surface p-4">
-            <div className="font-semibold">
-              Passkeys
+          <div className="rounded-lg border border-fb-border bg-fb-surface p-4 sm:col-span-2">
+            <div className="font-semibold">Passkeys</div>
+            <p className="mt-1 text-sm text-fb-muted">
+              Passwortlos mit Fingerabdruck, Gesichtserkennung, PIN oder Sicherheitsschlüssel anmelden.
+            </p>
+
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <input
+                type="text"
+                value={newPasskeyName}
+                onChange={(event) => setNewPasskeyName(event.target.value)}
+                placeholder="Name, z. B. Notebook oder YubiKey"
+                maxLength={120}
+                className={fieldClass}
+              />
+              <button
+                type="button"
+                onClick={addPasskey}
+                disabled={saving === "passkey-add" || user?.passkeyEnabled === false}
+                className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60"
+              >
+                {saving === "passkey-add" ? "Registriere …" : "Passkey hinzufügen"}
+              </button>
             </div>
-            <div className="mt-1 text-sm text-fb-muted">
-              Die Verwaltung der Passkeys folgt mit
-              der WebAuthn-Anbindung.
+
+            {user?.passkeyEnabled === false && (
+              <p className="mt-3 text-sm text-fb-danger">
+                Passkeys sind für dieses Konto durch die Administration deaktiviert.
+              </p>
+            )}
+
+            <div className="mt-4 divide-y divide-fb-border rounded-lg border border-fb-border">
+              {passkeys.length === 0 ? (
+                <p className="p-4 text-sm text-fb-muted">Noch kein Passkey registriert.</p>
+              ) : passkeys.map((passkey) => (
+                <div key={passkey.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="font-semibold">{passkey.name}</div>
+                    <div className="mt-1 text-xs text-fb-muted">
+                      Erstellt {new Date(passkey.createdAt).toLocaleString("de-DE")}
+                      {passkey.lastUsedAt ? ` · zuletzt verwendet ${new Date(passkey.lastUsedAt).toLocaleString("de-DE")}` : ""}
+                      {passkey.backedUp ? " · synchronisiert" : ""}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => editPasskey(passkey)} className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent">
+                      Umbenennen
+                    </button>
+                    <button type="button" onClick={() => removePasskey(passkey)} className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-danger hover:border-fb-danger">
+                      Löschen
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
