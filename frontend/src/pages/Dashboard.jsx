@@ -9,7 +9,13 @@ import {
   useState,
 } from "react";
 
-import { getDashboard, getTripHistory } from "../api/app.js";
+import {
+  getDashboard,
+  getTripHistory,
+  getTripPoints,
+  mergeTrips,
+  splitTrip,
+} from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 
 const OSM_MAP_STYLE = {
@@ -91,6 +97,8 @@ const historyEventLabels = {
   TAG_ADDED: "Tag hinzugefügt",
   TAG_REMOVED: "Tag entfernt",
   MAP_MATCHED: "Strecke auf Straßennetz abgeglichen",
+  TRIP_SPLIT: "Fahrt geteilt",
+  TRIP_MERGED: "Fahrten zusammengeführt",
   BASELINE: "Historie aktiviert",
 };
 
@@ -267,6 +275,8 @@ export default function Dashboard() {
   });
 
   const [mapError, setMapError] = useState("");
+  const [selectedForMerge, setSelectedForMerge] = useState([]);
+  const [tripAction, setTripAction] = useState({ busy: false, error: "", splitPoints: null });
 
   const [selectedTripId, setSelectedTripId] =
     useState(null);
@@ -793,6 +803,52 @@ export default function Dashboard() {
     });
   }
 
+  async function beginSplit() {
+    if (!selectedTripId) return;
+    setTripAction({ busy: true, error: "", splitPoints: null });
+    try {
+      const points = await getTripPoints(accessToken, selectedTripId);
+      if (points.length < 3) throw new Error("Die Fahrt hat zu wenige GPS-Punkte zum Teilen.");
+      setTripAction({ busy: false, error: "", splitPoints: points.slice(1, -1) });
+    } catch (error) {
+      setTripAction({ busy: false, error: error.message, splitPoints: null });
+    }
+  }
+
+  async function performSplit(pointId) {
+    setTripAction((state) => ({ ...state, busy: true, error: "" }));
+    try {
+      await splitTrip(accessToken, selectedTripId, pointId);
+      setTripAction({ busy: false, error: "", splitPoints: null });
+      setSelectedTripId(null);
+      const result = await getDashboard(accessToken, filters);
+      setData(result);
+    } catch (error) {
+      setTripAction((state) => ({ ...state, busy: false, error: error.message }));
+    }
+  }
+
+  async function performMerge() {
+    if (selectedForMerge.length < 2) return;
+    setTripAction({ busy: true, error: "", splitPoints: null });
+    try {
+      await mergeTrips(accessToken, selectedForMerge);
+      setSelectedForMerge([]);
+      setSelectedTripId(null);
+      const result = await getDashboard(accessToken, filters);
+      setData(result);
+      setTripAction({ busy: false, error: "", splitPoints: null });
+    } catch (error) {
+      setTripAction({ busy: false, error: error.message, splitPoints: null });
+    }
+  }
+
+  function toggleMergeTrip(tripId) {
+    setSelectedForMerge((current) =>
+      current.includes(tripId) ? current.filter((id) => id !== tripId) : [...current, tripId],
+    );
+  }
+
   function resetFilters() {
     setFilters({
       from: "",
@@ -929,6 +985,22 @@ export default function Dashboard() {
           </button>
         </div>
 
+        {selectedForMerge.length > 0 && (
+          <div className="border-b border-fb-border p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-fb-muted">{selectedForMerge.length} Fahrt(en) gewählt</span>
+              <button
+                type="button"
+                disabled={selectedForMerge.length < 2 || tripAction.busy}
+                onClick={performMerge}
+                className="rounded-lg bg-fb-accent px-3 py-2 text-xs font-semibold text-fb-accent-text disabled:opacity-50"
+              >
+                Zusammenführen
+              </button>
+            </div>
+          </div>
+        )}
+
         {status.error && (
           <div className="m-4 rounded-lg border border-fb-danger px-3 py-2 text-sm text-fb-danger">
             {status.error}
@@ -954,12 +1026,25 @@ export default function Dashboard() {
           ) : (
             <div className="divide-y divide-fb-border">
               {data.trips.map((trip) => (
-                <button
+                <div
                   key={trip.id}
+                  className={[
+                    "relative transition", selectedForMerge.includes(trip.id) ? "bg-fb-accent-soft" : "",
+                  ].join(" ")}
+                >
+                  <label className="absolute left-3 top-4 z-10 flex cursor-pointer items-center" title="Für Zusammenführen auswählen">
+                    <input
+                      type="checkbox"
+                      checked={selectedForMerge.includes(trip.id)}
+                      onChange={() => toggleMergeTrip(trip.id)}
+                      className="size-4 accent-current"
+                    />
+                  </label>
+                <button
                   type="button"
                   onClick={() => selectTrip(trip)}
                   className={[
-                    "block w-full p-4 text-left transition",
+                    "block w-full py-4 pl-10 pr-4 text-left transition",
                     selectedTripId === trip.id
                       ? "bg-fb-accent-soft"
                       : "hover:bg-fb-surface",
@@ -1019,6 +1104,7 @@ export default function Dashboard() {
                     </div>
                   )}
                 </button>
+                </div>
               ))}
             </div>
           )}
@@ -1054,6 +1140,33 @@ export default function Dashboard() {
               >
                 Schließen
               </button>
+            </div>
+
+            <div className="border-b border-fb-border p-3">
+              <button
+                type="button"
+                disabled={tripAction.busy}
+                onClick={beginSplit}
+                className="w-full rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
+              >
+                Fahrt teilen
+              </button>
+              {tripAction.error && <div className="mt-2 text-xs text-fb-danger">{tripAction.error}</div>}
+              {tripAction.splitPoints && (
+                <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-fb-border bg-fb-surface p-2">
+                  <div className="mb-2 text-xs text-fb-muted">Trennpunkt auswählen</div>
+                  {tripAction.splitPoints.map((point) => (
+                    <button
+                      key={point.id}
+                      type="button"
+                      onClick={() => performSplit(point.id)}
+                      className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-fb-accent-soft"
+                    >
+                      {formatDate(point.recordedAt)}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="max-h-72 overflow-y-auto p-3">
