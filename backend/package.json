@@ -1,6 +1,6 @@
 {
   "name": "@fahrtenbuch/backend",
-  "version": "1.0.0-dev",
+  "version": "0.1.0-dev.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -30,5 +30,6 @@
     "pdfkit": "^0.17.2",
     "pg": "^8.16.3",
     "qrcode": "^1.5.4"
-  }
+  },
+  "build": 1
 }
