@@ -116,6 +116,17 @@ jobs:
           npm version "$VERSION" --workspace frontend --no-git-tag-version --allow-same-version
           npm version "$VERSION" --workspace shared --no-git-tag-version --allow-same-version
 
+          BUILD_NUMBER="$(tr -d '[:space:]' < BUILD)"
+          node - "$BUILD_NUMBER" <<'NODE'
+          const fs = require("fs");
+          const build = Number(process.argv[2]);
+          for (const file of ["package.json", "backend/package.json", "frontend/package.json", "shared/package.json"]) {
+            const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
+            pkg.build = build;
+            fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
+          }
+          NODE
+
           python3 - "$VERSION" <<'PY'
           import re, sys
           from pathlib import Path
