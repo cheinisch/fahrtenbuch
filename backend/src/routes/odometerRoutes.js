@@ -106,14 +106,25 @@ odometerRoutes.put(
     }
 
     const odometerMeters = Math.round(odometerKm * 1000);
-    const previous = await pool.query(
-      `SELECT odometer_meters FROM vehicle_odometer_readings
-        WHERE user_id = $1 AND vehicle_id = $2 AND reading_month < $3
-        ORDER BY reading_month DESC LIMIT 1`,
-      [request.auth.userId, vehicleId, readingMonth],
-    );
+    const [previous, next] = await Promise.all([
+      pool.query(
+        `SELECT odometer_meters FROM vehicle_odometer_readings
+          WHERE user_id = $1 AND vehicle_id = $2 AND reading_month < $3
+          ORDER BY reading_month DESC LIMIT 1`,
+        [request.auth.userId, vehicleId, readingMonth],
+      ),
+      pool.query(
+        `SELECT odometer_meters FROM vehicle_odometer_readings
+          WHERE user_id = $1 AND vehicle_id = $2 AND reading_month > $3
+          ORDER BY reading_month ASC LIMIT 1`,
+        [request.auth.userId, vehicleId, readingMonth],
+      ),
+    ]);
     if (previous.rowCount && odometerMeters < Number(previous.rows[0].odometer_meters)) {
       throw badRequest("ODOMETER_REVERSED", "Der Kilometerstand darf nicht kleiner als der vorherige Messwert sein.");
+    }
+    if (next.rowCount && odometerMeters > Number(next.rows[0].odometer_meters)) {
+      throw badRequest("ODOMETER_SEQUENCE", "Der Kilometerstand darf nicht größer als der folgende Messwert sein.");
     }
 
     const result = await pool.query(
