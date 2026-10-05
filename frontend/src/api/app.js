@@ -508,3 +508,23 @@ export function getTripHistory(accessToken, tripId) {
     `/api/v1/trips/${encodeURIComponent(tripId)}/history`,
   );
 }
+
+
+export function getComplianceChecks(accessToken) {
+  return apiRequest(accessToken, "/api/v1/compliance/checks");
+}
+
+export function getComplianceIntegrity(accessToken) {
+  return apiRequest(accessToken, "/api/v1/compliance/integrity");
+}
+
+export function getClosedPeriods(accessToken) {
+  return apiRequest(accessToken, "/api/v1/compliance/periods");
+}
+
+export function closePeriod(accessToken, period) {
+  return apiRequest(accessToken, "/api/v1/compliance/periods", {
+    method: "POST",
+    body: JSON.stringify(period),
+  });
+}
