@@ -502,6 +502,24 @@ export function logoutAdminUserSessions(
   );
 }
 
+export function getTripPoints(accessToken, tripId) {
+  return apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/points`);
+}
+
+export function splitTrip(accessToken, tripId, pointId) {
+  return apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/split`, {
+    method: "POST",
+    body: JSON.stringify({ pointId }),
+  });
+}
+
+export function mergeTrips(accessToken, tripIds) {
+  return apiRequest(accessToken, "/api/v1/trips/merge", {
+    method: "POST",
+    body: JSON.stringify({ tripIds }),
+  });
+}
+
 export function getTripHistory(accessToken, tripId) {
   return apiRequest(
     accessToken,
