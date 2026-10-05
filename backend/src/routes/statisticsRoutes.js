@@ -217,3 +217,77 @@ statisticsRoutes.get(
     );
   }),
 );
+
+
+statisticsRoutes.get(
+  "/monthly-odometer",
+  asyncHandler(async (request, response) => {
+    const months = Number(request.query.months || 12);
+    if (!Number.isInteger(months) || months < 1 || months > 120) {
+      throw badRequest("VALIDATION_ERROR", "Der Parameter „months“ muss zwischen 1 und 120 liegen.");
+    }
+
+    const result = await pool.query(
+      `
+      WITH month_series AS (
+        SELECT generate_series(
+          date_trunc('month', current_date) - (($2 - 1) || ' months')::interval,
+          date_trunc('month', current_date),
+          interval '1 month'
+        )::date AS month
+      ),
+      vehicle_months AS (
+        SELECT v.id AS vehicle_id, v.name AS vehicle_name, m.month
+        FROM vehicles v CROSS JOIN month_series m
+        WHERE v.user_id = $1 AND v.archived_at IS NULL
+      ),
+      distances AS (
+        SELECT vehicle_id, date_trunc('month', started_at)::date AS month,
+          coalesce(sum(distance_meters), 0)::bigint AS tracked_meters,
+          coalesce(sum(distance_meters) FILTER (WHERE type = 'business'), 0)::bigint AS business_meters,
+          coalesce(sum(distance_meters) FILTER (WHERE type = 'private'), 0)::bigint AS private_meters,
+          coalesce(sum(distance_meters) FILTER (WHERE type = 'commute'), 0)::bigint AS commute_meters,
+          coalesce(sum(distance_meters) FILTER (WHERE type = 'unclassified'), 0)::bigint AS unclassified_meters
+        FROM trips
+        WHERE user_id = $1 AND archived_at IS NULL AND status = 'completed'
+        GROUP BY vehicle_id, date_trunc('month', started_at)
+      )
+      SELECT vm.vehicle_id, vm.vehicle_name, vm.month,
+        d.tracked_meters, d.business_meters, d.private_meters, d.commute_meters, d.unclassified_meters,
+        start_r.odometer_meters AS start_odometer_meters,
+        end_r.odometer_meters AS end_odometer_meters
+      FROM vehicle_months vm
+      LEFT JOIN distances d ON d.vehicle_id = vm.vehicle_id AND d.month = vm.month
+      LEFT JOIN vehicle_odometer_readings start_r
+        ON start_r.user_id = $1 AND start_r.vehicle_id = vm.vehicle_id
+       AND start_r.reading_month = (vm.month - interval '1 month')::date
+      LEFT JOIN vehicle_odometer_readings end_r
+        ON end_r.user_id = $1 AND end_r.vehicle_id = vm.vehicle_id
+       AND end_r.reading_month = vm.month
+      ORDER BY vm.month DESC, lower(vm.vehicle_name)
+      `,
+      [request.auth.userId, months],
+    );
+
+    response.json(result.rows.map((row) => {
+      const tracked = Number(row.tracked_meters || 0);
+      const actual = row.start_odometer_meters == null || row.end_odometer_meters == null
+        ? null
+        : Math.max(0, Number(row.end_odometer_meters) - Number(row.start_odometer_meters));
+      return {
+        vehicleId: row.vehicle_id,
+        vehicleName: row.vehicle_name,
+        month: String(row.month).slice(0, 7),
+        actualKm: actual == null ? null : actual / 1000,
+        trackedKm: tracked / 1000,
+        businessKm: Number(row.business_meters || 0) / 1000,
+        privateKm: Number(row.private_meters || 0) / 1000,
+        commuteKm: Number(row.commute_meters || 0) / 1000,
+        unclassifiedKm: Number(row.unclassified_meters || 0) / 1000,
+        unknownKm: actual == null ? null : Math.max(0, actual - tracked) / 1000,
+        startOdometerKm: row.start_odometer_meters == null ? null : Number(row.start_odometer_meters) / 1000,
+        endOdometerKm: row.end_odometer_meters == null ? null : Number(row.end_odometer_meters) / 1000,
+      };
+    }));
+  }),
+);
