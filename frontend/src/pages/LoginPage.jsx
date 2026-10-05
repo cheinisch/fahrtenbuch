@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { ApiError } from "../api/auth.js";
+import {
+  ApiError,
+  getPasskeyLoginOptions,
+  verifyPasskeyLogin,
+} from "../api/auth.js";
+import { authenticateWithPasskey } from "../lib/webauthn.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signIn, completeSignIn } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,10 +59,27 @@ export default function LoginPage() {
     }
   }
 
-  function handlePasskeyLogin() {
-    setErrorMessage(
-      "Die Passkey-Anmeldung ist derzeit noch nicht angebunden.",
-    );
+  async function handlePasskeyLogin() {
+    setSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      const options = await getPasskeyLoginOptions();
+      const credential = await authenticateWithPasskey(options);
+      const result = await verifyPasskeyLogin(credential);
+      completeSignIn(result, rememberMe);
+      navigate("/", { replace: true });
+    } catch (error) {
+      if (error?.name !== "NotAllowedError") {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Die Passkey-Anmeldung ist fehlgeschlagen.",
+        );
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
