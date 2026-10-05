@@ -964,6 +964,45 @@ authRoutes.get(
   }),
 );
 
+authRoutes.patch(
+  "/passkeys/:id",
+  requireAuth,
+  asyncHandler(async (request, response) => {
+    const id = uuidValue(request.params.id);
+    const body = objectBody(request.body);
+    const name = stringField(body, "name", {
+      required: true,
+      minimum: 1,
+      maximum: 120,
+    });
+
+    const result = await pool.query(
+      `
+        UPDATE passkeys
+        SET name = $3
+        WHERE id = $1 AND user_id = $2
+        RETURNING id, name, transports, backed_up, device_type, last_used_at, created_at
+      `,
+      [id, request.auth.userId, name],
+    );
+
+    if (result.rowCount === 0) {
+      throw notFound("PASSKEY_NOT_FOUND", "Der Passkey wurde nicht gefunden.");
+    }
+
+    const row = result.rows[0];
+    response.json({
+      id: row.id,
+      name: row.name,
+      transports: row.transports,
+      backedUp: row.backed_up,
+      deviceType: row.device_type,
+      lastUsedAt: row.last_used_at,
+      createdAt: row.created_at,
+    });
+  }),
+);
+
 authRoutes.delete(
   "/passkeys/:id",
   requireAuth,
