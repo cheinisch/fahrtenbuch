@@ -15,6 +15,9 @@ import {
   getTripPoints,
   mergeTrips,
   splitTrip,
+  getTripSuggestions,
+  correctTripRoute,
+
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 
@@ -99,6 +102,8 @@ const historyEventLabels = {
   MAP_MATCHED: "Strecke auf Straßennetz abgeglichen",
   TRIP_SPLIT: "Fahrt geteilt",
   TRIP_MERGED: "Fahrten zusammengeführt",
+  ROUTE_CORRECTED: "Route manuell korrigiert",
+  AUTO_CLASSIFIED: "Automatisch klassifiziert",
   BASELINE: "Historie aktiviert",
 };
 
@@ -277,6 +282,9 @@ export default function Dashboard() {
   const [mapError, setMapError] = useState("");
   const [selectedForMerge, setSelectedForMerge] = useState([]);
   const [tripAction, setTripAction] = useState({ busy: false, error: "", splitPoints: null });
+  const [suggestions, setSuggestions] = useState([]);
+  const [mapMode, setMapMode] = useState(null);
+  const [routeDraft, setRouteDraft] = useState([]);
 
   const [selectedTripId, setSelectedTripId] =
     useState(null);
@@ -587,6 +595,18 @@ export default function Dashboard() {
         },
       });
 
+      map.addSource("route-draft", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "route-draft",
+        type: "line",
+        source: "route-draft",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": accent, "line-width": 6, "line-dasharray": [2, 2] },
+      });
+
       map.addLayer({
         id: "trip-endpoints",
         type: "circle",
@@ -640,6 +660,26 @@ export default function Dashboard() {
         },
       });
 
+      map.on("click", async (event) => {
+        if (!selectedTripId) return;
+        if (mapMode === "split") {
+          try {
+            const points = await getTripPoints(accessToken, selectedTripId);
+            if (points.length < 3) return;
+            let nearest = points[1], best = Infinity;
+            for (const point of points.slice(1, -1)) {
+              const p = map.project([point.longitude, point.latitude]);
+              const d = Math.hypot(p.x - event.point.x, p.y - event.point.y);
+              if (d < best) { best = d; nearest = point; }
+            }
+            if (best <= 40) await performSplit(nearest.id);
+          } catch (error) {
+            setTripAction((state) => ({ ...state, error: error.message }));
+          }
+        } else if (mapMode === "correct") {
+          setRouteDraft((current) => [...current, { longitude: event.lngLat.lng, latitude: event.lngLat.lat }]);
+        }
+      });
       mapLoadedRef.current = true;
       updateMapData();
       fitAllTrips();
@@ -773,6 +813,11 @@ export default function Dashboard() {
 
   function selectTrip(trip) {
     setSelectedTripId(trip.id);
+    setMapMode(null);
+    setRouteDraft([]);
+    getTripSuggestions(accessToken, trip.id)
+      .then((result) => setSuggestions(result.suggestions || []))
+      .catch(() => setSuggestions([]));
 
     const coordinates = trip.route.map(
       (point) => [
@@ -847,6 +892,31 @@ export default function Dashboard() {
     setSelectedForMerge((current) =>
       current.includes(tripId) ? current.filter((id) => id !== tripId) : [...current, tripId],
     );
+  }
+
+  useEffect(() => {
+    const source = mapRef.current?.getSource("route-draft");
+    source?.setData({
+      type: "FeatureCollection",
+      features: routeDraft.length >= 2 ? [{
+        type: "Feature", properties: {},
+        geometry: { type: "LineString", coordinates: routeDraft.map((p) => [p.longitude, p.latitude]) },
+      }] : [],
+    });
+  }, [routeDraft]);
+
+  async function saveRouteCorrection() {
+    if (!selectedTripId || routeDraft.length < 2) return;
+    setTripAction((state) => ({ ...state, busy: true, error: "" }));
+    try {
+      await correctTripRoute(accessToken, selectedTripId, routeDraft);
+      const result = await getDashboard(accessToken, filters);
+      setData(result);
+      setMapMode(null); setRouteDraft([]);
+      setTripAction({ busy: false, error: "", splitPoints: null });
+    } catch (error) {
+      setTripAction((state) => ({ ...state, busy: false, error: error.message }));
+    }
   }
 
   function resetFilters() {
@@ -1143,6 +1213,42 @@ export default function Dashboard() {
             </div>
 
             <div className="border-b border-fb-border p-3">
+              <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={tripAction.busy}
+                onClick={() => { setMapMode("split"); setTripAction((s)=>({...s,splitPoints:null,error:""})); }}
+                className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
+              >
+                Auf Karte teilen
+              </button>
+              <button
+                type="button"
+                disabled={tripAction.busy}
+                onClick={() => { setMapMode("correct"); setRouteDraft([]); }}
+                className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
+              >
+                Route korrigieren
+              </button>
+              </div>
+              {mapMode === "split" && <div className="mt-2 text-xs text-fb-muted">Klicke nahe an der gewünschten Trennstelle auf die Route.</div>}
+              {mapMode === "correct" && (
+                <div className="mt-2">
+                  <div className="text-xs text-fb-muted">Klicke die korrigierte Route der Reihe nach auf der Karte ab.</div>
+                  <div className="mt-2 flex gap-2">
+                    <button type="button" onClick={() => setRouteDraft((p)=>p.slice(0,-1))} className="rounded border border-fb-border px-2 py-1 text-xs">Letzten Punkt entfernen</button>
+                    <button type="button" disabled={routeDraft.length < 2 || tripAction.busy} onClick={saveRouteCorrection} className="rounded bg-fb-accent px-2 py-1 text-xs font-semibold text-fb-accent-text disabled:opacity-50">Route speichern</button>
+                  </div>
+                </div>
+              )}
+              {suggestions.length > 0 && (
+                <div className="mt-3 rounded-lg border border-fb-border bg-fb-surface p-2">
+                  <div className="text-xs font-semibold">Klassifizierungsvorschlag</div>
+                  {suggestions.slice(0,3).map((suggestion,index) => (
+                    <div key={index} className="mt-1 text-xs text-fb-muted">{suggestion.reason}: {tripTypeLabels[suggestion.type] || suggestion.type}</div>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 disabled={tripAction.busy}
