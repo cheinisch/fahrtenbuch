@@ -1447,6 +1447,7 @@ adminRoutes.get(
     response.json({
       application: {
         version: config.version,
+        build: config.build,
         environment: config.env,
         buildDate: config.buildDate,
         vcsRef: config.vcsRef,
