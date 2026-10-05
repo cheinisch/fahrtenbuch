@@ -26,7 +26,7 @@ odometerRoutes.get(
         SELECT date_trunc('month', current_date - interval '1 month')::date AS month
       )
       SELECT v.id AS vehicle_id, v.name AS vehicle_name, v.license_plate,
-             pm.month AS reading_month,
+             date_trunc('month', current_date)::date AS reading_month,
              last_reading.odometer_meters AS last_odometer_meters,
              last_reading.reading_month AS last_reading_month
       FROM vehicles v
@@ -34,13 +34,13 @@ odometerRoutes.get(
       LEFT JOIN vehicle_odometer_readings current_reading
         ON current_reading.user_id = v.user_id
        AND current_reading.vehicle_id = v.id
-       AND current_reading.reading_month = pm.month
+       AND current_reading.reading_month = date_trunc('month', current_date)::date
       LEFT JOIN LATERAL (
         SELECT r.odometer_meters, r.reading_month
         FROM vehicle_odometer_readings r
         WHERE r.user_id = v.user_id
           AND r.vehicle_id = v.id
-          AND r.reading_month < pm.month
+          AND r.reading_month < date_trunc('month', current_date)::date
         ORDER BY r.reading_month DESC
         LIMIT 1
       ) last_reading ON true
