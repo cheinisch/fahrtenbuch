@@ -220,6 +220,22 @@ paths:
       responses:
         '200': { description: Passkey-Liste }
   /auth/passkeys/{id}:
+    patch:
+      tags: [Passkeys]
+      summary: Eigenen Passkey umbenennen
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+      responses:
+        '200': { description: Passkey aktualisiert }
     delete:
       tags: [Passkeys]
       summary: Passkey löschen
