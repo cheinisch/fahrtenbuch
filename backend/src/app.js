@@ -11,6 +11,7 @@ import { config } from "./config.js";
 import { adminRoutes } from "./routes/adminRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { dashboardRoutes } from "./routes/dashboardRoutes.js";
+import { complianceRoutes } from "./routes/complianceRoutes.js";
 import {
   adminDataRoutes,
   userDataExportRoutes,
@@ -140,6 +141,7 @@ app.use("/api/v1/trips", tripRoutes);
 app.use("/api/v1/tracking", trackingRoutes);
 app.use("/api/v1/tags", tagRoutes);
 app.use("/api/v1/dashboard", dashboardRoutes);
+app.use("/api/v1/compliance", complianceRoutes);
 app.use("/api/v1/statistics", statisticsRoutes);
 app.use("/api/v1/config", configRoutes);
 app.use("/api/v1/geocoding", geocodingRoutes);
