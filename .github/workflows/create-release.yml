@@ -1,0 +1,212 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      change:
+        description: Version change
+        required: true
+        type: choice
+        options:
+          - Patch
+          - Minor
+          - Major
+          - Custom
+        default: Patch
+      custom_version:
+        description: Custom version (for example 1.4.2 or v1.4.2; only used for Custom)
+        required: false
+        type: string
+      changelog:
+        description: Changelog (optional; if empty it is generated with AI)
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: create-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Version ermitteln
+        id: version
+        shell: bash
+        env:
+          CHANGE: ${{ inputs.change }}
+          CUSTOM_VERSION: ${{ inputs.custom_version }}
+        run: |
+          set -euo pipefail
+
+          LAST_TAG="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
+          if [[ -z "$LAST_TAG" ]]; then
+            LAST_TAG="v0.0.0"
+          fi
+
+          if [[ ! "$LAST_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Letzter Tag hat kein unterstütztes SemVer-Format: $LAST_TAG"
+            exit 1
+          fi
+
+          MAJOR="${BASH_REMATCH[1]}"
+          MINOR="${BASH_REMATCH[2]}"
+          PATCH="${BASH_REMATCH[3]}"
+
+          case "$CHANGE" in
+            Major)
+              MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
+              VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+              ;;
+            Minor)
+              MINOR=$((MINOR + 1)); PATCH=0
+              VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+              ;;
+            Patch)
+              PATCH=$((PATCH + 1))
+              VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+              ;;
+            Custom)
+              VERSION="${CUSTOM_VERSION#v}"
+              if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "Custom muss SemVer entsprechen, z. B. 1.4.2 oder v1.4.2."
+                exit 1
+              fi
+              VERSION="v${VERSION}"
+              ;;
+            *)
+              echo "Unbekannte Änderung: $CHANGE"
+              exit 1
+              ;;
+          esac
+
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION existiert bereits."
+            exit 1
+          fi
+
+          echo "previous=$LAST_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Release: $LAST_TAG -> $VERSION"
+
+      - name: Änderungen sammeln
+        id: changes
+        shell: bash
+        env:
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$PREVIOUS" == "v0.0.0" ]] && ! git rev-parse "$PREVIOUS" >/dev/null 2>&1; then
+            git log --no-merges --pretty=format:'- %s (%h)' > /tmp/changes.txt
+          else
+            git log "$PREVIOUS"..HEAD --no-merges --pretty=format:'- %s (%h)' > /tmp/changes.txt
+          fi
+
+          if [[ ! -s /tmp/changes.txt ]]; then
+            echo "- Keine Änderungen seit dem letzten Release." > /tmp/changes.txt
+          fi
+
+      - name: Manuelles Changelog übernehmen
+        if: ${{ inputs.changelog != '' }}
+        shell: bash
+        env:
+          CHANGELOG: ${{ inputs.changelog }}
+        run: printf '%s\n' "$CHANGELOG" > /tmp/changelog.md
+
+      - name: KI-Changelog generieren
+        if: ${{ inputs.changelog == '' && secrets.OPENAI_API_KEY != '' }}
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json, os, urllib.request
+
+          changes = open("/tmp/changes.txt", encoding="utf-8").read()
+          prompt = f"""Erstelle ein prägnantes deutsches Changelog für das Fahrtenbuch.
+          Release: {os.environ['VERSION']}
+          Vorheriges Release: {os.environ['PREVIOUS']}
+
+          Nutze nur die unten aufgeführten Git-Änderungen. Erfinde keine Funktionen.
+          Gruppiere sinnvoll, z. B. Neue Funktionen, Verbesserungen und Fehlerbehebungen.
+          Gib ausschließlich Markdown für die Release Notes aus, ohne Codeblock.
+
+          Änderungen:
+          {changes}
+          """
+
+          payload = {
+              "model": "gpt-5.6",
+              "input": prompt,
+          }
+          request = urllib.request.Request(
+              "https://api.openai.com/v1/responses",
+              data=json.dumps(payload).encode(),
+              headers={
+                  "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
+                  "Content-Type": "application/json",
+              },
+              method="POST",
+          )
+          with urllib.request.urlopen(request, timeout=120) as response:
+              data = json.load(response)
+
+          text = data.get("output_text")
+          if not text:
+              chunks = []
+              for item in data.get("output", []):
+                  for content in item.get("content", []):
+                      if content.get("type") == "output_text":
+                          chunks.append(content.get("text", ""))
+              text = "\n".join(chunks).strip()
+
+          if not text:
+              raise RuntimeError("Die OpenAI-Antwort enthielt kein Changelog.")
+
+          with open("/tmp/changelog.md", "w", encoding="utf-8") as handle:
+              handle.write(text.strip() + "\n")
+          PY
+
+      - name: Changelog-Fallback aus Commits
+        if: ${{ inputs.changelog == '' && secrets.OPENAI_API_KEY == '' }}
+        shell: bash
+        run: |
+          {
+            echo "## Änderungen"
+            echo
+            cat /tmp/changes.txt
+          } > /tmp/changelog.md
+
+          echo "::warning::OPENAI_API_KEY ist nicht gesetzt. Das Changelog wurde aus den Commit-Nachrichten erzeugt."
+
+      - name: Release Notes anzeigen
+        shell: bash
+        run: cat /tmp/changelog.md
+
+      - name: Release erstellen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release create "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --notes-file /tmp/changelog.md
