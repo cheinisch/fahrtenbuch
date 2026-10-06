@@ -430,6 +430,18 @@ export function shareVehicle(accessToken, vehicleId, email) {
   );
 }
 
+export function createVehicleShareLink(accessToken, vehicleId) {
+  return apiRequest(accessToken, `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/share-link`, { method: "POST" });
+}
+export function inspectVehicleShareInvitation(accessToken, token) {
+  return apiRequest(accessToken, `/api/v1/vehicles/share-invitations/inspect?token=${encodeURIComponent(token)}`);
+}
+export function respondVehicleShareInvitation(accessToken, token, action) {
+  return apiRequest(accessToken, "/api/v1/vehicles/share-invitations/respond", {
+    method: "POST", body: JSON.stringify({ token, action }),
+  });
+}
+
 export function revokeVehicleShare(accessToken, vehicleId, userId) {
   return apiRequest(
     accessToken,
