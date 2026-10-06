@@ -65,6 +65,8 @@ export function mapVehicle(row) {
       : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    deregisteredAt: row.deregistered_at ?? null,
+    isDeregistered: Boolean(row.deregistered_at),
   };
 }
 
