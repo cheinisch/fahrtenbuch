@@ -223,9 +223,13 @@ statisticsRoutes.get(
   "/odometer-intervals",
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(String(request.query.vehicleId || ""), "vehicleId");
-    const months = Number(request.query.months || 18);
-    if (!Number.isInteger(months) || months < 1 || months > 120) {
-      throw badRequest("VALIDATION_ERROR", "Der Parameter „months“ muss zwischen 1 und 120 liegen.");
+    const from = dateQuery(request.query.from, "from");
+    const to = dateQuery(request.query.to, "to");
+    if (!from || !to) {
+      throw badRequest("VALIDATION_ERROR", "from und to müssen als YYYY-MM-DD angegeben werden.");
+    }
+    if (to < from) {
+      throw badRequest("VALIDATION_ERROR", "Das Enddatum darf nicht vor dem Startdatum liegen.");
     }
 
     const result = await pool.query(
@@ -241,7 +245,8 @@ statisticsRoutes.get(
       intervals AS (
         SELECT * FROM readings
         WHERE next_id IS NOT NULL
-          AND next_date >= date_trunc('month', current_date) - (($3 - 1) || ' months')::interval
+          AND next_date >= $3::date
+          AND reading_date <= $4::date
       )
       SELECT i.id AS start_reading_id, i.next_id AS end_reading_id,
              to_char(i.reading_date, 'YYYY-MM-DD') AS start_date,
@@ -257,12 +262,12 @@ statisticsRoutes.get(
       LEFT JOIN trips t
         ON t.user_id=$1 AND t.vehicle_id=i.vehicle_id
        AND t.archived_at IS NULL AND t.status='completed'
-       AND t.started_at >= i.reading_date::timestamp
-       AND t.started_at < (i.next_date::timestamp + interval '1 day')
+       AND t.started_at >= greatest(i.reading_date, $3::date)::timestamp
+       AND t.started_at < (least(i.next_date, $4::date)::timestamp + interval '1 day')
       GROUP BY i.id, i.next_id, i.reading_date, i.next_date, i.odometer_meters, i.next_meter
       ORDER BY i.reading_date DESC
       `,
-      [request.auth.userId, vehicleId, months],
+      [request.auth.userId, vehicleId, from, to],
     );
 
     response.json(result.rows.map((row) => {
