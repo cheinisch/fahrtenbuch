@@ -570,20 +570,31 @@ tripRoutes.get(
     const tripId = uuidValue(request.params.id);
     const trip = await getOwnedTrip(pool, request.auth.userId, tripId, { includeTags: false });
     if (!trip) throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+    const ownerResult = await pool.query(
+      `SELECT u.id, u.username, u.display_name
+       FROM vehicles v INNER JOIN users u ON u.id=v.user_id WHERE v.id=$1 LIMIT 1`,
+      [trip.vehicle_id],
+    );
+    const owner = ownerResult.rows[0];
+    const requesterIsOwner = owner?.id === request.auth.userId;
+    if (!requesterIsOwner) {
+      return response.json(owner ? [{
+        userId: owner.id, username: owner.username, displayName: owner.display_name,
+        isOwner: true, returnOnly: true,
+      }] : []);
+    }
     const result = await pool.query(
       `SELECT u.id, u.username, u.display_name, (u.id=v.user_id) AS is_owner
-       FROM vehicles v
-       INNER JOIN users u ON u.id=v.user_id
-       WHERE v.id=$1
+       FROM vehicles v INNER JOIN users u ON u.id=v.user_id WHERE v.id=$1
        UNION
        SELECT u.id, u.username, u.display_name, false AS is_owner
-       FROM vehicle_shares s INNER JOIN users u ON u.id=s.user_id
-       WHERE s.vehicle_id=$1
+       FROM vehicle_shares s INNER JOIN users u ON u.id=s.user_id WHERE s.vehicle_id=$1
        ORDER BY is_owner DESC, display_name, username`,
       [trip.vehicle_id],
     );
     response.json(result.rows.map((row) => ({
-      userId: row.id, username: row.username, displayName: row.display_name, isOwner: row.is_owner,
+      userId: row.id, username: row.username, displayName: row.display_name,
+      isOwner: row.is_owner, returnOnly: false,
     })));
   }),
 );
@@ -592,22 +603,38 @@ tripRoutes.post(
   "/:id/assign-driver",
   asyncHandler(async (request, response) => {
     const tripId = uuidValue(request.params.id);
-    const targetUserId = uuidField(objectBody(request.body), "userId", true);
+    const body = objectBody(request.body);
+    const targetUserId = uuidField(body, "userId", true);
+    const reason = stringField(body, "reason", { maximum: 500 });
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
       const trip = await getOwnedTrip(client, request.auth.userId, tripId, { includeTags: false });
       if (!trip) throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
       if (trip.status !== "completed") throw badRequest("TRIP_NOT_COMPLETED", "Nur abgeschlossene Fahrten können einem Fahrer zugewiesen werden.");
-      const allowed = await client.query(
-        `SELECT EXISTS(
-           SELECT 1 FROM vehicles v WHERE v.id=$1 AND v.user_id=$2
-           UNION ALL
-           SELECT 1 FROM vehicle_shares s WHERE s.vehicle_id=$1 AND s.user_id=$2
-         ) AS allowed`,
-        [trip.vehicle_id, targetUserId],
-      );
-      if (!allowed.rows[0]?.allowed) throw badRequest("DRIVER_NOT_ALLOWED", "Der Benutzer hat keine Freigabe für dieses Fahrzeug.");
+      const ownerResult = await client.query(`SELECT user_id FROM vehicles WHERE id=$1 LIMIT 1`, [trip.vehicle_id]);
+      const ownerUserId = ownerResult.rows[0]?.user_id;
+      const requesterIsOwner = ownerUserId === request.auth.userId;
+      if (!requesterIsOwner) {
+        if (trip.user_id !== request.auth.userId) {
+          throw badRequest("DRIVER_ASSIGNMENT_FORBIDDEN", "Nur der Fahrzeugbesitzer darf Fahrten anderer Benutzer verschieben.");
+        }
+        if (targetUserId !== ownerUserId) {
+          throw badRequest("DRIVER_ASSIGNMENT_FORBIDDEN", "Eine geteilte Fahrt kann nur an den Fahrzeugbesitzer zurückgegeben werden.");
+        }
+        if (!reason?.trim()) {
+          throw badRequest("RETURN_REASON_REQUIRED", "Bitte gib einen Grund für die Rückgabe an.");
+        }
+      } else {
+        const allowed = await client.query(
+          `SELECT EXISTS(
+             SELECT 1 FROM vehicles v WHERE v.id=$1 AND v.user_id=$2
+             UNION ALL
+             SELECT 1 FROM vehicle_shares s WHERE s.vehicle_id=$1 AND s.user_id=$2
+           ) AS allowed`, [trip.vehicle_id,targetUserId],
+        );
+        if (!allowed.rows[0]?.allowed) throw badRequest("DRIVER_NOT_ALLOWED", "Der Benutzer hat keine Freigabe für dieses Fahrzeug.");
+      }
       if (targetUserId === trip.user_id) {
         const unchanged = await getOwnedTrip(client, request.auth.userId, tripId);
         await client.query("COMMIT");
@@ -618,7 +645,11 @@ tripRoutes.post(
       await client.query(`UPDATE trips SET user_id=$2, version=version+1 WHERE id=$1`, [tripId,targetUserId]);
       await appendTripHistory(client,{
         tripId,userId:oldUserId,actorUserId:request.auth.userId,eventType:"DRIVER_ASSIGNED",
-        metadata:{fromUserId:oldUserId,toUserId:targetUserId,vehicleId:trip.vehicle_id}
+        metadata:{
+          fromUserId:oldUserId,toUserId:targetUserId,vehicleId:trip.vehicle_id,
+          assignmentType:requesterIsOwner?"owner_assignment":"returned_to_owner",
+          reason:reason?.trim() || null,
+        }
       });
       const updated = await getOwnedTrip(client,targetUserId,tripId);
       await client.query("COMMIT");
