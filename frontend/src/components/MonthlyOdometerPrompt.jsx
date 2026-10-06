@@ -7,9 +7,14 @@ import {
 import { useAuth } from "../auth/AuthProvider.jsx";
 
 function monthLabel(value) {
-  const [year, month] = value.split("-").map(Number);
-  return new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric" })
-    .format(new Date(year, month - 1, 1));
+  const match = /^(\d{4})-(\d{2})/.exec(String(value || ""));
+  if (!match) return "–";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!Number.isInteger(year) || month < 1 || month > 12) return "–";
+  const date = new Date(year, month - 1, 1);
+  if (!Number.isFinite(date.getTime())) return "–";
+  return new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric" }).format(date);
 }
 
 export default function MonthlyOdometerPrompt() {
