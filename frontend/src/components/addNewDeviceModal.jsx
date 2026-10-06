@@ -56,14 +56,15 @@ function formatRemainingTime(seconds) {
 }
 
 function formatExpiration(value) {
-  if (!value) {
+  const date = new Date(value);
+  if (!value || !Number.isFinite(date.getTime())) {
     return "–";
   }
 
   return new Intl.DateTimeFormat("de-DE", {
     dateStyle: "medium",
     timeStyle: "medium",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 export default function AddNewDeviceModal({
