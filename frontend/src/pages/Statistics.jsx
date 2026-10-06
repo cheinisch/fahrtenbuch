@@ -42,15 +42,6 @@ function defaultChartRange() {
   return { from: isoDate(from), to: isoDate(to) };
 }
 
-function monthsForRange(fromValue, toValue) {
-  const from = new Date(`${fromValue}T00:00:00`);
-  const to = new Date(`${toValue}T00:00:00`);
-  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || from > to) return 18;
-  return Math.min(120, Math.max(1,
-    (to.getFullYear() - from.getFullYear()) * 12 + to.getMonth() - from.getMonth() + 2
-  ));
-}
-
 function StatisticsChart({ data }) {
   const width = 900;
   const height = 280;
@@ -135,7 +126,7 @@ export default function Statistics() {
       setIntervals([]);
       return;
     }
-    getOdometerIntervalStatistics(accessToken, vehicleId, monthsForRange(chartFrom, chartTo))
+    getOdometerIntervalStatistics(accessToken, vehicleId, chartFrom, chartTo)
       .then(setIntervals)
       .catch((loadError) => setError(loadError.message));
   }, [accessToken, vehicleId, readings, chartFrom, chartTo]);
