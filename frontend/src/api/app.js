@@ -419,13 +419,13 @@ export function getVehicleShares(accessToken, vehicleId) {
   );
 }
 
-export function shareVehicle(accessToken, vehicleId, account) {
+export function shareVehicle(accessToken, vehicleId, email) {
   return apiRequest(
     accessToken,
     `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/shares`,
     {
       method: "POST",
-      body: JSON.stringify({ account }),
+      body: JSON.stringify({ email }),
     },
   );
 }
