@@ -2,6 +2,8 @@
 # Der /data-Bereich bleibt dadurch bei Container-Neuerstellungen erhalten.
 services:
   app:
+    environment:
+      SHOW_API_UI: ${SHOW_API_UI:-false}
     volumes:
       - fahrtenbuch-app-data:/data
 
