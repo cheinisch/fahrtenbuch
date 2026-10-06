@@ -13,7 +13,7 @@ export default function ShareInvitation() {
     if(!token){setState({loading:false,data:null,error:"Die Einladung wurde nicht gefunden.",busy:false});return;}
     inspectVehicleShareInvitation(accessToken,token)
       .then(data=>setState({loading:false,data,error:"",busy:false}))
-      .catch(error=>setState({loading:false,data:null,error:error.message,busy:false}));
+      .catch(error=>setState({loading:false,data:null,error:error.code === "SHARE_INVITATION_NOT_FOUND" ? "Link ist unbekannt." : error.message,busy:false}));
   },[accessToken,token]);
 
   async function respond(action){
@@ -22,7 +22,7 @@ export default function ShareInvitation() {
       const result=await respondVehicleShareInvitation(accessToken,token,action);
       setState(s=>({...s,busy:false,data:{...s.data,status:result.status}}));
     }catch(error){
-      setState(s=>({...s,busy:false,error:error.message}));
+      setState(s=>({...s,busy:false,error:error.code === "SHARE_INVITATION_NOT_FOUND" ? "Link ist unbekannt." : error.message}));
     }
   }
 
