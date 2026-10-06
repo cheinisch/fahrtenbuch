@@ -220,6 +220,75 @@ statisticsRoutes.get(
 
 
 statisticsRoutes.get(
+  "/odometer-intervals",
+  asyncHandler(async (request, response) => {
+    const vehicleId = uuidValue(String(request.query.vehicleId || ""), "vehicleId");
+    const months = Number(request.query.months || 18);
+    if (!Number.isInteger(months) || months < 1 || months > 120) {
+      throw badRequest("VALIDATION_ERROR", "Der Parameter „months“ muss zwischen 1 und 120 liegen.");
+    }
+
+    const result = await pool.query(
+      `
+      WITH readings AS (
+        SELECT r.id, r.vehicle_id, r.reading_date, r.odometer_meters,
+               lead(r.id) OVER (PARTITION BY r.vehicle_id ORDER BY r.reading_date) AS next_id,
+               lead(r.reading_date) OVER (PARTITION BY r.vehicle_id ORDER BY r.reading_date) AS next_date,
+               lead(r.odometer_meters) OVER (PARTITION BY r.vehicle_id ORDER BY r.reading_date) AS next_meter
+        FROM vehicle_odometer_readings r
+        WHERE r.user_id = $1 AND r.vehicle_id = $2
+      ),
+      intervals AS (
+        SELECT * FROM readings
+        WHERE next_id IS NOT NULL
+          AND next_date >= date_trunc('month', current_date) - (($3 - 1) || ' months')::interval
+      )
+      SELECT i.id AS start_reading_id, i.next_id AS end_reading_id,
+             to_char(i.reading_date, 'YYYY-MM-DD') AS start_date,
+             to_char(i.next_date, 'YYYY-MM-DD') AS end_date,
+             i.odometer_meters AS start_meter, i.next_meter AS end_meter,
+             coalesce(sum(t.distance_meters), 0)::bigint AS tracked_meters,
+             coalesce(sum(t.distance_meters) FILTER (WHERE t.type='business'), 0)::bigint AS business_meters,
+             coalesce(sum(t.distance_meters) FILTER (WHERE t.type='private'), 0)::bigint AS private_meters,
+             coalesce(sum(t.distance_meters) FILTER (WHERE t.type='commute'), 0)::bigint AS commute_meters,
+             coalesce(sum(t.distance_meters) FILTER (WHERE t.type='unclassified'), 0)::bigint AS unclassified_meters,
+             count(t.id)::int AS trip_count
+      FROM intervals i
+      LEFT JOIN trips t
+        ON t.user_id=$1 AND t.vehicle_id=i.vehicle_id
+       AND t.archived_at IS NULL AND t.status='completed'
+       AND t.started_at >= i.reading_date::timestamp
+       AND t.started_at < (i.next_date::timestamp + interval '1 day')
+      GROUP BY i.id, i.next_id, i.reading_date, i.next_date, i.odometer_meters, i.next_meter
+      ORDER BY i.reading_date DESC
+      `,
+      [request.auth.userId, vehicleId, months],
+    );
+
+    response.json(result.rows.map((row) => {
+      const actual = Number(row.end_meter) - Number(row.start_meter);
+      const tracked = Number(row.tracked_meters || 0);
+      return {
+        startReadingId: row.start_reading_id,
+        endReadingId: row.end_reading_id,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        startOdometerKm: Number(row.start_meter) / 1000,
+        endOdometerKm: Number(row.end_meter) / 1000,
+        actualKm: actual / 1000,
+        trackedKm: tracked / 1000,
+        differenceKm: (actual - tracked) / 1000,
+        businessKm: Number(row.business_meters || 0) / 1000,
+        privateKm: Number(row.private_meters || 0) / 1000,
+        commuteKm: Number(row.commute_meters || 0) / 1000,
+        unclassifiedKm: Number(row.unclassified_meters || 0) / 1000,
+        tripCount: Number(row.trip_count || 0),
+      };
+    }));
+  }),
+);
+
+statisticsRoutes.get(
   "/monthly-odometer",
   asyncHandler(async (request, response) => {
     const months = Number(request.query.months || 12);
