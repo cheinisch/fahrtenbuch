@@ -71,8 +71,10 @@ export function getDashboard(
   );
 }
 
-export function getPublicLanguageSettings() {
-  return apiRequest("", "/api/v1/language", { headers: { Authorization: undefined } });
+export async function getPublicLanguageSettings() {
+  const response = await fetch("/api/v1/language", { headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error("Language configuration could not be loaded.");
+  return response.json();
 }
 
 export function getPersonalSettings(accessToken) {
