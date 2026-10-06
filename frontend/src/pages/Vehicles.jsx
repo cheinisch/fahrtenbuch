@@ -14,6 +14,7 @@ import {
   createVehicle,
   deleteVehicle,
   deregisterVehicle,
+  registerVehicle,
   transferVehicle,
   getVehicles,
   getVehicleShares,
@@ -34,6 +35,7 @@ function label(vehicle) {
 
 export default function Vehicles() {
   const { accessToken } = useAuth();
+  const { t } = useI18n();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -178,6 +180,9 @@ export default function Vehicles() {
       if (lifecycleMode === "deregister") {
         await deregisterVehicle(accessToken, lifecycleVehicle.id);
         setMessage(`Fahrzeug „${lifecycleVehicle.name}“ wurde abgemeldet und für neue Erfassungen gesperrt.`);
+      } else if (lifecycleMode === "register") {
+        await registerVehicle(accessToken, lifecycleVehicle.id, payload.effectiveAt);
+        setMessage(t("vehicles.registeredMessage", { vehicle: lifecycleVehicle.name }));
       } else {
         await transferVehicle(accessToken, lifecycleVehicle.id, payload.account, payload.effectiveAt);
         setMessage(`Fahrzeug „${lifecycleVehicle.name}“ wurde zum gewählten Stichtag übertragen.`);
@@ -215,6 +220,7 @@ export default function Vehicles() {
                 {vehicle.isOwner && <button type="button" onClick={() => { setEditing(vehicle); setModalOpen(true); }} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent"><PencilSquareIcon className="size-4" />Bearbeiten</button>}
                 {vehicle.isOwner && !vehicle.isDeregistered && <button type="button" onClick={() => { setLifecycleVehicle(vehicle); setLifecycleMode("transfer"); }} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent">Besitzer wechseln</button>}
                 {vehicle.isOwner && !vehicle.isDeregistered && <button type="button" onClick={() => { setLifecycleVehicle(vehicle); setLifecycleMode("deregister"); }} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-danger hover:text-fb-danger">Abmelden</button>}
+                 {vehicle.isOwner && vehicle.isDeregistered && <button type="button" onClick={() => { setLifecycleVehicle(vehicle); setLifecycleMode("register"); }} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent">{t("vehicles.registerAgain")}</button>}
                                 {vehicle.isOwner && <button type="button" onClick={() => openSharing(vehicle)} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent"><UserPlusIcon className="size-4" />Teilen</button>}
                 {vehicle.isOwner && !vehicle.isDefault && <button type="button" onClick={() => makeDefault(vehicle)} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent"><StarIcon className="size-4" />Als Standard</button>}
                 {vehicle.isOwner && <button type="button" onClick={() => remove(vehicle)} className="ml-auto inline-flex items-center justify-center rounded-lg border border-fb-border p-2 text-fb-muted hover:border-fb-danger hover:text-fb-danger"><TrashIcon className="size-5" /><span className="sr-only">Löschen</span></button>}
