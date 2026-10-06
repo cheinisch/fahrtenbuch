@@ -50,6 +50,14 @@ export function mapVehicle(row) {
     notes: row.notes ?? null,
     bluetoothMac: row.bluetooth_identifier ?? null,
     isDefault: Boolean(row.is_default),
+    isOwner: row.is_owner === undefined ? true : Boolean(row.is_owner),
+    accessType: row.access_type ?? (row.is_owner === false ? "shared" : "owner"),
+    owner: row.owner_display_name || row.owner_username
+      ? {
+          displayName: row.owner_display_name ?? null,
+          username: row.owner_username ?? null,
+        }
+      : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
