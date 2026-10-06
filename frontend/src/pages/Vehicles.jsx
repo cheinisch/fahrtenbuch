@@ -26,6 +26,7 @@ import {
   updateVehicle,
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import { useI18n } from "../i18n/I18nProvider.jsx";
 import VehicleEditorModal from "../components/vehicles/VehicleEditorModal.jsx";
 import VehicleLifecycleModal from "../components/vehicles/VehicleLifecycleModal.jsx";
 
