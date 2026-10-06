@@ -391,6 +391,32 @@ export function getVehicles(accessToken) {
   return apiRequest(accessToken, "/api/v1/vehicles");
 }
 
+export function getVehicleShares(accessToken, vehicleId) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/shares`,
+  );
+}
+
+export function shareVehicle(accessToken, vehicleId, account) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/shares`,
+    {
+      method: "POST",
+      body: JSON.stringify({ account }),
+    },
+  );
+}
+
+export function revokeVehicleShare(accessToken, vehicleId, userId) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/shares/${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
+  );
+}
+
 export function createVehicle(accessToken, vehicle) {
   return apiRequest(accessToken, "/api/v1/vehicles", {
     method: "POST",
