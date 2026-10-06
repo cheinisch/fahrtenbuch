@@ -17,6 +17,8 @@ import {
   registerVehicle,
   transferVehicle,
   getVehicles,
+  getArchivedVehicles,
+  restoreVehicle,
   getVehicleShares,
   getSharedVehicleActivity,
   revokeVehicleShare,
@@ -39,6 +41,8 @@ export default function Vehicles() {
   const { t } = useI18n();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState("active");
+  const [archivedVehicles, setArchivedVehicles] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [editing, setEditing] = useState(null);
@@ -58,7 +62,12 @@ export default function Vehicles() {
     setLoading(true);
     setError("");
     try {
-      setVehicles(await getVehicles(accessToken));
+      const [activeRows, archiveRows] = await Promise.all([
+        getVehicles(accessToken),
+        getArchivedVehicles(accessToken),
+      ]);
+      setVehicles(activeRows);
+      setArchivedVehicles(archiveRows);
     } catch (loadError) {
       setError(loadError.message || "Die Fahrzeuge konnten nicht geladen werden.");
     } finally {
@@ -162,12 +171,24 @@ export default function Vehicles() {
   }
 
   async function remove(vehicle) {
-    if (!window.confirm(`Fahrzeug „${vehicle.name}“ wirklich löschen? Vorhandene Fahrten bleiben erhalten.`)) return;
+    if (!window.confirm(t("vehicles.archiveConfirm", { vehicle: vehicle.name }))) return;
     setError("");
     try {
       await deleteVehicle(accessToken, vehicle.id);
       setVehicles((current) => current.filter((entry) => entry.id !== vehicle.id));
-      setMessage(`Fahrzeug „${vehicle.name}“ wurde gelöscht.`);
+      setMessage(t("vehicles.archivedMessage", { vehicle: vehicle.name }));
+    } catch (actionError) {
+      setError(actionError.message);
+    }
+  }
+
+  async function restoreArchived(vehicle) {
+    setError("");
+    try {
+      await restoreVehicle(accessToken, vehicle.id);
+      setMessage(t("vehicles.restoredMessage", { vehicle: vehicle.name }));
+      setView("active");
+      await load();
     } catch (actionError) {
       setError(actionError.message);
     }
@@ -205,10 +226,27 @@ export default function Vehicles() {
         <button type="button" onClick={() => { setEditing(null); setModalOpen(true); }} className="inline-flex items-center justify-center gap-2 rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text hover:bg-fb-accent-secondary"><PlusIcon className="size-5" />Fahrzeug anlegen</button>
       </header>
 
+      <div className="flex flex-wrap gap-2 border-b border-fb-border pb-3">
+        <button type="button" onClick={() => setView("active")} className={`rounded-lg px-3 py-2 text-sm font-semibold ${view === "active" ? "bg-fb-accent text-fb-accent-text" : "border border-fb-border hover:border-fb-accent"}`}>{t("vehicles.activeTab")}</button>
+        <button type="button" onClick={() => setView("archive")} className={`rounded-lg px-3 py-2 text-sm font-semibold ${view === "archive" ? "bg-fb-accent text-fb-accent-text" : "border border-fb-border hover:border-fb-accent"}`}>{t("vehicles.archiveTab")} {archivedVehicles.length > 0 ? `(${archivedVehicles.length})` : ""}</button>
+      </div>
+
       {message && <div className="rounded-xl border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent">{message}</div>}
       {error && <div className="rounded-xl border border-fb-danger px-4 py-3 text-sm text-fb-danger">{error}</div>}
 
-      {loading ? <div className="rounded-xl border border-fb-border bg-fb-main p-8 text-fb-muted">Fahrzeuge werden geladen …</div> : vehicles.length === 0 ? (
+      {view === "archive" ? (
+        archivedVehicles.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-fb-border bg-fb-main p-10 text-center"><TrashIcon className="mx-auto size-12 text-fb-muted" /><h2 className="mt-4 text-lg font-bold">{t("vehicles.archiveEmpty")}</h2><p className="mt-2 text-sm text-fb-muted">{t("vehicles.archiveEmptyHint")}</p></div>
+        ) : (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {archivedVehicles.map((vehicle) => <article key={vehicle.id} className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm">
+              <div className="flex items-center gap-3"><span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-fb-surface text-fb-muted"><TruckIcon className="size-6" /></span><div className="min-w-0"><h2 className="truncate text-lg font-bold">{vehicle.name}</h2><p className="mt-1 truncate text-sm text-fb-muted">{label(vehicle)}</p></div></div>
+              <dl className="mt-5 grid grid-cols-2 gap-4 text-sm"><div><dt className="text-xs uppercase tracking-wide text-fb-muted">{t("vehicles.plate")}</dt><dd className="mt-1 font-semibold">{vehicle.licensePlate || "-"}</dd></div><div><dt className="text-xs uppercase tracking-wide text-fb-muted">{t("vehicles.archivedAt")}</dt><dd className="mt-1 font-semibold">{vehicle.archivedAt ? new Date(vehicle.archivedAt).toLocaleDateString() : "-"}</dd></div></dl>
+              <div className="mt-5 border-t border-fb-border pt-4"><button type="button" onClick={() => restoreArchived(vehicle)} className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent">{t("vehicles.restore")}</button></div>
+            </article>)}
+          </div>
+        )
+      ) : loading ? <div className="rounded-xl border border-fb-border bg-fb-main p-8 text-fb-muted">Fahrzeuge werden geladen …</div> : vehicles.length === 0 ? (
         <div className="rounded-xl border border-dashed border-fb-border bg-fb-main p-10 text-center"><TruckIcon className="mx-auto size-12 text-fb-muted" /><h2 className="mt-4 text-lg font-bold">Noch kein Fahrzeug</h2><p className="mt-2 text-sm text-fb-muted">Lege dein erstes Fahrzeug an, bevor du Fahrten erfasst.</p></div>
       ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
