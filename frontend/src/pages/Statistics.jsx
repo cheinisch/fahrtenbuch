@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, saveMonthlyOdometerReading } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import OdometerReadingLogModal from "../components/OdometerReadingLogModal.jsx";
 
 const labels = {
   businessKm: "Beruflich",
@@ -72,6 +73,16 @@ function StatisticsChart({ data }) {
         <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-fb-accent" />Tatsächlich laut Ablesungen</span>
         <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-fb-muted opacity-70" />Erfasste Fahrten</span>
       </div>
+      <OdometerReadingLogModal
+        open={readingLogOpen}
+        onClose={() => setReadingLogOpen(false)}
+        readings={readings.filter((reading) => reading.vehicleId === vehicleId)}
+        vehicleName={vehicles.find(([id]) => id === vehicleId)?.[1]}
+        onEdit={(reading) => {
+          setEntryDate(reading.readingDate || `${reading.month}-01`);
+          setEntryKm(String(reading.odometerKm));
+        }}
+      />
     </div>
   );
 }
@@ -88,6 +99,7 @@ export default function Statistics() {
   const [savingReading, setSavingReading] = useState(false);
   const [message, setMessage] = useState("");
   const [intervals, setIntervals] = useState([]);
+  const [readingLogOpen, setReadingLogOpen] = useState(false);
   const initialChartRange = useMemo(() => defaultChartRange(), []);
   const [chartFrom, setChartFrom] = useState(initialChartRange.from);
   const [chartTo, setChartTo] = useState(initialChartRange.to);
@@ -212,7 +224,7 @@ export default function Statistics() {
           <label className="text-sm"><span className="mb-1 block text-fb-muted">Kilometerstand</span><div className="flex items-center gap-2"><input inputMode="decimal" value={entryKm} onChange={(e) => setEntryKm(e.target.value)} placeholder="z. B. 82450" className="min-w-0 w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /><span className="text-fb-muted">km</span></div></label>
           <button type="submit" disabled={savingReading || !vehicleId || !entryDate || !entryKm} className="rounded-lg bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{savingReading ? "Speichert …" : "Speichern"}</button>
         </form>
-        {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <div className="mt-5 border-t border-fb-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-fb-muted">Ablesungsprotokoll</p><div className="mt-2 flex flex-wrap gap-2">{readings.filter((r) => r.vehicleId === vehicleId).slice(0, 12).map((r) => <button key={r.id} type="button" onClick={() => { setEntryDate(r.readingDate || `${r.month}-01`); setEntryKm(String(r.odometerKm)); }} className="rounded-lg border border-fb-border px-3 py-2 text-left text-sm hover:border-fb-accent"><span className="font-semibold">{r.readingDate ? new Intl.DateTimeFormat("de-DE").format(new Date(`${r.readingDate}T00:00:00`)) : monthLabel(r.month)}</span><span className="ml-2 text-fb-muted">{km(r.odometerKm)}</span></button>)}</div></div>}
+        {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-fb-border pt-4"><div><p className="text-sm font-semibold">Ableseprotokoll</p><p className="mt-1 text-xs text-fb-muted">{readings.filter((r) => r.vehicleId === vehicleId).length} gespeicherte Ablesungen</p></div><button type="button" onClick={() => setReadingLogOpen(true)} className="rounded-lg border border-fb-border px-4 py-2 text-sm font-semibold hover:border-fb-accent">Ableseprotokoll anzeigen</button></div>}
       </section>
       <section className="rounded-xl border border-fb-border bg-fb-main p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
