@@ -78,6 +78,16 @@ function TabButton({
   );
 }
 
+function formatSafeDate(value, fallback = "–") {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat("de-DE", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 const fieldClass =
   "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
 
@@ -1913,17 +1923,7 @@ export default function ProfileSettings() {
 
                   <div className="mt-1 text-sm text-fb-muted">
                     {device.platform || device.deviceType}
-                    {device.lastSeenAt
-                      ? ` · zuletzt ${new Intl.DateTimeFormat(
-                          "de-DE",
-                          {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          },
-                        ).format(
-                          new Date(device.lastSeenAt),
-                        )}`
-                      : ""}
+                    {device.lastSeenAt ? ` · zuletzt ${formatSafeDate(device.lastSeenAt)}` : ""}
                   </div>
                 </div>
 
