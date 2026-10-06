@@ -21,6 +21,7 @@ import {
 } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider.jsx";
+import { useI18n } from "../i18n/I18nProvider.jsx";
 import MonthlyOdometerPrompt from "./MonthlyOdometerPrompt.jsx";
 
 function desktopNavigationClass({ isActive }) {
@@ -54,6 +55,7 @@ export default function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { t } = useI18n();
 
   const dashboardIsOpen =
     location.pathname === "/";
@@ -104,7 +106,7 @@ export default function AppShell() {
               <NavLink
                 to="/"
                 className="flex shrink-0 items-center gap-3"
-                aria-label="Fahrtenbuch Dashboard"
+                aria-label="Fahrtenbuch {t("nav.dashboard")}"
               >
                 <span className="flex size-9 items-center justify-center rounded-lg bg-fb-accent text-base font-bold text-fb-accent-text">
                   F
@@ -121,21 +123,21 @@ export default function AppShell() {
                   end
                   className={desktopNavigationClass}
                 >
-                  Dashboard
+                  {t("nav.dashboard")}
                 </NavLink>
 
                 <NavLink
                   to="/vehicles"
                   className={desktopNavigationClass}
                 >
-                  Fahrzeuge
+                  {t("nav.vehicles")}
                 </NavLink>
 
                 <NavLink
                   to="/statistics"
                   className={desktopNavigationClass}
                 >
-                  Statistik
+                  {t("nav.statistics")}
                 </NavLink>
 
                 <NavLink
@@ -149,7 +151,7 @@ export default function AppShell() {
                   to="/compliance"
                   className={desktopNavigationClass}
                 >
-                  Prüfung
+                  {t("nav.compliance")}
                 </NavLink>
               </div>
             </div>
@@ -205,7 +207,7 @@ export default function AppShell() {
                         to="/profilesettings"
                         className={menuLinkClass({ focus })}
                       >
-                        Eigene Einstellungen
+                        {t("nav.profile")}
                       </NavLink>
                     )}
                   </MenuItem>
@@ -219,7 +221,7 @@ export default function AppShell() {
                             focus,
                           })}
                         >
-                          Administration
+                          {t("nav.settings")}
                         </NavLink>
                       )}
                     </MenuItem>
@@ -239,7 +241,7 @@ export default function AppShell() {
                             : "",
                         ].join(" ")}
                       >
-                        Abmelden
+                        {t("nav.logout")}
                       </button>
                     )}
                   </MenuItem>
@@ -257,7 +259,7 @@ export default function AppShell() {
               end
               className={mobileNavigationClass}
             >
-              Dashboard
+              {t("nav.dashboard")}
             </DisclosureButton>
 
             <DisclosureButton
@@ -265,7 +267,7 @@ export default function AppShell() {
               to="/vehicles"
               className={mobileNavigationClass}
             >
-              Fahrzeuge
+              {t("nav.vehicles")}
             </DisclosureButton>
 
             <DisclosureButton
@@ -273,7 +275,7 @@ export default function AppShell() {
               to="/statistics"
               className={mobileNavigationClass}
             >
-              Statistik
+              {t("nav.statistics")}
             </DisclosureButton>
 
             <DisclosureButton
@@ -289,7 +291,7 @@ export default function AppShell() {
               to="/compliance"
               className={mobileNavigationClass}
             >
-              Prüfung
+              {t("nav.compliance")}
             </DisclosureButton>
           </div>
         </DisclosurePanel>
