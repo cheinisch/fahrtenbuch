@@ -1509,7 +1509,7 @@ adminRoutes.get(
       `
         SELECT key, value
         FROM app_settings
-        WHERE key IN ('tracking.defaults', 'pairing.expiresSeconds', 'map.defaults', 'mapMatching')
+        WHERE key IN ('tracking.defaults', 'pairing.expiresSeconds', 'map.defaults', 'mapMatching', 'ui.defaultLanguage')
       `,
     );
     const values = Object.fromEntries(
@@ -1531,6 +1531,7 @@ adminRoutes.get(
         protomapsFlavor: "auto",
         ...(values["map.defaults"] || {}),
       },
+      defaultLanguage: values["ui.defaultLanguage"] || "de",
       mapMatching: values["mapMatching"] || {
         provider: "disabled",
         osrmUrl: "",
@@ -1544,6 +1545,10 @@ adminRoutes.patch(
   "/settings",
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
+
+    if (body.defaultLanguage !== undefined && !["de","en"].includes(body.defaultLanguage)) {
+      throw badRequest("VALIDATION_ERROR", "Die Standardsprache ist ungültig.");
+    }
 
     if (body.mapDefaults !== undefined) {
       body.mapDefaults = parseMapDefaultsSettings(body.mapDefaults);
@@ -1562,6 +1567,7 @@ adminRoutes.patch(
         ["pairing.expiresSeconds", body.pairingExpiresSeconds],
         ["map.defaults", body.mapDefaults],
         ["mapMatching", body.mapMatching],
+        ["ui.defaultLanguage", body.defaultLanguage],
       ].filter(([, value]) => value !== undefined);
 
       for (const [key, value] of entries) {
@@ -1581,7 +1587,7 @@ adminRoutes.patch(
       await client.query("COMMIT");
       request.method = "GET";
       const result = await pool.query(
-        `SELECT key, value FROM app_settings WHERE key IN ('tracking.defaults', 'pairing.expiresSeconds', 'map.defaults', 'mapMatching')`,
+        `SELECT key, value FROM app_settings WHERE key IN ('tracking.defaults', 'pairing.expiresSeconds', 'map.defaults', 'mapMatching', 'ui.defaultLanguage')`,
       );
       const values = Object.fromEntries(
         result.rows.map((row) => [row.key, row.value]),
@@ -1590,6 +1596,7 @@ adminRoutes.patch(
         trackingDefaults: values["tracking.defaults"],
         pairingExpiresSeconds: Number(values["pairing.expiresSeconds"]),
         mapDefaults: values["map.defaults"],
+        defaultLanguage: values["ui.defaultLanguage"] || "de",
         mapMatching: values["mapMatching"] || {
           provider: "disabled",
           osrmUrl: "",
