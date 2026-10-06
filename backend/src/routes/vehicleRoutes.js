@@ -132,6 +132,39 @@ async function loadVehicle(userId, vehicleId) {
   return result.rows[0] || null;
 }
 
+async function assertBluetoothTrackingAvailable(client, userId, bluetoothMac, excludeVehicleId = null) {
+  if (!bluetoothMac) return;
+  const result = await client.query(
+    `
+      SELECT v.id, v.name
+      FROM vehicles v
+      WHERE v.bluetooth_identifier = $2
+        AND v.archived_at IS NULL
+        AND v.deregistered_at IS NULL
+        AND ($3::uuid IS NULL OR v.id <> $3)
+        AND (
+          EXISTS (
+            SELECT 1 FROM vehicle_ownership_periods p
+            WHERE p.vehicle_id=v.id AND p.user_id=$1
+              AND now() >= p.valid_from AND (p.valid_to IS NULL OR now() < p.valid_to)
+          )
+          OR EXISTS (
+            SELECT 1 FROM vehicle_shares s
+            WHERE s.vehicle_id=v.id AND s.user_id=$1
+          )
+        )
+      LIMIT 1
+    `,
+    [userId, bluetoothMac, excludeVehicleId],
+  );
+  if (result.rowCount) {
+    throw conflict(
+      "BLUETOOTH_TRACKING_CONFLICT",
+      `Die Bluetooth-MAC ist für diesen Benutzer bereits beim aktiven Fahrzeug „${result.rows[0].name}“ trackingfähig.`,
+    );
+  }
+}
+
 vehicleRoutes.get(
   "/",
   asyncHandler(async (request, response) => {
@@ -275,6 +308,10 @@ vehicleRoutes.post(
       throw badRequest("CANNOT_SHARE_WITH_SELF", "Das eigene Fahrzeug muss nicht geteilt werden.");
     }
 
+    if (vehicle.bluetooth_identifier && !vehicle.deregistered_at) {
+      await assertBluetoothTrackingAvailable(pool, target.id, vehicle.bluetooth_identifier, vehicleId);
+    }
+
     const result = await pool.query(
       `
         INSERT INTO vehicle_shares (vehicle_id, user_id, granted_by_user_id)
@@ -334,6 +371,7 @@ vehicleRoutes.post(
 
     try {
       await client.query("BEGIN");
+      await assertBluetoothTrackingAvailable(client, request.auth.userId, input.bluetoothMac);
       const countResult = await client.query(
         `
           SELECT count(*)::integer AS count
@@ -447,6 +485,7 @@ vehicleRoutes.put(
 
     try {
       await client.query("BEGIN");
+      await assertBluetoothTrackingAvailable(client, request.auth.userId, input.bluetoothMac, vehicleId);
 
       if (input.isDefault) {
         await client.query(
@@ -597,7 +636,7 @@ vehicleRoutes.post(
     try {
       await client.query("BEGIN");
       await client.query(
-        `UPDATE vehicles SET deregistered_at=$3, is_default=false, bluetooth_identifier=NULL
+        `UPDATE vehicles SET deregistered_at=$3, is_default=false
          WHERE id=$1 AND user_id=$2 AND deregistered_at IS NULL`,
         [vehicleId, request.auth.userId, at],
       );
@@ -655,7 +694,7 @@ vehicleRoutes.post(
         [vehicleId,target.id,effectiveAt,request.auth.userId],
       );
       await client.query(
-        `UPDATE vehicles SET user_id=$2, is_default=false, bluetooth_identifier=NULL WHERE id=$1`,
+        `UPDATE vehicles SET user_id=$2, is_default=false WHERE id=$1`,
         [vehicleId,target.id],
       );
       await client.query("COMMIT");
@@ -734,8 +773,11 @@ vehicleRoutes.put(
     const body = objectBody(request.body);
     const bluetoothMac = bluetoothValue(body, true);
 
+    const client = await pool.connect();
     try {
-      const result = await pool.query(
+      await client.query("BEGIN");
+      await assertBluetoothTrackingAvailable(client, request.auth.userId, bluetoothMac, vehicleId);
+      const result = await client.query(
         `
           UPDATE vehicles
           SET bluetooth_identifier = $3
@@ -751,8 +793,10 @@ vehicleRoutes.put(
         throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
       }
 
+      await client.query("COMMIT");
       response.json(mapVehicle(result.rows[0]));
     } catch (error) {
+      await client.query("ROLLBACK");
       if (
         error?.constraint === "vehicles_bluetooth_unique_per_user"
       ) {
@@ -763,6 +807,8 @@ vehicleRoutes.put(
       }
 
       throw error;
+    } finally {
+      client.release();
     }
   }),
 );
