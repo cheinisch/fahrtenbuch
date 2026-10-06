@@ -147,10 +147,12 @@ function formatDistance(meters) {
 }
 
 function formatDate(value) {
+  const date = new Date(value);
+  if (!value || !Number.isFinite(date.getTime())) return "–";
   return new Intl.DateTimeFormat("de-DE", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 function toLineFeatures(trips) {
