@@ -623,9 +623,9 @@ export function getMonthlyOdometerStatistics(accessToken, months = 12) {
 export function getAssignableTripDrivers(accessToken, tripId) {
   return apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/assignable-drivers`);
 }
-export function assignTripDriver(accessToken, tripId, userId) {
+export function assignTripDriver(accessToken, tripId, userId, reason = "") {
   return apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/assign-driver`, {
-    method: "POST", body: JSON.stringify({ userId }),
+    method: "POST", body: JSON.stringify({ userId, ...(reason ? { reason } : {}) }),
   });
 }
 
