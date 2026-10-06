@@ -294,7 +294,7 @@ export default function Dashboard() {
   const [suggestions, setSuggestions] = useState([]);
   const [mapMode, setMapMode] = useState(null);
   const [routeDraft, setRouteDraft] = useState([]);
-  const [driverAssignment, setDriverAssignment] = useState({ loading: false, drivers: [], selected: "" });
+  const [driverAssignment, setDriverAssignment] = useState({ loading: false, drivers: [], selected: "", reason: "" });
 
   const [selectedTripId, setSelectedTripId] =
     useState(null);
@@ -833,10 +833,10 @@ export default function Dashboard() {
 
   function selectTrip(trip) {
     setSelectedTripId(trip.id);
-    setDriverAssignment({ loading: true, drivers: [], selected: "" });
+    setDriverAssignment({ loading: true, drivers: [], selected: "", reason: "" });
     getAssignableTripDrivers(accessToken, trip.id)
-      .then((drivers) => setDriverAssignment({ loading: false, drivers, selected: "" }))
-      .catch(() => setDriverAssignment({ loading: false, drivers: [], selected: "" }));
+      .then((drivers) => setDriverAssignment({ loading: false, drivers, selected: "", reason: "" }))
+      .catch(() => setDriverAssignment({ loading: false, drivers: [], selected: "", reason: "" }));
     setMapMode(null);
     setRouteDraft([]);
     getTripSuggestions(accessToken, trip.id)
@@ -873,12 +873,14 @@ export default function Dashboard() {
   }
 
   async function performDriverAssignment() {
-    if (!selectedTripId || !driverAssignment.selected) return;
+    if (!selectedTripId) return;
+    const targetUserId = driverAssignment.selected || (driverAssignment.drivers.every((driver) => driver.returnOnly) ? driverAssignment.drivers[0]?.userId : "");
+    if (!targetUserId) return;
     setTripAction((state) => ({ ...state, busy: true, error: "" }));
     try {
-      await assignTripDriver(accessToken, selectedTripId, driverAssignment.selected);
+      await assignTripDriver(accessToken, selectedTripId, targetUserId, driverAssignment.reason);
       setSelectedTripId(null);
-      setDriverAssignment({ loading: false, drivers: [], selected: "" });
+      setDriverAssignment({ loading: false, drivers: [], selected: "", reason: "" });
       setData(await getDashboard(accessToken, filters));
       setTripAction({ busy: false, error: "", splitPoints: null });
     } catch (error) {
@@ -1258,18 +1260,30 @@ export default function Dashboard() {
                   <button type="button" onClick={() => { setMapMode("split"); beginSplit(); }} className="mt-2 rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text">Aufteilung prüfen</button>
                 </div>
               )}
-              {driverAssignment.drivers.length > 1 && (
-                <div className="mb-3 rounded-lg border border-fb-border bg-fb-surface p-3">
-                  <div className="text-xs font-semibold">Fahrer zuweisen</div>
-                  <div className="mt-2 flex gap-2">
-                    <select value={driverAssignment.selected} onChange={(e)=>setDriverAssignment((s)=>({...s,selected:e.target.value}))} className="min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-main px-2 py-1.5 text-sm">
-                      <option value="">Benutzer auswählen …</option>
-                      {driverAssignment.drivers.map((driver)=><option key={driver.userId} value={driver.userId}>{driver.displayName || driver.username}{driver.isOwner ? " (Besitzer)" : ""}</option>)}
-                    </select>
-                    <button type="button" disabled={!driverAssignment.selected || tripAction.busy} onClick={performDriverAssignment} className="rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text disabled:opacity-50">Zuweisen</button>
+              {driverAssignment.drivers.length > 0 && (() => {
+                const returnOnly = driverAssignment.drivers.every((driver) => driver.returnOnly);
+                return (
+                  <div className="mb-3 rounded-lg border border-fb-border bg-fb-surface p-3">
+                    <div className="text-xs font-semibold">{returnOnly ? "Fahrt an Besitzer zurückgeben" : "Fahrer zuweisen"}</div>
+                    {returnOnly ? (
+                      <>
+                        <div className="mt-1 text-xs text-fb-muted">Du kannst diese Fahrt nicht an andere Benutzer verschieben. Wenn du nicht gefahren bist, kannst du sie an den Fahrzeugbesitzer zurückgeben.</div>
+                        <button type="button" onClick={() => setDriverAssignment((s)=>({...s,selected:s.drivers[0]?.userId || "",reason:"Ich bin nicht gefahren."}))} className="mt-2 rounded-lg border border-fb-border px-3 py-1.5 text-xs font-semibold hover:border-fb-accent">Ich bin nicht gefahren</button>
+                        <textarea value={driverAssignment.reason} onChange={(e)=>setDriverAssignment((s)=>({...s,reason:e.target.value,selected:s.selected || s.drivers[0]?.userId || ""}))} placeholder="Oder eigenen Grund angeben …" maxLength={500} className="mt-2 min-h-16 w-full rounded-lg border border-fb-border bg-fb-main px-2 py-1.5 text-sm" />
+                        <button type="button" disabled={!driverAssignment.reason.trim() || tripAction.busy} onClick={() => { if (!driverAssignment.selected) setDriverAssignment((s)=>({...s,selected:s.drivers[0]?.userId || ""})); performDriverAssignment(); }} className="mt-2 rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text disabled:opacity-50">An Besitzer zurückgeben</button>
+                      </>
+                    ) : (
+                      <div className="mt-2 flex gap-2">
+                        <select value={driverAssignment.selected} onChange={(e)=>setDriverAssignment((s)=>({...s,selected:e.target.value}))} className="min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-main px-2 py-1.5 text-sm">
+                          <option value="">Benutzer auswählen …</option>
+                          {driverAssignment.drivers.map((driver)=><option key={driver.userId} value={driver.userId}>{driver.displayName || driver.username}{driver.isOwner ? " (Besitzer)" : ""}</option>)}
+                        </select>
+                        <button type="button" disabled={!driverAssignment.selected || tripAction.busy} onClick={performDriverAssignment} className="rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text disabled:opacity-50">Zuweisen</button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
               <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
