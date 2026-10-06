@@ -565,6 +565,70 @@ tripRoutes.post(
 );
 
 tripRoutes.get(
+  "/:id/assignable-drivers",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    const trip = await getOwnedTrip(pool, request.auth.userId, tripId, { includeTags: false });
+    if (!trip) throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+    const result = await pool.query(
+      `SELECT u.id, u.username, u.display_name, (u.id=v.user_id) AS is_owner
+       FROM vehicles v
+       INNER JOIN users u ON u.id=v.user_id
+       WHERE v.id=$1
+       UNION
+       SELECT u.id, u.username, u.display_name, false AS is_owner
+       FROM vehicle_shares s INNER JOIN users u ON u.id=s.user_id
+       WHERE s.vehicle_id=$1
+       ORDER BY is_owner DESC, display_name, username`,
+      [trip.vehicle_id],
+    );
+    response.json(result.rows.map((row) => ({
+      userId: row.id, username: row.username, displayName: row.display_name, isOwner: row.is_owner,
+    })));
+  }),
+);
+
+tripRoutes.post(
+  "/:id/assign-driver",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    const targetUserId = uuidField(objectBody(request.body), "userId", true);
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const trip = await getOwnedTrip(client, request.auth.userId, tripId, { includeTags: false });
+      if (!trip) throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+      if (trip.status !== "completed") throw badRequest("TRIP_NOT_COMPLETED", "Nur abgeschlossene Fahrten können einem Fahrer zugewiesen werden.");
+      const allowed = await client.query(
+        `SELECT EXISTS(
+           SELECT 1 FROM vehicles v WHERE v.id=$1 AND v.user_id=$2
+           UNION ALL
+           SELECT 1 FROM vehicle_shares s WHERE s.vehicle_id=$1 AND s.user_id=$2
+         ) AS allowed`,
+        [trip.vehicle_id, targetUserId],
+      );
+      if (!allowed.rows[0]?.allowed) throw badRequest("DRIVER_NOT_ALLOWED", "Der Benutzer hat keine Freigabe für dieses Fahrzeug.");
+      if (targetUserId === trip.user_id) {
+        const unchanged = await getOwnedTrip(client, request.auth.userId, tripId);
+        await client.query("COMMIT");
+        return response.json(mapTrip(unchanged));
+      }
+      const oldUserId = trip.user_id;
+      await client.query(`DELETE FROM trip_tags WHERE trip_id=$1`, [tripId]);
+      await client.query(`UPDATE trips SET user_id=$2, version=version+1 WHERE id=$1`, [tripId,targetUserId]);
+      await appendTripHistory(client,{
+        tripId,userId:oldUserId,actorUserId:request.auth.userId,eventType:"DRIVER_ASSIGNED",
+        metadata:{fromUserId:oldUserId,toUserId:targetUserId,vehicleId:trip.vehicle_id}
+      });
+      const updated = await getOwnedTrip(client,targetUserId,tripId);
+      await client.query("COMMIT");
+      response.json(mapTrip(updated));
+    } catch(error) { await client.query("ROLLBACK"); throw error; }
+    finally { client.release(); }
+  }),
+);
+
+tripRoutes.get(
   "/:id/suggestions",
   asyncHandler(async (request, response) => {
     const tripId = uuidValue(request.params.id);
