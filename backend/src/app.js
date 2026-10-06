@@ -45,6 +45,12 @@ import { requestContext } from "./middleware/requestContext.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const backendDirectory = path.resolve(currentDirectory, "..");
+const showApiUi = ["true", "1", "yes", "on"].includes(
+  String(process.env.SHOW_API_UI ?? process.env["show-api-ui"] ?? "")
+    .trim()
+    .toLowerCase(),
+);
+const swaggerCdn = "https://cdn.jsdelivr.net";
 
 export const app = express();
 
@@ -60,8 +66,8 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", ...(showApiUi ? [swaggerCdn] : [])],
+        styleSrc: ["'self'", "'unsafe-inline'", ...(showApiUi ? [swaggerCdn] : [])],
         imgSrc: [
           "'self'",
           "data:",
@@ -180,9 +186,39 @@ const openApiCandidates = [
 ];
 const openApiPath = openApiCandidates.find((candidate) => fs.existsSync(candidate));
 
-if (openApiPath) {
+if (showApiUi && openApiPath) {
   app.get("/api/v1/openapi.yml", (_request, response) => {
     response.type("application/yaml").sendFile(openApiPath);
+  });
+
+  app.get(["/api", "/api/", "/api/docs", "/api/docs/"], (_request, response) => {
+    response.type("html").send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fahrtenbuch API</title>
+  <link rel="stylesheet" href="${swaggerCdn}/npm/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="${swaggerCdn}/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="${swaggerCdn}/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.onload = function () {
+      SwaggerUIBundle({
+        url: "/api/v1/openapi.yml",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        displayRequestDuration: true,
+        persistAuthorization: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout: "StandaloneLayout"
+      });
+    };
+  </script>
+</body>
+</html>`);
   });
 }
 
@@ -215,7 +251,7 @@ if (fs.existsSync(config.staticDirectory)) {
       version: config.version,
       build: config.build,
       api: "/api/v1",
-      openapi: openApiPath ? "/api/v1/openapi.yml" : null,
+      openapi: showApiUi && openApiPath ? "/api/v1/openapi.yml" : null,
     });
   });
 }
