@@ -25,6 +25,9 @@ export const TRIP_SELECT = `
   t.completed_at,
   t.cancelled_at,
   t.archived_at,
+  t.reconciliation_status,
+  t.canonical_trip_id,
+  t.reconciliation_metadata,
   t.created_at,
   t.updated_at
 `;
