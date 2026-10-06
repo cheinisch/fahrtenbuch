@@ -165,6 +165,7 @@ tripRoutes.get(
     const conditions = [
       "t.user_id = $1",
       "t.archived_at IS NULL",
+      "COALESCE(t.reconciliation_status, 'canonical') = 'canonical'",
     ];
 
     if (request.query.vehicleId) {
