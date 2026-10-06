@@ -581,6 +581,10 @@ export function closePeriod(accessToken, period) {
 }
 
 
+export function getOdometerReadings(accessToken) {
+  return apiRequest(accessToken, "/api/v1/odometer");
+}
+
 export function getPendingOdometerReadings(accessToken) {
   return apiRequest(accessToken, "/api/v1/odometer/pending");
 }
