@@ -66,6 +66,7 @@ dashboardRoutes.get(
     const conditions = [
       "t.user_id = $1",
       "t.archived_at IS NULL",
+      "COALESCE(t.reconciliation_status, 'canonical') = 'canonical'",
     ];
 
     if (from) {
@@ -167,6 +168,7 @@ dashboardRoutes.get(
             FROM trips
             WHERE user_id = $1
               AND archived_at IS NULL
+              AND COALESCE(reconciliation_status, 'canonical') = 'canonical'
           `,
           [request.auth.userId],
         ),
@@ -189,6 +191,7 @@ dashboardRoutes.get(
               AND t.user_id = $1
               AND t.status = 'completed'
               AND t.archived_at IS NULL
+              AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical'
             GROUP BY months.month
             ORDER BY months.month
           `,
