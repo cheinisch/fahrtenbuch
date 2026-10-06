@@ -596,8 +596,9 @@ export function saveMonthlyOdometerReading(accessToken, vehicleId, month, odomet
   });
 }
 
-export function getOdometerIntervalStatistics(accessToken, vehicleId, months = 18) {
-  return apiRequest(accessToken, `/api/v1/statistics/odometer-intervals?vehicleId=${encodeURIComponent(vehicleId)}&months=${months}`);
+export function getOdometerIntervalStatistics(accessToken, vehicleId, from, to) {
+  const query = new URLSearchParams({ vehicleId, from, to });
+  return apiRequest(accessToken, `/api/v1/statistics/odometer-intervals?${query.toString()}`);
 }
 
 export function getMonthlyOdometerStatistics(accessToken, months = 12) {
