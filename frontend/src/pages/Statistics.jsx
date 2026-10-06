@@ -160,9 +160,12 @@ export default function Statistics() {
     }
   }
 
-  const vehicles = useMemo(() => Array.from(
-    new Map(rows.map((row) => [row.vehicleId, row.vehicleName])).entries(),
-  ), [rows]);
+  const vehicles = useMemo(() => {
+    const vehicleNames = new Map(rows.map((row) => [row.vehicleId, row.vehicleName]));
+    return Array.from(new Set(readings.map((reading) => reading.vehicleId)))
+      .map((id) => [id, vehicleNames.get(id) || readings.find((reading) => reading.vehicleId === id)?.vehicleName || "Fahrzeug"])
+      .filter(([, name]) => Boolean(name));
+  }, [rows, readings]);
 
   const availableMonths = useMemo(() => Array.from(new Set(
     readings
