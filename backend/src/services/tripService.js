@@ -147,15 +147,23 @@ export async function recalculateTripMetrics(client, tripId) {
   return result.rows[0] ? mapTrip(result.rows[0]) : null;
 }
 
-export async function ensureOwnedVehicle(client, userId, vehicleId) {
+export async function ensureOwnedVehicle(client, userId, vehicleId, at = new Date()) {
   const result = await client.query(
     `
       SELECT v.id
       FROM vehicles v
       WHERE v.id = $1
         AND v.archived_at IS NULL
+        AND (v.deregistered_at IS NULL OR $3::timestamptz < v.deregistered_at)
         AND (
-          v.user_id = $2
+          EXISTS (
+            SELECT 1
+            FROM vehicle_ownership_periods p
+            WHERE p.vehicle_id = v.id
+              AND p.user_id = $2
+              AND $3::timestamptz >= p.valid_from
+              AND (p.valid_to IS NULL OR $3::timestamptz < p.valid_to)
+          )
           OR EXISTS (
             SELECT 1
             FROM vehicle_shares vs
@@ -165,7 +173,7 @@ export async function ensureOwnedVehicle(client, userId, vehicleId) {
         )
       LIMIT 1
     `,
-    [vehicleId, userId],
+    [vehicleId, userId, at],
   );
 
   return result.rowCount > 0;
