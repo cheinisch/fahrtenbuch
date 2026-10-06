@@ -308,10 +308,10 @@ vehicleRoutes.post(
        DO UPDATE SET token_hash=excluded.token_hash,expires_at=excluded.expires_at,created_at=now()
        RETURNING id,expires_at`,
       [vehicleId,target.id,email,request.auth.userId,hash,expiresAt]);
-    const base=(process.env.PUBLIC_APP_URL || "").replace(/\/$/,"");
+    const base=(process.env.PUBLIC_BASE_URL || process.env.PUBLIC_APP_URL || "").replace(/\/$/,"");
     if(!base) {
       await pool.query(`DELETE FROM vehicle_share_invitations WHERE id=$1`,[inserted.rows[0].id]);
-      throw badRequest("SHARE_MAIL_NOT_CONFIGURED","PUBLIC_APP_URL ist für Freigabeeinladungen nicht konfiguriert.");
+      throw badRequest("SHARE_MAIL_NOT_CONFIGURED","PUBLIC_BASE_URL ist für Freigabeeinladungen nicht konfiguriert.");
     }
     try {
       await sendVehicleShareInvitation({
@@ -424,8 +424,8 @@ vehicleRoutes.post(
     await pool.query(
       `INSERT INTO vehicle_share_invitations(vehicle_id,invited_by_user_id,token_hash,status,expires_at,invitation_type,max_uses)
        VALUES($1,$2,$3,'pending',$4,'link',1)`,[vehicleId,request.auth.userId,hash,expiresAt]);
-    const base=(process.env.PUBLIC_APP_URL || "").replace(/\/$/,"");
-    if(!base) throw badRequest("SHARE_LINK_NOT_CONFIGURED","PUBLIC_APP_URL ist für Freigabelinks nicht konfiguriert.");
+    const base=(process.env.PUBLIC_BASE_URL || process.env.PUBLIC_APP_URL || "").replace(/\/$/,"");
+    if(!base) throw badRequest("SHARE_LINK_NOT_CONFIGURED","PUBLIC_BASE_URL ist für Freigabelinks nicht konfiguriert.");
     response.status(201).json({url:`${base}/share-invitation?token=${encodeURIComponent(token)}`,expiresAt});
   })
 );
