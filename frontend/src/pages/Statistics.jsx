@@ -42,6 +42,15 @@ function defaultChartRange() {
   return { from: isoDate(from), to: isoDate(to) };
 }
 
+function intervalMonthKey(endDate) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(endDate || ""));
+  if (!match) return "";
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  if (!Number.isFinite(date.getTime())) return "";
+  date.setUTCDate(date.getUTCDate() - 1);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 function StatisticsChart({ data }) {
   const width = 900;
   const height = 280;
@@ -200,7 +209,7 @@ export default function Statistics() {
   const chartData = useMemo(() => {
     const buckets = new Map();
     intervals.forEach((item) => {
-      const key = item.endDate.slice(0, 7);
+      const key = intervalMonthKey(item.endDate);
       if (!key.startsWith(`${chartYear}-`)) return;
       const current = buckets.get(key) || { actualKm: 0, trackedKm: 0 };
       current.actualKm += item.actualKm;
