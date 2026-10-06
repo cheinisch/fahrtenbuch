@@ -27,6 +27,55 @@ function monthLabel(value) {
   return new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric" }).format(date);
 }
 
+
+function isoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultChartRange() {
+  const to = new Date();
+  const from = new Date(to);
+  from.setMonth(from.getMonth() - 3);
+  return { from: isoDate(from), to: isoDate(to) };
+}
+
+function StatisticsChart({ data }) {
+  const width = 900;
+  const height = 280;
+  const pad = { left: 56, right: 20, top: 24, bottom: 44 };
+  const max = Math.max(1, ...data.flatMap((item) => [item.actualKm, item.trackedKm]));
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const groupW = data.length ? innerW / data.length : innerW;
+  const barW = Math.min(28, groupW * 0.28);
+  const y = (value) => pad.top + innerH - (Math.max(0, value) / max) * innerH;
+
+  return (
+    <div className="mt-5 overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[720px] w-full" role="img" aria-label="Kilometerstatistik im ausgewählten Zeitraum">
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+          const yy = pad.top + innerH - ratio * innerH;
+          return <g key={ratio}><line x1={pad.left} y1={yy} x2={width - pad.right} y2={yy} className="stroke-fb-border" /><text x={pad.left - 8} y={yy + 4} textAnchor="end" className="fill-fb-muted text-[11px]">{Math.round(max * ratio).toLocaleString("de-DE")}</text></g>;
+        })}
+        {data.map((item, index) => {
+          const center = pad.left + groupW * index + groupW / 2;
+          const actualY = y(item.actualKm);
+          const trackedY = y(item.trackedKm);
+          return <g key={item.label}>
+            <rect x={center - barW - 2} y={actualY} width={barW} height={pad.top + innerH - actualY} rx="3" className="fill-fb-accent" />
+            <rect x={center + 2} y={trackedY} width={barW} height={pad.top + innerH - trackedY} rx="3" className="fill-fb-muted opacity-70" />
+            <text x={center} y={height - 16} textAnchor="middle" className="fill-fb-muted text-[11px]">{item.label}</text>
+          </g>;
+        })}
+      </svg>
+      <div className="mt-2 flex flex-wrap justify-center gap-5 text-xs text-fb-muted">
+        <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-fb-accent" />Tatsächlich laut Ablesungen</span>
+        <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-fb-muted opacity-70" />Erfasste Fahrten</span>
+      </div>
+    </div>
+  );
+}
+
 export default function Statistics() {
   const { accessToken } = useAuth();
   const [rows, setRows] = useState([]);
@@ -39,6 +88,9 @@ export default function Statistics() {
   const [savingReading, setSavingReading] = useState(false);
   const [message, setMessage] = useState("");
   const [intervals, setIntervals] = useState([]);
+  const initialChartRange = useMemo(() => defaultChartRange(), []);
+  const [chartFrom, setChartFrom] = useState(initialChartRange.from);
+  const [chartTo, setChartTo] = useState(initialChartRange.to);
 
   async function loadData() {
     try {
@@ -111,6 +163,26 @@ export default function Statistics() {
     rows.filter((row) => !vehicleId || row.vehicleId === vehicleId).map((row) => row.month),
   )), [rows, vehicleId]);
 
+  const chartData = useMemo(() => {
+    const from = new Date(`${chartFrom}T00:00:00`);
+    const to = new Date(`${chartTo}T23:59:59`);
+    const buckets = new Map();
+    intervals.forEach((item) => {
+      const start = new Date(`${item.startDate}T00:00:00`);
+      const end = new Date(`${item.endDate}T23:59:59`);
+      if (end < from || start > to) return;
+      const key = item.endDate.slice(0, 7);
+      const current = buckets.get(key) || { actualKm: 0, trackedKm: 0 };
+      current.actualKm += item.actualKm;
+      current.trackedKm += item.trackedKm;
+      buckets.set(key, current);
+    });
+    return Array.from(buckets.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => ({
+      label: monthLabel(key).replace(/\s+\d{4}$/, (year) => ` ${year.trim().slice(2)}`),
+      ...value,
+    }));
+  }, [intervals, chartFrom, chartTo]);
+
   const selected = rows.find((row) => row.vehicleId === vehicleId && row.month === month) || null;
   const total = selected?.actualKm ?? selected?.trackedKm ?? 0;
   const parts = selected ? [
@@ -141,6 +213,17 @@ export default function Statistics() {
           <button type="submit" disabled={savingReading || !vehicleId || !entryDate || !entryKm} className="rounded-lg bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{savingReading ? "Speichert …" : "Speichern"}</button>
         </form>
         {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <div className="mt-5 border-t border-fb-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-fb-muted">Ablesungsprotokoll</p><div className="mt-2 flex flex-wrap gap-2">{readings.filter((r) => r.vehicleId === vehicleId).slice(0, 12).map((r) => <button key={r.id} type="button" onClick={() => { setEntryDate(r.readingDate || `${r.month}-01`); setEntryKm(String(r.odometerKm)); }} className="rounded-lg border border-fb-border px-3 py-2 text-left text-sm hover:border-fb-accent"><span className="font-semibold">{r.readingDate ? new Intl.DateTimeFormat("de-DE").format(new Date(`${r.readingDate}T00:00:00`)) : monthLabel(r.month)}</span><span className="ml-2 text-fb-muted">{km(r.odometerKm)}</span></button>)}</div></div>}
+      </section>
+      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div><h2 className="text-lg font-bold">Kilometerentwicklung</h2><p className="mt-1 text-sm text-fb-muted">Vergleich der Kilometer laut Ablesungen mit den im Fahrtenbuch erfassten Strecken.</p></div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-xs text-fb-muted"><span className="mb-1 block">Von</span><input type="date" value={chartFrom} max={chartTo} onChange={(e) => setChartFrom(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm" /></label>
+            <label className="text-xs text-fb-muted"><span className="mb-1 block">Bis</span><input type="date" value={chartTo} min={chartFrom} max={isoDate(new Date())} onChange={(e) => setChartTo(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm" /></label>
+            <button type="button" onClick={() => { const range = defaultChartRange(); setChartFrom(range.from); setChartTo(range.to); }} className="rounded-lg border border-fb-border px-3 py-2 text-sm hover:border-fb-accent">Letzte 3 Monate</button>
+          </div>
+        </div>
+        {chartData.length > 0 ? <StatisticsChart data={chartData} /> : <div className="mt-5 rounded-lg bg-fb-surface p-6 text-center text-sm text-fb-muted">Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor.</div>}
       </section>
       {intervals.length > 0 && (
         <section className="rounded-xl border border-fb-border bg-fb-main p-5">
