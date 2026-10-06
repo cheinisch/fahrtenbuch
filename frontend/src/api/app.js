@@ -71,6 +71,10 @@ export function getDashboard(
   );
 }
 
+export function getPublicLanguageSettings() {
+  return apiRequest("", "/api/v1/language", { headers: { Authorization: undefined } });
+}
+
 export function getPersonalSettings(accessToken) {
   return apiRequest(
     accessToken,
