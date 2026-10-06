@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 
 import { pool } from "../database/pool.js";
@@ -16,6 +17,7 @@ import {
 } from "../lib/validation.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { sendVehicleShareInvitation } from "../services/mailService.js";
 
 export const vehicleRoutes = Router();
 
@@ -199,7 +201,16 @@ vehicleRoutes.get(
       [request.auth.userId],
     );
 
-    response.json(result.rows.map(mapVehicle));
+    response.json(result.rows.map((row) => {
+      const mapped=mapVehicle(row);
+      if(row.is_owner) return mapped;
+      return {
+        id:mapped.id,name:mapped.name,manufacturer:mapped.manufacturer,model:mapped.model,
+        licensePlate:mapped.licensePlate,color:mapped.color,isDefault:false,
+        isOwner:false,accessType:"shared",ownerDisplayName:row.owner_display_name,
+        ownerUsername:row.owner_username,isDeregistered:mapped.isDeregistered,
+      };
+    }));
   }),
 );
 
@@ -274,66 +285,85 @@ vehicleRoutes.get(
 vehicleRoutes.post(
   "/:id/shares",
   asyncHandler(async (request, response) => {
-    const vehicleId = uuidValue(request.params.id);
-    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
-    if (!vehicle) {
-      throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    const vehicleId=uuidValue(request.params.id);
+    const vehicle=await loadVehicle(request.auth.userId,vehicleId);
+    if(!vehicle) throw notFound("VEHICLE_NOT_FOUND","Das Fahrzeug wurde nicht gefunden.");
+    const email=stringField(objectBody(request.body),"email",{required:true,minimum:3,maximum:320}).trim().toLowerCase();
+    const userResult=await pool.query(
+      `SELECT id,email FROM users WHERE deleted_at IS NULL AND status='active' AND lower(email)=lower($1) LIMIT 1`,[email]);
+    if(!userResult.rowCount) throw notFound("USER_NOT_FOUND","Zu dieser E-Mail-Adresse wurde kein aktiver Benutzer gefunden.");
+    const target=userResult.rows[0];
+    if(target.id===request.auth.userId) throw badRequest("CANNOT_SHARE_WITH_SELF","Das eigene Fahrzeug muss nicht geteilt werden.");
+    const existing=await pool.query(`SELECT 1 FROM vehicle_shares WHERE vehicle_id=$1 AND user_id=$2`,[vehicleId,target.id]);
+    if(existing.rowCount) throw conflict("VEHICLE_ALREADY_SHARED","Das Fahrzeug ist bereits mit diesem Benutzer geteilt.");
+    const token=crypto.randomBytes(32).toString("base64url");
+    const hash=crypto.createHash("sha256").update(token).digest("hex");
+    const expiresAt=new Date(Date.now()+7*24*60*60*1000);
+    const owner=await pool.query(`SELECT display_name,username FROM users WHERE id=$1`,[request.auth.userId]);
+    const inserted=await pool.query(
+      `INSERT INTO vehicle_share_invitations(vehicle_id,invited_user_id,invited_email,invited_by_user_id,token_hash,expires_at)
+       VALUES($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (vehicle_id,invited_user_id) WHERE status='pending'
+       DO UPDATE SET token_hash=excluded.token_hash,expires_at=excluded.expires_at,created_at=now()
+       RETURNING id,expires_at`,
+      [vehicleId,target.id,email,request.auth.userId,hash,expiresAt]);
+    const base=(process.env.PUBLIC_APP_URL || "").replace(/\/$/,"");
+    if(!base) {
+      await pool.query(`DELETE FROM vehicle_share_invitations WHERE id=$1`,[inserted.rows[0].id]);
+      throw badRequest("SHARE_MAIL_NOT_CONFIGURED","PUBLIC_APP_URL ist für Freigabeeinladungen nicht konfiguriert.");
     }
-
-    const body = objectBody(request.body);
-    const account = stringField(body, "account", {
-      required: true,
-      minimum: 1,
-      maximum: 320,
-    });
-
-    const userResult = await pool.query(
-      `
-        SELECT id, username, display_name, email
-        FROM users
-        WHERE deleted_at IS NULL
-          AND status = 'active'
-          AND (lower(email) = lower($1) OR lower(username) = lower($1))
-        LIMIT 1
-      `,
-      [account.trim()],
-    );
-
-    if (userResult.rowCount === 0) {
-      throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
+    try {
+      await sendVehicleShareInvitation({
+        to:email, ownerName:owner.rows[0]?.display_name || owner.rows[0]?.username || "Ein Benutzer",
+        vehicleName:vehicle.name, acceptUrl:`${base}/share-invitation?token=${encodeURIComponent(token)}`,
+        expiresAt:inserted.rows[0].expires_at,
+      });
+    } catch(error) {
+      await pool.query(`DELETE FROM vehicle_share_invitations WHERE id=$1`,[inserted.rows[0].id]);
+      throw badRequest("SHARE_MAIL_FAILED",`Die Einladung konnte nicht per E-Mail versendet werden: ${error.message}`);
     }
-
-    const target = userResult.rows[0];
-    if (target.id === request.auth.userId) {
-      throw badRequest("CANNOT_SHARE_WITH_SELF", "Das eigene Fahrzeug muss nicht geteilt werden.");
-    }
-
-    if (vehicle.bluetooth_identifier && !vehicle.deregistered_at) {
-      await assertBluetoothTrackingAvailable(pool, target.id, vehicle.bluetooth_identifier, vehicleId);
-    }
-
-    const result = await pool.query(
-      `
-        INSERT INTO vehicle_shares (vehicle_id, user_id, granted_by_user_id)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (vehicle_id, user_id) DO NOTHING
-        RETURNING created_at
-      `,
-      [vehicleId, target.id, request.auth.userId],
-    );
-
-    if (result.rowCount === 0) {
-      throw conflict("VEHICLE_ALREADY_SHARED", "Das Fahrzeug ist bereits mit diesem Benutzer geteilt.");
-    }
-
-    response.status(201).json({
-      userId: target.id,
-      username: target.username,
-      displayName: target.display_name,
-      email: target.email,
-      createdAt: result.rows[0].created_at,
-    });
+    response.status(202).json({status:"pending",expiresAt:inserted.rows[0].expires_at});
   }),
+);
+
+vehicleRoutes.get(
+  "/share-invitations/pending",
+  asyncHandler(async(request,response)=>{
+    const result=await pool.query(
+      `SELECT i.id,i.expires_at,i.created_at,v.name AS vehicle_name,
+              u.display_name AS owner_display_name,u.username AS owner_username
+       FROM vehicle_share_invitations i
+       INNER JOIN vehicles v ON v.id=i.vehicle_id
+       INNER JOIN users u ON u.id=i.invited_by_user_id
+       WHERE i.invited_user_id=$1 AND i.status='pending' AND i.expires_at>now()
+       ORDER BY i.created_at DESC`,[request.auth.userId]);
+    response.json(result.rows.map(r=>({id:r.id,vehicleName:r.vehicle_name,ownerName:r.owner_display_name||r.owner_username,expiresAt:r.expires_at,createdAt:r.created_at})));
+  })
+);
+
+vehicleRoutes.post(
+  "/share-invitations/accept",
+  asyncHandler(async(request,response)=>{
+    const token=stringField(objectBody(request.body),"token",{required:true,minimum:20,maximum:200});
+    const hash=crypto.createHash("sha256").update(token).digest("hex");
+    const client=await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const inv=await client.query(
+        `SELECT i.*,v.bluetooth_identifier,v.deregistered_at FROM vehicle_share_invitations i
+         INNER JOIN vehicles v ON v.id=i.vehicle_id
+         WHERE i.token_hash=$1 AND i.invited_user_id=$2 AND i.status='pending' AND i.expires_at>now() FOR UPDATE`,
+        [hash,request.auth.userId]);
+      if(!inv.rowCount) throw notFound("SHARE_INVITATION_NOT_FOUND","Die Einladung ist ungültig oder abgelaufen.");
+      const row=inv.rows[0];
+      if(row.bluetooth_identifier&&!row.deregistered_at) await assertBluetoothTrackingAvailable(client,request.auth.userId,row.bluetooth_identifier,row.vehicle_id);
+      await client.query(`INSERT INTO vehicle_shares(vehicle_id,user_id,granted_by_user_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,
+        [row.vehicle_id,request.auth.userId,row.invited_by_user_id]);
+      await client.query(`UPDATE vehicle_share_invitations SET status='accepted',responded_at=now() WHERE id=$1`,[row.id]);
+      await client.query("COMMIT");
+      response.json({status:"accepted",vehicleId:row.vehicle_id});
+    } catch(error){await client.query("ROLLBACK");throw error;} finally{client.release();}
+  })
 );
 
 vehicleRoutes.delete(
