@@ -56,6 +56,21 @@ function parseVehicleInput(body) {
   });
 
   const bluetoothMac = bluetoothValue(input);
+  const isLeased = booleanField(input, "isLeased") ?? false;
+  const leaseStartDate = stringField(input, "leaseStartDate", { nullable: true, maximum: 10 });
+  const leaseEndDate = stringField(input, "leaseEndDate", { nullable: true, maximum: 10 });
+  const leaseIncludedKm = numberField(input, "leaseIncludedKm", { nullable: true, minimum: 1, maximum: 10_000_000 });
+  if (isLeased) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(leaseStartDate || "") || !/^\d{4}-\d{2}-\d{2}$/.test(leaseEndDate || "")) {
+      throw badRequest("INVALID_LEASE_DATES", "Für ein Leasingfahrzeug müssen Vertragsbeginn und Vertragsende angegeben werden.");
+    }
+    if (leaseEndDate <= leaseStartDate) {
+      throw badRequest("INVALID_LEASE_DATES", "Das Leasingende muss nach dem Vertragsbeginn liegen.");
+    }
+    if (!leaseIncludedKm) {
+      throw badRequest("INVALID_LEASE_KM", "Für ein Leasingfahrzeug müssen die Inklusivkilometer angegeben werden.");
+    }
+  }
 
   return {
     name,
@@ -89,6 +104,10 @@ function parseVehicleInput(body) {
     }),
     bluetoothMac,
     isDefault: booleanField(input, "isDefault") ?? false,
+    isLeased,
+    leaseStartDate: isLeased ? leaseStartDate : null,
+    leaseEndDate: isLeased ? leaseEndDate : null,
+    leaseIncludedKm: isLeased ? Math.round(leaseIncludedKm) : null,
   };
 }
 
@@ -342,9 +361,13 @@ vehicleRoutes.post(
             color,
             notes,
             bluetooth_identifier,
-            is_default
+            is_default,
+            is_leased,
+            lease_start_date,
+            lease_end_date,
+            lease_included_km
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
           RETURNING *
         `,
         [
@@ -359,6 +382,10 @@ vehicleRoutes.post(
           input.notes,
           input.bluetoothMac,
           shouldBeDefault,
+          input.isLeased,
+          input.leaseStartDate,
+          input.leaseEndDate,
+          input.leaseIncludedKm,
         ],
       );
 
@@ -437,7 +464,11 @@ vehicleRoutes.put(
             is_default = CASE
               WHEN $12 THEN true
               ELSE is_default
-            END
+            END,
+            is_leased = $13,
+            lease_start_date = $14,
+            lease_end_date = $15,
+            lease_included_km = $16
           WHERE id = $1
             AND user_id = $2
             AND archived_at IS NULL
@@ -456,6 +487,10 @@ vehicleRoutes.put(
           input.notes,
           input.bluetoothMac,
           input.isDefault,
+          input.isLeased,
+          input.leaseStartDate,
+          input.leaseEndDate,
+          input.leaseIncludedKm,
         ],
       );
 
