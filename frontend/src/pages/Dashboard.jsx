@@ -17,6 +17,8 @@ import {
   splitTrip,
   getTripSuggestions,
   correctTripRoute,
+  getAssignableTripDrivers,
+  assignTripDriver,
 
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
@@ -102,6 +104,9 @@ const historyEventLabels = {
   MAP_MATCHED: "Strecke auf Straßennetz abgeglichen",
   TRIP_SPLIT: "Fahrt geteilt",
   TRIP_MERGED: "Fahrten zusammengeführt",
+  TRACK_DUPLICATE: "Doppelte Geräteaufzeichnung erkannt",
+  TRACK_RECONCILED: "Geräteaufzeichnungen zusammengeführt",
+  DRIVER_ASSIGNED: "Fahrer geändert",
   ROUTE_CORRECTED: "Route manuell korrigiert",
   AUTO_CLASSIFIED: "Automatisch klassifiziert",
   BASELINE: "Historie aktiviert",
@@ -289,6 +294,7 @@ export default function Dashboard() {
   const [suggestions, setSuggestions] = useState([]);
   const [mapMode, setMapMode] = useState(null);
   const [routeDraft, setRouteDraft] = useState([]);
+  const [driverAssignment, setDriverAssignment] = useState({ loading: false, drivers: [], selected: "" });
 
   const [selectedTripId, setSelectedTripId] =
     useState(null);
@@ -699,7 +705,9 @@ export default function Dashboard() {
 
     mapRef.current = map;
 
-    return () => {
+    const selectedTrip = data.trips.find((trip) => trip.id === selectedTripId) || null;
+
+  return () => {
       resizeObserver?.disconnect();
       mapLoadedRef.current = false;
       map.remove();
@@ -825,6 +833,10 @@ export default function Dashboard() {
 
   function selectTrip(trip) {
     setSelectedTripId(trip.id);
+    setDriverAssignment({ loading: true, drivers: [], selected: "" });
+    getAssignableTripDrivers(accessToken, trip.id)
+      .then((drivers) => setDriverAssignment({ loading: false, drivers, selected: "" }))
+      .catch(() => setDriverAssignment({ loading: false, drivers: [], selected: "" }));
     setMapMode(null);
     setRouteDraft([]);
     getTripSuggestions(accessToken, trip.id)
@@ -858,6 +870,20 @@ export default function Dashboard() {
       maxZoom: 16,
       duration: 500,
     });
+  }
+
+  async function performDriverAssignment() {
+    if (!selectedTripId || !driverAssignment.selected) return;
+    setTripAction((state) => ({ ...state, busy: true, error: "" }));
+    try {
+      await assignTripDriver(accessToken, selectedTripId, driverAssignment.selected);
+      setSelectedTripId(null);
+      setDriverAssignment({ loading: false, drivers: [], selected: "" });
+      setData(await getDashboard(accessToken, filters));
+      setTripAction({ busy: false, error: "", splitPoints: null });
+    } catch (error) {
+      setTripAction((state) => ({ ...state, busy: false, error: error.message }));
+    }
   }
 
   async function beginSplit() {
@@ -1225,6 +1251,25 @@ export default function Dashboard() {
             </div>
 
             <div className="border-b border-fb-border p-3">
+              {selectedTrip?.reconciliationMetadata?.splitRecommended && (
+                <div className="mb-3 rounded-lg border border-fb-accent bg-fb-accent-soft p-3 text-sm">
+                  <div className="font-semibold">Aus mehreren Geräten zusammengeführt</div>
+                  <div className="mt-1 text-xs text-fb-muted">Die Aufteilung dieser Fahrt sollte geprüft werden.</div>
+                  <button type="button" onClick={() => { setMapMode("split"); beginSplit(); }} className="mt-2 rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text">Aufteilung prüfen</button>
+                </div>
+              )}
+              {driverAssignment.drivers.length > 1 && (
+                <div className="mb-3 rounded-lg border border-fb-border bg-fb-surface p-3">
+                  <div className="text-xs font-semibold">Fahrer zuweisen</div>
+                  <div className="mt-2 flex gap-2">
+                    <select value={driverAssignment.selected} onChange={(e)=>setDriverAssignment((s)=>({...s,selected:e.target.value}))} className="min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-main px-2 py-1.5 text-sm">
+                      <option value="">Benutzer auswählen …</option>
+                      {driverAssignment.drivers.map((driver)=><option key={driver.userId} value={driver.userId}>{driver.displayName || driver.username}{driver.isOwner ? " (Besitzer)" : ""}</option>)}
+                    </select>
+                    <button type="button" disabled={!driverAssignment.selected || tripAction.busy} onClick={performDriverAssignment} className="rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text disabled:opacity-50">Zuweisen</button>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
