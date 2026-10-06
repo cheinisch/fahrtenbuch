@@ -457,6 +457,46 @@ vehicleRoutes.delete(
   }),
 );
 
+vehicleRoutes.get(
+  "/archive",
+  asyncHandler(async (request, response) => {
+    const result = await pool.query(
+      `SELECT v.*
+       FROM vehicles v
+       WHERE v.user_id = $1
+         AND v.archived_at IS NOT NULL
+       ORDER BY v.archived_at DESC, v.name ASC`,
+      [request.auth.userId],
+    );
+    response.json(result.rows.map((row) => ({
+      ...mapVehicle(row),
+      isOwner: true,
+      accessType: "owner",
+      archivedAt: row.archived_at,
+    })));
+  }),
+);
+
+vehicleRoutes.post(
+  "/:id/restore",
+  asyncHandler(async (request, response) => {
+    const vehicleId = uuidValue(request.params.id);
+    const result = await pool.query(
+      `UPDATE vehicles
+       SET archived_at = NULL,
+           deregistered_at = COALESCE(deregistered_at, now()),
+           is_default = false
+       WHERE id = $1
+         AND user_id = $2
+         AND archived_at IS NOT NULL
+       RETURNING *`,
+      [vehicleId, request.auth.userId],
+    );
+    if (!result.rowCount) throw notFound("VEHICLE_NOT_FOUND", "Das archivierte Fahrzeug wurde nicht gefunden.");
+    response.json(mapVehicle(result.rows[0]));
+  }),
+);
+
 vehicleRoutes.post(
   "/",
   asyncHandler(async (request, response) => {
