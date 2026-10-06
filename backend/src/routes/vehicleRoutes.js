@@ -113,16 +113,148 @@ vehicleRoutes.get(
   asyncHandler(async (request, response) => {
     const result = await pool.query(
       `
-        SELECT *
-        FROM vehicles
-        WHERE user_id = $1
-          AND archived_at IS NULL
-        ORDER BY is_default DESC, lower(name), created_at
+        SELECT
+          v.*,
+          (v.user_id = $1) AS is_owner,
+          owner.display_name AS owner_display_name,
+          owner.username AS owner_username,
+          CASE WHEN v.user_id = $1 THEN 'owner' ELSE 'shared' END AS access_type
+        FROM vehicles v
+        INNER JOIN users owner ON owner.id = v.user_id
+        WHERE v.archived_at IS NULL
+          AND (
+            v.user_id = $1
+            OR EXISTS (
+              SELECT 1
+              FROM vehicle_shares vs
+              WHERE vs.vehicle_id = v.id
+                AND vs.user_id = $1
+            )
+          )
+        ORDER BY (v.user_id = $1) DESC, v.is_default DESC, lower(v.name), v.created_at
       `,
       [request.auth.userId],
     );
 
     response.json(result.rows.map(mapVehicle));
+  }),
+);
+
+vehicleRoutes.get(
+  "/:id/shares",
+  asyncHandler(async (request, response) => {
+    const vehicleId = uuidValue(request.params.id);
+    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
+    if (!vehicle) {
+      throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    }
+
+    const result = await pool.query(
+      `
+        SELECT vs.user_id, u.username, u.display_name, u.email, vs.created_at
+        FROM vehicle_shares vs
+        INNER JOIN users u ON u.id = vs.user_id
+        WHERE vs.vehicle_id = $1
+        ORDER BY lower(u.display_name), lower(u.username)
+      `,
+      [vehicleId],
+    );
+
+    response.json(result.rows.map((row) => ({
+      userId: row.user_id,
+      username: row.username,
+      displayName: row.display_name,
+      email: row.email,
+      createdAt: row.created_at,
+    })));
+  }),
+);
+
+vehicleRoutes.post(
+  "/:id/shares",
+  asyncHandler(async (request, response) => {
+    const vehicleId = uuidValue(request.params.id);
+    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
+    if (!vehicle) {
+      throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    }
+
+    const body = objectBody(request.body);
+    const account = stringField(body, "account", {
+      required: true,
+      minimum: 1,
+      maximum: 320,
+    });
+
+    const userResult = await pool.query(
+      `
+        SELECT id, username, display_name, email
+        FROM users
+        WHERE deleted_at IS NULL
+          AND status = 'active'
+          AND (lower(email) = lower($1) OR lower(username) = lower($1))
+        LIMIT 1
+      `,
+      [account.trim()],
+    );
+
+    if (userResult.rowCount === 0) {
+      throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
+    }
+
+    const target = userResult.rows[0];
+    if (target.id === request.auth.userId) {
+      throw badRequest("CANNOT_SHARE_WITH_SELF", "Das eigene Fahrzeug muss nicht geteilt werden.");
+    }
+
+    const result = await pool.query(
+      `
+        INSERT INTO vehicle_shares (vehicle_id, user_id, granted_by_user_id)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (vehicle_id, user_id) DO NOTHING
+        RETURNING created_at
+      `,
+      [vehicleId, target.id, request.auth.userId],
+    );
+
+    if (result.rowCount === 0) {
+      throw conflict("VEHICLE_ALREADY_SHARED", "Das Fahrzeug ist bereits mit diesem Benutzer geteilt.");
+    }
+
+    response.status(201).json({
+      userId: target.id,
+      username: target.username,
+      displayName: target.display_name,
+      email: target.email,
+      createdAt: result.rows[0].created_at,
+    });
+  }),
+);
+
+vehicleRoutes.delete(
+  "/:id/shares/:userId",
+  asyncHandler(async (request, response) => {
+    const vehicleId = uuidValue(request.params.id);
+    const sharedUserId = uuidValue(request.params.userId, "userId");
+    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
+    if (!vehicle) {
+      throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    }
+
+    const result = await pool.query(
+      `
+        DELETE FROM vehicle_shares
+        WHERE vehicle_id = $1 AND user_id = $2
+        RETURNING user_id
+      `,
+      [vehicleId, sharedUserId],
+    );
+
+    if (result.rowCount === 0) {
+      throw notFound("VEHICLE_SHARE_NOT_FOUND", "Die Fahrzeugfreigabe wurde nicht gefunden.");
+    }
+
+    response.status(204).end();
   }),
 );
 
