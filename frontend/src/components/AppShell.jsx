@@ -87,7 +87,7 @@ export default function AppShell() {
               <DisclosureButton className="group relative inline-flex items-center justify-center rounded-md p-2 text-fb-muted hover:bg-fb-surface hover:text-fb-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent">
                 <span className="absolute -inset-0.5" />
                 <span className="sr-only">
-                  Hauptmenü öffnen
+                  {t("shell.openMenu")}
                 </span>
 
                 <Bars3Icon
@@ -106,7 +106,7 @@ export default function AppShell() {
               <NavLink
                 to="/"
                 className="flex shrink-0 items-center gap-3"
-                aria-label="Fahrtenbuch {t("nav.dashboard")}"
+                aria-label={`Fahrtenbuch ${t("nav.dashboard")}`}
               >
                 <span className="flex size-9 items-center justify-center rounded-lg bg-fb-accent text-base font-bold text-fb-accent-text">
                   F
@@ -161,7 +161,7 @@ export default function AppShell() {
                 <MenuButton className="relative flex items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-fb-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent">
                   <span className="absolute -inset-1.5" />
                   <span className="sr-only">
-                    Benutzermenü öffnen
+                    {t("shell.openUserMenu")}
                   </span>
 
                   <img
@@ -175,7 +175,7 @@ export default function AppShell() {
                     <span className="block max-w-48 truncate text-sm font-semibold text-fb-text">
                       {user?.username ||
                         user?.displayName ||
-                        "Benutzer"}
+                        t("shell.user")}
                     </span>
 
                     <span className="block max-w-48 truncate text-xs text-fb-muted">
@@ -193,7 +193,7 @@ export default function AppShell() {
                     <div className="truncate text-sm font-semibold text-fb-text">
                       {user?.username ||
                         user?.displayName ||
-                        "Benutzer"}
+                        t("shell.user")}
                     </div>
 
                     <div className="mt-0.5 truncate text-xs text-fb-muted">
