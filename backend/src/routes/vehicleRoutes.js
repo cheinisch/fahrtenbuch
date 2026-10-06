@@ -327,6 +327,32 @@ vehicleRoutes.post(
 );
 
 vehicleRoutes.get(
+  "/share-invitations/inspect",
+  asyncHandler(async(request,response)=>{
+    const token=String(request.query.token || "");
+    if(token.length<20) throw notFound("SHARE_INVITATION_NOT_FOUND","Die Einladung wurde nicht gefunden.");
+    const hash=crypto.createHash("sha256").update(token).digest("hex");
+    const result=await pool.query(
+      `SELECT i.id,i.status,i.expires_at,i.invitation_type,i.invited_user_id,
+              v.name AS vehicle_name,u.display_name AS owner_display_name,u.username AS owner_username
+       FROM vehicle_share_invitations i
+       INNER JOIN vehicles v ON v.id=i.vehicle_id
+       INNER JOIN users u ON u.id=i.invited_by_user_id
+       WHERE i.token_hash=$1 LIMIT 1`,[hash]);
+    if(!result.rowCount) throw notFound("SHARE_INVITATION_NOT_FOUND","Die Einladung wurde nicht gefunden.");
+    const row=result.rows[0];
+    const expired=new Date(row.expires_at).getTime()<=Date.now();
+    if(expired&&row.status==="pending") await pool.query(`UPDATE vehicle_share_invitations SET status='expired' WHERE id=$1`,[row.id]);
+    response.json({
+      status:expired?"expired":row.status,expired,vehicleName:row.vehicle_name,
+      ownerName:row.owner_display_name||row.owner_username,expiresAt:row.expires_at,
+      invitationType:row.invitation_type,
+      intendedForCurrentUser:row.invitation_type==="link" || row.invited_user_id===request.auth.userId,
+    });
+  })
+);
+
+vehicleRoutes.get(
   "/share-invitations/pending",
   asyncHandler(async(request,response)=>{
     const result=await pool.query(
@@ -342,27 +368,60 @@ vehicleRoutes.get(
 );
 
 vehicleRoutes.post(
-  "/share-invitations/accept",
+  "/share-invitations/respond",
   asyncHandler(async(request,response)=>{
-    const token=stringField(objectBody(request.body),"token",{required:true,minimum:20,maximum:200});
+    const body=objectBody(request.body);
+    const token=stringField(body,"token",{required:true,minimum:20,maximum:200});
+    const action=stringField(body,"action",{required:true,minimum:6,maximum:7});
+    if(!["accept","decline"].includes(action)) throw badRequest("INVALID_SHARE_RESPONSE","Ungültige Antwort.");
     const hash=crypto.createHash("sha256").update(token).digest("hex");
     const client=await pool.connect();
     try {
       await client.query("BEGIN");
       const inv=await client.query(
-        `SELECT i.*,v.bluetooth_identifier,v.deregistered_at FROM vehicle_share_invitations i
-         INNER JOIN vehicles v ON v.id=i.vehicle_id
-         WHERE i.token_hash=$1 AND i.invited_user_id=$2 AND i.status='pending' AND i.expires_at>now() FOR UPDATE`,
-        [hash,request.auth.userId]);
-      if(!inv.rowCount) throw notFound("SHARE_INVITATION_NOT_FOUND","Die Einladung ist ungültig oder abgelaufen.");
+        `SELECT i.*,v.bluetooth_identifier,v.deregistered_at
+         FROM vehicle_share_invitations i INNER JOIN vehicles v ON v.id=i.vehicle_id
+         WHERE i.token_hash=$1 FOR UPDATE`,[hash]);
+      if(!inv.rowCount) throw notFound("SHARE_INVITATION_NOT_FOUND","Die Einladung wurde nicht gefunden.");
       const row=inv.rows[0];
+      if(new Date(row.expires_at).getTime()<=Date.now()){
+        if(row.status==="pending") await client.query(`UPDATE vehicle_share_invitations SET status='expired' WHERE id=$1`,[row.id]);
+        await client.query("COMMIT");
+        return response.status(410).json({error:{code:"SHARE_INVITATION_EXPIRED",message:"Link ist abgelaufen."}});
+      }
+      if(row.status!=="pending") throw conflict("SHARE_INVITATION_USED","Diese Einladung wurde bereits beantwortet.");
+      if(row.invitation_type==="email" && row.invited_user_id!==request.auth.userId)
+        throw badRequest("SHARE_INVITATION_WRONG_USER","Diese Einladung wurde für einen anderen Benutzer erstellt.");
+      if(row.invited_by_user_id===request.auth.userId)
+        throw badRequest("CANNOT_SHARE_WITH_SELF","Du kannst dein eigenes Fahrzeug nicht über einen Freigabelink übernehmen.");
+      if(action==="decline"){
+        await client.query(`UPDATE vehicle_share_invitations SET status='declined',responded_at=now(),accepted_by_user_id=$2 WHERE id=$1`,[row.id,request.auth.userId]);
+        await client.query("COMMIT"); return response.json({status:"declined"});
+      }
       if(row.bluetooth_identifier&&!row.deregistered_at) await assertBluetoothTrackingAvailable(client,request.auth.userId,row.bluetooth_identifier,row.vehicle_id);
       await client.query(`INSERT INTO vehicle_shares(vehicle_id,user_id,granted_by_user_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,
         [row.vehicle_id,request.auth.userId,row.invited_by_user_id]);
-      await client.query(`UPDATE vehicle_share_invitations SET status='accepted',responded_at=now() WHERE id=$1`,[row.id]);
-      await client.query("COMMIT");
-      response.json({status:"accepted",vehicleId:row.vehicle_id});
+      await client.query(`UPDATE vehicle_share_invitations SET status='accepted',responded_at=now(),accepted_by_user_id=$2,use_count=use_count+1 WHERE id=$1`,[row.id,request.auth.userId]);
+      await client.query("COMMIT"); response.json({status:"accepted",vehicleId:row.vehicle_id});
     } catch(error){await client.query("ROLLBACK");throw error;} finally{client.release();}
+  })
+);
+
+vehicleRoutes.post(
+  "/:id/share-link",
+  asyncHandler(async(request,response)=>{
+    const vehicleId=uuidValue(request.params.id);
+    const vehicle=await loadVehicle(request.auth.userId,vehicleId);
+    if(!vehicle) throw notFound("VEHICLE_NOT_FOUND","Das Fahrzeug wurde nicht gefunden.");
+    const token=crypto.randomBytes(32).toString("base64url");
+    const hash=crypto.createHash("sha256").update(token).digest("hex");
+    const expiresAt=new Date(Date.now()+24*60*60*1000);
+    await pool.query(
+      `INSERT INTO vehicle_share_invitations(vehicle_id,invited_by_user_id,token_hash,status,expires_at,invitation_type,max_uses)
+       VALUES($1,$2,$3,'pending',$4,'link',1)`,[vehicleId,request.auth.userId,hash,expiresAt]);
+    const base=(process.env.PUBLIC_APP_URL || "").replace(/\/$/,"");
+    if(!base) throw badRequest("SHARE_LINK_NOT_CONFIGURED","PUBLIC_APP_URL ist für Freigabelinks nicht konfiguriert.");
+    response.status(201).json({url:`${base}/share-invitation?token=${encodeURIComponent(token)}`,expiresAt});
   })
 );
 
