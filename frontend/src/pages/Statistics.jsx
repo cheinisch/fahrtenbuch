@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, saveMonthlyOdometerReading } from "../api/app.js";
+import { getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, getVehicles, saveMonthlyOdometerReading } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import OdometerReadingLogModal from "../components/OdometerReadingLogModal.jsx";
 
@@ -86,24 +86,25 @@ export default function Statistics() {
   const [month, setMonth] = useState("");
   const [error, setError] = useState("");
   const [readings, setReadings] = useState([]);
+  const [vehicleDetails, setVehicleDetails] = useState([]);
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [entryKm, setEntryKm] = useState("");
   const [savingReading, setSavingReading] = useState(false);
   const [message, setMessage] = useState("");
   const [intervals, setIntervals] = useState([]);
   const [readingLogOpen, setReadingLogOpen] = useState(false);
-  const initialChartRange = useMemo(() => defaultChartRange(), []);
-  const [chartFrom, setChartFrom] = useState(initialChartRange.from);
-  const [chartTo, setChartTo] = useState(initialChartRange.to);
+  const [chartYear, setChartYear] = useState(String(new Date().getFullYear()));
 
   async function loadData() {
     try {
-      const [result, readingRows] = await Promise.all([
+      const [result, readingRows, vehicleRows] = await Promise.all([
         getMonthlyOdometerStatistics(accessToken, 18),
         getOdometerReadings(accessToken),
+        getVehicles(accessToken),
       ]);
       setRows(result);
       setReadings(readingRows);
+      setVehicleDetails(vehicleRows);
       if (!vehicleId) {
         const firstVehicleId = readingRows[0]?.vehicleId || result[0]?.vehicleId || "";
         if (firstVehicleId) {
@@ -126,10 +127,10 @@ export default function Statistics() {
       setIntervals([]);
       return;
     }
-    getOdometerIntervalStatistics(accessToken, vehicleId, chartFrom, chartTo)
+    getOdometerIntervalStatistics(accessToken, vehicleId, `${chartYear}-01-01`, `${chartYear}-12-31`)
       .then(setIntervals)
       .catch((loadError) => setError(loadError.message));
-  }, [accessToken, vehicleId, readings, chartFrom, chartTo]);
+  }, [accessToken, vehicleId, readings, chartYear]);
 
   async function saveReading(event) {
     event.preventDefault();
@@ -186,25 +187,52 @@ export default function Statistics() {
     [availableMonths, selectedYear],
   );
 
+  const chartYears = useMemo(() => Array.from(new Set(
+    readings.filter((reading) => reading.vehicleId === vehicleId)
+      .map((reading) => (reading.readingDate || `${reading.month}-01`).slice(0, 4))
+      .filter((year) => /^\d{4}$/.test(year)),
+  )).sort().reverse(), [readings, vehicleId]);
+
+  useEffect(() => {
+    if (chartYears.length && !chartYears.includes(chartYear)) setChartYear(chartYears[0]);
+  }, [chartYears, chartYear]);
+
   const chartData = useMemo(() => {
-    const from = new Date(`${chartFrom}T00:00:00`);
-    const to = new Date(`${chartTo}T23:59:59`);
     const buckets = new Map();
     intervals.forEach((item) => {
-      const start = new Date(`${item.startDate}T00:00:00`);
-      const end = new Date(`${item.endDate}T23:59:59`);
-      if (end < from || start > to) return;
       const key = item.endDate.slice(0, 7);
+      if (!key.startsWith(`${chartYear}-`)) return;
       const current = buckets.get(key) || { actualKm: 0, trackedKm: 0 };
       current.actualKm += item.actualKm;
       current.trackedKm += item.trackedKm;
       buckets.set(key, current);
     });
-    return Array.from(buckets.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => ({
-      label: monthLabel(key).replace(/\s+\d{4}$/, (year) => ` ${year.trim().slice(2)}`),
-      ...value,
-    }));
-  }, [intervals, chartFrom, chartTo]);
+    return Array.from({ length: 12 }, (_, index) => {
+      const key = `${chartYear}-${String(index + 1).padStart(2, "0")}`;
+      const value = buckets.get(key);
+      return value ? { label: monthLabel(key).replace(/\s+\d{4}$/, ""), ...value } : null;
+    }).filter(Boolean);
+  }, [intervals, chartYear]);
+
+  const leasing = useMemo(() => {
+    const vehicle = vehicleDetails.find((item) => item.id === vehicleId);
+    if (!vehicle?.isLeased || !vehicle.leaseStartDate || !vehicle.leaseEndDate || !vehicle.leaseIncludedKm) return null;
+    const vehicleReadings = readings.filter((reading) => reading.vehicleId === vehicleId)
+      .map((reading) => ({ ...reading, date: new Date(`${reading.readingDate || `${reading.month}-01`}T00:00:00`) }))
+      .filter((reading) => Number.isFinite(reading.date.getTime()))
+      .sort((a, b) => a.date - b.date);
+    if (!vehicleReadings.length) return null;
+    const start = new Date(`${vehicle.leaseStartDate.slice(0, 10)}T00:00:00`);
+    const end = new Date(`${vehicle.leaseEndDate.slice(0, 10)}T00:00:00`);
+    const first = vehicleReadings.find((reading) => reading.date >= start) || vehicleReadings[0];
+    const last = [...vehicleReadings].reverse().find((reading) => reading.date <= end) || vehicleReadings.at(-1);
+    const totalDays = Math.max(1, (end - start) / 86400000);
+    const elapsedDays = Math.max(0, Math.min(totalDays, (last.date - start) / 86400000));
+    const drivenKm = Math.max(0, Number(last.odometerKm) - Number(first.odometerKm));
+    const allowedKm = vehicle.leaseIncludedKm * elapsedDays / totalDays;
+    const projectedKm = elapsedDays > 0 ? drivenKm / elapsedDays * totalDays : 0;
+    return { vehicle, drivenKm, allowedKm, projectedKm, deviationKm: projectedKm - vehicle.leaseIncludedKm, elapsedPercent: elapsedDays / totalDays * 100 };
+  }, [vehicleDetails, readings, vehicleId]);
 
   const selected = rows.find((row) => row.vehicleId === vehicleId && row.month === month) || null;
   const total = selected?.actualKm ?? selected?.trackedKm ?? 0;
@@ -237,14 +265,15 @@ export default function Statistics() {
         </form>
         {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-fb-border pt-4"><div><p className="text-sm font-semibold">Ableseprotokoll</p><p className="mt-1 text-xs text-fb-muted">{readings.filter((r) => r.vehicleId === vehicleId).length} gespeicherte Ablesungen</p></div><button type="button" onClick={() => setReadingLogOpen(true)} className="rounded-lg border border-fb-border px-4 py-2 text-sm font-semibold hover:border-fb-accent">Ableseprotokoll anzeigen</button></div>}
       </section>
+      {leasing && <section className={`rounded-xl border p-5 ${leasing.deviationKm > 0 ? "border-fb-danger bg-fb-main" : "border-fb-border bg-fb-main"}`}>
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-bold">Leasing-Kilometer</h2><p className="mt-1 text-sm text-fb-muted">{new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseStartDate.slice(0,10)}T00:00:00`))} – {new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseEndDate.slice(0,10)}T00:00:00`))} · {km(leasing.vehicle.leaseIncludedKm)} inklusive</p></div>{leasing.deviationKm > 0 && <span className="rounded-full border border-fb-danger px-3 py-1 text-sm font-semibold text-fb-danger">Mehrkilometer erwartet</span>}</div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><div><div className="text-xs text-fb-muted">Bisher gefahren</div><div className="mt-1 text-xl font-bold">{km(leasing.drivenKm)}</div></div><div><div className="text-xs text-fb-muted">Zeitanteilig vorgesehen</div><div className="mt-1 text-xl font-bold">{km(leasing.allowedKm)}</div></div><div><div className="text-xs text-fb-muted">Prognose Vertragsende</div><div className="mt-1 text-xl font-bold">{km(leasing.projectedKm)}</div></div><div><div className="text-xs text-fb-muted">Prognose Abweichung</div><div className={`mt-1 text-xl font-bold ${leasing.deviationKm > 0 ? "text-fb-danger" : "text-fb-accent"}`}>{leasing.deviationKm > 0 ? "+" : ""}{km(leasing.deviationKm)}</div></div></div>
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-fb-surface"><div className={`h-full rounded-full ${leasing.deviationKm > 0 ? "bg-fb-danger" : "bg-fb-accent"}`} style={{ width: `${Math.min(100, Math.max(0, leasing.elapsedPercent))}%` }} /></div>
+      </section>}
       <section className="rounded-xl border border-fb-border bg-fb-main p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div><h2 className="text-lg font-bold">Kilometerentwicklung</h2><p className="mt-1 text-sm text-fb-muted">Vergleich der Kilometer laut Ablesungen mit den im Fahrtenbuch erfassten Strecken.</p></div>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="text-xs text-fb-muted"><span className="mb-1 block">Von</span><input type="date" value={chartFrom} max={chartTo} onChange={(e) => setChartFrom(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm" /></label>
-            <label className="text-xs text-fb-muted"><span className="mb-1 block">Bis</span><input type="date" value={chartTo} min={chartFrom} max={isoDate(new Date())} onChange={(e) => setChartTo(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm" /></label>
-            <button type="button" onClick={() => { const range = defaultChartRange(); setChartFrom(range.from); setChartTo(range.to); }} className="rounded-lg border border-fb-border px-3 py-2 text-sm hover:border-fb-accent">Letzte 3 Monate</button>
-          </div>
+          <label className="text-xs text-fb-muted"><span className="mb-1 block">Jahr</span><select value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm">{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
         </div>
         {chartData.length > 0 ? <StatisticsChart data={chartData} /> : <div className="mt-5 rounded-lg bg-fb-surface p-6 text-center text-sm text-fb-muted">Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor.</div>}
       </section>
