@@ -102,12 +102,20 @@ complianceRoutes.post(
         `SELECT v.id, v.name,
            start_r.odometer_meters AS start_meter, end_r.odometer_meters AS end_meter
          FROM vehicles v
-         LEFT JOIN vehicle_odometer_readings start_r
-           ON start_r.user_id=v.user_id AND start_r.vehicle_id=v.id
-          AND start_r.reading_month=date_trunc('month',$2::date)::date
-         LEFT JOIN vehicle_odometer_readings end_r
-           ON end_r.user_id=v.user_id AND end_r.vehicle_id=v.id
-          AND end_r.reading_month=(date_trunc('month',$3::date)+interval '1 month')::date
+         LEFT JOIN LATERAL (
+           SELECT r.odometer_meters
+           FROM vehicle_odometer_readings r
+           WHERE r.user_id=v.user_id AND r.vehicle_id=v.id
+             AND r.reading_date <= $2::date
+           ORDER BY r.reading_date DESC LIMIT 1
+         ) start_r ON true
+         LEFT JOIN LATERAL (
+           SELECT r.odometer_meters
+           FROM vehicle_odometer_readings r
+           WHERE r.user_id=v.user_id AND r.vehicle_id=v.id
+             AND r.reading_date >= $3::date
+           ORDER BY r.reading_date ASC LIMIT 1
+         ) end_r ON true
         WHERE v.user_id=$1 AND v.archived_at IS NULL`,
         [request.auth.userId, periodStart, periodEnd],
       ),
