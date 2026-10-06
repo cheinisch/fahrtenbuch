@@ -414,6 +414,16 @@ export function transferVehicle(accessToken, vehicleId, account, effectiveAt) {
   });
 }
 
+export function getArchivedVehicles(accessToken) {
+  return apiRequest(accessToken, "/api/v1/vehicles/archive");
+}
+
+export function restoreVehicle(accessToken, vehicleId) {
+  return apiRequest(accessToken, `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/restore`, {
+    method: "POST",
+  });
+}
+
 export function getVehicles(accessToken) {
   return apiRequest(accessToken, "/api/v1/vehicles");
 }
