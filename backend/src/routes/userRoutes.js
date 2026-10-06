@@ -371,6 +371,10 @@ userRoutes.patch(
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
 
+    if (body.language !== undefined && !["de","en",null].includes(body.language)) {
+      throw badRequest("VALIDATION_ERROR", "Die Spracheinstellung ist ungültig.");
+    }
+
     if (
       body.trackingAccuracyMode !== undefined &&
       !["high", "balanced", "battery"].includes(body.trackingAccuracyMode)
