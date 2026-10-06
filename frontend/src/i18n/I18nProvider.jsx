@@ -24,7 +24,7 @@ export function I18nProvider({children}){
      const params=paramsOrFallback&&typeof paramsOrFallback==="object"?paramsOrFallback:{};
      const fb=typeof paramsOrFallback==="string"?paramsOrFallback:fallback;
      const template=read(dictionaries[language],key)??read(de,key)??fb??key;
-     return typeof template==="string" ? template.replace(/\\{(\\w+)\\}/g,(_,name)=>params[name]??`{${name}}`) : template;
+     return typeof template==="string" ? template.replace(/\{(\w+)\}/g,(_,name)=>params[name]??`{${name}}`) : template;
    },
    number:(value,options)=>new Intl.NumberFormat(locale,options).format(value),
    date:(value,options)=>new Intl.DateTimeFormat(locale,options).format(value instanceof Date?value:new Date(value)),
