@@ -50,6 +50,10 @@ export function mapVehicle(row) {
     notes: row.notes ?? null,
     bluetoothMac: row.bluetooth_identifier ?? null,
     isDefault: Boolean(row.is_default),
+    isLeased: Boolean(row.is_leased),
+    leaseStartDate: row.lease_start_date ?? null,
+    leaseEndDate: row.lease_end_date ?? null,
+    leaseIncludedKm: row.lease_included_km == null ? null : Number(row.lease_included_km),
     isOwner: row.is_owner === undefined ? true : Boolean(row.is_owner),
     accessType: row.access_type ?? (row.is_owner === false ? "shared" : "owner"),
     owner: row.owner_display_name || row.owner_username
