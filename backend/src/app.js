@@ -8,6 +8,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 
 import { config } from "./config.js";
+import { pool } from "./database/pool.js";
 import { adminRoutes } from "./routes/adminRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { dashboardRoutes } from "./routes/dashboardRoutes.js";
@@ -134,6 +135,12 @@ const authLimiter = rateLimit({
   },
 });
 
+app.get("/api/v1/language", async (_request,response,next) => {
+  try {
+    const result=await pool.query(`SELECT value FROM app_settings WHERE key='ui.defaultLanguage' LIMIT 1`);
+    response.json({defaultLanguage:result.rows[0]?.value || "de",supportedLanguages:["de","en"]});
+  } catch(error){ next(error); }
+});
 app.use("/api/v1/health", healthRoutes);
 app.use("/api/v1/map", mapRoutes);
 app.use("/api/v1/auth", authLimiter, authRoutes);
