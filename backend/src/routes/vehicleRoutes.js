@@ -332,6 +332,8 @@ vehicleRoutes.get(
     const token=String(request.query.token || "");
     if(token.length<20) throw notFound("SHARE_INVITATION_NOT_FOUND","Die Einladung wurde nicht gefunden.");
     const hash=crypto.createHash("sha256").update(token).digest("hex");
+    await pool.query(`DELETE FROM vehicle_share_invitations
+      WHERE invitation_type='link' AND created_at <= now() - interval '7 days'`);
     const result=await pool.query(
       `SELECT i.id,i.status,i.expires_at,i.invitation_type,i.invited_user_id,
               v.name AS vehicle_name,u.display_name AS owner_display_name,u.username AS owner_username
@@ -339,7 +341,7 @@ vehicleRoutes.get(
        INNER JOIN vehicles v ON v.id=i.vehicle_id
        INNER JOIN users u ON u.id=i.invited_by_user_id
        WHERE i.token_hash=$1 LIMIT 1`,[hash]);
-    if(!result.rowCount) throw notFound("SHARE_INVITATION_NOT_FOUND","Die Einladung wurde nicht gefunden.");
+    if(!result.rowCount) throw notFound("SHARE_INVITATION_NOT_FOUND","Link ist unbekannt.");
     const row=result.rows[0];
     const expired=new Date(row.expires_at).getTime()<=Date.now();
     if(expired&&row.status==="pending") await pool.query(`UPDATE vehicle_share_invitations SET status='expired' WHERE id=$1`,[row.id]);
@@ -375,6 +377,8 @@ vehicleRoutes.post(
     const action=stringField(body,"action",{required:true,minimum:6,maximum:7});
     if(!["accept","decline"].includes(action)) throw badRequest("INVALID_SHARE_RESPONSE","Ungültige Antwort.");
     const hash=crypto.createHash("sha256").update(token).digest("hex");
+    await pool.query(`DELETE FROM vehicle_share_invitations
+      WHERE invitation_type='link' AND created_at <= now() - interval '7 days'`);
     const client=await pool.connect();
     try {
       await client.query("BEGIN");
