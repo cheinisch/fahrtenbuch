@@ -63,7 +63,14 @@ export default function Statistics() {
 
   async function saveReading(event) {
     event.preventDefault();
-    if (!vehicleId || !/^\\d{4}-\\d{2}$/.test(entryMonth)) return;
+    if (!vehicleId) {
+      setError("Bitte ein Fahrzeug auswählen.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}$/.test(entryMonth)) {
+      setError("Bitte einen gültigen Monat auswählen.");
+      return;
+    }
     const value = Number(String(entryKm).replace(",", "."));
     if (!Number.isFinite(value) || value < 0) {
       setError("Bitte einen gültigen Kilometerstand eingeben.");
