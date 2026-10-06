@@ -387,6 +387,20 @@ async function downloadRequest(accessToken, path) {
   };
 }
 
+export function deregisterVehicle(accessToken, vehicleId) {
+  return apiRequest(accessToken, `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/deregister`, {
+    method: "POST",
+    body: JSON.stringify({ confirmed: true }),
+  });
+}
+
+export function transferVehicle(accessToken, vehicleId, account, effectiveAt) {
+  return apiRequest(accessToken, `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/transfer`, {
+    method: "POST",
+    body: JSON.stringify({ account, effectiveAt }),
+  });
+}
+
 export function getVehicles(accessToken) {
   return apiRequest(accessToken, "/api/v1/vehicles");
 }
