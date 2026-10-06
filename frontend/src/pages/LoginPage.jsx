@@ -8,10 +8,12 @@ import {
 } from "../api/auth.js";
 import { authenticateWithPasskey } from "../lib/webauthn.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import { useI18n } from "../i18n/I18nProvider.jsx";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { signIn, completeSignIn } = useAuth();
+  const { t } = useI18n();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,13 +47,13 @@ export default function LoginPage() {
       ) {
         setTotpRequired(true);
         setErrorMessage(
-          "Bitte gib deinen Zwei-Faktor-Code ein.",
+          "t("login.mfaRequired")",
         );
       } else {
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : "Die Anmeldung ist fehlgeschlagen.",
+            : "t("login.failed")",
         );
       }
     } finally {
@@ -74,7 +76,7 @@ export default function LoginPage() {
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : "Die Passkey-Anmeldung ist fehlgeschlagen.",
+            : "t("login.passkeyFailed")",
         );
       }
     } finally {
@@ -87,7 +89,7 @@ export default function LoginPage() {
       <div className="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <h2 className="mt-6 text-center text-2xl/9 font-bold tracking-tight text-white">
-            Bei Fahrtenbuch anmelden
+            {t("login.title")}
           </h2>
         </div>
 
@@ -102,7 +104,7 @@ export default function LoginPage() {
                   htmlFor="email"
                   className="block text-sm/6 font-medium text-white"
                 >
-                  E-Mail-Adresse
+                  {t("login.email")}
                 </label>
 
                 <div className="mt-2">
@@ -127,7 +129,7 @@ export default function LoginPage() {
                   htmlFor="password"
                   className="block text-sm/6 font-medium text-white"
                 >
-                  Passwort
+                  {t("login.password")}
                 </label>
 
                 <div className="mt-2">
@@ -153,7 +155,7 @@ export default function LoginPage() {
                     htmlFor="totp-code"
                     className="block text-sm/6 font-medium text-white"
                   >
-                    Zwei-Faktor-Code
+                    {t("login.totp")}
                   </label>
 
                   <div className="mt-2">
@@ -225,7 +227,7 @@ export default function LoginPage() {
                     htmlFor="remember-me"
                     className="block text-sm/6 text-white"
                   >
-                    Angemeldet bleiben
+                    {t("login.remember")}
                   </label>
                 </div>
 
@@ -234,7 +236,7 @@ export default function LoginPage() {
                     href="#"
                     className="font-semibold text-fb-accent hover:text-fb-accent-secondary"
                   >
-                    Passwort vergessen?
+                    {t("login.password")} vergessen?
                   </a>
                 </div>
               </div>
@@ -255,8 +257,8 @@ export default function LoginPage() {
                   className="flex w-full justify-center rounded-md bg-fb-accent px-3 py-1.5 text-sm/6 font-semibold text-fb-accent-text hover:bg-fb-accent-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent-secondary disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {submitting
-                    ? "Anmeldung läuft …"
-                    : "Anmelden"}
+                    ? t("login.submitting")
+                    : t("login.submit")}
                 </button>
               </div>
             </form>
@@ -266,7 +268,7 @@ export default function LoginPage() {
                 <div className="w-full flex-1 border-t border-white/10" />
 
                 <p className="text-sm/6 font-medium text-nowrap text-white">
-                  Oder anmelden mit
+                  {t("login.or")}
                 </p>
 
                 <div className="w-full flex-1 border-t border-white/10" />
@@ -296,7 +298,7 @@ export default function LoginPage() {
                   </svg>
 
                   <span className="text-sm/6 font-semibold">
-                    Mit Passkey anmelden
+                    {t("login.passkey")}
                   </span>
                 </button>
               </div>
