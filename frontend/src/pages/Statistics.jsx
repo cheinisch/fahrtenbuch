@@ -30,14 +30,25 @@ function monthLabel(value) {
 
 
 function isoDate(date) {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function defaultChartRange() {
   const to = new Date();
-  const from = new Date(to);
-  from.setMonth(from.getMonth() - 3);
+  const from = new Date(to.getFullYear(), to.getMonth() - 3, to.getDate());
   return { from: isoDate(from), to: isoDate(to) };
+}
+
+function monthsForRange(fromValue, toValue) {
+  const from = new Date(`${fromValue}T00:00:00`);
+  const to = new Date(`${toValue}T00:00:00`);
+  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || from > to) return 18;
+  return Math.min(120, Math.max(1,
+    (to.getFullYear() - from.getFullYear()) * 12 + to.getMonth() - from.getMonth() + 2
+  ));
 }
 
 function StatisticsChart({ data }) {
@@ -124,10 +135,10 @@ export default function Statistics() {
       setIntervals([]);
       return;
     }
-    getOdometerIntervalStatistics(accessToken, vehicleId, 18)
+    getOdometerIntervalStatistics(accessToken, vehicleId, monthsForRange(chartFrom, chartTo))
       .then(setIntervals)
       .catch((loadError) => setError(loadError.message));
-  }, [accessToken, vehicleId, readings]);
+  }, [accessToken, vehicleId, readings, chartFrom, chartTo]);
 
   async function saveReading(event) {
     event.preventDefault();
