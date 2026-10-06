@@ -400,6 +400,13 @@ export function deregisterVehicle(accessToken, vehicleId) {
   });
 }
 
+export function registerVehicle(accessToken, vehicleId, effectiveAt) {
+  return apiRequest(accessToken, `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/register`, {
+    method: "POST",
+    body: JSON.stringify({ effectiveAt }),
+  });
+}
+
 export function transferVehicle(accessToken, vehicleId, account, effectiveAt) {
   return apiRequest(accessToken, `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/transfer`, {
     method: "POST",
