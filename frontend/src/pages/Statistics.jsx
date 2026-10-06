@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getMonthlyOdometerStatistics } from "../api/app.js";
+import { getMonthlyOdometerStatistics, getOdometerReadings, saveMonthlyOdometerReading } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 
 const labels = {
@@ -33,19 +33,56 @@ export default function Statistics() {
   const [vehicleId, setVehicleId] = useState("");
   const [month, setMonth] = useState("");
   const [error, setError] = useState("");
+  const [readings, setReadings] = useState([]);
+  const [entryMonth, setEntryMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [entryKm, setEntryKm] = useState("");
+  const [savingReading, setSavingReading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function loadData() {
+    try {
+      const [result, readingRows] = await Promise.all([
+        getMonthlyOdometerStatistics(accessToken, 18),
+        getOdometerReadings(accessToken),
+      ]);
+      setRows(result);
+      setReadings(readingRows);
+      const latestComplete = result.find((row) => row.actualKm != null) || result[0];
+      if (latestComplete && !vehicleId) {
+        setVehicleId(latestComplete.vehicleId);
+        setMonth(latestComplete.month);
+      }
+    } catch (loadError) {
+      setError(loadError.message);
+    }
+  }
 
   useEffect(() => {
-    getMonthlyOdometerStatistics(accessToken, 18)
-      .then((result) => {
-        setRows(result);
-        const latestComplete = result.find((row) => row.actualKm != null) || result[0];
-        if (latestComplete) {
-          setVehicleId(latestComplete.vehicleId);
-          setMonth(latestComplete.month);
-        }
-      })
-      .catch((loadError) => setError(loadError.message));
+    loadData();
   }, [accessToken]);
+
+  async function saveReading(event) {
+    event.preventDefault();
+    if (!vehicleId || !/^\\d{4}-\\d{2}$/.test(entryMonth)) return;
+    const value = Number(String(entryKm).replace(",", "."));
+    if (!Number.isFinite(value) || value < 0) {
+      setError("Bitte einen gültigen Kilometerstand eingeben.");
+      return;
+    }
+    setSavingReading(true);
+    setError("");
+    setMessage("");
+    try {
+      await saveMonthlyOdometerReading(accessToken, vehicleId, entryMonth, value);
+      setMessage(`Kilometerstand für ${monthLabel(entryMonth)} wurde gespeichert.`);
+      setEntryKm("");
+      await loadData();
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setSavingReading(false);
+    }
+  }
 
   const vehicles = useMemo(() => Array.from(
     new Map(rows.map((row) => [row.vehicleId, row.vehicleName])).entries(),
@@ -74,6 +111,18 @@ export default function Statistics() {
         </p>
       </div>
       {error && <div className="rounded-lg border border-fb-danger p-4 text-sm text-fb-danger">{error}</div>}
+      {message && <div className="rounded-lg border border-fb-accent bg-fb-accent-soft p-4 text-sm text-fb-accent">{message}</div>}
+      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+        <h2 className="text-lg font-bold">Kilometerstand nachtragen</h2>
+        <p className="mt-1 text-sm text-fb-muted">Monatliche Kilometerstände können für vergangene Monate nachgetragen oder korrigiert werden. Die Reihenfolge zu vorherigen und folgenden Messwerten wird geprüft.</p>
+        <form onSubmit={saveReading} className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_170px_180px_auto] sm:items-end">
+          <label className="text-sm"><span className="mb-1 block text-fb-muted">Fahrzeug</span><select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2">{vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+          <label className="text-sm"><span className="mb-1 block text-fb-muted">Monat</span><input type="month" value={entryMonth} max={new Date().toISOString().slice(0, 7)} onChange={(e) => setEntryMonth(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
+          <label className="text-sm"><span className="mb-1 block text-fb-muted">Kilometerstand</span><div className="flex items-center gap-2"><input inputMode="decimal" value={entryKm} onChange={(e) => setEntryKm(e.target.value)} placeholder="z. B. 82450" className="min-w-0 w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /><span className="text-fb-muted">km</span></div></label>
+          <button type="submit" disabled={savingReading || !vehicleId || !entryMonth || !entryKm} className="rounded-lg bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{savingReading ? "Speichert …" : "Speichern"}</button>
+        </form>
+        {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <div className="mt-5 border-t border-fb-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-fb-muted">Vorhandene Monatsstände</p><div className="mt-2 flex flex-wrap gap-2">{readings.filter((r) => r.vehicleId === vehicleId).slice(0, 12).map((r) => <button key={r.id} type="button" onClick={() => { setEntryMonth(r.month); setEntryKm(String(r.odometerKm)); }} className="rounded-lg border border-fb-border px-3 py-2 text-left text-sm hover:border-fb-accent"><span className="font-semibold">{monthLabel(r.month)}</span><span className="ml-2 text-fb-muted">{km(r.odometerKm)}</span></button>)}</div></div>}
+      </section>
       <div className="flex flex-wrap gap-3">
         <select value={vehicleId} onChange={(e) => { setVehicleId(e.target.value); setMonth(""); }} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2">
           {vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
