@@ -47,13 +47,13 @@ export default function LoginPage() {
       ) {
         setTotpRequired(true);
         setErrorMessage(
-          "t("login.mfaRequired")",
+          t("login.mfaRequired"),
         );
       } else {
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : "t("login.failed")",
+            : t("login.failed"),
         );
       }
     } finally {
@@ -76,7 +76,7 @@ export default function LoginPage() {
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : "t("login.passkeyFailed")",
+            : t("login.passkeyFailed"),
         );
       }
     } finally {
