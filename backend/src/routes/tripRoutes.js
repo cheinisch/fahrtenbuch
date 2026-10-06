@@ -263,6 +263,7 @@ tripRoutes.post(
           client,
           request.auth.userId,
           input.vehicleId,
+          input.startedAt,
         ))
       ) {
         throw badRequest(
@@ -893,6 +894,7 @@ tripRoutes.put(
           client,
           request.auth.userId,
           input.vehicleId,
+          input.startedAt,
         ))
       ) {
         throw badRequest(
