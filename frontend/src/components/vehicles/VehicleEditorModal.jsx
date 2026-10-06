@@ -85,7 +85,7 @@ export default function VehicleEditorModal({
       return;
     }
     if (contractStarted && form.leaseEndDate <= form.leaseStartDate) {
-      setError("Das {t("vehicleEditor.contractEnd")} muss nach dem {t("vehicleEditor.contractStart")} liegen.");
+      setError(t("vehicleEditor.contractDateOrder"));
       return;
     }
 
