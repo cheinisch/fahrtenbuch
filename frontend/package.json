@@ -1,6 +1,6 @@
 {
   "name": "@fahrtenbuch/frontend",
-  "version": "0.2.7-dev.25",
+  "version": "0.2.7-dev.26",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,5 +25,5 @@
     "tailwindcss": "^4.3.3",
     "vite": "^7.1.3"
   },
-  "build": 25
+  "build": 26
 }
