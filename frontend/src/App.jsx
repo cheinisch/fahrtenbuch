@@ -16,6 +16,7 @@ import ProfileSettings from "./pages/ProfileSettings.jsx";
 import Settings from "./pages/Settings.jsx";
 import Statistics from "./pages/Statistics.jsx";
 import Vehicles from "./pages/Vehicles.jsx";
+import ShareInvitation from "./pages/ShareInvitation.jsx";
 
 function LoginRoute() {
   const { isAuthenticated, loading } = useAuth();
@@ -49,6 +50,10 @@ export default function App() {
           <Route
             path="/vehicles"
             element={<Vehicles />}
+          />
+          <Route
+            path="/share-invitation"
+            element={<ShareInvitation />}
           />
 
           <Route
