@@ -258,12 +258,22 @@ statisticsRoutes.get(
         end_r.odometer_meters AS end_odometer_meters
       FROM vehicle_months vm
       LEFT JOIN distances d ON d.vehicle_id = vm.vehicle_id AND d.month = vm.month
-      LEFT JOIN vehicle_odometer_readings start_r
-        ON start_r.user_id = $1 AND start_r.vehicle_id = vm.vehicle_id
-       AND start_r.reading_month = (vm.month - interval '1 month')::date
-      LEFT JOIN vehicle_odometer_readings end_r
-        ON end_r.user_id = $1 AND end_r.vehicle_id = vm.vehicle_id
-       AND end_r.reading_month = vm.month
+      LEFT JOIN LATERAL (
+        SELECT r.odometer_meters
+        FROM vehicle_odometer_readings r
+        WHERE r.user_id = $1 AND r.vehicle_id = vm.vehicle_id
+          AND r.reading_date < vm.month
+        ORDER BY r.reading_date DESC
+        LIMIT 1
+      ) start_r ON true
+      LEFT JOIN LATERAL (
+        SELECT r.odometer_meters
+        FROM vehicle_odometer_readings r
+        WHERE r.user_id = $1 AND r.vehicle_id = vm.vehicle_id
+          AND r.reading_date < (vm.month + interval '1 month')::date
+        ORDER BY r.reading_date DESC
+        LIMIT 1
+      ) end_r ON true
       ORDER BY vm.month DESC, lower(vm.vehicle_name)
       `,
       [request.auth.userId, months],
@@ -277,7 +287,7 @@ statisticsRoutes.get(
       return {
         vehicleId: row.vehicle_id,
         vehicleName: row.vehicle_name,
-        month: String(row.month).slice(0, 7),
+        month: new Date(row.month).toISOString().slice(0, 7),
         actualKm: actual == null ? null : actual / 1000,
         trackedKm: tracked / 1000,
         businessKm: Number(row.business_meters || 0) / 1000,
