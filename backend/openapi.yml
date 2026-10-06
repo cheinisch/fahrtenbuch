@@ -706,6 +706,151 @@ paths:
       summary: Dashboarddaten abrufen
       responses:
         '200': { description: Dashboarddaten }
+  /language:
+    get:
+      tags: [System]
+      summary: Öffentliche Sprachkonfiguration abrufen
+      security: []
+      responses:
+        '200':
+          description: Standardsprache und unterstützte Sprachen
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [defaultLanguage, supportedLanguages]
+                properties:
+                  defaultLanguage: { type: string, enum: [de, en] }
+                  supportedLanguages:
+                    type: array
+                    items: { type: string, enum: [de, en] }
+
+  /vehicles/{id}/shared-trip-activity:
+    get:
+      tags: [Vehicles]
+      summary: Fahrtenaktivität geteilter Benutzer für ein eigenes Fahrzeug abrufen
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Aggregierte Fahrtenaktivität }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /vehicles/{id}/shares:
+    get:
+      tags: [Vehicles]
+      summary: Bestätigte Fahrzeugfreigaben auflisten
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Bestätigte Freigaben }
+    post:
+      tags: [Vehicles]
+      summary: Fahrzeugfreigabe per E-Mail einladen
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202': { description: Einladung versendet }
+  /vehicles/{id}/shares/{userId}:
+    delete:
+      tags: [Vehicles]
+      summary: Fahrzeugfreigabe entziehen
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Freigabe entfernt }
+  /vehicles/{id}/share-link:
+    post:
+      tags: [Vehicles]
+      summary: Einmaligen Fahrzeug-Freigabelink erstellen
+      description: Der Link ist 24 Stunden gültig. Nach sieben Tagen wird der Einladungsdatensatz gelöscht.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '201':
+          description: Freigabelink erstellt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expiresAt]
+                properties:
+                  url: { type: string, format: uri }
+                  expiresAt: { type: string, format: date-time }
+  /vehicles/share-invitations/inspect:
+    get:
+      tags: [Vehicles]
+      summary: Fahrzeugfreigabe-Einladung prüfen
+      parameters:
+        - { name: token, in: query, required: true, schema: { type: string, minLength: 20 } }
+      responses:
+        '200': { description: Status und Metadaten der Einladung }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /vehicles/share-invitations/pending:
+    get:
+      tags: [Vehicles]
+      summary: Eigene ausstehende E-Mail-Freigaben abrufen
+      responses:
+        '200': { description: Ausstehende Einladungen }
+  /vehicles/share-invitations/respond:
+    post:
+      tags: [Vehicles]
+      summary: Fahrzeugfreigabe annehmen oder ablehnen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, action]
+              properties:
+                token: { type: string, minLength: 20 }
+                action: { type: string, enum: [accept, decline] }
+      responses:
+        '200': { description: Einladung beantwortet }
+        '410': { description: Einladung abgelaufen }
+  /vehicles/{id}/deregister:
+    post:
+      tags: [Vehicles]
+      summary: Eigenes Fahrzeug dauerhaft abmelden
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Fahrzeug abgemeldet }
+  /vehicles/{id}/transfer:
+    post:
+      tags: [Vehicles]
+      summary: Fahrzeugbesitz an einen anderen Benutzer übertragen
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account, transferAt]
+              properties:
+                account: { type: string }
+                transferAt: { type: string, format: date-time }
+      responses:
+        '200': { description: Besitzerwechsel gespeichert }
+
+  /odometer:
+    get:
+      tags: [Vehicles]
+      summary: Gespeicherte Kilometerstand-Ablesungen abrufen
+      responses:
+        '200': { description: Kilometerstand-Ablesungen }
+
   /odometer/pending:
     get:
       tags: [Vehicles]
@@ -840,6 +985,29 @@ paths:
       summary: Zeitraum revisionssicher abschließen
       responses:
         '201': { description: Zeitraum abgeschlossen }
+
+  /compliance/checks:
+    get:
+      tags: [Trips]
+      summary: Plausibilitäts- und Vollständigkeitsprüfungen abrufen
+      responses:
+        '200': { description: Prüfzusammenfassung, Integrität und Auffälligkeiten }
+
+  /places/{id}:
+    put:
+      tags: [Places]
+      summary: Gespeicherten Ort aktualisieren
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Ort aktualisiert }
+    delete:
+      tags: [Places]
+      summary: Gespeicherten Ort löschen
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Ort gelöscht }
 
   /export/summary:
     get:
@@ -1462,6 +1630,17 @@ components:
  }
       responses:
         '200': { description: Kilometerstand gespeichert }
+  /statistics/odometer-intervals:
+    get:
+      tags: [Statistics]
+      summary: Genauigkeit zwischen Kilometerstand-Ablesungen auswerten
+      parameters:
+        - { name: vehicleId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Kilometer- und Fahrtenwerte je Ableseintervall }
+
   /statistics/monthly-odometer:
     get:
       tags: [Statistics]
@@ -1498,6 +1677,33 @@ components:
       summary: Ort für Klassifizierungsvorschläge speichern
       responses:
         '201': { description: Ort gespeichert }
+  /trips/{id}/assignable-drivers:
+    get:
+      tags: [Trips]
+      summary: Zulässige Fahrer für die Zuordnung einer Fahrt abrufen
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Zulässige Fahrer und Rückgabeoptionen }
+  /trips/{id}/assign-driver:
+    post:
+      tags: [Trips]
+      summary: Fahrt einem Fahrer zuweisen oder an den Fahrzeugbesitzer zurückgeben
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: string, format: uuid }
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200': { description: Fahrerzuordnung aktualisiert }
+
   /trips/{id}/suggestions:
     get:
       tags: [Trips]
