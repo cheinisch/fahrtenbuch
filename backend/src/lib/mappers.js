@@ -170,6 +170,9 @@ export function mapTrip(row) {
         ? null
         : Number(row.duration_seconds),
     source: row.source ?? undefined,
+    reconciliationStatus: row.reconciliation_status ?? "canonical",
+    canonicalTripId: row.canonical_trip_id ?? null,
+    reconciliationMetadata: row.reconciliation_metadata ?? {},
     version: row.version === undefined ? undefined : Number(row.version),
     tags,
     createdAt: row.created_at,
