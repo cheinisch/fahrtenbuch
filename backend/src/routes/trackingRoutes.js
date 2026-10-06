@@ -24,6 +24,7 @@ import {
   recalculateTripMetrics,
   replaceTripTags,
 } from "../services/tripService.js";
+import { reconcileCompletedTracking } from "../services/trackingReconciliationService.js";
 
 export const trackingRoutes = Router();
 
@@ -99,6 +100,7 @@ trackingRoutes.post(
           client,
           request.auth.userId,
           vehicleId,
+          startedAt,
         ))
       ) {
         throw badRequest(
@@ -392,8 +394,12 @@ trackingRoutes.post(
         [tripId, request.auth.userId, endedAt],
       );
 
+      const reconciliation = await reconcileCompletedTracking(client, tripId);
       await client.query("COMMIT");
-      response.json(mapTrip(result.rows[0]));
+      response.json({
+        ...mapTrip(result.rows[0]),
+        reconciliation,
+      });
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
