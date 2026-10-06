@@ -22,7 +22,7 @@ function initialState(vehicle) {
     bluetoothMac: vehicle?.bluetoothMac || "",
     notes: vehicle?.notes || "",
     isDefault: Boolean(vehicle?.isDefault),
-    isLeased: Boolean(vehicle?.isLeased),
+    acquisitionType: vehicle?.acquisitionType || (vehicle?.isLeased ? "leasing" : "owned"),
     leaseStartDate: vehicle?.leaseStartDate?.slice?.(0, 10) || "",
     leaseEndDate: vehicle?.leaseEndDate?.slice?.(0, 10) || "",
     leaseIncludedKm: vehicle?.leaseIncludedKm ?? "",
@@ -71,17 +71,18 @@ export default function VehicleEditorModal({
       bluetoothMac: form.bluetoothMac.trim() || null,
       notes: form.notes.trim() || null,
       isDefault: form.isDefault,
-      isLeased: form.isLeased,
-      leaseStartDate: form.isLeased ? form.leaseStartDate : null,
-      leaseEndDate: form.isLeased ? form.leaseEndDate : null,
-      leaseIncludedKm: form.isLeased && form.leaseIncludedKm !== "" ? Number(form.leaseIncludedKm) : null,
+      acquisitionType: form.acquisitionType,
+      leaseStartDate: form.acquisitionType !== "owned" && form.leaseStartDate ? form.leaseStartDate : null,
+      leaseEndDate: form.acquisitionType !== "owned" && form.leaseEndDate ? form.leaseEndDate : null,
+      leaseIncludedKm: form.acquisitionType !== "owned" && form.leaseIncludedKm !== "" ? Number(form.leaseIncludedKm) : null,
     };
 
-    if (form.isLeased && (!form.leaseStartDate || !form.leaseEndDate || !payload.leaseIncludedKm)) {
-      setError("Bitte Vertragsbeginn, Vertragsende und Inklusivkilometer vollständig angeben.");
+    const contractStarted = form.acquisitionType !== "owned" && (form.leaseStartDate || form.leaseEndDate || form.leaseIncludedKm !== "");
+    if (contractStarted && (!form.leaseStartDate || !form.leaseEndDate || !payload.leaseIncludedKm)) {
+      setError("Für die Kilometerprognose bitte Vertragsbeginn, Vertragsende und Kilometerlimit vollständig angeben.");
       return;
     }
-    if (form.isLeased && form.leaseEndDate <= form.leaseStartDate) {
+    if (contractStarted && form.leaseEndDate <= form.leaseStartDate) {
       setError("Das Vertragsende muss nach dem Vertragsbeginn liegen.");
       return;
     }
@@ -132,15 +133,21 @@ export default function VehicleEditorModal({
                   <label className="text-sm font-medium">Bluetooth-MAC<input value={form.bluetoothMac} onChange={(e) => update("bluetoothMac", e.target.value)} maxLength={64} className={fieldClass} placeholder="AA:BB:CC:DD:EE:FF" /></label>
                 </div>
                 <div className="rounded-xl border border-fb-border bg-fb-surface p-4">
-                  <label className="flex items-start gap-3">
-                    <input type="checkbox" checked={form.isLeased} onChange={(e) => update("isLeased", e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-accent)]" />
-                    <span><span className="block text-sm font-semibold">Leasingfahrzeug</span><span className="mt-1 block text-xs text-fb-muted">Vertragslaufzeit und Inklusivkilometer für die Kilometerprognose hinterlegen.</span></span>
+                  <label className="block text-sm font-semibold">Finanzierungsart
+                    <select value={form.acquisitionType} onChange={(e) => update("acquisitionType", e.target.value)} className={fieldClass}>
+                      <option value="owned">Eigentum / keine Finanzierung</option>
+                      <option value="leasing">Leasing</option>
+                      <option value="financing">Finanzierung</option>
+                    </select>
                   </label>
-                  {form.isLeased && <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                    <label className="text-sm font-medium">Vertragsbeginn<input type="date" value={form.leaseStartDate} onChange={(e) => update("leaseStartDate", e.target.value)} className={fieldClass} required /></label>
-                    <label className="text-sm font-medium">Vertragsende<input type="date" value={form.leaseEndDate} min={form.leaseStartDate || undefined} onChange={(e) => update("leaseEndDate", e.target.value)} className={fieldClass} required /></label>
-                    <label className="text-sm font-medium">Inklusivkilometer<input type="number" min="1" step="1" value={form.leaseIncludedKm} onChange={(e) => update("leaseIncludedKm", e.target.value)} className={fieldClass} placeholder="z. B. 60000" required /></label>
-                  </div>}
+                  {form.acquisitionType !== "owned" && <>
+                    <p className="mt-3 text-xs text-fb-muted">Vertragsdaten sind optional. Wenn Laufzeit und Kilometerlimit hinterlegt werden, kann die Statistik die Fahrleistung prognostizieren.</p>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                      <label className="text-sm font-medium">Vertragsbeginn<input type="date" value={form.leaseStartDate} onChange={(e) => update("leaseStartDate", e.target.value)} className={fieldClass} /></label>
+                      <label className="text-sm font-medium">Vertragsende<input type="date" value={form.leaseEndDate} min={form.leaseStartDate || undefined} onChange={(e) => update("leaseEndDate", e.target.value)} className={fieldClass} /></label>
+                      <label className="text-sm font-medium">Kilometerlimit<input type="number" min="1" step="1" value={form.leaseIncludedKm} onChange={(e) => update("leaseIncludedKm", e.target.value)} className={fieldClass} placeholder="z. B. 60000" /></label>
+                    </div>
+                  </>}
                 </div>
                 <label className="block text-sm font-medium">Notizen<textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3} className={fieldClass} /></label>
                 <label className="flex items-start gap-3 rounded-lg border border-fb-border bg-fb-surface p-4">
