@@ -182,7 +182,8 @@ vehicleRoutes.get(
         INNER JOIN users owner ON owner.id = v.user_id
         WHERE v.archived_at IS NULL
           AND (
-            EXISTS (
+            v.user_id = $1
+            OR EXISTS (
               SELECT 1 FROM vehicle_ownership_periods p
               WHERE p.vehicle_id = v.id AND p.user_id = $1
                 AND now() >= p.valid_from AND (p.valid_to IS NULL OR now() < p.valid_to)
