@@ -108,7 +108,6 @@ dashboardRoutes.get(
             FROM trips t
             INNER JOIN vehicles v
               ON v.id = t.vehicle_id
-              AND v.user_id = t.user_id
             LEFT JOIN trip_tags tt
               ON tt.trip_id = t.id
               AND tt.user_id = t.user_id
