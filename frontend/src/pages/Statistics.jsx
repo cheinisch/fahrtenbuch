@@ -136,7 +136,7 @@ export default function Statistics() {
       setIntervals([]);
       return;
     }
-    getOdometerIntervalStatistics(accessToken, vehicleId, `${chartYear}-01-01`, `${chartYear}-12-31`)
+    getOdometerIntervalStatistics(accessToken, vehicleId, `${chartYear}-01-01`, `${Number(chartYear) + 1}-01-01`)
       .then(setIntervals)
       .catch((loadError) => setError(loadError.message));
   }, [accessToken, vehicleId, readings, chartYear]);
