@@ -17,6 +17,18 @@ function monthValue(value) {
   return `${month}-01`;
 }
 
+function readingDateValue(value, readingMonth) {
+  if (value == null || value === "") return readingMonth;
+  const date = String(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
+    throw badRequest("VALIDATION_ERROR", "readingDate muss YYYY-MM-DD entsprechen.");
+  }
+  if (date.slice(0, 7) !== readingMonth.slice(0, 7)) {
+    throw badRequest("VALIDATION_ERROR", "Das Ablesedatum muss im ausgewählten Monat liegen.");
+  }
+  return date;
+}
+
 odometerRoutes.get(
   "/pending",
   asyncHandler(async (request, response) => {
@@ -68,6 +80,7 @@ odometerRoutes.get(
   asyncHandler(async (request, response) => {
     const result = await pool.query(
       `SELECT r.id, r.vehicle_id, v.name AS vehicle_name, to_char(r.reading_month, 'YYYY-MM') AS reading_month,
+              to_char(r.reading_date, 'YYYY-MM-DD') AS reading_date,
               r.odometer_meters, r.source, r.recorded_at
          FROM vehicle_odometer_readings r
          JOIN vehicles v ON v.id = r.vehicle_id AND v.user_id = r.user_id
@@ -80,6 +93,7 @@ odometerRoutes.get(
       vehicleId: row.vehicle_id,
       vehicleName: row.vehicle_name,
       month: row.reading_month,
+      readingDate: row.reading_date,
       odometerKm: Number(row.odometer_meters) / 1000,
       source: row.source,
       recordedAt: row.recorded_at,
@@ -92,6 +106,7 @@ odometerRoutes.put(
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.vehicleId);
     const readingMonth = monthValue(request.params.month);
+    const readingDate = readingDateValue(request.body?.readingDate, readingMonth);
     const odometerKm = Number(request.body?.odometerKm);
     if (!Number.isFinite(odometerKm) || odometerKm < 0 || odometerKm > 10000000) {
       throw badRequest("VALIDATION_ERROR", "Der Kilometerstand ist ungültig.");
@@ -129,13 +144,16 @@ odometerRoutes.put(
 
     const result = await pool.query(
       `INSERT INTO vehicle_odometer_readings
-        (user_id, vehicle_id, reading_month, odometer_meters, source, recorded_at)
-       VALUES ($1, $2, $3, $4, 'manual', now())
+        (user_id, vehicle_id, reading_month, reading_date, odometer_meters, source, recorded_at)
+       VALUES ($1, $2, $3, $4, $5, 'manual', now())
        ON CONFLICT (user_id, vehicle_id, reading_month)
-       DO UPDATE SET odometer_meters = EXCLUDED.odometer_meters,
+       DO UPDATE SET reading_date = EXCLUDED.reading_date,
+                     odometer_meters = EXCLUDED.odometer_meters,
                      source = 'manual', recorded_at = now()
-       RETURNING id, vehicle_id, to_char(reading_month, 'YYYY-MM') AS reading_month, odometer_meters, source, recorded_at`,
-      [request.auth.userId, vehicleId, readingMonth, odometerMeters],
+       RETURNING id, vehicle_id, to_char(reading_month, 'YYYY-MM') AS reading_month,
+                 to_char(reading_date, 'YYYY-MM-DD') AS reading_date,
+                 odometer_meters, source, recorded_at`,
+      [request.auth.userId, vehicleId, readingMonth, readingDate, odometerMeters],
     );
 
     const row = result.rows[0];
@@ -143,6 +161,7 @@ odometerRoutes.put(
       id: row.id,
       vehicleId: row.vehicle_id,
       month: row.reading_month,
+      readingDate: row.reading_date,
       odometerKm: Number(row.odometer_meters) / 1000,
       source: row.source,
       recordedAt: row.recorded_at,
