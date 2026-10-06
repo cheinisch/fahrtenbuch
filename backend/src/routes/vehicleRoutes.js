@@ -748,6 +748,61 @@ vehicleRoutes.post(
 );
 
 vehicleRoutes.post(
+  "/:id/register",
+  asyncHandler(async (request, response) => {
+    const vehicleId = uuidValue(request.params.id);
+    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
+    if (!vehicle) throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    if (!vehicle.deregistered_at) {
+      throw conflict("VEHICLE_ALREADY_REGISTERED", "Das Fahrzeug ist bereits angemeldet.");
+    }
+
+    const body = objectBody(request.body);
+    const effectiveAtRaw = body.effectiveAt == null
+      ? new Date().toISOString()
+      : stringField(body, "effectiveAt", { required: true, maximum: 40 });
+    const effectiveAt = new Date(effectiveAtRaw);
+    if (Number.isNaN(effectiveAt.getTime())) {
+      throw badRequest("INVALID_REGISTRATION_DATE", "Der Anmeldezeitpunkt ist ungültig.");
+    }
+    if (effectiveAt < new Date(vehicle.deregistered_at)) {
+      throw badRequest("INVALID_REGISTRATION_DATE", "Die Wiederanmeldung darf nicht vor der Abmeldung liegen.");
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const current = await client.query(
+        `SELECT id FROM vehicle_ownership_periods
+         WHERE vehicle_id=$1 AND valid_to IS NULL
+         LIMIT 1 FOR UPDATE`,
+        [vehicleId],
+      );
+      if (current.rowCount) {
+        throw conflict("VEHICLE_ALREADY_REGISTERED", "Für das Fahrzeug besteht bereits eine aktive Besitzperiode.");
+      }
+      await client.query(
+        `INSERT INTO vehicle_ownership_periods (vehicle_id,user_id,valid_from,created_by_user_id)
+         VALUES ($1,$2,$3,$2)`,
+        [vehicleId, request.auth.userId, effectiveAt],
+      );
+      await client.query(
+        `UPDATE vehicles SET deregistered_at=NULL WHERE id=$1 AND user_id=$2 AND archived_at IS NULL`,
+        [vehicleId, request.auth.userId],
+      );
+      await client.query("COMMIT");
+      const updated = await loadVehicle(request.auth.userId, vehicleId);
+      response.json(mapVehicle(updated));
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+vehicleRoutes.post(
   "/:id/transfer",
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.id);
