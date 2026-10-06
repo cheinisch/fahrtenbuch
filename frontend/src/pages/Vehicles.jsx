@@ -21,6 +21,7 @@ import {
   revokeVehicleShare,
   setDefaultVehicle,
   shareVehicle,
+  createVehicleShareLink,
   updateVehicle,
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
@@ -45,6 +46,7 @@ export default function Vehicles() {
   const [sharedActivity, setSharedActivity] = useState([]);
   const [shareEmail, setShareAccount] = useState("");
   const [shareSaving, setShareSaving] = useState(false);
+  const [shareLink, setShareLink] = useState(null);
   const [lifecycleVehicle, setLifecycleVehicle] = useState(null);
   const [lifecycleMode, setLifecycleMode] = useState(null);
   const [lifecycleSaving, setLifecycleSaving] = useState(false);
@@ -93,6 +95,7 @@ export default function Vehicles() {
     setError("");
     setSharingVehicle(vehicle);
     setShareAccount("");
+    setShareLink(null);
     try {
       const [shareRows, activityRows] = await Promise.all([
         getVehicleShares(accessToken, vehicle.id),
@@ -121,6 +124,23 @@ export default function Vehicles() {
     } finally {
       setShareSaving(false);
     }
+  }
+
+  async function generateShareLink() {
+    if (!sharingVehicle) return;
+    setShareSaving(true); setError("");
+    try {
+      const result=await createVehicleShareLink(accessToken,sharingVehicle.id);
+      setShareLink(result);
+      setMessage("Freigabelink erstellt. Er ist 24 Stunden gültig.");
+    } catch(actionError){ setError(actionError.message); }
+    finally { setShareSaving(false); }
+  }
+
+  async function copyShareLink() {
+    if (!shareLink?.url) return;
+    try { await navigator.clipboard.writeText(shareLink.url); setMessage("Freigabelink wurde kopiert."); }
+    catch { setError("Der Freigabelink konnte nicht in die Zwischenablage kopiert werden."); }
   }
 
   async function removeShare(entry) {
@@ -211,10 +231,23 @@ export default function Vehicles() {
               <div><h2 className="text-xl font-bold">Fahrzeug teilen</h2><p className="mt-1 text-sm text-fb-muted">{sharingVehicle.name}</p></div>
               <button type="button" onClick={() => setSharingVehicle(null)} className="rounded-lg p-2 text-fb-muted hover:text-fb-text"><XMarkIcon className="size-5" /></button>
             </div>
-            <form onSubmit={addShare} className="mt-5 flex gap-2">
-              <input value={shareEmail} onChange={(event) => setShareAccount(event.target.value)} placeholder="E-Mail-Adresse" className="min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm" />
+            <div className="mt-5 rounded-lg border border-fb-border p-3">
+              <p className="text-sm font-semibold">Mit E-Mail-Adresse</p>
+              <p className="mt-1 text-xs text-fb-muted">Der Benutzer erhält eine Einladung und erscheint erst nach Annahme unter „geteilt mit“.</p>
+            </div>
+            <form onSubmit={addShare} className="mt-3 flex gap-2">
+              <input type="email" value={shareEmail} onChange={(event) => setShareAccount(event.target.value)} placeholder="E-Mail-Adresse" className="min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm" />
               <button disabled={shareSaving || !shareEmail.trim()} className="rounded-lg bg-fb-accent px-4 py-2 text-sm font-semibold text-fb-accent-text disabled:opacity-50">Teilen</button>
             </form>
+            <div className="mt-5 rounded-lg border border-fb-border p-3">
+              <p className="text-sm font-semibold">Mit Freigabelink</p>
+              <p className="mt-1 text-xs text-fb-muted">Keine E-Mail-Adresse nötig. Der Link kann einmal angenommen werden und läuft nach 24 Stunden automatisch ab.</p>
+              <button type="button" disabled={shareSaving} onClick={generateShareLink} className="mt-3 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent disabled:opacity-50">{shareLink ? "Neuen Link erstellen" : "Freigabelink erstellen"}</button>
+              {shareLink && <div className="mt-3 rounded-lg bg-fb-surface p-3">
+                <div className="break-all font-mono text-xs">{shareLink.url}</div>
+                <div className="mt-2 flex items-center justify-between gap-3"><span className="text-xs text-fb-muted">Gültig bis {new Date(shareLink.expiresAt).toLocaleString("de-DE")}</span><button type="button" onClick={copyShareLink} className="text-sm font-semibold text-fb-accent">Kopieren</button></div>
+              </div>}
+            </div>
             {sharedActivity.length > 0 && <div className="mt-5 rounded-lg border border-fb-border p-3"><p className="text-xs font-semibold uppercase tracking-wide text-fb-muted">Nutzung durch andere Benutzer</p><div className="mt-2 space-y-1">{sharedActivity.map((entry) => <div key={entry.userId} className="flex justify-between gap-3 text-sm"><span>{entry.label}</span><span className="font-semibold">{entry.tripCount}</span></div>)}</div><p className="mt-2 text-xs text-fb-muted">Aus Datenschutzgründen werden keine Ziele, Routen oder Fahrtdetails anderer Benutzer angezeigt.</p></div>}
             <div className="mt-5 space-y-2">
               {shares.length === 0 ? <p className="text-sm text-fb-muted">Noch mit niemandem geteilt.</p> : shares.map((entry) => (
