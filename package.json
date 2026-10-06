@@ -1,6 +1,6 @@
 {
   "name": "fahrtenbuch",
-  "version": "0.2.7-dev.24",
+  "version": "0.2.7-dev.25",
   "private": true,
   "license": "AGPL-3.0-only",
   "author": "Christian Heinisch",
@@ -26,5 +26,5 @@
     "concurrently": "^9.2.0",
     "rimraf": "^6.0.1"
   },
-  "build": 24
+  "build": 25
 }
