@@ -147,12 +147,18 @@ vehicleRoutes.get(
         INNER JOIN users owner ON owner.id = v.user_id
         WHERE v.archived_at IS NULL
           AND (
-            v.user_id = $1
+            EXISTS (
+              SELECT 1 FROM vehicle_ownership_periods p
+              WHERE p.vehicle_id = v.id AND p.user_id = $1
+                AND now() >= p.valid_from AND (p.valid_to IS NULL OR now() < p.valid_to)
+            )
             OR EXISTS (
-              SELECT 1
-              FROM vehicle_shares vs
-              WHERE vs.vehicle_id = v.id
-                AND vs.user_id = $1
+              SELECT 1 FROM vehicle_shares vs
+              WHERE vs.vehicle_id = v.id AND vs.user_id = $1
+            )
+            OR EXISTS (
+              SELECT 1 FROM trips t
+              WHERE t.vehicle_id = v.id AND t.user_id = $1 AND t.archived_at IS NULL
             )
           )
         ORDER BY (v.user_id = $1) DESC, v.is_default DESC, lower(v.name), v.created_at
@@ -572,6 +578,91 @@ vehicleRoutes.delete(
     }
 
     response.status(204).end();
+  }),
+);
+
+vehicleRoutes.post(
+  "/:id/deregister",
+  asyncHandler(async (request, response) => {
+    const vehicleId = uuidValue(request.params.id);
+    const body = objectBody(request.body);
+    const confirmed = booleanField(body, "confirmed") ?? false;
+    if (!confirmed) {
+      throw badRequest("DEREGISTRATION_CONFIRMATION_REQUIRED", "Die Abmeldung muss ausdrücklich bestätigt werden.");
+    }
+    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
+    if (!vehicle) throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    const at = new Date();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `UPDATE vehicles SET deregistered_at=$3, is_default=false, bluetooth_identifier=NULL
+         WHERE id=$1 AND user_id=$2 AND deregistered_at IS NULL`,
+        [vehicleId, request.auth.userId, at],
+      );
+      await client.query(
+        `UPDATE vehicle_ownership_periods SET valid_to=$3
+         WHERE vehicle_id=$1 AND user_id=$2 AND valid_to IS NULL`,
+        [vehicleId, request.auth.userId, at],
+      );
+      await client.query("COMMIT");
+      const updated = await loadVehicle(request.auth.userId, vehicleId);
+      response.json(mapVehicle(updated));
+    } catch (error) {
+      await client.query("ROLLBACK"); throw error;
+    } finally { client.release(); }
+  }),
+);
+
+vehicleRoutes.post(
+  "/:id/transfer",
+  asyncHandler(async (request, response) => {
+    const vehicleId = uuidValue(request.params.id);
+    const body = objectBody(request.body);
+    const account = stringField(body, "account", { required: true, minimum: 1, maximum: 320 });
+    const effectiveAtRaw = stringField(body, "effectiveAt", { required: true, maximum: 40 });
+    const effectiveAt = new Date(effectiveAtRaw);
+    if (Number.isNaN(effectiveAt.getTime())) throw badRequest("INVALID_TRANSFER_DATE", "Der Übergabezeitpunkt ist ungültig.");
+    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
+    if (!vehicle) throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    if (vehicle.deregistered_at) throw conflict("VEHICLE_DEREGISTERED", "Ein abgemeldetes Fahrzeug kann nicht übertragen werden.");
+    const targetResult = await pool.query(
+      `SELECT id, username, display_name, email FROM users
+       WHERE deleted_at IS NULL AND status='active'
+         AND (lower(email)=lower($1) OR lower(username)=lower($1)) LIMIT 1`,
+      [account.trim()],
+    );
+    if (!targetResult.rowCount) throw notFound("USER_NOT_FOUND", "Der neue Besitzer wurde nicht gefunden.");
+    const target = targetResult.rows[0];
+    if (target.id === request.auth.userId) throw badRequest("INVALID_TRANSFER", "Das Fahrzeug gehört bereits diesem Benutzer.");
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const current = await client.query(
+        `SELECT * FROM vehicle_ownership_periods
+         WHERE vehicle_id=$1 AND user_id=$2 AND valid_to IS NULL
+         ORDER BY valid_from DESC LIMIT 1 FOR UPDATE`,
+        [vehicleId, request.auth.userId],
+      );
+      if (!current.rowCount || effectiveAt <= new Date(current.rows[0].valid_from)) {
+        throw badRequest("INVALID_TRANSFER_DATE", "Der Übergabezeitpunkt muss innerhalb der aktuellen Besitzperiode liegen.");
+      }
+      await client.query(`UPDATE vehicle_ownership_periods SET valid_to=$2 WHERE id=$1`, [current.rows[0].id, effectiveAt]);
+      await client.query(
+        `INSERT INTO vehicle_ownership_periods (vehicle_id,user_id,valid_from,created_by_user_id)
+         VALUES ($1,$2,$3,$4)`,
+        [vehicleId,target.id,effectiveAt,request.auth.userId],
+      );
+      await client.query(
+        `UPDATE vehicles SET user_id=$2, is_default=false, bluetooth_identifier=NULL WHERE id=$1`,
+        [vehicleId,target.id],
+      );
+      await client.query("COMMIT");
+      response.status(201).json({ vehicleId, previousOwnerUserId: request.auth.userId, newOwnerUserId: target.id, effectiveAt: effectiveAt.toISOString() });
+    } catch (error) {
+      await client.query("ROLLBACK"); throw error;
+    } finally { client.release(); }
   }),
 );
 
