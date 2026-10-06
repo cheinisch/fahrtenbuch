@@ -308,6 +308,14 @@ export default function Settings() {
 
               <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 <label className="block text-sm font-medium">
+                  Standardsprache
+                  <select value={settings.defaultLanguage || "de"} onChange={(event)=>setSettings((current)=>({...current,defaultLanguage:event.target.value}))} className={fieldClass}>
+                    <option value="de">Deutsch</option><option value="en">English</option>
+                  </select>
+                  <span className="mt-1 block text-xs text-fb-muted">Wird verwendet, wenn ein Benutzer keine eigene Sprache ausgewählt hat.</span>
+                </label>
+
+                <label className="block text-sm font-medium">
                   Mindestabstand in Metern
                   <input
                     type="number"
