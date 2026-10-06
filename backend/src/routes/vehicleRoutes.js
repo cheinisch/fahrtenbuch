@@ -141,6 +141,44 @@ vehicleRoutes.get(
 );
 
 vehicleRoutes.get(
+  "/:id/shared-trip-activity",
+  asyncHandler(async (request, response) => {
+    const vehicleId = uuidValue(request.params.id);
+    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
+    if (!vehicle) {
+      throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          t.user_id,
+          u.display_name,
+          u.username,
+          count(*)::integer AS trip_count
+        FROM trips t
+        INNER JOIN users u ON u.id = t.user_id
+        WHERE t.vehicle_id = $1
+          AND t.user_id <> $2
+          AND t.archived_at IS NULL
+          AND t.status <> 'cancelled'
+        GROUP BY t.user_id, u.display_name, u.username
+        ORDER BY lower(u.display_name), lower(u.username)
+      `,
+      [vehicleId, request.auth.userId],
+    );
+
+    response.json(result.rows.map((row) => ({
+      userId: row.user_id,
+      displayName: row.display_name,
+      username: row.username,
+      tripCount: Number(row.trip_count || 0),
+      label: `Fahrten ${row.display_name || row.username}`,
+    })));
+  }),
+);
+
+vehicleRoutes.get(
   "/:id/shares",
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.id);
