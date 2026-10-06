@@ -122,14 +122,14 @@ export default function Statistics() {
       {message && <div className="rounded-lg border border-fb-accent bg-fb-accent-soft p-4 text-sm text-fb-accent">{message}</div>}
       <section className="rounded-xl border border-fb-border bg-fb-main p-5">
         <h2 className="text-lg font-bold">Kilometerstand nachtragen</h2>
-        <p className="mt-1 text-sm text-fb-muted">Monatliche Kilometerstände können für vergangene Monate nachgetragen oder korrigiert werden. Die Reihenfolge zu vorherigen und folgenden Messwerten wird geprüft.</p>
+        <p className="mt-1 text-sm text-fb-muted">Kilometerstände können für beliebige Tage nachgetragen werden. Mehrere Zwischenablesungen pro Monat sind möglich; die Reihenfolge zu vorherigen und folgenden Messwerten wird geprüft.</p>
         <form onSubmit={saveReading} className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_170px_180px_auto] sm:items-end">
           <label className="text-sm"><span className="mb-1 block text-fb-muted">Fahrzeug</span><select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2">{vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
           <label className="text-sm"><span className="mb-1 block text-fb-muted">Ablesedatum</span><input type="date" value={entryDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setEntryDate(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
           <label className="text-sm"><span className="mb-1 block text-fb-muted">Kilometerstand</span><div className="flex items-center gap-2"><input inputMode="decimal" value={entryKm} onChange={(e) => setEntryKm(e.target.value)} placeholder="z. B. 82450" className="min-w-0 w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /><span className="text-fb-muted">km</span></div></label>
           <button type="submit" disabled={savingReading || !vehicleId || !entryDate || !entryKm} className="rounded-lg bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{savingReading ? "Speichert …" : "Speichern"}</button>
         </form>
-        {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <div className="mt-5 border-t border-fb-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-fb-muted">Vorhandene Monatsstände</p><div className="mt-2 flex flex-wrap gap-2">{readings.filter((r) => r.vehicleId === vehicleId).slice(0, 12).map((r) => <button key={r.id} type="button" onClick={() => { setEntryDate(r.readingDate || `${r.month}-01`); setEntryKm(String(r.odometerKm)); }} className="rounded-lg border border-fb-border px-3 py-2 text-left text-sm hover:border-fb-accent"><span className="font-semibold">{r.readingDate ? new Intl.DateTimeFormat("de-DE").format(new Date(`${r.readingDate}T00:00:00`)) : monthLabel(r.month)}</span><span className="ml-2 text-fb-muted">{km(r.odometerKm)}</span></button>)}</div></div>}
+        {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <div className="mt-5 border-t border-fb-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-fb-muted">Ablesungsprotokoll</p><div className="mt-2 flex flex-wrap gap-2">{readings.filter((r) => r.vehicleId === vehicleId).slice(0, 12).map((r) => <button key={r.id} type="button" onClick={() => { setEntryDate(r.readingDate || `${r.month}-01`); setEntryKm(String(r.odometerKm)); }} className="rounded-lg border border-fb-border px-3 py-2 text-left text-sm hover:border-fb-accent"><span className="font-semibold">{r.readingDate ? new Intl.DateTimeFormat("de-DE").format(new Date(`${r.readingDate}T00:00:00`)) : monthLabel(r.month)}</span><span className="ml-2 text-fb-muted">{km(r.odometerKm)}</span></button>)}</div></div>}
       </section>
       <div className="flex flex-wrap gap-3">
         <select value={vehicleId} onChange={(e) => { setVehicleId(e.target.value); setMonth(""); }} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2">
@@ -146,7 +146,7 @@ export default function Statistics() {
             <div className="rounded-xl border border-fb-border bg-fb-main p-5">
               <div className="text-sm text-fb-muted">Gefahren laut Kilometerstand</div>
               <div className="mt-2 text-3xl font-bold">{km(selected.actualKm)}</div>
-              {selected.actualKm == null && <div className="mt-2 text-xs text-fb-muted">Für diesen Monat fehlen zwei aufeinanderfolgende Monatsmesswerte.</div>}
+              {selected.actualKm == null && <div className="mt-2 text-xs text-fb-muted">Für diesen Monat fehlen geeignete Ablesungen an den Monatsgrenzen.</div>}
             </div>
             <div className="rounded-xl border border-fb-border bg-fb-main p-5">
               <div className="text-sm text-fb-muted">Aufgezeichnet</div>
