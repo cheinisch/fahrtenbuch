@@ -336,7 +336,7 @@ statisticsRoutes.get(
         SELECT r.odometer_meters
         FROM vehicle_odometer_readings r
         WHERE r.user_id = $1 AND r.vehicle_id = vm.vehicle_id
-          AND r.reading_date < vm.month
+          AND r.reading_date <= vm.month
         ORDER BY r.reading_date DESC
         LIMIT 1
       ) start_r ON true
@@ -344,7 +344,7 @@ statisticsRoutes.get(
         SELECT r.odometer_meters
         FROM vehicle_odometer_readings r
         WHERE r.user_id = $1 AND r.vehicle_id = vm.vehicle_id
-          AND r.reading_date < (vm.month + interval '1 month')::date
+          AND r.reading_date <= (vm.month + interval '1 month')::date
         ORDER BY r.reading_date DESC
         LIMIT 1
       ) end_r ON true
