@@ -825,6 +825,23 @@ paths:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         '200': { description: Fahrzeug abgemeldet }
+  /vehicles/archive:
+    get:
+      tags: [Vehicles]
+      summary: Archivierte eigene Fahrzeuge abrufen
+      responses:
+        '200': { description: Archivierte Fahrzeuge }
+  /vehicles/{id}/restore:
+    post:
+      tags: [Vehicles]
+      summary: Archiviertes Fahrzeug wiederherstellen
+      description: Stellt das Fahrzeug als abgemeldetes/inaktives Fahrzeug wieder her. Eine Wiederanmeldung erfolgt separat.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Fahrzeug wiederhergestellt }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /vehicles/{id}/register:
     post:
       tags: [Vehicles]
