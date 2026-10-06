@@ -391,6 +391,13 @@ export function getVehicles(accessToken) {
   return apiRequest(accessToken, "/api/v1/vehicles");
 }
 
+export function getSharedVehicleActivity(accessToken, vehicleId) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/shared-trip-activity`,
+  );
+}
+
 export function getVehicleShares(accessToken, vehicleId) {
   return apiRequest(
     accessToken,
