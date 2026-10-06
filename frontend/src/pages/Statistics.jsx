@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getMonthlyOdometerStatistics, getOdometerReadings, saveMonthlyOdometerReading } from "../api/app.js";
+import { getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, saveMonthlyOdometerReading } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 
 const labels = {
@@ -38,6 +38,7 @@ export default function Statistics() {
   const [entryKm, setEntryKm] = useState("");
   const [savingReading, setSavingReading] = useState(false);
   const [message, setMessage] = useState("");
+  const [intervals, setIntervals] = useState([]);
 
   async function loadData() {
     try {
@@ -60,6 +61,16 @@ export default function Statistics() {
   useEffect(() => {
     loadData();
   }, [accessToken]);
+
+  useEffect(() => {
+    if (!vehicleId) {
+      setIntervals([]);
+      return;
+    }
+    getOdometerIntervalStatistics(accessToken, vehicleId, 18)
+      .then(setIntervals)
+      .catch((loadError) => setError(loadError.message));
+  }, [accessToken, vehicleId, readings]);
 
   async function saveReading(event) {
     event.preventDefault();
@@ -131,6 +142,33 @@ export default function Statistics() {
         </form>
         {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <div className="mt-5 border-t border-fb-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-fb-muted">Ablesungsprotokoll</p><div className="mt-2 flex flex-wrap gap-2">{readings.filter((r) => r.vehicleId === vehicleId).slice(0, 12).map((r) => <button key={r.id} type="button" onClick={() => { setEntryDate(r.readingDate || `${r.month}-01`); setEntryKm(String(r.odometerKm)); }} className="rounded-lg border border-fb-border px-3 py-2 text-left text-sm hover:border-fb-accent"><span className="font-semibold">{r.readingDate ? new Intl.DateTimeFormat("de-DE").format(new Date(`${r.readingDate}T00:00:00`)) : monthLabel(r.month)}</span><span className="ml-2 text-fb-muted">{km(r.odometerKm)}</span></button>)}</div></div>}
       </section>
+      {intervals.length > 0 && (
+        <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+          <h2 className="text-lg font-bold">Genauigkeit nach Ableseintervall</h2>
+          <p className="mt-1 text-sm text-fb-muted">Je kürzer die Intervalle zwischen zwei Ablesungen sind, desto genauer lässt sich erkennen, in welchem Zeitraum Kilometer nicht durch aufgezeichnete Fahrten erklärt werden.</p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-b border-fb-border text-fb-muted">
+                <tr><th className="py-2 pr-4">Zeitraum</th><th className="py-2 pr-4">Kilometerstand</th><th className="py-2 pr-4">Tatsächlich</th><th className="py-2 pr-4">Erfasst</th><th className="py-2 pr-4">Differenz</th><th className="py-2">Fahrten</th></tr>
+              </thead>
+              <tbody>
+                {intervals.map((item) => {
+                  const formatDate = (value) => new Intl.DateTimeFormat("de-DE").format(new Date(`${value}T00:00:00`));
+                  const significant = Math.abs(item.differenceKm) > Math.max(1, item.actualKm * 0.05);
+                  return <tr key={`${item.startReadingId}-${item.endReadingId}`} className="border-b border-fb-border/60 last:border-0">
+                    <td className="py-3 pr-4 font-semibold">{formatDate(item.startDate)} – {formatDate(item.endDate)}</td>
+                    <td className="py-3 pr-4">{km(item.startOdometerKm)} → {km(item.endOdometerKm)}</td>
+                    <td className="py-3 pr-4">{km(item.actualKm)}</td>
+                    <td className="py-3 pr-4">{km(item.trackedKm)}</td>
+                    <td className={`py-3 pr-4 font-semibold ${significant ? "text-fb-danger" : ""}`}>{item.differenceKm > 0 ? "+" : ""}{km(item.differenceKm)}</td>
+                    <td className="py-3">{item.tripCount}</td>
+                  </tr>;
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       <div className="flex flex-wrap gap-3">
         <select value={vehicleId} onChange={(e) => { setVehicleId(e.target.value); setMonth(""); }} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2">
           {vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
