@@ -89,7 +89,7 @@ BEFORE INSERT ON trip_history
 FOR EACH ROW
 EXECUTE FUNCTION seal_trip_history_row();
 
-DO $
+DO $$
 DECLARE
   row_record record;
   last_hash text := NULL;
