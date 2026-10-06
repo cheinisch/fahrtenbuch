@@ -15,6 +15,7 @@ import {
   deleteVehicle,
   getVehicles,
   getVehicleShares,
+  getSharedVehicleActivity,
   revokeVehicleShare,
   setDefaultVehicle,
   shareVehicle,
@@ -38,6 +39,7 @@ export default function Vehicles() {
   const [saving, setSaving] = useState(false);
   const [sharingVehicle, setSharingVehicle] = useState(null);
   const [shares, setShares] = useState([]);
+  const [sharedActivity, setSharedActivity] = useState([]);
   const [shareAccount, setShareAccount] = useState("");
   const [shareSaving, setShareSaving] = useState(false);
 
@@ -86,7 +88,12 @@ export default function Vehicles() {
     setSharingVehicle(vehicle);
     setShareAccount("");
     try {
-      setShares(await getVehicleShares(accessToken, vehicle.id));
+      const [shareRows, activityRows] = await Promise.all([
+        getVehicleShares(accessToken, vehicle.id),
+        getSharedVehicleActivity(accessToken, vehicle.id),
+      ]);
+      setShares(shareRows);
+      setSharedActivity(activityRows);
     } catch (actionError) {
       setError(actionError.message);
       setSharingVehicle(null);
@@ -178,6 +185,7 @@ export default function Vehicles() {
               <input value={shareAccount} onChange={(event) => setShareAccount(event.target.value)} placeholder="Benutzername oder E-Mail" className="min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm" />
               <button disabled={shareSaving || !shareAccount.trim()} className="rounded-lg bg-fb-accent px-4 py-2 text-sm font-semibold text-fb-accent-text disabled:opacity-50">Teilen</button>
             </form>
+            {sharedActivity.length > 0 && <div className="mt-5 rounded-lg border border-fb-border p-3"><p className="text-xs font-semibold uppercase tracking-wide text-fb-muted">Nutzung durch andere Benutzer</p><div className="mt-2 space-y-1">{sharedActivity.map((entry) => <div key={entry.userId} className="flex justify-between gap-3 text-sm"><span>{entry.label}</span><span className="font-semibold">{entry.tripCount}</span></div>)}</div><p className="mt-2 text-xs text-fb-muted">Aus Datenschutzgründen werden keine Ziele, Routen oder Fahrtdetails anderer Benutzer angezeigt.</p></div>}
             <div className="mt-5 space-y-2">
               {shares.length === 0 ? <p className="text-sm text-fb-muted">Noch mit niemandem geteilt.</p> : shares.map((entry) => (
                 <div key={entry.userId} className="flex items-center justify-between gap-3 rounded-lg border border-fb-border px-3 py-2">
