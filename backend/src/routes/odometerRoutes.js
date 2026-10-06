@@ -43,17 +43,21 @@ odometerRoutes.get(
              to_char(last_reading.reading_month, 'YYYY-MM') AS last_reading_month
       FROM vehicles v
       CROSS JOIN previous_month pm
-      LEFT JOIN vehicle_odometer_readings current_reading
-        ON current_reading.user_id = v.user_id
-       AND current_reading.vehicle_id = v.id
-       AND current_reading.reading_month = date_trunc('month', current_date)::date
+      LEFT JOIN LATERAL (
+        SELECT r.id
+        FROM vehicle_odometer_readings r
+        WHERE r.user_id = v.user_id
+          AND r.vehicle_id = v.id
+          AND r.reading_month = date_trunc('month', current_date)::date
+        LIMIT 1
+      ) current_reading ON true
       LEFT JOIN LATERAL (
         SELECT r.odometer_meters, r.reading_month
         FROM vehicle_odometer_readings r
         WHERE r.user_id = v.user_id
           AND r.vehicle_id = v.id
-          AND r.reading_month < date_trunc('month', current_date)::date
-        ORDER BY r.reading_month DESC
+          AND r.reading_date < date_trunc('month', current_date)::date
+        ORDER BY r.reading_date DESC
         LIMIT 1
       ) last_reading ON true
       WHERE v.user_id = $1
@@ -85,7 +89,7 @@ odometerRoutes.get(
          FROM vehicle_odometer_readings r
          JOIN vehicles v ON v.id = r.vehicle_id AND v.user_id = r.user_id
         WHERE r.user_id = $1
-        ORDER BY r.reading_month DESC, lower(v.name)`,
+        ORDER BY r.reading_date DESC, lower(v.name)`,
       [request.auth.userId],
     );
     response.json(result.rows.map((row) => ({
@@ -124,15 +128,15 @@ odometerRoutes.put(
     const [previous, next] = await Promise.all([
       pool.query(
         `SELECT odometer_meters FROM vehicle_odometer_readings
-          WHERE user_id = $1 AND vehicle_id = $2 AND reading_month < $3
-          ORDER BY reading_month DESC LIMIT 1`,
-        [request.auth.userId, vehicleId, readingMonth],
+          WHERE user_id = $1 AND vehicle_id = $2 AND reading_date < $3::date
+          ORDER BY reading_date DESC LIMIT 1`,
+        [request.auth.userId, vehicleId, readingDate],
       ),
       pool.query(
         `SELECT odometer_meters FROM vehicle_odometer_readings
-          WHERE user_id = $1 AND vehicle_id = $2 AND reading_month > $3
-          ORDER BY reading_month ASC LIMIT 1`,
-        [request.auth.userId, vehicleId, readingMonth],
+          WHERE user_id = $1 AND vehicle_id = $2 AND reading_date > $3::date
+          ORDER BY reading_date ASC LIMIT 1`,
+        [request.auth.userId, vehicleId, readingDate],
       ),
     ]);
     if (previous.rowCount && odometerMeters < Number(previous.rows[0].odometer_meters)) {
@@ -146,8 +150,8 @@ odometerRoutes.put(
       `INSERT INTO vehicle_odometer_readings
         (user_id, vehicle_id, reading_month, reading_date, odometer_meters, source, recorded_at)
        VALUES ($1, $2, $3, $4, $5, 'manual', now())
-       ON CONFLICT (user_id, vehicle_id, reading_month)
-       DO UPDATE SET reading_date = EXCLUDED.reading_date,
+       ON CONFLICT (user_id, vehicle_id, reading_date)
+       DO UPDATE SET reading_month = EXCLUDED.reading_month,
                      odometer_meters = EXCLUDED.odometer_meters,
                      source = 'manual', recorded_at = now()
        RETURNING id, vehicle_id, to_char(reading_month, 'YYYY-MM') AS reading_month,
