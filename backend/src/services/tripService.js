@@ -61,7 +61,6 @@ export async function getOwnedTrip(
           FROM trips t
           INNER JOIN vehicles v
             ON v.id = t.vehicle_id
-            AND v.user_id = t.user_id
           LEFT JOIN trip_tags tt
             ON tt.trip_id = t.id
             AND tt.user_id = t.user_id
@@ -151,11 +150,19 @@ export async function recalculateTripMetrics(client, tripId) {
 export async function ensureOwnedVehicle(client, userId, vehicleId) {
   const result = await client.query(
     `
-      SELECT id
-      FROM vehicles
-      WHERE id = $1
-        AND user_id = $2
-        AND archived_at IS NULL
+      SELECT v.id
+      FROM vehicles v
+      WHERE v.id = $1
+        AND v.archived_at IS NULL
+        AND (
+          v.user_id = $2
+          OR EXISTS (
+            SELECT 1
+            FROM vehicle_shares vs
+            WHERE vs.vehicle_id = v.id
+              AND vs.user_id = $2
+          )
+        )
       LIMIT 1
     `,
     [vehicleId, userId],
