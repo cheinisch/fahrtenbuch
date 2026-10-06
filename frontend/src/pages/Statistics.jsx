@@ -73,16 +73,6 @@ function StatisticsChart({ data }) {
         <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-fb-accent" />Tatsächlich laut Ablesungen</span>
         <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-fb-muted opacity-70" />Erfasste Fahrten</span>
       </div>
-      <OdometerReadingLogModal
-        open={readingLogOpen}
-        onClose={() => setReadingLogOpen(false)}
-        readings={readings.filter((reading) => reading.vehicleId === vehicleId)}
-        vehicleName={vehicles.find(([id]) => id === vehicleId)?.[1]}
-        onEdit={(reading) => {
-          setEntryDate(reading.readingDate || `${reading.month}-01`);
-          setEntryKm(String(reading.odometerKm));
-        }}
-      />
     </div>
   );
 }
@@ -112,10 +102,13 @@ export default function Statistics() {
       ]);
       setRows(result);
       setReadings(readingRows);
-      const latestComplete = result.find((row) => row.actualKm != null) || result[0];
-      if (latestComplete && !vehicleId) {
-        setVehicleId(latestComplete.vehicleId);
-        setMonth(latestComplete.month);
+      if (!vehicleId) {
+        const firstVehicleId = readingRows[0]?.vehicleId || result[0]?.vehicleId || "";
+        if (firstVehicleId) {
+          setVehicleId(firstVehicleId);
+          const latestReading = readingRows.find((reading) => reading.vehicleId === firstVehicleId);
+          if (latestReading) setMonth((latestReading.readingDate || `${latestReading.month}-01`).slice(0, 7));
+        }
       }
     } catch (loadError) {
       setError(loadError.message);
@@ -171,9 +164,22 @@ export default function Statistics() {
     new Map(rows.map((row) => [row.vehicleId, row.vehicleName])).entries(),
   ), [rows]);
 
-  const months = useMemo(() => Array.from(new Set(
-    rows.filter((row) => !vehicleId || row.vehicleId === vehicleId).map((row) => row.month),
-  )), [rows, vehicleId]);
+  const availableMonths = useMemo(() => Array.from(new Set(
+    readings
+      .filter((reading) => reading.vehicleId === vehicleId)
+      .map((reading) => (reading.readingDate || `${reading.month}-01`).slice(0, 7))
+      .filter((value) => /^\d{4}-\d{2}$/.test(value)),
+  )).sort().reverse(), [readings, vehicleId]);
+
+  const availableYears = useMemo(() => Array.from(new Set(
+    availableMonths.map((value) => value.slice(0, 4)),
+  )), [availableMonths]);
+
+  const selectedYear = month ? month.slice(0, 4) : (availableYears[0] || "");
+  const monthsForYear = useMemo(
+    () => availableMonths.filter((value) => value.startsWith(`${selectedYear}-`)),
+    [availableMonths, selectedYear],
+  );
 
   const chartData = useMemo(() => {
     const from = new Date(`${chartFrom}T00:00:00`);
@@ -265,12 +271,35 @@ export default function Statistics() {
         </section>
       )}
       <div className="flex flex-wrap gap-3">
-        <select value={vehicleId} onChange={(e) => { setVehicleId(e.target.value); setMonth(""); }} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2">
+        <select value={vehicleId} onChange={(e) => {
+          const nextVehicleId = e.target.value;
+          setVehicleId(nextVehicleId);
+          const latestReading = readings.find((reading) => reading.vehicleId === nextVehicleId);
+          setMonth(latestReading ? (latestReading.readingDate || `${latestReading.month}-01`).slice(0, 7) : "");
+        }} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2">
           {vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>
-        <select value={month} onChange={(e) => setMonth(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2">
-          <option value="">Monat wählen</option>
-          {months.map((value) => <option key={value} value={value}>{monthLabel(value)}</option>)}
+        <select
+          value={selectedYear}
+          disabled={availableYears.length === 0}
+          onChange={(e) => {
+            const year = e.target.value;
+            const firstMonth = availableMonths.find((value) => value.startsWith(`${year}-`));
+            setMonth(firstMonth || "");
+          }}
+          className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 disabled:opacity-50"
+        >
+          {availableYears.length === 0 && <option value="">Kein Jahr</option>}
+          {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
+        </select>
+        <select
+          value={month}
+          disabled={monthsForYear.length === 0}
+          onChange={(e) => setMonth(e.target.value)}
+          className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 disabled:opacity-50"
+        >
+          {monthsForYear.length === 0 && <option value="">Kein Monat</option>}
+          {monthsForYear.map((value) => <option key={value} value={value}>{monthLabel(value).replace(/\s+\d{4}$/, "")}</option>)}
         </select>
       </div>
       {selected && (
@@ -314,6 +343,16 @@ export default function Statistics() {
           </section>
         </>
       )}
+      <OdometerReadingLogModal
+        open={readingLogOpen}
+        onClose={() => setReadingLogOpen(false)}
+        readings={readings.filter((reading) => reading.vehicleId === vehicleId)}
+        vehicleName={vehicles.find(([id]) => id === vehicleId)?.[1]}
+        onEdit={(reading) => {
+          setEntryDate(reading.readingDate || `${reading.month}-01`);
+          setEntryKm(String(reading.odometerKm));
+        }}
+      />
     </div>
   );
 }
