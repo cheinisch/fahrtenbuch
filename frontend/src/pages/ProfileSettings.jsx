@@ -150,6 +150,8 @@ export default function ProfileSettings() {
     setHomeCountry,
   ] = useState("DE");
 
+  const [personalLanguage, setPersonalLanguage] = useState("");
+
   const [tracking, setTracking] = useState({
     automaticTrackingEnabled: false,
     trackingAccuracyMode: "balanced",
@@ -255,6 +257,8 @@ export default function ProfileSettings() {
         themeMode:
           settingsResult.user.themeMode,
       });
+
+      setPersonalLanguage(settingsResult.settings.language || "");
 
       setTracking({
         automaticTrackingEnabled:
@@ -678,6 +682,15 @@ export default function ProfileSettings() {
     }
   }
 
+  async function saveLanguage(event) {
+    event.preventDefault(); setSaving("language");
+    try {
+      await updatePersonalSettings(accessToken,{language:personalLanguage || null});
+      showSuccess("Spracheinstellung wurde gespeichert. Die Änderung wird nach dem Neuladen der Oberfläche vollständig angewendet.");
+      window.location.reload();
+    } catch(saveError){showError(saveError);} finally{setSaving("");}
+  }
+
   async function saveTracking(event) {
     event.preventDefault();
     setSaving("tracking");
@@ -909,6 +922,19 @@ export default function ProfileSettings() {
           ))}
         </div>
       </Section>
+
+      <form onSubmit={saveLanguage}>
+        <Section title="Sprache" description="Überschreibt die globale Standardsprache nur für dein Benutzerkonto.">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className={labelClass}>Oberflächensprache
+              <select value={personalLanguage} onChange={(e)=>setPersonalLanguage(e.target.value)} className={fieldClass}>
+                <option value="">Systemstandard</option><option value="de">Deutsch</option><option value="en">English</option>
+              </select>
+            </label>
+            <button disabled={saving==="language"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-50">Sprache speichern</button>
+          </div>
+        </Section>
+      </form>
 
       <form onSubmit={saveProfile}>
         <Section
