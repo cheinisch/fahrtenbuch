@@ -22,6 +22,10 @@ function initialState(vehicle) {
     bluetoothMac: vehicle?.bluetoothMac || "",
     notes: vehicle?.notes || "",
     isDefault: Boolean(vehicle?.isDefault),
+    isLeased: Boolean(vehicle?.isLeased),
+    leaseStartDate: vehicle?.leaseStartDate?.slice?.(0, 10) || "",
+    leaseEndDate: vehicle?.leaseEndDate?.slice?.(0, 10) || "",
+    leaseIncludedKm: vehicle?.leaseIncludedKm ?? "",
   };
 }
 
@@ -67,7 +71,20 @@ export default function VehicleEditorModal({
       bluetoothMac: form.bluetoothMac.trim() || null,
       notes: form.notes.trim() || null,
       isDefault: form.isDefault,
+      isLeased: form.isLeased,
+      leaseStartDate: form.isLeased ? form.leaseStartDate : null,
+      leaseEndDate: form.isLeased ? form.leaseEndDate : null,
+      leaseIncludedKm: form.isLeased && form.leaseIncludedKm !== "" ? Number(form.leaseIncludedKm) : null,
     };
+
+    if (form.isLeased && (!form.leaseStartDate || !form.leaseEndDate || !payload.leaseIncludedKm)) {
+      setError("Bitte Vertragsbeginn, Vertragsende und Inklusivkilometer vollständig angeben.");
+      return;
+    }
+    if (form.isLeased && form.leaseEndDate <= form.leaseStartDate) {
+      setError("Das Vertragsende muss nach dem Vertragsbeginn liegen.");
+      return;
+    }
 
     try {
       await onSubmit(payload);
@@ -113,6 +130,17 @@ export default function VehicleEditorModal({
                   <label className="text-sm font-medium">Farbe<input value={form.color} onChange={(e) => update("color", e.target.value)} maxLength={64} className={fieldClass} /></label>
                   <label className="text-sm font-medium">FIN / VIN<input value={form.vin} onChange={(e) => update("vin", e.target.value)} maxLength={64} className={fieldClass} /></label>
                   <label className="text-sm font-medium">Bluetooth-MAC<input value={form.bluetoothMac} onChange={(e) => update("bluetoothMac", e.target.value)} maxLength={64} className={fieldClass} placeholder="AA:BB:CC:DD:EE:FF" /></label>
+                </div>
+                <div className="rounded-xl border border-fb-border bg-fb-surface p-4">
+                  <label className="flex items-start gap-3">
+                    <input type="checkbox" checked={form.isLeased} onChange={(e) => update("isLeased", e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-accent)]" />
+                    <span><span className="block text-sm font-semibold">Leasingfahrzeug</span><span className="mt-1 block text-xs text-fb-muted">Vertragslaufzeit und Inklusivkilometer für die Kilometerprognose hinterlegen.</span></span>
+                  </label>
+                  {form.isLeased && <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                    <label className="text-sm font-medium">Vertragsbeginn<input type="date" value={form.leaseStartDate} onChange={(e) => update("leaseStartDate", e.target.value)} className={fieldClass} required /></label>
+                    <label className="text-sm font-medium">Vertragsende<input type="date" value={form.leaseEndDate} min={form.leaseStartDate || undefined} onChange={(e) => update("leaseEndDate", e.target.value)} className={fieldClass} required /></label>
+                    <label className="text-sm font-medium">Inklusivkilometer<input type="number" min="1" step="1" value={form.leaseIncludedKm} onChange={(e) => update("leaseIncludedKm", e.target.value)} className={fieldClass} placeholder="z. B. 60000" required /></label>
+                  </div>}
                 </div>
                 <label className="block text-sm font-medium">Notizen<textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3} className={fieldClass} /></label>
                 <label className="flex items-start gap-3 rounded-lg border border-fb-border bg-fb-surface p-4">
