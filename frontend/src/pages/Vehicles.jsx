@@ -43,7 +43,7 @@ export default function Vehicles() {
   const [sharingVehicle, setSharingVehicle] = useState(null);
   const [shares, setShares] = useState([]);
   const [sharedActivity, setSharedActivity] = useState([]);
-  const [shareAccount, setShareAccount] = useState("");
+  const [shareEmail, setShareAccount] = useState("");
   const [shareSaving, setShareSaving] = useState(false);
   const [lifecycleVehicle, setLifecycleVehicle] = useState(null);
   const [lifecycleMode, setLifecycleMode] = useState(null);
@@ -108,14 +108,14 @@ export default function Vehicles() {
 
   async function addShare(event) {
     event.preventDefault();
-    if (!sharingVehicle || !shareAccount.trim()) return;
+    if (!sharingVehicle || !shareEmail.trim()) return;
     setShareSaving(true);
     setError("");
     try {
-      await shareVehicle(accessToken, sharingVehicle.id, shareAccount.trim());
+      await shareVehicle(accessToken, sharingVehicle.id, shareEmail.trim());
       setShares(await getVehicleShares(accessToken, sharingVehicle.id));
       setShareAccount("");
-      setMessage(`„${sharingVehicle.name}“ wurde geteilt.`);
+      setMessage(`Einladung für „${sharingVehicle.name}“ wurde per E-Mail versendet. Die Freigabe erscheint erst nach Bestätigung.`);
     } catch (actionError) {
       setError(actionError.message);
     } finally {
@@ -212,8 +212,8 @@ export default function Vehicles() {
               <button type="button" onClick={() => setSharingVehicle(null)} className="rounded-lg p-2 text-fb-muted hover:text-fb-text"><XMarkIcon className="size-5" /></button>
             </div>
             <form onSubmit={addShare} className="mt-5 flex gap-2">
-              <input value={shareAccount} onChange={(event) => setShareAccount(event.target.value)} placeholder="Benutzername oder E-Mail" className="min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm" />
-              <button disabled={shareSaving || !shareAccount.trim()} className="rounded-lg bg-fb-accent px-4 py-2 text-sm font-semibold text-fb-accent-text disabled:opacity-50">Teilen</button>
+              <input value={shareEmail} onChange={(event) => setShareAccount(event.target.value)} placeholder="E-Mail-Adresse" className="min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm" />
+              <button disabled={shareSaving || !shareEmail.trim()} className="rounded-lg bg-fb-accent px-4 py-2 text-sm font-semibold text-fb-accent-text disabled:opacity-50">Teilen</button>
             </form>
             {sharedActivity.length > 0 && <div className="mt-5 rounded-lg border border-fb-border p-3"><p className="text-xs font-semibold uppercase tracking-wide text-fb-muted">Nutzung durch andere Benutzer</p><div className="mt-2 space-y-1">{sharedActivity.map((entry) => <div key={entry.userId} className="flex justify-between gap-3 text-sm"><span>{entry.label}</span><span className="font-semibold">{entry.tripCount}</span></div>)}</div><p className="mt-2 text-xs text-fb-muted">Aus Datenschutzgründen werden keine Ziele, Routen oder Fahrtdetails anderer Benutzer angezeigt.</p></div>}
             <div className="mt-5 space-y-2">
