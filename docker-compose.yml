@@ -17,6 +17,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-fahrtenbuch}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss in der .env gesetzt sein}
       TZ: ${TZ:-Europe/Berlin}
+      SHOW_API_UI: ${SHOW_API_UI:-false}
       OSM_TILE_CACHE_DIR: /data/osm-tile-cache
       OSM_TILE_CACHE_MAX_BYTES: ${OSM_TILE_CACHE_MAX_BYTES:-10737418240}
     ports:
