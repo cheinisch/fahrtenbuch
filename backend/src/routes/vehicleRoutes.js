@@ -56,19 +56,23 @@ function parseVehicleInput(body) {
   });
 
   const bluetoothMac = bluetoothValue(input);
-  const isLeased = booleanField(input, "isLeased") ?? false;
+  const acquisitionType = stringField(input, "acquisitionType", { maximum: 32 }) || "owned";
+  if (!["owned", "leasing", "financing"].includes(acquisitionType)) {
+    throw badRequest("INVALID_ACQUISITION_TYPE", "Die Finanzierungsart ist ungültig.");
+  }
   const leaseStartDate = stringField(input, "leaseStartDate", { nullable: true, maximum: 10 });
   const leaseEndDate = stringField(input, "leaseEndDate", { nullable: true, maximum: 10 });
   const leaseIncludedKm = numberField(input, "leaseIncludedKm", { nullable: true, minimum: 1, maximum: 10_000_000 });
-  if (isLeased) {
+  const hasContractData = acquisitionType !== "owned" && (leaseStartDate || leaseEndDate || leaseIncludedKm);
+  if (hasContractData) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(leaseStartDate || "") || !/^\d{4}-\d{2}-\d{2}$/.test(leaseEndDate || "")) {
-      throw badRequest("INVALID_LEASE_DATES", "Für ein Leasingfahrzeug müssen Vertragsbeginn und Vertragsende angegeben werden.");
+      throw badRequest("INVALID_CONTRACT_DATES", "Für die Kilometerprognose müssen Vertragsbeginn und Vertragsende angegeben werden.");
     }
     if (leaseEndDate <= leaseStartDate) {
-      throw badRequest("INVALID_LEASE_DATES", "Das Leasingende muss nach dem Vertragsbeginn liegen.");
+      throw badRequest("INVALID_CONTRACT_DATES", "Das Vertragsende muss nach dem Vertragsbeginn liegen.");
     }
     if (!leaseIncludedKm) {
-      throw badRequest("INVALID_LEASE_KM", "Für ein Leasingfahrzeug müssen die Inklusivkilometer angegeben werden.");
+      throw badRequest("INVALID_CONTRACT_KM", "Für die Kilometerprognose muss ein Kilometerlimit angegeben werden.");
     }
   }
 
@@ -104,10 +108,11 @@ function parseVehicleInput(body) {
     }),
     bluetoothMac,
     isDefault: booleanField(input, "isDefault") ?? false,
-    isLeased,
-    leaseStartDate: isLeased ? leaseStartDate : null,
-    leaseEndDate: isLeased ? leaseEndDate : null,
-    leaseIncludedKm: isLeased ? Math.round(leaseIncludedKm) : null,
+    acquisitionType,
+    isLeased: acquisitionType === "leasing",
+    leaseStartDate: hasContractData ? leaseStartDate : null,
+    leaseEndDate: hasContractData ? leaseEndDate : null,
+    leaseIncludedKm: hasContractData ? Math.round(leaseIncludedKm) : null,
   };
 }
 
@@ -365,9 +370,10 @@ vehicleRoutes.post(
             is_leased,
             lease_start_date,
             lease_end_date,
-            lease_included_km
+            lease_included_km,
+            acquisition_type
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
           RETURNING *
         `,
         [
@@ -386,6 +392,7 @@ vehicleRoutes.post(
           input.leaseStartDate,
           input.leaseEndDate,
           input.leaseIncludedKm,
+          input.acquisitionType,
         ],
       );
 
@@ -468,7 +475,8 @@ vehicleRoutes.put(
             is_leased = $13,
             lease_start_date = $14,
             lease_end_date = $15,
-            lease_included_km = $16
+            lease_included_km = $16,
+            acquisition_type = $17
           WHERE id = $1
             AND user_id = $2
             AND archived_at IS NULL
@@ -491,6 +499,7 @@ vehicleRoutes.put(
           input.leaseStartDate,
           input.leaseEndDate,
           input.leaseIncludedKm,
+          input.acquisitionType,
         ],
       );
 
