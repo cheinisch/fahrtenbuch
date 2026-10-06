@@ -1,6 +1,6 @@
 {
   "name": "@fahrtenbuch/backend",
-  "version": "0.2.5-dev.15",
+  "version": "0.2.5-dev.16",
   "private": true,
   "type": "module",
   "engines": {
@@ -31,5 +31,5 @@
     "pg": "^8.16.3",
     "qrcode": "^1.5.4"
   },
-  "build": 15
+  "build": 16
 }
