@@ -26,9 +26,9 @@ odometerRoutes.get(
         SELECT date_trunc('month', current_date - interval '1 month')::date AS month
       )
       SELECT v.id AS vehicle_id, v.name AS vehicle_name, v.license_plate,
-             date_trunc('month', current_date)::date AS reading_month,
+             to_char(date_trunc('month', current_date), 'YYYY-MM') AS reading_month,
              last_reading.odometer_meters AS last_odometer_meters,
-             last_reading.reading_month AS last_reading_month
+             to_char(last_reading.reading_month, 'YYYY-MM') AS last_reading_month
       FROM vehicles v
       CROSS JOIN previous_month pm
       LEFT JOIN vehicle_odometer_readings current_reading
@@ -56,9 +56,9 @@ odometerRoutes.get(
       vehicleId: row.vehicle_id,
       vehicleName: row.vehicle_name,
       licensePlate: row.license_plate,
-      month: String(row.reading_month).slice(0, 7),
+      month: row.reading_month,
       lastOdometerKm: row.last_odometer_meters == null ? null : Number(row.last_odometer_meters) / 1000,
-      lastReadingMonth: row.last_reading_month == null ? null : String(row.last_reading_month).slice(0, 7),
+      lastReadingMonth: row.last_reading_month,
     })));
   }),
 );
@@ -67,7 +67,7 @@ odometerRoutes.get(
   "/",
   asyncHandler(async (request, response) => {
     const result = await pool.query(
-      `SELECT r.id, r.vehicle_id, v.name AS vehicle_name, r.reading_month,
+      `SELECT r.id, r.vehicle_id, v.name AS vehicle_name, to_char(r.reading_month, 'YYYY-MM') AS reading_month,
               r.odometer_meters, r.source, r.recorded_at
          FROM vehicle_odometer_readings r
          JOIN vehicles v ON v.id = r.vehicle_id AND v.user_id = r.user_id
@@ -79,7 +79,7 @@ odometerRoutes.get(
       id: row.id,
       vehicleId: row.vehicle_id,
       vehicleName: row.vehicle_name,
-      month: String(row.reading_month).slice(0, 7),
+      month: row.reading_month,
       odometerKm: Number(row.odometer_meters) / 1000,
       source: row.source,
       recordedAt: row.recorded_at,
@@ -134,7 +134,7 @@ odometerRoutes.put(
        ON CONFLICT (user_id, vehicle_id, reading_month)
        DO UPDATE SET odometer_meters = EXCLUDED.odometer_meters,
                      source = 'manual', recorded_at = now()
-       RETURNING id, vehicle_id, reading_month, odometer_meters, source, recorded_at`,
+       RETURNING id, vehicle_id, to_char(reading_month, 'YYYY-MM') AS reading_month, odometer_meters, source, recorded_at`,
       [request.auth.userId, vehicleId, readingMonth, odometerMeters],
     );
 
@@ -142,7 +142,7 @@ odometerRoutes.put(
     response.json({
       id: row.id,
       vehicleId: row.vehicle_id,
-      month: String(row.reading_month).slice(0, 7),
+      month: row.reading_month,
       odometerKm: Number(row.odometer_meters) / 1000,
       source: row.source,
       recordedAt: row.recorded_at,
