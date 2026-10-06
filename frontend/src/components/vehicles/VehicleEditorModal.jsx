@@ -31,13 +31,13 @@ function initialState(vehicle) {
 }
 
 export default function VehicleEditorModal({
-  const { t }=useI18n();
   open,
   vehicle,
   saving,
   onClose,
   onSubmit,
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState(initialState(vehicle));
   const [error, setError] = useState("");
 
@@ -57,7 +57,7 @@ export default function VehicleEditorModal({
     setError("");
 
     if (!form.name.trim()) {
-      setError("t("vehicleEditor.nameRequired")");
+      setError(t("vehicleEditor.nameRequired"));
       return;
     }
 
@@ -81,7 +81,7 @@ export default function VehicleEditorModal({
 
     const contractStarted = form.acquisitionType !== "owned" && (form.leaseStartDate || form.leaseEndDate || form.leaseIncludedKm !== "");
     if (contractStarted && (!form.leaseStartDate || !form.leaseEndDate || !payload.leaseIncludedKm)) {
-      setError("t("vehicleEditor.contractIncomplete")");
+      setError(t("vehicleEditor.contractIncomplete"));
       return;
     }
     if (contractStarted && form.leaseEndDate <= form.leaseStartDate) {
@@ -95,7 +95,7 @@ export default function VehicleEditorModal({
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "t("vehicleEditor.saveFailed")",
+          : t("vehicleEditor.saveFailed"),
       );
     }
   }
