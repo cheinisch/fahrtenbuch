@@ -13,6 +13,8 @@ import { useEffect, useState } from "react";
 import {
   createVehicle,
   deleteVehicle,
+  deregisterVehicle,
+  transferVehicle,
   getVehicles,
   getVehicleShares,
   getSharedVehicleActivity,
@@ -23,6 +25,7 @@ import {
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import VehicleEditorModal from "../components/vehicles/VehicleEditorModal.jsx";
+import VehicleLifecycleModal from "../components/vehicles/VehicleLifecycleModal.jsx";
 
 function label(vehicle) {
   return [vehicle.manufacturer, vehicle.model].filter(Boolean).join(" ") || "Keine Modellangabe";
@@ -42,6 +45,9 @@ export default function Vehicles() {
   const [sharedActivity, setSharedActivity] = useState([]);
   const [shareAccount, setShareAccount] = useState("");
   const [shareSaving, setShareSaving] = useState(false);
+  const [lifecycleVehicle, setLifecycleVehicle] = useState(null);
+  const [lifecycleMode, setLifecycleMode] = useState(null);
+  const [lifecycleSaving, setLifecycleSaving] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -144,6 +150,28 @@ export default function Vehicles() {
     }
   }
 
+  async function confirmLifecycle(payload) {
+    if (!lifecycleVehicle) return;
+    setLifecycleSaving(true);
+    setError("");
+    try {
+      if (lifecycleMode === "deregister") {
+        await deregisterVehicle(accessToken, lifecycleVehicle.id);
+        setMessage(`Fahrzeug „${lifecycleVehicle.name}“ wurde abgemeldet und für neue Erfassungen gesperrt.`);
+      } else {
+        await transferVehicle(accessToken, lifecycleVehicle.id, payload.account, payload.effectiveAt);
+        setMessage(`Fahrzeug „${lifecycleVehicle.name}“ wurde zum gewählten Stichtag übertragen.`);
+      }
+      setLifecycleVehicle(null);
+      setLifecycleMode(null);
+      await load();
+    } catch (actionError) {
+      setError(actionError.message);
+    } finally {
+      setLifecycleSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-7">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -160,12 +188,14 @@ export default function Vehicles() {
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {vehicles.map((vehicle) => (
             <article key={vehicle.id} className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-fb-accent-soft text-fb-accent"><TruckIcon className="size-6" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="truncate text-lg font-bold">{vehicle.name}</h2>{vehicle.isDefault && <span className="inline-flex items-center gap-1 rounded-full bg-fb-accent-soft px-2 py-0.5 text-xs font-semibold text-fb-accent"><CheckBadgeIcon className="size-4" />Standard</span>}</div><p className="mt-1 truncate text-sm text-fb-muted">{label(vehicle)}</p></div></div></div>
+              <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-fb-accent-soft text-fb-accent"><TruckIcon className="size-6" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="truncate text-lg font-bold">{vehicle.name}</h2>{vehicle.isDeregistered && <span className="rounded-full border border-fb-danger px-2 py-0.5 text-xs font-semibold text-fb-danger">Abgemeldet</span>}{vehicle.isDefault && <span className="inline-flex items-center gap-1 rounded-full bg-fb-accent-soft px-2 py-0.5 text-xs font-semibold text-fb-accent"><CheckBadgeIcon className="size-4" />Standard</span>}</div><p className="mt-1 truncate text-sm text-fb-muted">{label(vehicle)}</p></div></div></div>
               <dl className="mt-5 grid grid-cols-2 gap-4 text-sm"><div><dt className="text-xs uppercase tracking-wide text-fb-muted">Kennzeichen</dt><dd className="mt-1 font-semibold">{vehicle.licensePlate || "-"}</dd></div><div><dt className="text-xs uppercase tracking-wide text-fb-muted">Kilometerstand</dt><dd className="mt-1 font-semibold">{vehicle.odometerKm == null ? "-" : `${Number(vehicle.odometerKm).toLocaleString("de-DE", { maximumFractionDigits: 1 })} km`}</dd></div><div className="col-span-2"><dt className="text-xs uppercase tracking-wide text-fb-muted">Bluetooth</dt><dd className="mt-1 font-mono text-xs">{vehicle.bluetoothMac || "Nicht zugeordnet"}</dd></div></dl>
               {!vehicle.isOwner && <div className="mt-4 rounded-lg bg-fb-accent-soft px-3 py-2 text-xs font-semibold text-fb-accent">Geteilt von {vehicle.owner?.displayName || vehicle.owner?.username || "einem anderen Benutzer"}</div>}
               <div className="mt-5 flex flex-wrap gap-2 border-t border-fb-border pt-4">
                 {vehicle.isOwner && <button type="button" onClick={() => { setEditing(vehicle); setModalOpen(true); }} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent"><PencilSquareIcon className="size-4" />Bearbeiten</button>}
-                {vehicle.isOwner && <button type="button" onClick={() => openSharing(vehicle)} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent"><UserPlusIcon className="size-4" />Teilen</button>}
+                {vehicle.isOwner && !vehicle.isDeregistered && <button type="button" onClick={() => { setLifecycleVehicle(vehicle); setLifecycleMode("transfer"); }} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent">Besitzer wechseln</button>}
+                {vehicle.isOwner && !vehicle.isDeregistered && <button type="button" onClick={() => { setLifecycleVehicle(vehicle); setLifecycleMode("deregister"); }} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-danger hover:text-fb-danger">Abmelden</button>}
+                                {vehicle.isOwner && <button type="button" onClick={() => openSharing(vehicle)} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent"><UserPlusIcon className="size-4" />Teilen</button>}
                 {vehicle.isOwner && !vehicle.isDefault && <button type="button" onClick={() => makeDefault(vehicle)} className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent"><StarIcon className="size-4" />Als Standard</button>}
                 {vehicle.isOwner && <button type="button" onClick={() => remove(vehicle)} className="ml-auto inline-flex items-center justify-center rounded-lg border border-fb-border p-2 text-fb-muted hover:border-fb-danger hover:text-fb-danger"><TrashIcon className="size-5" /><span className="sr-only">Löschen</span></button>}
               </div>
@@ -198,7 +228,9 @@ export default function Vehicles() {
         </div>
       )}
 
-      <VehicleEditorModal open={modalOpen} vehicle={editing} saving={saving} onClose={() => { if (!saving) { setModalOpen(false); setEditing(null); } }} onSubmit={save} />
+      <VehicleLifecycleModal vehicle={lifecycleVehicle} mode={lifecycleMode} saving={lifecycleSaving} onClose={() => { if (!lifecycleSaving) { setLifecycleVehicle(null); setLifecycleMode(null); } }} onConfirm={confirmLifecycle} />
+
+            <VehicleEditorModal open={modalOpen} vehicle={editing} saving={saving} onClose={() => { if (!saving) { setModalOpen(false); setEditing(null); } }} onSubmit={save} />
     </div>
   );
 }
