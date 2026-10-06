@@ -5,8 +5,9 @@ import {
   saveMonthlyOdometerReading,
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import { useI18n } from "../i18n/I18nProvider.jsx";
 
-function monthLabel(value) {
+function monthLabel(value, locale) {
   const match = /^(\d{4})-(\d{2})/.exec(String(value || ""));
   if (!match) return "–";
   const year = Number(match[1]);
@@ -14,11 +15,12 @@ function monthLabel(value) {
   if (!Number.isInteger(year) || month < 1 || month > 12) return "–";
   const date = new Date(year, month - 1, 1);
   if (!Number.isFinite(date.getTime())) return "–";
-  return new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(date);
 }
 
 export default function MonthlyOdometerPrompt() {
   const { accessToken } = useAuth();
+  const { t, locale, number } = useI18n();
   const [pending, setPending] = useState([]);
   const [value, setValue] = useState("");
   const [error, setError] = useState("");
@@ -37,8 +39,8 @@ export default function MonthlyOdometerPrompt() {
   }, [current?.vehicleId, current?.month]);
 
   const title = useMemo(
-    () => current ? `Kilometerstand für ${monthLabel(current.month)}` : "",
-    [current],
+    () => current ? t("odometer.title",{month:monthLabel(current.month,locale)}) : "",
+    [current,t,locale],
   );
 
   if (!current || dismissed) return null;
@@ -46,7 +48,7 @@ export default function MonthlyOdometerPrompt() {
   async function save() {
     const odometerKm = Number(String(value).replace(",", "."));
     if (!Number.isFinite(odometerKm) || odometerKm < 0) {
-      setError("Bitte einen gültigen Kilometerstand eingeben.");
+      setError(t("odometer.invalid"));
       return;
     }
     setBusy(true);
@@ -66,18 +68,16 @@ export default function MonthlyOdometerPrompt() {
       <div className="w-full max-w-lg rounded-2xl border border-fb-border bg-fb-main p-6 shadow-2xl">
         <h2 className="text-xl font-bold">{title}</h2>
         <p className="mt-2 text-sm text-fb-muted">
-          Für <strong className="text-fb-text">{current.vehicleName}</strong>
-          {current.licensePlate ? ` (${current.licensePlate})` : ""} fehlt der monatliche Kilometerstand.
-          Er dient dazu, nicht aufgezeichnete Kilometer in der Statistik zu erkennen.
+          {t("odometer.missing",{vehicle:`${current.vehicleName}${current.licensePlate ? ` (${current.licensePlate})` : ""}`})}
         </p>
         {current.lastOdometerKm != null && (
           <p className="mt-3 text-sm text-fb-muted">
-            Letzter Messwert: {current.lastOdometerKm.toLocaleString("de-DE")} km
-            {current.lastReadingMonth ? ` (${monthLabel(current.lastReadingMonth)})` : ""}
+            {t("odometer.last",{value:number(current.lastOdometerKm)})}
+            {current.lastReadingMonth ? ` (${monthLabel(current.lastReadingMonth,locale)})` : ""}
           </p>
         )}
         <label className="mt-5 block text-sm font-medium">
-          Kilometerstand
+          {t("odometer.value")}
           <div className="mt-2 flex items-center gap-2">
             <input
               autoFocus
@@ -93,10 +93,10 @@ export default function MonthlyOdometerPrompt() {
         {error && <p className="mt-3 text-sm text-fb-danger">{error}</p>}
         <div className="mt-6 flex justify-end gap-3">
           <button type="button" onClick={() => setDismissed(true)} className="rounded-lg border border-fb-border px-4 py-2 text-sm font-semibold">
-            Später erinnern
+            {t("odometer.later")}
           </button>
           <button type="button" disabled={busy} onClick={save} className="rounded-lg bg-fb-accent px-4 py-2 text-sm font-semibold text-fb-accent-text disabled:opacity-60">
-            {busy ? "Speichere …" : "Speichern"}
+            {busy ? t("odometer.saving") : t("common.save")}
           </button>
         </div>
       </div>
