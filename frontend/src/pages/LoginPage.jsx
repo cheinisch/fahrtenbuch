@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   ApiError,
@@ -12,6 +12,10 @@ import { useI18n } from "../i18n/I18nProvider.jsx";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = typeof location.state?.from === "string" && location.state.from.startsWith("/")
+    ? location.state.from
+    : "/";
   const { signIn, completeSignIn } = useAuth();
   const { t } = useI18n();
 
@@ -39,7 +43,7 @@ export default function LoginPage() {
         rememberMe,
       );
 
-      navigate("/", { replace: true });
+      navigate(returnTo, { replace: true });
     } catch (error) {
       if (
         error instanceof ApiError &&
@@ -70,7 +74,7 @@ export default function LoginPage() {
       const credential = await authenticateWithPasskey(options);
       const result = await verifyPasskeyLogin(credential);
       completeSignIn(result, rememberMe);
-      navigate("/", { replace: true });
+      navigate(returnTo, { replace: true });
     } catch (error) {
       if (error?.name !== "NotAllowedError") {
         setErrorMessage(
