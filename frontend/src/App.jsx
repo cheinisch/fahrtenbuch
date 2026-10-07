@@ -2,6 +2,7 @@ import {
   Navigate,
   Route,
   Routes,
+  useLocation,
 } from "react-router-dom";
 
 import AdminRoute from "./auth/AdminRoute.jsx";
@@ -20,13 +21,17 @@ import ShareInvitation from "./pages/ShareInvitation.jsx";
 
 function LoginRoute() {
   const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
+  const returnTo = typeof location.state?.from === "string" && location.state.from.startsWith("/")
+    ? location.state.from
+    : "/";
 
   if (loading) {
     return null;
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={returnTo} replace />;
   }
 
   return <LoginPage />;
