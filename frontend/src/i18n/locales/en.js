@@ -1,4 +1,6 @@
 export default {
+  jobs: {"title":"Background jobs","description":"Monitor Redis queues and manage failed jobs.","refresh":"Refresh","redis":"Redis","online":"Connected","offline":"Disconnected","pending":"Pending","processing":"Processing","delayed":"Delayed","failed":"Failed","type":"Type","id":"Job ID","attempts":"Attempts","error":"Error","actions":"Actions","retry":"Retry","delete":"Remove","confirmDelete":"Permanently remove this failed job?","empty":"No jobs in this queue."},
+
   tripGpsView:{label:"GPS display",route:"Route",both:"Route & points",points:"Points only",pointsCount:"GPS points"},
   tripDetails:{title:"Trip details",details:"Details",history:"History",start:"Start",end:"End",from:"Origin",to:"Destination",distance:"Distance",vehicle:"Vehicle",category:"Category",tags:"Tags",noTags:"No tags available",save:"Save changes",categoryRequired:"Please select a category."},
   tripArchive:{open:"Archive",close:"Close",title:"Deleted trips",retention:"Trips are permanently deleted after 90 days.",empty:"No archived trips.",purgeAt:"Permanent deletion",restore:"Restore",deleteForever:"Delete permanently",moveToArchive:"Delete trip",confirmArchive:"Move this trip to the archive for 90 days?",confirmDelete:"Permanently delete this trip? This cannot be undone."},
