@@ -52,15 +52,15 @@ export async function reconcileCompletedTracking(client, tripId) {
     WHERE t.vehicle_id=$1 AND t.id<>$2 AND t.source='android'
       AND t.status='completed' AND t.archived_at IS NULL
       AND t.reconciliation_status='canonical'
-      AND t.started_at <= $4 + interval '2 minutes'
-      AND t.ended_at >= $3 - interval '2 minutes'
+      AND t.started_at <= $4::timestamptz + interval '2 minutes'
+      AND t.ended_at >= $3::timestamptz - interval '2 minutes'
     ORDER BY t.started_at
     FOR UPDATE`,[current.vehicle_id,current.id,current.started_at,current.ended_at]);
   if(!candidates.rowCount) return {action:"none",tripId};
 
   const cp=await points(client,current.id);
   const currentOwner=await client.query(`SELECT EXISTS(SELECT 1 FROM vehicle_ownership_periods p
-    WHERE p.vehicle_id=$1 AND p.user_id=$2 AND $3>=p.valid_from AND (p.valid_to IS NULL OR $3<p.valid_to)) AS yes`,
+    WHERE p.vehicle_id=$1 AND p.user_id=$2 AND $3::timestamptz>=p.valid_from AND (p.valid_to IS NULL OR $3::timestamptz<p.valid_to)) AS yes`,
     [current.vehicle_id,current.user_id,current.started_at]);
   for(const other of candidates.rows){
     const op=await points(client,other.id);
@@ -99,7 +99,7 @@ export async function reconcileCompletedTracking(client, tripId) {
 
     if(extendsBoth){
       const owner=await client.query(`SELECT user_id FROM vehicle_ownership_periods
-        WHERE vehicle_id=$1 AND $2>=valid_from AND (valid_to IS NULL OR $2<valid_to)
+        WHERE vehicle_id=$1 AND $2::timestamptz>=valid_from AND (valid_to IS NULL OR $2::timestamptz<valid_to)
         ORDER BY valid_from DESC LIMIT 1`,[current.vehicle_id,new Date(combinedStart)]);
       if(!owner.rowCount) continue;
       const created=await client.query(`INSERT INTO trips(user_id,vehicle_id,type,status,started_at,ended_at,source,completed_at,
