@@ -797,7 +797,7 @@ export default function Dashboard() {
 
         if (!cancelled) {
           setData(result);
-          setSelectedTripId(null);
+          setSelectedTripId((id) => id && result.trips.some((trip) => trip.id === id) ? id : null);
           setStatus({
             loading: false,
             error: "",
