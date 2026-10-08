@@ -25,6 +25,7 @@ import {
   replaceTripTags,
 } from "../services/tripService.js";
 import { reconcileCompletedTracking } from "../services/trackingReconciliationService.js";
+import { resolveTripEndpointAddresses } from "../services/tripAddressService.js";
 
 export const trackingRoutes = Router();
 
@@ -396,6 +397,8 @@ trackingRoutes.post(
 
       const reconciliation = await reconcileCompletedTracking(client, tripId);
       await client.query("COMMIT");
+      // Geocoding must not roll back a successfully completed trip.
+      await resolveTripEndpointAddresses(tripId, request.auth.userId).catch((error) => console.warn("Trip reverse geocoding failed:", error));
       response.json({
         ...mapTrip(result.rows[0]),
         reconciliation,
