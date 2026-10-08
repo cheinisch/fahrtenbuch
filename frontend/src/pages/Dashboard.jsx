@@ -1396,17 +1396,17 @@ export default function Dashboard() {
                   <div><span className="text-fb-muted">{t('tripDetails.vehicle')}</span><div>{selectedTrip.vehicle?.name || '–'}</div></div>
                 </div>
                 <div className="mt-3">
-                  <div className="mb-2 font-medium">{t("tripDetails.gpsView")}</div>
+                  <div className="mb-2 font-medium">{t("tripGpsView.label")}</div>
                   <div className="flex flex-wrap gap-2">
                     {["route", "both", "points"].map((mode) => (
                       <button type="button" key={mode} onClick={() => setGpsMode(mode)} aria-pressed={gpsMode === mode}
                         className={gpsMode === mode ? "rounded-lg border border-fb-accent bg-fb-accent-soft px-3 py-2 text-xs font-semibold text-fb-accent" : "rounded-lg border border-fb-border px-3 py-2 text-xs"}>
-                        {t("tripDetails.gpsMode." + mode)}
+                        {t("tripGpsView." + mode)}
                       </button>
                     ))}
                   </div>
                   {gpsError && <p role="alert" className="mt-2 text-xs text-fb-danger">{gpsError}</p>}
-                  {gpsMode !== "route" && <p className="mt-2 text-xs text-fb-muted">{gpsPoints.length} {t("tripDetails.gpsPoints")}</p>}
+                  {gpsMode !== "route" && <p className="mt-2 text-xs text-fb-muted">{gpsPoints.length} {t("tripGpsView.pointsCount")}</p>}
                 </div>
                 <label className="mt-3 block font-medium">{t('tripDetails.category')}
                   <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="mt-1 w-full rounded border border-fb-border bg-fb-surface p-2">
