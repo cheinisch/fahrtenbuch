@@ -684,3 +684,8 @@ export function updateSavedPlace(accessToken, id, place) {
 export function deleteSavedPlace(accessToken, id) {
   return apiRequest(accessToken, `/api/v1/places/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
+
+export const archiveTrip = (token, id) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const getArchivedTrips = (token) => apiRequest(token, "/api/v1/trips/archive");
+export const restoreArchivedTrip = (token, id) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(id)}/restore`, { method: "POST" });
+export const permanentlyDeleteTrip = (token, id) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(id)}/permanent`, { method: "DELETE" });
