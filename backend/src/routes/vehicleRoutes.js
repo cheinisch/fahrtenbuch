@@ -174,6 +174,13 @@ vehicleRoutes.get(
       `
         SELECT
           v.*,
+          COALESCE((
+            SELECT r.odometer_meters
+            FROM vehicle_odometer_readings r
+            WHERE r.vehicle_id = v.id AND r.user_id = v.user_id
+            ORDER BY r.reading_date DESC, r.recorded_at DESC
+            LIMIT 1
+          ), v.odometer_meters) AS display_odometer_meters,
           (v.user_id = $1) AS is_owner,
           owner.display_name AS owner_display_name,
           owner.username AS owner_username,
@@ -204,6 +211,7 @@ vehicleRoutes.get(
 
     response.json(result.rows.map((row) => {
       const mapped=mapVehicle(row);
+      mapped.odometerKm = row.display_odometer_meters == null ? null : Number(row.display_odometer_meters) / 1000;
       if(row.is_owner) return mapped;
       return {
         id:mapped.id,name:mapped.name,manufacturer:mapped.manufacturer,model:mapped.model,
