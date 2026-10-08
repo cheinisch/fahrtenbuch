@@ -1,4 +1,5 @@
 export default {
+  tripGpsView:{label:"GPS-Anzeige",route:"Strecke",both:"Strecke & Punkte",points:"Nur Punkte",pointsCount:"GPS-Punkte"},
   tripDetails:{title:"Fahrtdetails",details:"Details",history:"Historie",start:"Start",end:"Ende",from:"Startort",to:"Zielort",distance:"Strecke",vehicle:"Fahrzeug",category:"Kategorie",tags:"Tags",noTags:"Keine Tags vorhanden",save:"Änderungen speichern",categoryRequired:"Bitte eine Kategorie auswählen."},
   tripArchive:{open:"Archiv",close:"Schließen",title:"Gelöschte Fahrten",retention:"Fahrten werden nach 90 Tagen automatisch endgültig gelöscht.",empty:"Keine archivierten Fahrten.",purgeAt:"Endgültige Löschung",restore:"Wiederherstellen",deleteForever:"Endgültig löschen",moveToArchive:"Fahrt löschen",confirmArchive:"Diese Fahrt für 90 Tage ins Archiv verschieben?",confirmDelete:"Diese Fahrt unwiderruflich löschen?"},
   common:{save:"Speichern",saving:"Speichern …",cancel:"Abbrechen",close:"Schließen",loading:"Wird geladen …",language:"Sprache",german:"Deutsch",english:"Englisch",systemDefault:"Systemstandard"},
