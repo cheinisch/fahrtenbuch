@@ -305,6 +305,8 @@ export default function Dashboard() {
     entries: [],
   });
 
+  const selectedTrip = data.trips.find((trip) => trip.id === selectedTripId) || null;
+
   useEffect(() => { selectedTripIdRef.current = selectedTripId; }, [selectedTripId]);
   useEffect(() => { mapModeRef.current = mapMode; }, [mapMode]);
 
@@ -705,7 +707,6 @@ export default function Dashboard() {
 
     mapRef.current = map;
 
-    const selectedTrip = data.trips.find((trip) => trip.id === selectedTripId) || null;
 
   return () => {
       resizeObserver?.disconnect();
