@@ -84,6 +84,20 @@ services:
     networks:
       - fahrtenbuch
 
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: fahrtenbuch-redis-insight
+    restart: unless-stopped
+    ports:
+      - "${REDIS_INSIGHT_BIND_IP:-127.0.0.1}:${REDIS_INSIGHT_PORT:-5540}:5540"
+    volumes:
+      - fahrtenbuch-redis-insight-data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - fahrtenbuch
+
   db:
     image: postgres:16-alpine
     container_name: fahrtenbuch-db
@@ -109,6 +123,7 @@ services:
 
 volumes:
   fahrtenbuch-redis-data:
+  fahrtenbuch-redis-insight-data:
   fahrtenbuch-db-data:
     external: true
     name: fahrtenbuch-db-data
