@@ -119,8 +119,8 @@ export default function Statistics() {
         const firstVehicleId = readingRows[0]?.vehicleId || result[0]?.vehicleId || "";
         if (firstVehicleId) {
           setVehicleId(firstVehicleId);
-          const latestReading = readingRows.find((reading) => reading.vehicleId === firstVehicleId);
-          if (latestReading) setMonth((latestReading.readingDate || `${latestReading.month}-01`).slice(0, 7));
+          const newestMonth = result.find((row) => row.vehicleId === firstVehicleId)?.month;
+          if (newestMonth) setMonth(newestMonth);
         }
       }
     } catch (loadError) {
@@ -180,12 +180,13 @@ export default function Statistics() {
       .filter(([, name]) => Boolean(name));
   }, [rows, readings]);
 
+  // Monthly statistics already include the current month, even without an odometer reading.
   const availableMonths = useMemo(() => Array.from(new Set(
-    readings
-      .filter((reading) => reading.vehicleId === vehicleId)
-      .map((reading) => (reading.readingDate || `${reading.month}-01`).slice(0, 7))
+    rows
+      .filter((row) => row.vehicleId === vehicleId)
+      .map((row) => row.month)
       .filter((value) => /^\d{4}-\d{2}$/.test(value)),
-  )).sort().reverse(), [readings, vehicleId]);
+  )).sort().reverse(), [rows, vehicleId]);
 
   const availableYears = useMemo(() => Array.from(new Set(
     availableMonths.map((value) => value.slice(0, 4)),
@@ -333,8 +334,7 @@ export default function Statistics() {
         <select value={vehicleId} onChange={(e) => {
           const nextVehicleId = e.target.value;
           setVehicleId(nextVehicleId);
-          const latestReading = readings.find((reading) => reading.vehicleId === nextVehicleId);
-          setMonth(latestReading ? (latestReading.readingDate || `${latestReading.month}-01`).slice(0, 7) : "");
+          setMonth(rows.find((row) => row.vehicleId === nextVehicleId)?.month || "");
         }} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2">
           {vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>
