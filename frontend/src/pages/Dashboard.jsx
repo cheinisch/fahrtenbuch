@@ -19,9 +19,14 @@ import {
   correctTripRoute,
   getAssignableTripDrivers,
   assignTripDriver,
+  archiveTrip,
+  getArchivedTrips,
+  restoreArchivedTrip,
+  permanentlyDeleteTrip,
 
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import { useI18n } from "../i18n/I18nProvider.jsx";
 
 const OSM_MAP_STYLE = {
   version: 8,
@@ -261,6 +266,35 @@ function createBounds(coordinates) {
 
 export default function Dashboard() {
   const { accessToken } = useAuth();
+  const { t, locale } = useI18n();
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archivedTrips, setArchivedTrips] = useState([]);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  useEffect(() => {
+    if (!archiveOpen) return;
+    let active = true;
+    getArchivedTrips(accessToken).then((items) => { if (active) setArchivedTrips(items); }).catch((e) => { if (active) setArchiveError(e.message); });
+    return () => { active = false; };
+  }, [archiveOpen, accessToken, reloadKey]);
+
+  async function changeTrip(id, operation) {
+    if (archiveBusy) return;
+    const message = operation === 'archive' ? t('tripArchive.confirmArchive') : operation === 'delete' ? t('tripArchive.confirmDelete') : null;
+    if (message && !window.confirm(message)) return;
+    setArchiveBusy(true);
+    setArchiveError('');
+    try {
+      if (operation === 'archive') await archiveTrip(accessToken, id);
+      if (operation === 'restore') await restoreArchivedTrip(accessToken, id);
+      if (operation === 'delete') await permanentlyDeleteTrip(accessToken, id);
+      setSelectedTripId(null);
+      setReloadKey((n) => n + 1);
+    } catch (e) { setArchiveError(e.message); }
+    finally { setArchiveBusy(false); }
+  }
+
 
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -782,6 +816,7 @@ export default function Dashboard() {
     filters.to,
     filters.type,
     filters.tagId,
+    reloadKey,
   ]);
 
   useEffect(() => {
@@ -991,6 +1026,7 @@ export default function Dashboard() {
             >
               Filter löschen
             </button>
+            <button type="button" onClick={() => { setArchiveError(""); setArchiveOpen((v) => !v); }} className="rounded-lg border border-fb-border px-3 py-2 text-xs font-semibold">{archiveOpen ? t("tripArchive.close") : t("tripArchive.open")}</button>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
@@ -1235,6 +1271,27 @@ export default function Dashboard() {
           </div>
         )}
 
+        {archiveOpen && (
+          <div className="absolute inset-4 z-30 overflow-auto rounded-xl border border-fb-border bg-fb-main p-4 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">{t("tripArchive.title")}</h2>
+              <button type="button" onClick={() => setArchiveOpen(false)}>{t("tripArchive.close")}</button>
+            </div>
+            <p className="mb-4 text-sm text-fb-muted">{t("tripArchive.retention")}</p>
+            {archiveError && <p role="alert" className="mb-3 text-red-500">{archiveError}</p>}
+            {archivedTrips.length === 0 && <p>{t("tripArchive.empty")}</p>}
+            {archivedTrips.map((trip) => (
+              <div key={trip.id} className="mb-3 rounded-lg border border-fb-border p-3">
+                <div className="font-medium">{new Date(trip.startedAt).toLocaleString(locale)}</div>
+                <div className="text-xs text-fb-muted">{t("tripArchive.purgeAt")}: {new Date(trip.purgeAt).toLocaleDateString(locale)}</div>
+                <div className="mt-2 flex gap-2">
+                  <button disabled={archiveBusy} onClick={() => changeTrip(trip.id, 'restore')} className="rounded border border-fb-border px-3 py-1.5 text-sm">{t("tripArchive.restore")}</button>
+                  <button disabled={archiveBusy} onClick={() => changeTrip(trip.id, 'delete')} className="rounded border border-red-500 px-3 py-1.5 text-sm text-red-500">{t("tripArchive.deleteForever")}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {selectedTripId && (
           <div className="absolute bottom-4 right-4 z-20 w-[min(420px,calc(100%-2rem))] overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur">
             <div className="flex items-center justify-between border-b border-fb-border px-4 py-3">
@@ -1254,6 +1311,8 @@ export default function Dashboard() {
             </div>
 
             <div className="border-b border-fb-border p-3">
+              <button type="button" disabled={archiveBusy} onClick={() => changeTrip(selectedTripId, 'archive')} className="mb-3 rounded-lg border border-red-500 px-3 py-2 text-sm text-red-500">{t("tripArchive.moveToArchive")}</button>
+              {archiveError && <p role="alert" className="mb-2 text-red-500">{archiveError}</p>}
               {selectedTrip?.reconciliationMetadata?.splitRecommended && (
                 <div className="mb-3 rounded-lg border border-fb-accent bg-fb-accent-soft p-3 text-sm">
                   <div className="font-semibold">Aus mehreren Geräten zusammengeführt</div>
