@@ -233,6 +233,10 @@ export default function Settings() {
           Benutzerverwaltung
         </TabButton>
 
+        <TabButton active={activeTab === "redis"} onClick={() => setActiveTab("redis")}>
+          Redis
+        </TabButton>
+
         <TabButton
           active={activeTab === "backup"}
           onClick={() =>
@@ -689,9 +693,30 @@ export default function Settings() {
           )}
         </div>
       ) : activeTab === "users" ? (
-        <UserManagement
-          onUsersChanged={loadOverview}
-        />
+        <UserManagement onUsersChanged={loadOverview} />
+      ) : activeTab === "redis" ? (
+        <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+          <h2 className="text-lg font-bold">Redis Insight</h2>
+          <p className="mt-2 text-sm text-fb-muted">
+            Technische Verwaltung von Redis, Speicherverbrauch und Hintergrundaufträgen.
+            Redis Insight ist standardmäßig nur auf dem Docker-Host unter Port 5540 erreichbar.
+          </p>
+          <div className="mt-4 rounded-lg border border-fb-border bg-fb-surface p-4 text-sm">
+            <p><strong>Redis Host:</strong> redis</p>
+            <p><strong>Redis Port:</strong> 6379</p>
+            <p className="mt-2 text-fb-muted">
+              Öffne Redis Insight über einen gesicherten Zugriff auf den Docker-Host.
+              Bei lokalem SSH-Tunnel: ssh -L 5540:127.0.0.1:5540 user@server
+            </p>
+          </div>
+          <a href="http://localhost:5540" target="_blank" rel="noopener noreferrer"
+            className="mt-4 inline-flex rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text">
+            Redis Insight öffnen
+          </a>
+          <p className="mt-2 text-xs text-fb-muted">
+            Der Link funktioniert, wenn Redis Insight auf deinem Rechner über localhost:5540 erreichbar ist.
+          </p>
+        </section>
       ) : (
         <AdminDataTransfer />
       )}
