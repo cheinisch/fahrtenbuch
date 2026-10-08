@@ -1,4 +1,5 @@
 export default {
+  tripArchive:{open:"Archive",close:"Close",title:"Deleted trips",retention:"Trips are permanently deleted after 90 days.",empty:"No archived trips.",purgeAt:"Permanent deletion",restore:"Restore",deleteForever:"Delete permanently",moveToArchive:"Delete trip",confirmArchive:"Move this trip to the archive for 90 days?",confirmDelete:"Permanently delete this trip? This cannot be undone."},
   common:{save:"Save",saving:"Saving …",cancel:"Cancel",close:"Close",loading:"Loading …",language:"Language",german:"German",english:"English",systemDefault:"System default"},
   nav:{dashboard:"Dashboard",vehicles:"Vehicles",statistics:"Statistics",export:"Export",compliance:"Compliance",profile:"Profile",settings:"Administration",logout:"Sign out"},
   language:{globalTitle:"Default language",globalHint:"This language is used when a user has not selected a personal language.",personalTitle:"Language",personalHint:"Overrides the global default language for your user account only."},
