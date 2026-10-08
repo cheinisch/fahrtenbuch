@@ -175,7 +175,7 @@ export default function Statistics() {
 
   const vehicles = useMemo(() => {
     const vehicleNames = new Map(rows.map((row) => [row.vehicleId, row.vehicleName]));
-    return Array.from(new Set(readings.map((reading) => reading.vehicleId)))
+    return Array.from(new Set([...rows.map((row) => row.vehicleId), ...readings.map((reading) => reading.vehicleId)]))
       .map((id) => [id, vehicleNames.get(id) || readings.find((reading) => reading.vehicleId === id)?.vehicleName || "Fahrzeug"])
       .filter(([, name]) => Boolean(name));
   }, [rows, readings]);
