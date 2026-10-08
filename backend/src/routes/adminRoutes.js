@@ -6,6 +6,7 @@ import { Router } from "express";
 
 import { config } from "../config.js";
 import { redisCommand } from "../jobs/redisClient.js";
+import { enqueueJob } from "../jobs/queue.js";
 import { pool } from "../database/pool.js";
 import {
   badRequest,
@@ -1662,4 +1663,30 @@ adminRoutes.delete("/jobs/:id", asyncHandler(async (request, response) => {
   if (!raw) return response.status(404).json({ message: "Job not found" });
   await redisCommand("LREM", JOB_PREFIX + "failed", 1, raw);
   response.status(204).end();
+}));
+
+adminRoutes.post("/jobs/reverse-geocode", asyncHandler(async (request, response) => {
+  const mode = request.body?.mode === "all" ? "all" : "missing";
+  const limit = Math.min(1000, Math.max(1, Number.parseInt(request.body?.limit, 10) || 500));
+  const result = await pool.query(
+    `SELECT t.id, t.user_id FROM trips t
+     WHERE t.status = 'completed' AND t.archived_at IS NULL
+       AND EXISTS (SELECT 1 FROM track_points p WHERE p.trip_id = t.id)
+       AND ($1::text = 'all' OR NULLIF(t.start_address, '') IS NULL OR NULLIF(t.end_address, '') IS NULL)
+     ORDER BY t.started_at DESC LIMIT $2`,
+    [mode, limit],
+  );
+  let queued = 0;
+  for (const trip of result.rows) {
+    const lock = "fahrtenbuch:jobs:geocode:" + trip.id;
+    if (await redisCommand("SET", lock, "1", "NX", "EX", 3600) !== "OK") continue;
+    try {
+      await enqueueJob("trip.reverseGeocode", { tripId: trip.id, userId: trip.user_id });
+      queued++;
+    } catch (error) {
+      await redisCommand("DEL", lock).catch(() => {});
+      throw error;
+    }
+  }
+  response.status(202).json({ queued, selected: result.rowCount, mode });
 }));
