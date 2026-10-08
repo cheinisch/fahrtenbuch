@@ -349,14 +349,22 @@ export default function Dashboard() {
     error: "",
   });
 
+  // A selected trip is the only trip rendered on the map.
+  const visibleTrips = useMemo(
+    () => selectedTripId
+      ? data.trips.filter((trip) => trip.id === selectedTripId)
+      : data.trips,
+    [data.trips, selectedTripId],
+  );
+
   const lineFeatures = useMemo(
-    () => toLineFeatures(data.trips),
-    [data.trips],
+    () => toLineFeatures(visibleTrips),
+    [visibleTrips],
   );
 
   const endpointFeatures = useMemo(
-    () => toEndpointFeatures(data.trips),
-    [data.trips],
+    () => toEndpointFeatures(visibleTrips),
+    [visibleTrips],
   );
 
   const fitAllTrips = useCallback(() => {
@@ -367,7 +375,7 @@ export default function Dashboard() {
     }
 
     const coordinates = collectCoordinates(
-      data.trips,
+      visibleTrips,
     );
 
     if (coordinates.length === 1) {
@@ -411,7 +419,7 @@ export default function Dashboard() {
       zoom: 5,
       duration: 500,
     });
-  }, [data]);
+  }, [data.map.homeLocation, data.map.workLocation, visibleTrips]);
 
   const updateMapData = useCallback(() => {
     const map = mapRef.current;
@@ -763,7 +771,7 @@ export default function Dashboard() {
     if (mapLoadedRef.current) {
       fitAllTrips();
     }
-  }, [data.trips, data.map.homeLocation]);
+  }, [visibleTrips, data.map.homeLocation, fitAllTrips]);
 
   useEffect(() => {
     let cancelled = false;
