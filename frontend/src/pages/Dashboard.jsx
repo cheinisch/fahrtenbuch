@@ -23,6 +23,8 @@ import {
   getArchivedTrips,
   restoreArchivedTrip,
   permanentlyDeleteTrip,
+  classifyTrip,
+  updateTripTags,
 
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
@@ -333,6 +335,11 @@ export default function Dashboard() {
   const [selectedTripId, setSelectedTripId] =
     useState(null);
 
+  const [detailsTab, setDetailsTab] = useState("details");
+  const [editCategory, setEditCategory] = useState("unclassified");
+  const [editTags, setEditTags] = useState([]);
+  const [editError, setEditError] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
   const [history, setHistory] = useState({
     loading: false,
     error: "",
@@ -830,7 +837,7 @@ export default function Dashboard() {
   useEffect(() => {
     let cancelled = false;
 
-    if (!selectedTripId) {
+    if (!selectedTripId || detailsTab !== 'history') {
       setHistory({
         loading: false,
         error: "",
@@ -873,10 +880,14 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, selectedTripId]);
+  }, [accessToken, selectedTripId, detailsTab]);
 
   function selectTrip(trip) {
     setSelectedTripId(trip.id);
+    setDetailsTab('details');
+    setEditCategory(trip.type);
+    setEditTags((trip.tags || []).map((tag) => tag.id));
+    setEditError('');
     setDriverAssignment({ loading: true, drivers: [], selected: "", reason: "" });
     getAssignableTripDrivers(accessToken, trip.id)
       .then((drivers) => setDriverAssignment({ loading: false, drivers, selected: "", reason: "" }))
@@ -1000,6 +1011,27 @@ export default function Dashboard() {
       setTripAction({ busy: false, error: "", splitPoints: null });
     } catch (error) {
       setTripAction((state) => ({ ...state, busy: false, error: error.message }));
+    }
+  }
+
+  async function saveTripDetails() {
+    if (!selectedTrip || editBusy) return;
+    setEditBusy(true);
+    setEditError('');
+    try {
+      if (editCategory !== selectedTrip.type) {
+        if (editCategory === 'unclassified') throw new Error(t('tripDetails.categoryRequired'));
+        await classifyTrip(accessToken, selectedTrip.id, editCategory, selectedTrip.purpose, selectedTrip.contact);
+      }
+      const oldTags = (selectedTrip.tags || []).map((tag) => tag.id).sort();
+      if (JSON.stringify([...editTags].sort()) !== JSON.stringify(oldTags)) {
+        await updateTripTags(accessToken, selectedTrip.id, editTags);
+      }
+      setReloadKey((value) => value + 1);
+    } catch (error) {
+      setEditError(error.message);
+    } finally {
+      setEditBusy(false);
     }
   }
 
@@ -1304,9 +1336,10 @@ export default function Dashboard() {
           <div className="absolute bottom-4 right-4 z-20 w-[min(420px,calc(100%-2rem))] overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur">
             <div className="flex items-center justify-between border-b border-fb-border px-4 py-3">
               <div>
-                <div className="font-semibold">Historie</div>
-                <div className="text-xs text-fb-muted">
-                  Unveränderliche Änderungen dieser Fahrt
+                <div className="font-semibold">{t('tripDetails.title')}</div>
+                <div className="mt-2 flex gap-2">
+                  <button type="button" onClick={() => setDetailsTab('details')} className={detailsTab === 'details' ? 'font-semibold text-fb-accent' : 'text-fb-muted'}>{t('tripDetails.details')}</button>
+                  <button type="button" onClick={() => setDetailsTab('history')} className={detailsTab === 'history' ? 'font-semibold text-fb-accent' : 'text-fb-muted'}>{t('tripDetails.history')}</button>
                 </div>
               </div>
               <button
@@ -1318,6 +1351,33 @@ export default function Dashboard() {
               </button>
             </div>
 
+            {detailsTab === 'details' && selectedTrip && (
+              <div className="max-h-[50vh] overflow-y-auto border-b border-fb-border p-3 text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  <div><span className="text-fb-muted">{t('tripDetails.start')}</span><div>{formatDate(selectedTrip.startedAt)}</div></div>
+                  <div><span className="text-fb-muted">{t('tripDetails.end')}</span><div>{selectedTrip.endedAt ? formatDate(selectedTrip.endedAt) : '–'}</div></div>
+                  <div><span className="text-fb-muted">{t('tripDetails.from')}</span><div>{selectedTrip.startAddress || '–'}</div></div>
+                  <div><span className="text-fb-muted">{t('tripDetails.to')}</span><div>{selectedTrip.endAddress || '–'}</div></div>
+                  <div><span className="text-fb-muted">{t('tripDetails.distance')}</span><div>{formatDistance(selectedTrip.distanceMeters)}</div></div>
+                  <div><span className="text-fb-muted">{t('tripDetails.vehicle')}</span><div>{selectedTrip.vehicle?.name || '–'}</div></div>
+                </div>
+                <label className="mt-3 block font-medium">{t('tripDetails.category')}
+                  <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="mt-1 w-full rounded border border-fb-border bg-fb-surface p-2">
+                    {['unclassified','private','business','commute'].map((type) => <option key={type} value={type}>{tripTypeLabels[type]}</option>)}
+                  </select>
+                </label>
+                <div className="mt-3 font-medium">{t('tripDetails.tags')}</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {data.filters.tags.map((tag) => <label key={tag.id} className="flex items-center gap-1 rounded border border-fb-border px-2 py-1">
+                    <input type="checkbox" checked={editTags.includes(tag.id)} onChange={(e) => setEditTags((prev) => e.target.checked ? [...prev,tag.id] : prev.filter((id) => id !== tag.id))} />
+                    {tag.name}
+                  </label>)}
+                  {data.filters.tags.length === 0 && <span className="text-fb-muted">{t('tripDetails.noTags')}</span>}
+                </div>
+                {editError && <p role="alert" className="mt-2 text-red-500">{editError}</p>}
+                <button type="button" disabled={editBusy} onClick={saveTripDetails} className="mt-3 rounded bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{t('tripDetails.save')}</button>
+              </div>
+            )}
             <div className="border-b border-fb-border p-3">
               <button type="button" disabled={archiveBusy} onClick={() => changeTrip(selectedTripId, 'archive')} className="mb-3 rounded-lg border border-red-500 px-3 py-2 text-sm text-red-500">{t("tripArchive.moveToArchive")}</button>
               {archiveError && <p role="alert" className="mb-2 text-red-500">{archiveError}</p>}
@@ -1414,7 +1474,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="max-h-72 overflow-y-auto p-3">
+            {detailsTab === 'history' && <div className="max-h-72 overflow-y-auto p-3">
               {history.loading ? (
                 <div className="px-1 py-3 text-sm text-fb-muted">
                   Historie wird geladen …
@@ -1463,7 +1523,7 @@ export default function Dashboard() {
                   })}
                 </div>
               )}
-            </div>
+            </div>}
           </div>
         )}
 
