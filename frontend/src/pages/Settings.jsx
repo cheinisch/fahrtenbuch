@@ -12,6 +12,7 @@ import {
 import { useAuth } from "../auth/AuthProvider.jsx";
 import AdminDataTransfer from "../components/admin/AdminDataTransfer.jsx";
 import UserManagement from "../components/users/UserManagement.jsx";
+import JobManagement from "../components/admin/JobManagement.jsx";
 
 const fieldClass =
   "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
@@ -233,6 +234,9 @@ export default function Settings() {
           Benutzerverwaltung
         </TabButton>
 
+        <TabButton active={activeTab === "jobs"} onClick={() => setActiveTab("jobs")}>
+          Hintergrundaufgaben
+        </TabButton>
         <TabButton active={activeTab === "redis"} onClick={() => setActiveTab("redis")}>
           Redis
         </TabButton>
@@ -694,6 +698,8 @@ export default function Settings() {
         </div>
       ) : activeTab === "users" ? (
         <UserManagement onUsersChanged={loadOverview} />
+      ) : activeTab === "jobs" ? (
+        <JobManagement />
       ) : activeTab === "redis" ? (
         <section className="rounded-xl border border-fb-border bg-fb-main p-5">
           <h2 className="text-lg font-bold">Redis Insight</h2>
