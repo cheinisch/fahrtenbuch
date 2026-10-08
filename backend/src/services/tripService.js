@@ -157,9 +157,9 @@ export async function ensureOwnedVehicle(client, userId, vehicleId, at = new Dat
       FROM vehicles v
       WHERE v.id = $1
         AND v.archived_at IS NULL
-        AND (v.deregistered_at IS NULL OR $3::timestamptz < v.deregistered_at)
         AND (
-          EXISTS (
+          v.user_id = $2
+          OR EXISTS (
             SELECT 1
             FROM vehicle_ownership_periods p
             WHERE p.vehicle_id = v.id
