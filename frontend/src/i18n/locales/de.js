@@ -1,4 +1,5 @@
 export default {
+  tripArchive:{open:"Archiv",close:"Schließen",title:"Gelöschte Fahrten",retention:"Fahrten werden nach 90 Tagen automatisch endgültig gelöscht.",empty:"Keine archivierten Fahrten.",purgeAt:"Endgültige Löschung",restore:"Wiederherstellen",deleteForever:"Endgültig löschen",moveToArchive:"Fahrt löschen",confirmArchive:"Diese Fahrt für 90 Tage ins Archiv verschieben?",confirmDelete:"Diese Fahrt unwiderruflich löschen?"},
   common:{save:"Speichern",saving:"Speichern …",cancel:"Abbrechen",close:"Schließen",loading:"Wird geladen …",language:"Sprache",german:"Deutsch",english:"Englisch",systemDefault:"Systemstandard"},
   nav:{dashboard:"Dashboard",vehicles:"Fahrzeuge",statistics:"Statistiken",export:"Export",compliance:"Prüfung",profile:"Profil",settings:"Administration",logout:"Abmelden"},
   language:{globalTitle:"Standardsprache",globalHint:"Diese Sprache wird verwendet, wenn ein Benutzer keine eigene Sprache gewählt hat.",personalTitle:"Sprache",personalHint:"Überschreibt die globale Standardsprache nur für dein Benutzerkonto."},
