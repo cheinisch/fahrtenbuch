@@ -5,6 +5,7 @@ import path from "node:path";
 import { Router } from "express";
 
 import { config } from "../config.js";
+import { redisCommand } from "../jobs/redisClient.js";
 import { pool } from "../database/pool.js";
 import {
   badRequest,
@@ -1611,3 +1612,54 @@ adminRoutes.patch(
     }
   }),
 );
+
+const JOB_PREFIX = "fahrtenbuch:jobs:";
+const JOB_STATES = ["pending", "processing", "delayed", "failed"];
+
+adminRoutes.get("/jobs/status", asyncHandler(async (_request, response) => {
+  const online = (await redisCommand("PING")) === "PONG";
+  const counts = {};
+  for (const state of JOB_STATES) {
+    counts[state] = await redisCommand(state === "delayed" ? "ZCARD" : "LLEN", JOB_PREFIX + state);
+  }
+  response.json({ online, counts });
+}));
+
+adminRoutes.get("/jobs", asyncHandler(async (request, response) => {
+  const state = String(request.query.state || "failed");
+  if (!JOB_STATES.includes(state)) return response.status(400).json({ message: "Invalid job state" });
+  const rows = await redisCommand(state === "delayed" ? "ZRANGE" : "LRANGE", JOB_PREFIX + state, 0, 99);
+  response.json({ state, jobs: (rows || []).map((raw) => {
+    try {
+      const { id, type, attempt, error, failedAt, payload } = JSON.parse(raw);
+      return { id, type, attempt, error, failedAt, payload };
+    } catch {
+      return { id: null, type: "invalid", attempt: 0, error: "Invalid job data" };
+    }
+  }) });
+}));
+
+adminRoutes.post("/jobs/:id/retry", asyncHandler(async (request, response) => {
+  const rows = await redisCommand("LRANGE", JOB_PREFIX + "failed", 0, 999);
+  const raw = (rows || []).find((item) => {
+    try { return JSON.parse(item).id === request.params.id; } catch { return false; }
+  });
+  if (!raw) return response.status(404).json({ message: "Job not found" });
+  const job = JSON.parse(raw);
+  delete job.error;
+  delete job.failedAt;
+  job.attempt = 0;
+  await redisCommand("LPUSH", JOB_PREFIX + "pending", JSON.stringify(job));
+  await redisCommand("LREM", JOB_PREFIX + "failed", 1, raw);
+  response.json({ retried: job.id });
+}));
+
+adminRoutes.delete("/jobs/:id", asyncHandler(async (request, response) => {
+  const rows = await redisCommand("LRANGE", JOB_PREFIX + "failed", 0, 999);
+  const raw = (rows || []).find((item) => {
+    try { return JSON.parse(item).id === request.params.id; } catch { return false; }
+  });
+  if (!raw) return response.status(404).json({ message: "Job not found" });
+  await redisCommand("LREM", JOB_PREFIX + "failed", 1, raw);
+  response.status(204).end();
+}));
