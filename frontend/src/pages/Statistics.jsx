@@ -102,6 +102,7 @@ export default function Statistics() {
   const [message, setMessage] = useState("");
   const [intervals, setIntervals] = useState([]);
   const [readingLogOpen, setReadingLogOpen] = useState(false);
+  const [intervalModalOpen, setIntervalModalOpen] = useState(false);
   const [chartYear, setChartYear] = useState(String(new Date().getFullYear()));
 
   async function loadData() {
@@ -288,7 +289,20 @@ export default function Statistics() {
       </section>
       {intervals.length > 0 && (
         <section className="rounded-xl border border-fb-border bg-fb-main p-5">
-          <h2 className="text-lg font-bold">Genauigkeit nach Ableseintervall</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="text-lg font-bold">Genauigkeit nach Ableseintervall</h2><p className="mt-1 text-sm text-fb-muted">Abweichungen zwischen Kilometerständen und erfassten Fahrten.</p></div>
+            <button type="button" onClick={() => setIntervalModalOpen(true)} className="rounded-lg border border-fb-border px-4 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent">Details anzeigen</button>
+          </div>
+        </section>
+      )}
+      {intervalModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIntervalModalOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="interval-modal-title" className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-2xl">
+            <div className="flex items-center justify-between gap-4 border-b border-fb-border p-5">
+              <h2 id="interval-modal-title" className="text-lg font-bold">Genauigkeit nach Ableseintervall</h2>
+              <button type="button" onClick={() => setIntervalModalOpen(false)} aria-label="Schließen" className="rounded-lg border border-fb-border px-3 py-2 text-sm hover:border-fb-accent">Schließen</button>
+            </div>
+            <div className="overflow-y-auto p-5">
           <p className="mt-1 text-sm text-fb-muted">Je kürzer die Intervalle zwischen zwei Ablesungen sind, desto genauer lässt sich erkennen, in welchem Zeitraum Kilometer nicht durch aufgezeichnete Fahrten erklärt werden.</p>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
@@ -311,7 +325,9 @@ export default function Statistics() {
               </tbody>
             </table>
           </div>
-        </section>
+            </div>
+          </section>
+        </div>
       )}
       <div className="flex flex-wrap gap-3">
         <select value={vehicleId} onChange={(e) => {
