@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../auth/AuthProvider.jsx";
-import { getJobStatus, getAdminJobs, retryAdminJob, deleteAdminJob } from "../../api/app.js";
+import { getJobStatus, getAdminJobs, retryAdminJob, deleteAdminJob, startReverseGeocodeJobs } from "../../api/app.js";
 import { useI18n } from "../../i18n/I18nProvider.jsx";
 
 const states = ["pending", "processing", "delayed", "failed"];
@@ -13,6 +13,8 @@ export default function JobManagement() {
   const [jobs, setJobs] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(null);
+  const [geocodeMode, setGeocodeMode] = useState("missing");
+  const [notice, setNotice] = useState("");
   const refresh = useCallback(async () => {
     try {
       const [info, result] = await Promise.all([getJobStatus(accessToken), getAdminJobs(accessToken, state)]);
@@ -39,11 +41,39 @@ export default function JobManagement() {
     finally { setBusy(null); }
   };
 
+  const startGeocoding = async () => {
+    setBusy("geocode");
+    setNotice("");
+    try {
+      const result = await startReverseGeocodeJobs(accessToken, geocodeMode);
+      setNotice(t("jobs.queuedMessage").replace("{count}", result.queued));
+      setState("pending");
+      await refresh();
+    } catch (err) { setError(err.message); }
+    finally { setBusy(null); }
+  };
+
   return <section className="space-y-5">
     <header className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-xl font-bold">{t("jobs.title")}</h2><p className="text-sm text-fb-muted">{t("jobs.description")}</p></div>
       <button type="button" onClick={refresh} className="rounded-lg border border-fb-border px-3 py-2 text-sm">{t("jobs.refresh")}</button>
     </header>
+    <div className="rounded-xl border border-fb-border bg-fb-main p-4">
+      <h3 className="font-semibold">{t("jobs.geocodeTitle")}</h3>
+      <p className="mt-1 text-sm text-fb-muted">{t("jobs.geocodeDescription")}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <select aria-label={t("jobs.geocodeMode")} value={geocodeMode} onChange={(event) => setGeocodeMode(event.target.value)}
+          className="rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm text-fb-text">
+          <option value="missing">{t("jobs.geocodeMissing")}</option>
+          <option value="all">{t("jobs.geocodeAll")}</option>
+        </select>
+        <button type="button" disabled={busy === "geocode"} onClick={startGeocoding}
+          className="rounded-lg bg-fb-accent px-4 py-2 text-sm font-semibold text-fb-accent-text disabled:opacity-50">
+          {busy === "geocode" ? t("jobs.starting") : t("jobs.startGeocode")}
+        </button>
+      </div>
+      {notice && <p role="status" className="mt-3 text-sm text-fb-accent">{notice}</p>}
+    </div>
     <div className="rounded-xl border border-fb-border bg-fb-main p-4 text-sm">
       {t("jobs.redis")}: <strong>{status?.online ? t("jobs.online") : t("jobs.offline")}</strong>
     </div>
