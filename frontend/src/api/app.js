@@ -692,3 +692,8 @@ export const permanentlyDeleteTrip = (token, id) => apiRequest(token, `/api/v1/t
 
 export const classifyTrip = (token, id, category, purpose, contact) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(id)}/classify`, { method: "PUT", body: JSON.stringify({ category, purpose, contact }) });
 export const updateTripTags = (token, id, tagIds) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(id)}/tags`, { method: "PUT", body: JSON.stringify({ tagIds }) });
+
+export const getJobStatus = (token) => apiRequest(token, "/api/v1/admin/jobs/status");
+export const getAdminJobs = (token, state) => apiRequest(token, "/api/v1/admin/jobs?state=" + encodeURIComponent(state));
+export const retryAdminJob = (token, id) => apiRequest(token, "/api/v1/admin/jobs/" + encodeURIComponent(id) + "/retry", { method: "POST" });
+export const deleteAdminJob = (token, id) => apiRequest(token, "/api/v1/admin/jobs/" + encodeURIComponent(id), { method: "DELETE" });
