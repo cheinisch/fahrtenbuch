@@ -303,12 +303,20 @@ statisticsRoutes.get(
 
     const result = await pool.query(
       `
-      WITH month_series AS (
+      WITH bounds AS (
+        SELECT greatest(
+          date_trunc('month', current_date)::date,
+          coalesce((SELECT date_trunc('month', max(t.started_at AT TIME ZONE 'Europe/Berlin'))::date
+                    FROM trips t WHERE t.user_id = $1 AND t.archived_at IS NULL AND t.status = 'completed'),
+                   date_trunc('month', current_date)::date)
+        ) AS last_month
+      ),
+      month_series AS (
         SELECT generate_series(
-          date_trunc('month', current_date) - (($2 - 1) || ' months')::interval,
-          date_trunc('month', current_date),
+          bounds.last_month - (($2 - 1) || ' months')::interval,
+          bounds.last_month,
           interval '1 month'
-        )::date AS month
+        )::date AS month FROM bounds
       ),
       vehicle_months AS (
         SELECT v.id AS vehicle_id, v.name AS vehicle_name, m.month
@@ -316,7 +324,7 @@ statisticsRoutes.get(
         WHERE v.user_id = $1 AND v.archived_at IS NULL
       ),
       distances AS (
-        SELECT vehicle_id, date_trunc('month', started_at)::date AS month,
+        SELECT vehicle_id, date_trunc('month', started_at AT TIME ZONE 'Europe/Berlin')::date AS month,
           coalesce(sum(distance_meters), 0)::bigint AS tracked_meters,
           coalesce(sum(distance_meters) FILTER (WHERE type = 'business'), 0)::bigint AS business_meters,
           coalesce(sum(distance_meters) FILTER (WHERE type = 'private'), 0)::bigint AS private_meters,
@@ -324,9 +332,9 @@ statisticsRoutes.get(
           coalesce(sum(distance_meters) FILTER (WHERE type = 'unclassified'), 0)::bigint AS unclassified_meters
         FROM trips
         WHERE user_id = $1 AND archived_at IS NULL AND status = 'completed'
-        GROUP BY vehicle_id, date_trunc('month', started_at)
+        GROUP BY vehicle_id, date_trunc('month', started_at AT TIME ZONE 'Europe/Berlin')
       )
-      SELECT vm.vehicle_id, vm.vehicle_name, vm.month,
+      SELECT vm.vehicle_id, vm.vehicle_name, to_char(vm.month, 'YYYY-MM') AS month,
         d.tracked_meters, d.business_meters, d.private_meters, d.commute_meters, d.unclassified_meters,
         start_r.odometer_meters AS start_odometer_meters,
         end_r.odometer_meters AS end_odometer_meters
@@ -361,7 +369,7 @@ statisticsRoutes.get(
       return {
         vehicleId: row.vehicle_id,
         vehicleName: row.vehicle_name,
-        month: new Date(row.month).toISOString().slice(0, 7),
+        month: row.month,
         actualKm: actual == null ? null : actual / 1000,
         trackedKm: tracked / 1000,
         businessKm: Number(row.business_meters || 0) / 1000,
