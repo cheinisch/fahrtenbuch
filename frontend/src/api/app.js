@@ -697,3 +697,9 @@ export const getJobStatus = (token) => apiRequest(token, "/api/v1/admin/jobs/sta
 export const getAdminJobs = (token, state) => apiRequest(token, "/api/v1/admin/jobs?state=" + encodeURIComponent(state));
 export const retryAdminJob = (token, id) => apiRequest(token, "/api/v1/admin/jobs/" + encodeURIComponent(id) + "/retry", { method: "POST" });
 export const deleteAdminJob = (token, id) => apiRequest(token, "/api/v1/admin/jobs/" + encodeURIComponent(id), { method: "DELETE" });
+
+export const startReverseGeocodeJobs = (token, mode = "missing", limit = 500) =>
+  apiRequest(token, "/api/v1/admin/jobs/reverse-geocode", {
+    method: "POST",
+    body: JSON.stringify({ mode, limit }),
+  });
