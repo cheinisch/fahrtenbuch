@@ -336,6 +336,9 @@ export default function Dashboard() {
     useState(null);
 
   const [detailsTab, setDetailsTab] = useState("details");
+  const [gpsMode, setGpsMode] = useState("route");
+  const [gpsPoints, setGpsPoints] = useState([]);
+  const [gpsError, setGpsError] = useState("");
   const [editCategory, setEditCategory] = useState("unclassified");
   const [editTags, setEditTags] = useState([]);
   const [editError, setEditError] = useState("");
@@ -365,8 +368,8 @@ export default function Dashboard() {
   );
 
   const lineFeatures = useMemo(
-    () => toLineFeatures(visibleTrips),
-    [visibleTrips],
+    () => selectedTripId && gpsMode === "points" ? [] : toLineFeatures(visibleTrips),
+    [visibleTrips, selectedTripId, gpsMode],
   );
 
   const endpointFeatures = useMemo(
@@ -441,6 +444,16 @@ export default function Dashboard() {
     routeSource?.setData({
       type: "FeatureCollection",
       features: lineFeatures,
+    });
+
+    map.getSource("trip-gps-points")?.setData({
+      type: "FeatureCollection",
+      features: selectedTripId && gpsMode !== "route"
+        ? gpsPoints.filter((p) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lon))).map((p) => ({
+          type: "Feature", properties: { recordedAt: p.recordedAt },
+          geometry: { type: "Point", coordinates: [Number(p.lon), Number(p.lat)] },
+        }))
+        : [],
     });
 
     const pointSource =
@@ -536,6 +549,8 @@ export default function Dashboard() {
     data.map.workLocation,
     endpointFeatures,
     lineFeatures,
+    gpsMode,
+    gpsPoints,
     selectedTripId,
   ]);
 
@@ -649,6 +664,12 @@ export default function Dashboard() {
           "line-width": 4,
           "line-opacity": 0.72,
         },
+      });
+
+      map.addSource("trip-gps-points", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "trip-gps-points", type: "circle", source: "trip-gps-points",
+        paint: { "circle-radius": 3, "circle-color": accent, "circle-stroke-width": 1, "circle-stroke-color": "#ffffff" },
       });
 
       map.addSource("trip-endpoints", {
@@ -884,6 +905,9 @@ export default function Dashboard() {
 
   function selectTrip(trip) {
     setSelectedTripId(trip.id);
+    setGpsMode("route");
+    setGpsPoints([]);
+    setGpsError("");
     setDetailsTab('details');
     setEditCategory(trip.type);
     setEditTags((trip.tags || []).map((tag) => tag.id));
@@ -1013,6 +1037,16 @@ export default function Dashboard() {
       setTripAction((state) => ({ ...state, busy: false, error: error.message }));
     }
   }
+
+  useEffect(() => {
+    if (!selectedTripId || gpsMode === "route") return;
+    let cancelled = false;
+    setGpsError("");
+    getTripPoints(accessToken, selectedTripId)
+      .then((points) => { if (!cancelled) setGpsPoints(points); })
+      .catch((error) => { if (!cancelled) setGpsError(error.message); });
+    return () => { cancelled = true; };
+  }, [accessToken, selectedTripId, gpsMode]);
 
   async function saveTripDetails() {
     if (!selectedTrip || editBusy) return;
@@ -1360,6 +1394,19 @@ export default function Dashboard() {
                   <div><span className="text-fb-muted">{t('tripDetails.to')}</span><div>{selectedTrip.endAddress || '–'}</div></div>
                   <div><span className="text-fb-muted">{t('tripDetails.distance')}</span><div>{formatDistance(selectedTrip.distanceMeters)}</div></div>
                   <div><span className="text-fb-muted">{t('tripDetails.vehicle')}</span><div>{selectedTrip.vehicle?.name || '–'}</div></div>
+                </div>
+                <div className="mt-3">
+                  <div className="mb-2 font-medium">{t("tripDetails.gpsView")}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {["route", "both", "points"].map((mode) => (
+                      <button type="button" key={mode} onClick={() => setGpsMode(mode)} aria-pressed={gpsMode === mode}
+                        className={gpsMode === mode ? "rounded-lg border border-fb-accent bg-fb-accent-soft px-3 py-2 text-xs font-semibold text-fb-accent" : "rounded-lg border border-fb-border px-3 py-2 text-xs"}>
+                        {t("tripDetails.gpsMode." + mode)}
+                      </button>
+                    ))}
+                  </div>
+                  {gpsError && <p role="alert" className="mt-2 text-xs text-fb-danger">{gpsError}</p>}
+                  {gpsMode !== "route" && <p className="mt-2 text-xs text-fb-muted">{gpsPoints.length} {t("tripDetails.gpsPoints")}</p>}
                 </div>
                 <label className="mt-3 block font-medium">{t('tripDetails.category')}
                   <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="mt-1 w-full rounded border border-fb-border bg-fb-surface p-2">
