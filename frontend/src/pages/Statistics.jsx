@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, getVehicles, saveMonthlyOdometerReading } from "../api/app.js";
+import { getMonthlyCategoryTrips, getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, getVehicles, saveMonthlyOdometerReading } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import OdometerReadingLogModal from "../components/OdometerReadingLogModal.jsx";
 
@@ -91,6 +91,10 @@ function StatisticsChart({ data }) {
 export default function Statistics() {
   const { accessToken } = useAuth();
   const [rows, setRows] = useState([]);
+  const [categoryModal, setCategoryModal] = useState(null);
+  const [categoryTrips, setCategoryTrips] = useState([]);
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryError, setCategoryError] = useState("");
   const [vehicleId, setVehicleId] = useState("");
   const [month, setMonth] = useState("");
   const [error, setError] = useState("");
@@ -245,6 +249,20 @@ export default function Statistics() {
     return { vehicle, drivenKm, allowedKm, projectedKm, deviationKm: projectedKm - vehicle.leaseIncludedKm, elapsedPercent: elapsedDays / totalDays * 100 };
   }, [vehicleDetails, readings, vehicleId]);
 
+  async function openCategory(key) {
+    setCategoryModal(key);
+    setCategoryTrips([]);
+    setCategoryError("");
+    if (key === "unknownKm") return;
+    const type = { businessKm: "business", privateKm: "private", commuteKm: "commute", unclassifiedKm: "unclassified" }[key];
+    if (!type) return;
+    setCategoryLoading(true);
+    try {
+      setCategoryTrips(await getMonthlyCategoryTrips(accessToken, vehicleId, month, type));
+    } catch (err) { setCategoryError(err.message); }
+    finally { setCategoryLoading(false); }
+  }
+
   const selected = rows.find((row) => row.vehicleId === vehicleId && row.month === month) || null;
   // Use recorded trip kilometres as the live baseline until the odometer readings
   // cover the whole month. A zero-km reading interval must not hide recorded trips.
@@ -390,7 +408,7 @@ export default function Statistics() {
               {parts.map(([key, value]) => {
                 const percent = total > 0 && value != null ? Math.min(100, Math.max(0, Number(value) / total * 100)) : 0;
                 return (
-                  <div key={key}>
+                  <button type="button" key={key} onClick={() => openCategory(key)} className="block w-full rounded-lg p-1 text-left transition hover:bg-fb-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-fb-accent" aria-label={`${labels[key]} anzeigen`}>
                     <div className="flex justify-between gap-4 text-sm">
                       <span>{labels[key]}</span>
                       <span className="font-semibold">{km(value)} · {percent.toLocaleString("de-DE", { maximumFractionDigits: 1 })} %</span>
@@ -398,7 +416,7 @@ export default function Statistics() {
                     <div className="mt-2 h-2 overflow-hidden rounded-full bg-fb-surface">
                       <div className="h-full rounded-full bg-fb-accent transition-[width] duration-500" style={{ width: `${percent}%` }} />
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -407,6 +425,37 @@ export default function Statistics() {
             </div>
           </section>
         </>
+      )}
+      {categoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCategoryModal(null); }}>
+          <section role="dialog" aria-modal="true" aria-label={labels[categoryModal]} className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-fb-border bg-fb-main p-5 shadow-xl">
+            <header className="flex items-start justify-between gap-3">
+              <div><h2 className="text-xl font-bold">{labels[categoryModal]}</h2><p className="text-sm text-fb-muted">{monthLabel(month)}</p></div>
+              <button type="button" onClick={() => setCategoryModal(null)} className="rounded-lg border border-fb-border px-3 py-2">Schließen</button>
+            </header>
+            {categoryModal === "unknownKm" ? (
+              <div className="mt-5 space-y-3 text-sm">
+                <p>„Unbekannt / nicht erfasst“ ist keine Fahrtenkategorie. Die Kilometer ergeben sich aus der Differenz zwischen Kilometerstandsänderung und aufgezeichneten Fahrten. Einzelne Fahrten können daher nicht aufgelistet werden.</p>
+                <p>Kilometerstand: {km(selected?.startOdometerKm)} → {km(selected?.endOdometerKm)}</p>
+                <p>Erfasste Fahrten: {km(selected?.trackedKm)}</p>
+                <p>Nicht erfasst (berechnet): {km(selected?.unknownKm)}</p>
+                <p className="text-fb-muted">Ohne passende Ablesungen für den Monatszeitraum ist die Differenz nicht zuverlässig bestimmbar.</p>
+              </div>
+            ) : (
+              <div className="mt-5">
+                {categoryLoading && <p>Lade Fahrten …</p>}
+                {categoryError && <p role="alert" className="text-fb-danger">{categoryError}</p>}
+                {!categoryLoading && !categoryError && <><p className="mb-3 text-sm text-fb-muted">{categoryTrips.length} Fahrten · {km(categoryTrips.reduce((sum, trip) => sum + trip.distanceKm, 0))}</p>
+                  <div className="space-y-2">{categoryTrips.map((trip) => <div key={trip.id} className="rounded-lg border border-fb-border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2"><strong>{new Date(trip.startedAt).toLocaleString("de-DE")}</strong><strong>{km(trip.distanceKm)}</strong></div>
+                    <p className="mt-1 text-sm text-fb-muted">{trip.startAddress || "Start unbekannt"} → {trip.endAddress || "Ziel unbekannt"}</p>
+                  </div>)}</div>
+                  {!categoryTrips.length && <p className="text-sm text-fb-muted">Keine Fahrten gefunden.</p>}
+                </>}
+              </div>
+            )}
+          </section>
+        </div>
       )}
       <OdometerReadingLogModal
         open={readingLogOpen}
