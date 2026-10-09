@@ -383,3 +383,26 @@ statisticsRoutes.get(
     }));
   }),
 );
+
+statisticsRoutes.get("/monthly-trips", asyncHandler(async (request, response) => {
+  const vehicleId = uuidValue(String(request.query.vehicleId || ""), "vehicleId");
+  const month = String(request.query.month || "");
+  const type = String(request.query.type || "");
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !["business", "private", "commute", "unclassified"].includes(type)) {
+    throw badRequest("VALIDATION_ERROR", "Ungültiger Monat oder Fahrttyp.");
+  }
+  const result = await pool.query(
+    `SELECT t.id, t.started_at, t.ended_at, t.start_address, t.end_address, t.distance_meters, t.type
+     FROM trips t
+     WHERE t.user_id = $1 AND t.vehicle_id = $2 AND t.status = 'completed'
+       AND t.archived_at IS NULL AND t.type = $4::trip_type
+       AND to_char(t.started_at AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = $3
+     ORDER BY t.started_at DESC`,
+    [request.auth.userId, vehicleId, month, type],
+  );
+  response.json(result.rows.map((row) => ({
+    id: row.id, startedAt: row.started_at, endedAt: row.ended_at,
+    startAddress: row.start_address, endAddress: row.end_address,
+    distanceKm: Number(row.distance_meters || 0) / 1000, type: row.type,
+  })));
+}));
