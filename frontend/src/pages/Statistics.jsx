@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getMonthlyCategoryTrips, getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, getVehicles, saveMonthlyOdometerReading } from "../api/app.js";
+import { classifyTrip, getMonthlyCategoryTrips, getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, getVehicles, saveMonthlyOdometerReading } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import OdometerReadingLogModal from "../components/OdometerReadingLogModal.jsx";
 
@@ -95,6 +95,7 @@ export default function Statistics() {
   const [categoryTrips, setCategoryTrips] = useState([]);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [categoryError, setCategoryError] = useState("");
+  const [classifyingTripId, setClassifyingTripId] = useState(null);
   const [vehicleId, setVehicleId] = useState("");
   const [month, setMonth] = useState("");
   const [error, setError] = useState("");
@@ -261,6 +262,20 @@ export default function Statistics() {
       setCategoryTrips(await getMonthlyCategoryTrips(accessToken, vehicleId, month, type));
     } catch (err) { setCategoryError(err.message); }
     finally { setCategoryLoading(false); }
+  }
+
+  async function classifyCategoryTrip(tripId, category) {
+    setClassifyingTripId(tripId);
+    setCategoryError("");
+    try {
+      await classifyTrip(accessToken, tripId, category, null, null);
+      setCategoryTrips((current) => current.filter((trip) => trip.id !== tripId));
+      await loadData();
+    } catch (err) {
+      setCategoryError(err.message);
+    } finally {
+      setClassifyingTripId(null);
+    }
   }
 
   const selected = rows.find((row) => row.vehicleId === vehicleId && row.month === month) || null;
@@ -449,6 +464,19 @@ export default function Statistics() {
                   <div className="space-y-2">{categoryTrips.map((trip) => <div key={trip.id} className="rounded-lg border border-fb-border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2"><strong>{new Date(trip.startedAt).toLocaleString("de-DE")}</strong><strong>{km(trip.distanceKm)}</strong></div>
                     <p className="mt-1 text-sm text-fb-muted">{trip.startAddress || "Start unbekannt"} → {trip.endAddress || "Ziel unbekannt"}</p>
+                    {categoryModal === "unclassifiedKm" && <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-fb-muted">Zuordnen:</span>
+                      {[
+                        ["business", "Beruflich"],
+                        ["private", "Privat"],
+                        ["commute", "Arbeitsweg"],
+                      ].map(([type, label]) => <button key={type} type="button"
+                        disabled={classifyingTripId !== null}
+                        onClick={() => classifyCategoryTrip(trip.id, type)}
+                        className="rounded-lg border border-fb-border px-3 py-1.5 text-xs font-semibold hover:border-fb-accent disabled:opacity-50">
+                        {classifyingTripId === trip.id ? "Speichern …" : label}
+                      </button>)}
+                    </div>}
                   </div>)}</div>
                   {!categoryTrips.length && <p className="text-sm text-fb-muted">Keine Fahrten gefunden.</p>}
                 </>}
