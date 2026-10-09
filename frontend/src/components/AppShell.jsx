@@ -108,9 +108,7 @@ export default function AppShell() {
                 className="flex shrink-0 items-center gap-3"
                 aria-label={`Fahrtenbuch ${t("nav.dashboard")}`}
               >
-                <span className="flex size-9 items-center justify-center rounded-lg bg-fb-accent text-base font-bold text-fb-accent-text">
-                  F
-                </span>
+                <img src="/fahrtenbuch-logo.png" alt="" className="size-9 rounded-lg object-cover" />
 
                 <span className="hidden text-lg font-bold tracking-tight text-fb-text lg:block">
                   Fahrtenbuch
