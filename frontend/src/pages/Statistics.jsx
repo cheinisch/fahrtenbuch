@@ -246,7 +246,13 @@ export default function Statistics() {
   }, [vehicleDetails, readings, vehicleId]);
 
   const selected = rows.find((row) => row.vehicleId === vehicleId && row.month === month) || null;
-  const total = selected?.actualKm ?? selected?.trackedKm ?? 0;
+  // Use recorded trip kilometres as the live baseline until the odometer readings
+  // cover the whole month. A zero-km reading interval must not hide recorded trips.
+  const total = selected ? Math.max(
+    0,
+    Number(selected.actualKm) || 0,
+    Number(selected.trackedKm) || 0,
+  ) : 0;
   const parts = selected ? [
     ["businessKm", selected.businessKm],
     ["privateKm", selected.privateKm],
@@ -382,7 +388,7 @@ export default function Statistics() {
             <h2 className="text-lg font-bold">{monthLabel(selected.month)}</h2>
             <div className="mt-5 space-y-4">
               {parts.map(([key, value]) => {
-                const percent = total > 0 && value != null ? Math.max(0, value / total * 100) : 0;
+                const percent = total > 0 && value != null ? Math.min(100, Math.max(0, Number(value) / total * 100)) : 0;
                 return (
                   <div key={key}>
                     <div className="flex justify-between gap-4 text-sm">
@@ -390,7 +396,7 @@ export default function Statistics() {
                       <span className="font-semibold">{km(value)} · {percent.toLocaleString("de-DE", { maximumFractionDigits: 1 })} %</span>
                     </div>
                     <div className="mt-2 h-2 overflow-hidden rounded-full bg-fb-surface">
-                      <div className="h-full rounded-full bg-fb-accent" style={{ width: `${Math.min(100, percent)}%` }} />
+                      <div className="h-full rounded-full bg-fb-accent transition-[width] duration-500" style={{ width: `${percent}%` }} />
                     </div>
                   </div>
                 );
