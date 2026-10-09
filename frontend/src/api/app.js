@@ -703,3 +703,6 @@ export const startReverseGeocodeJobs = (token, mode = "missing", limit = 500) =>
     method: "POST",
     body: JSON.stringify({ mode, limit }),
   });
+
+export const getMonthlyCategoryTrips = (token, vehicleId, month, type) =>
+  apiRequest(token, "/api/v1/statistics/monthly-trips?" + new URLSearchParams({ vehicleId, month, type }).toString());
