@@ -831,7 +831,7 @@ tripRoutes.put(
           tripId,
           userId: request.auth.userId,
           actorUserId: request.auth.userId,
-          eventType: "TRIP_UPDATED",
+          eventType: "CLASSIFIED",
           changedFields: { type: { old: existing.type, new: category } },
           oldValues: { type: existing.type },
           newValues: { type: category },
