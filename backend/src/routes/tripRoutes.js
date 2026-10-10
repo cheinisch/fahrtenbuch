@@ -807,89 +807,47 @@ tripRoutes.get(
 tripRoutes.put(
   "/:id/classify",
   asyncHandler(async (request, response) => {
-    const tripId = uuidValue(
-      request.params.id,
-    );
-    const body = objectBody(
-      request.body,
-    );
+    const tripId = uuidValue(request.params.id);
+    const body = objectBody(request.body);
+    const category = body.category !== undefined
+      ? enumField(body, "category", TRIP_TYPES, { required: true })
+      : enumField(body, "type", TRIP_TYPES, { required: true });
 
-    const category =
-      body.category !== undefined
-        ? enumField(
-            body,
-            "category",
-            [
-              "business",
-              "private",
-              "commute",
-            ],
-            { required: true },
-          )
-        : enumField(
-            body,
-            "type",
-            [
-              "business",
-              "private",
-              "commute",
-            ],
-            { required: true },
-          );
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const existing = await getOwnedTrip(client, request.auth.userId, tripId, { includeTags: false });
+      if (!existing) {
+        throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+      }
 
-    const purpose = stringField(
-      body,
-      "purpose",
-      {
-        nullable: true,
-        maximum: 1000,
-      },
-    );
-    const contact = stringField(
-      body,
-      "contact",
-      {
-        nullable: true,
-        maximum: 1000,
-      },
-    );
+      if (existing.type !== category) {
+        await client.query(
+          `UPDATE trips SET type = $3, version = version + 1
+           WHERE id = $1 AND user_id = $2 AND archived_at IS NULL`,
+          [tripId, request.auth.userId, category],
+        );
+        await appendTripHistory(client, {
+          tripId,
+          userId: request.auth.userId,
+          actorUserId: request.auth.userId,
+          eventType: "TRIP_UPDATED",
+          changedFields: { type: { old: existing.type, new: category } },
+          oldValues: { type: existing.type },
+          newValues: { type: category },
+          metadata: { source: "trip_classification" },
+        });
+      }
 
-    const result = await pool.query(
-      `
-        UPDATE trips
-        SET
-          type = $3,
-          purpose = $4,
-          contact = $5,
-          version = version + 1
-        WHERE id = $1
-          AND user_id = $2
-          AND archived_at IS NULL
-        RETURNING id
-      `,
-      [
-        tripId,
-        request.auth.userId,
-        category,
-        purpose,
-        contact,
-      ],
-    );
-
-    if (result.rowCount === 0) {
-      throw notFound(
-        "TRIP_NOT_FOUND",
-        "Die Fahrt wurde nicht gefunden.",
-      );
+      const trip = await getOwnedTrip(client, request.auth.userId, tripId);
+      await client.query("COMMIT");
+      response.json(mapTrip(trip));
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
-
-    const trip = await getOwnedTrip(
-      pool,
-      request.auth.userId,
-      tripId,
-    );
-
-    response.json(mapTrip(trip));
   }),
 );
 
