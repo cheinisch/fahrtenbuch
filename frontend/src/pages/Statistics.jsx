@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { classifyTrip, getMonthlyCategoryTrips, getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, getVehicles, saveMonthlyOdometerReading } from "../api/app.js";
+import { classifyTrip, getLeasingLiveKm, getMonthlyCategoryTrips, getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, getVehicles, saveMonthlyOdometerReading } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import OdometerReadingLogModal from "../components/OdometerReadingLogModal.jsx";
 
@@ -101,6 +101,7 @@ export default function Statistics() {
   const [error, setError] = useState("");
   const [readings, setReadings] = useState([]);
   const [vehicleDetails, setVehicleDetails] = useState([]);
+  const [leasingLive, setLeasingLive] = useState(null);
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [entryKm, setEntryKm] = useState("");
   const [savingReading, setSavingReading] = useState(false);
@@ -146,6 +147,15 @@ export default function Statistics() {
       .then(setIntervals)
       .catch((loadError) => setError(loadError.message));
   }, [accessToken, vehicleId, readings, chartYear]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLeasingLive(null);
+    if (vehicleId) getLeasingLiveKm(accessToken, vehicleId)
+      .then((value) => { if (!cancelled) setLeasingLive(value); })
+      .catch((err) => { if (!cancelled) setError(err.message); });
+    return () => { cancelled = true; };
+  }, [accessToken, vehicleId, readings, rows]);
 
   async function saveReading(event) {
     event.preventDefault();
@@ -243,8 +253,10 @@ export default function Statistics() {
     const first = vehicleReadings.find((reading) => reading.date >= start) || vehicleReadings[0];
     const last = [...vehicleReadings].reverse().find((reading) => reading.date <= end) || vehicleReadings.at(-1);
     const totalDays = Math.max(1, (end - start) / 86400000);
-    const elapsedDays = Math.max(0, Math.min(totalDays, (last.date - start) / 86400000));
-    const drivenKm = Math.max(0, Number(last.odometerKm) - Number(first.odometerKm));
+    const liveKm = leasingLive && isoDate(last.date) === String(leasingLive.readingDate).slice(0, 10) ? Number(leasingLive.additionalKm || 0) : 0;
+    const effectiveLastDate = liveKm > 0 ? new Date(Math.min(end.getTime(), Date.now())) : last.date;
+    const elapsedDays = Math.max(0, Math.min(totalDays, (effectiveLastDate - start) / 86400000));
+    const drivenKm = Math.max(0, Number(last.odometerKm) - Number(first.odometerKm) + liveKm);
     const allowedKm = vehicle.leaseIncludedKm * elapsedDays / totalDays;
     const projectedKm = elapsedDays > 0 ? drivenKm / elapsedDays * totalDays : 0;
     const deviationKm = projectedKm - vehicle.leaseIncludedKm;
@@ -257,7 +269,7 @@ export default function Statistics() {
       ? vehicle.leaseExcessRateEur != null
       : vehicle.leaseShortfallRateEur != null;
     return { vehicle, drivenKm, allowedKm, projectedKm, deviationKm, settlementEur, settlementConfigured, elapsedPercent: elapsedDays / totalDays * 100 };
-  }, [vehicleDetails, readings, vehicleId]);
+  }, [vehicleDetails, readings, vehicleId, leasingLive]);
 
   async function openCategory(key) {
     setCategoryModal(key);
