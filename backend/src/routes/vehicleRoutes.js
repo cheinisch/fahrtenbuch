@@ -703,6 +703,10 @@ vehicleRoutes.put(
           input.leaseEndDate,
           input.leaseIncludedKm,
           input.acquisitionType,
+          input.leaseExcessToleranceKm,
+          input.leaseShortfallToleranceKm,
+          input.leaseExcessRateEur,
+          input.leaseShortfallRateEur,
         ],
       );
 
