@@ -115,6 +115,10 @@ function parseVehicleInput(body) {
     leaseStartDate: hasContractData ? leaseStartDate : null,
     leaseEndDate: hasContractData ? leaseEndDate : null,
     leaseIncludedKm: hasContractData ? Math.round(leaseIncludedKm) : null,
+    leaseExcessToleranceKm: acquisitionType === "leasing" ? numberField(input, "leaseExcessToleranceKm", { nullable: true, minimum: 0, maximum: 10000000 }) ?? null : null,
+    leaseShortfallToleranceKm: acquisitionType === "leasing" ? numberField(input, "leaseShortfallToleranceKm", { nullable: true, minimum: 0, maximum: 10000000 }) ?? null : null,
+    leaseExcessRateEur: acquisitionType === "leasing" ? numberField(input, "leaseExcessRateEur", { nullable: true, minimum: 0, maximum: 10000 }) ?? null : null,
+    leaseShortfallRateEur: acquisitionType === "leasing" ? numberField(input, "leaseShortfallRateEur", { nullable: true, minimum: 0, maximum: 10000 }) ?? null : null,
   };
 }
 
@@ -557,9 +561,13 @@ vehicleRoutes.post(
             lease_start_date,
             lease_end_date,
             lease_included_km,
-            acquisition_type
+            acquisition_type,
+            lease_excess_tolerance_km,
+            lease_shortfall_tolerance_km,
+            lease_excess_rate_eur,
+            lease_shortfall_rate_eur
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
           RETURNING *
         `,
         [
@@ -579,6 +587,10 @@ vehicleRoutes.post(
           input.leaseEndDate,
           input.leaseIncludedKm,
           input.acquisitionType,
+          input.leaseExcessToleranceKm,
+          input.leaseShortfallToleranceKm,
+          input.leaseExcessRateEur,
+          input.leaseShortfallRateEur,
         ],
       );
 
@@ -663,7 +675,11 @@ vehicleRoutes.put(
             lease_start_date = $14,
             lease_end_date = $15,
             lease_included_km = $16,
-            acquisition_type = $17
+            acquisition_type = $17,
+            lease_excess_tolerance_km = $18,
+            lease_shortfall_tolerance_km = $19,
+            lease_excess_rate_eur = $20,
+            lease_shortfall_rate_eur = $21
           WHERE id = $1
             AND user_id = $2
             AND archived_at IS NULL
