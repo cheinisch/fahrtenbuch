@@ -87,7 +87,7 @@ odometerRoutes.get(
     const result = await pool.query(
       `SELECT r.id, r.vehicle_id, v.name AS vehicle_name, to_char(r.reading_month, 'YYYY-MM') AS reading_month,
               to_char(r.reading_date, 'YYYY-MM-DD') AS reading_date,
-              r.odometer_meters, r.source, r.recorded_at
+              r.odometer_meters, r.source, r.recorded_at, r.reading_at
          FROM vehicle_odometer_readings r
          JOIN vehicles v ON v.id = r.vehicle_id AND v.user_id = r.user_id
         WHERE r.user_id = $1
@@ -103,6 +103,7 @@ odometerRoutes.get(
       odometerKm: Number(row.odometer_meters) / 1000,
       source: row.source,
       recordedAt: row.recorded_at,
+      readingAt: row.reading_at,
     })));
   }),
 );
@@ -114,6 +115,21 @@ odometerRoutes.put(
     const readingMonth = monthValue(request.params.month);
     const readingDate = readingDateValue(request.body?.readingDate, readingMonth);
     const odometerKm = Number(request.body?.odometerKm);
+    const rawReadingAt = request.body?.readingAt;
+    let readingAt = null;
+    if (rawReadingAt != null && rawReadingAt !== "") {
+      if (typeof rawReadingAt !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(rawReadingAt) ||
+          !Number.isFinite(Date.parse(rawReadingAt))) {
+        throw badRequest("VALIDATION_ERROR", "Die Ablesezeit ist ungültig.");
+      }
+      readingAt = new Date(rawReadingAt);
+      const localDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit",
+      }).format(readingAt);
+      if (localDate !== readingDate || readingAt.getTime() > Date.now()) {
+        throw badRequest("VALIDATION_ERROR", "Die Ablesezeit muss zum Ablesedatum passen und darf nicht in der Zukunft liegen.");
+      }
+    }
     if (!Number.isFinite(odometerKm) || odometerKm < 0 || odometerKm > 10000000) {
       throw badRequest("VALIDATION_ERROR", "Der Kilometerstand ist ungültig.");
     }
@@ -150,16 +166,16 @@ odometerRoutes.put(
 
     const result = await pool.query(
       `INSERT INTO vehicle_odometer_readings
-        (user_id, vehicle_id, reading_month, reading_date, odometer_meters, source, recorded_at)
-       VALUES ($1, $2, $3, $4, $5, 'manual', now())
+        (user_id, vehicle_id, reading_month, reading_date, odometer_meters, source, recorded_at, reading_at)
+       VALUES ($1, $2, $3, $4, $5, 'manual', now(), $6)
        ON CONFLICT (user_id, vehicle_id, reading_date)
        DO UPDATE SET reading_month = EXCLUDED.reading_month,
                      odometer_meters = EXCLUDED.odometer_meters,
-                     source = 'manual', recorded_at = now()
+                     source = 'manual', recorded_at = now(), reading_at = EXCLUDED.reading_at
        RETURNING id, vehicle_id, to_char(reading_month, 'YYYY-MM') AS reading_month,
                  to_char(reading_date, 'YYYY-MM-DD') AS reading_date,
-                 odometer_meters, source, recorded_at`,
-      [request.auth.userId, vehicleId, readingMonth, readingDate, odometerMeters],
+                 odometer_meters, source, recorded_at, reading_at`,
+      [request.auth.userId, vehicleId, readingMonth, readingDate, odometerMeters, readingAt],
     );
 
     const row = result.rows[0];
