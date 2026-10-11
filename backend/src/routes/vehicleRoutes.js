@@ -115,10 +115,10 @@ function parseVehicleInput(body) {
     leaseStartDate: hasContractData ? leaseStartDate : null,
     leaseEndDate: hasContractData ? leaseEndDate : null,
     leaseIncludedKm: hasContractData ? Math.round(leaseIncludedKm) : null,
-    leaseExcessToleranceKm: acquisitionType === "leasing" ? numberField(input, "leaseExcessToleranceKm", { nullable: true, minimum: 0, maximum: 10000000 }) ?? null : null,
-    leaseShortfallToleranceKm: acquisitionType === "leasing" ? numberField(input, "leaseShortfallToleranceKm", { nullable: true, minimum: 0, maximum: 10000000 }) ?? null : null,
-    leaseExcessRateEur: acquisitionType === "leasing" ? numberField(input, "leaseExcessRateEur", { nullable: true, minimum: 0, maximum: 10000 }) ?? null : null,
-    leaseShortfallRateEur: acquisitionType === "leasing" ? numberField(input, "leaseShortfallRateEur", { nullable: true, minimum: 0, maximum: 10000 }) ?? null : null,
+    leaseExcessToleranceKm: acquisitionType !== "owned" ? numberField(input, "leaseExcessToleranceKm", { nullable: true, minimum: 0, maximum: 10000000 }) ?? null : null,
+    leaseShortfallToleranceKm: acquisitionType !== "owned" ? numberField(input, "leaseShortfallToleranceKm", { nullable: true, minimum: 0, maximum: 10000000 }) ?? null : null,
+    leaseExcessRateEur: acquisitionType !== "owned" ? numberField(input, "leaseExcessRateEur", { nullable: true, minimum: 0, maximum: 10000 }) ?? null : null,
+    leaseShortfallRateEur: acquisitionType !== "owned" ? numberField(input, "leaseShortfallRateEur", { nullable: true, minimum: 0, maximum: 10000 }) ?? null : null,
   };
 }
 
