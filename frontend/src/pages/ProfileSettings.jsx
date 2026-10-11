@@ -8,7 +8,7 @@ import {
                   {[
                     ["private", "Privat"],
                     ["business", "Beruflich"],
-                    ["commute", "Dienstwagen / Arbeitsweg"],
+                    ["commute", "Arbeitsweg"],
                     ["unclassified", "Nicht zugeordnet"],
                   ].map(([key, label]) => (
                     <label key={key} className="flex items-center gap-3 rounded-lg border border-fb-border p-3 text-sm">
