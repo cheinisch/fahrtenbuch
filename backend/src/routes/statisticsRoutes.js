@@ -406,3 +406,38 @@ statisticsRoutes.get("/monthly-trips", asyncHandler(async (request, response) =>
     distanceKm: Number(row.distance_meters || 0) / 1000, type: row.type,
   })));
 }));
+
+
+statisticsRoutes.get("/leasing-live-km", asyncHandler(async (request, response) => {
+  const vehicleId = uuidValue(String(request.query.vehicleId || ""), "vehicleId");
+  const result = await pool.query(`
+    WITH last_reading AS (
+      SELECT reading_date, odometer_meters
+      FROM vehicle_odometer_readings
+      WHERE user_id = $1 AND vehicle_id = $2
+      ORDER BY reading_date DESC LIMIT 1
+    )
+    SELECT r.reading_date, r.odometer_meters,
+      COALESCE(SUM(t.distance_meters), 0)::bigint AS additional_meters,
+      MAX(t.ended_at) AS last_trip_at
+    FROM last_reading r
+    LEFT JOIN trips t ON t.vehicle_id = $2 AND t.status = 'completed'
+      AND t.archived_at IS NULL
+      AND t.started_at >= (r.reading_date + interval '1 day')
+      AND t.started_at < now()
+      AND (t.user_id = $1 OR EXISTS (
+        SELECT 1 FROM vehicle_ownership_periods p
+        WHERE p.vehicle_id = t.vehicle_id AND p.user_id = $1
+          AND t.started_at >= p.valid_from
+          AND (p.valid_to IS NULL OR t.started_at < p.valid_to)
+      ))
+    GROUP BY r.reading_date, r.odometer_meters
+  `, [request.auth.userId, vehicleId]);
+  const row = result.rows[0];
+  response.json(row ? {
+    readingDate: row.reading_date,
+    odometerKm: Number(row.odometer_meters) / 1000,
+    additionalKm: Number(row.additional_meters) / 1000,
+    lastTripAt: row.last_trip_at,
+  } : null);
+}));
