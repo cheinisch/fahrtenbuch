@@ -81,10 +81,10 @@ export default function VehicleEditorModal({
       leaseStartDate: form.acquisitionType !== "owned" && form.leaseStartDate ? form.leaseStartDate : null,
       leaseEndDate: form.acquisitionType !== "owned" && form.leaseEndDate ? form.leaseEndDate : null,
       leaseIncludedKm: form.acquisitionType !== "owned" && form.leaseIncludedKm !== "" ? Number(form.leaseIncludedKm) : null,
-      leaseExcessToleranceKm: form.acquisitionType === "leasing" && form.leaseExcessToleranceKm !== "" ? Number(form.leaseExcessToleranceKm) : null,
-      leaseShortfallToleranceKm: form.acquisitionType === "leasing" && form.leaseShortfallToleranceKm !== "" ? Number(form.leaseShortfallToleranceKm) : null,
-      leaseExcessRateEur: form.acquisitionType === "leasing" && form.leaseExcessRateEur !== "" ? Number(form.leaseExcessRateEur) : null,
-      leaseShortfallRateEur: form.acquisitionType === "leasing" && form.leaseShortfallRateEur !== "" ? Number(form.leaseShortfallRateEur) : null,
+      leaseExcessToleranceKm: form.acquisitionType !== "owned" && form.leaseExcessToleranceKm !== "" ? Number(form.leaseExcessToleranceKm) : null,
+      leaseShortfallToleranceKm: form.acquisitionType !== "owned" && form.leaseShortfallToleranceKm !== "" ? Number(form.leaseShortfallToleranceKm) : null,
+      leaseExcessRateEur: form.acquisitionType !== "owned" && form.leaseExcessRateEur !== "" ? Number(form.leaseExcessRateEur) : null,
+      leaseShortfallRateEur: form.acquisitionType !== "owned" && form.leaseShortfallRateEur !== "" ? Number(form.leaseShortfallRateEur) : null,
     };
 
     const contractStarted = form.acquisitionType !== "owned" && (form.leaseStartDate || form.leaseEndDate || form.leaseIncludedKm !== "");
@@ -157,7 +157,7 @@ export default function VehicleEditorModal({
                       <label className="text-sm font-medium">{t("vehicleEditor.contractEnd")}<input type="date" value={form.leaseEndDate} min={form.leaseStartDate || undefined} onChange={(e) => update("leaseEndDate", e.target.value)} className={fieldClass} /></label>
                       <label className="text-sm font-medium">{t("vehicleEditor.kmLimit")}<input type="number" min="1" step="1" value={form.leaseIncludedKm} onChange={(e) => update("leaseIncludedKm", e.target.value)} className={fieldClass} placeholder="z. B. 60000" /></label>
                     </div>
-                    {form.acquisitionType === "leasing" && <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    {form.acquisitionType !== "owned" && <div className="mt-4 grid gap-4 sm:grid-cols-2">
                       <label className="text-sm font-medium">Mehrkilometer-Freigrenze (km)<input type="number" min="0" step="1" value={form.leaseExcessToleranceKm} onChange={(e) => update("leaseExcessToleranceKm", e.target.value)} className={fieldClass} /></label>
                       <label className="text-sm font-medium">Minderkilometer-Freigrenze (km)<input type="number" min="0" step="1" value={form.leaseShortfallToleranceKm} onChange={(e) => update("leaseShortfallToleranceKm", e.target.value)} className={fieldClass} /></label>
                       <label className="text-sm font-medium">Nachzahlung je Mehrkilometer (€/km)<input type="number" min="0" step="0.0001" value={form.leaseExcessRateEur} onChange={(e) => update("leaseExcessRateEur", e.target.value)} className={fieldClass} /></label>
