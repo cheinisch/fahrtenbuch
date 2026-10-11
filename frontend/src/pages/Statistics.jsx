@@ -51,11 +51,11 @@ function intervalMonthKey(endDate) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function StatisticsChart({ data }) {
+function StatisticsChart({ data, monthlyLimitKm = null }) {
   const width = 900;
   const height = 280;
   const pad = { left: 56, right: 20, top: 24, bottom: 44 };
-  const max = Math.max(1, ...data.flatMap((item) => [item.actualKm, item.trackedKm]));
+  const max = Math.max(1, monthlyLimitKm ?? 0, ...data.flatMap((item) => [item.actualKm, item.trackedKm]));
   const innerW = width - pad.left - pad.right;
   const innerH = height - pad.top - pad.bottom;
   const groupW = data.length ? innerW / data.length : innerW;
@@ -69,6 +69,10 @@ function StatisticsChart({ data }) {
           const yy = pad.top + innerH - ratio * innerH;
           return <g key={ratio}><line x1={pad.left} y1={yy} x2={width - pad.right} y2={yy} className="stroke-fb-border" /><text x={pad.left - 8} y={yy + 4} textAnchor="end" className="fill-fb-muted text-[11px]">{Math.round(max * ratio).toLocaleString("de-DE")}</text></g>;
         })}
+        {monthlyLimitKm != null && <g>
+          <line x1={pad.left} y1={y(monthlyLimitKm)} x2={width - pad.right} y2={y(monthlyLimitKm)} stroke="#f59e0b" strokeWidth="2" strokeDasharray="7 5" />
+          <title>{`Vertragliches Monatslimit: ${km(monthlyLimitKm)}`}</title>
+        </g>}
         {data.map((item, index) => {
           const center = pad.left + groupW * index + groupW / 2;
           const actualY = y(item.actualKm);
@@ -83,6 +87,7 @@ function StatisticsChart({ data }) {
       <div className="mt-2 flex flex-wrap justify-center gap-5 text-xs text-fb-muted">
         <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-fb-accent" />Tatsächlich laut Ablesungen</span>
         <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-fb-muted opacity-70" />Erfasste Fahrten</span>
+        {monthlyLimitKm != null && <span className="flex items-center gap-2"><span className="w-5 border-t-2 border-dashed border-amber-500" />Vertragliches Monatslimit: {km(monthlyLimitKm)}</span>}
       </div>
     </div>
   );
@@ -110,6 +115,7 @@ export default function Statistics() {
   const [readingLogOpen, setReadingLogOpen] = useState(false);
   const [intervalModalOpen, setIntervalModalOpen] = useState(false);
   const [chartYear, setChartYear] = useState(String(new Date().getFullYear()));
+  const [showMonthlyLimit, setShowMonthlyLimit] = useState(false);
 
   async function loadData() {
     try {
@@ -240,6 +246,17 @@ export default function Statistics() {
     }).filter(Boolean);
   }, [intervals, chartYear]);
 
+  const monthlyContractLimit = useMemo(() => {
+    const vehicle = vehicleDetails.find((item) => item.id === vehicleId);
+    if (!vehicle || !["leasing", "financing"].includes(vehicle.acquisitionType)
+      || !vehicle.leaseStartDate || !vehicle.leaseEndDate || !(Number(vehicle.leaseIncludedKm) > 0)) return null;
+    const start = new Date(`${vehicle.leaseStartDate.slice(0, 10)}T00:00:00`);
+    const end = new Date(`${vehicle.leaseEndDate.slice(0, 10)}T00:00:00`);
+    const days = (end - start) / 86400000;
+    if (!Number.isFinite(days) || days <= 0) return null;
+    return Number(vehicle.leaseIncludedKm) * (365.2425 / 12) / days;
+  }, [vehicleDetails, vehicleId]);
+
   const leasing = useMemo(() => {
     const vehicle = vehicleDetails.find((item) => item.id === vehicleId);
     if (!vehicle || vehicle.acquisitionType === "owned" || !vehicle.leaseStartDate || !vehicle.leaseEndDate || !vehicle.leaseIncludedKm) return null;
@@ -344,9 +361,12 @@ export default function Statistics() {
       <section className="rounded-xl border border-fb-border bg-fb-main p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div><h2 className="text-lg font-bold">Kilometerentwicklung</h2><p className="mt-1 text-sm text-fb-muted">Vergleich der Kilometer laut Ablesungen mit den im Fahrtenbuch erfassten Strecken.</p></div>
-          <label className="text-xs text-fb-muted"><span className="mb-1 block">Jahr</span><select value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm">{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+          <div className="flex flex-wrap items-center gap-4">
+            {monthlyContractLimit != null && <label className="flex cursor-pointer items-center gap-2 text-xs text-fb-muted"><input type="checkbox" checked={showMonthlyLimit} onChange={(event) => setShowMonthlyLimit(event.target.checked)} className="accent-sky-500" />Monatliches Kilometerlimit anzeigen</label>}
+            <label className="text-xs text-fb-muted"><span className="mb-1 block">Jahr</span><select value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm">{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+          </div>
         </div>
-        {chartData.length > 0 ? <StatisticsChart data={chartData} /> : <div className="mt-5 rounded-lg bg-fb-surface p-6 text-center text-sm text-fb-muted">Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor.</div>}
+        {chartData.length > 0 ? <StatisticsChart data={chartData} monthlyLimitKm={showMonthlyLimit ? monthlyContractLimit : null} /> : <div className="mt-5 rounded-lg bg-fb-surface p-6 text-center text-sm text-fb-muted">Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor.</div>}
       </section>
       {intervals.length > 0 && (
         <section className="rounded-xl border border-fb-border bg-fb-main p-5">
