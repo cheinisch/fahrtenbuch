@@ -1,9 +1,6 @@
 import {
   useEffect,
-  useStat
-
-
-      e,
+  useState,
 } from "react";
 import {
   useSearchParams,
