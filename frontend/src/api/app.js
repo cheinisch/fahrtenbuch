@@ -706,3 +706,7 @@ export const startReverseGeocodeJobs = (token, mode = "missing", limit = 500) =>
 
 export const getMonthlyCategoryTrips = (token, vehicleId, month, type) =>
   apiRequest(token, "/api/v1/statistics/monthly-trips?" + new URLSearchParams({ vehicleId, month, type }).toString());
+
+export function getLeasingLiveKm(accessToken, vehicleId) {
+  return apiRequest(accessToken, `/api/v1/statistics/leasing-live-km?vehicleId=${encodeURIComponent(vehicleId)}`);
+}
