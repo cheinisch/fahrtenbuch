@@ -638,10 +638,10 @@ export function getPendingOdometerReadings(accessToken) {
   return apiRequest(accessToken, "/api/v1/odometer/pending");
 }
 
-export function saveMonthlyOdometerReading(accessToken, vehicleId, month, odometerKm, readingDate = null) {
+export function saveMonthlyOdometerReading(accessToken, vehicleId, month, odometerKm, readingDate = null, readingAt = null) {
   return apiRequest(accessToken, `/api/v1/odometer/${vehicleId}/${month}`, {
     method: "PUT",
-    body: JSON.stringify({ odometerKm, ...(readingDate ? { readingDate } : {}) }),
+    body: JSON.stringify({ odometerKm, ...(readingDate ? { readingDate } : {}), ...(readingAt ? { readingAt } : {}) }),
   });
 }
 
