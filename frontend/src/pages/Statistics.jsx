@@ -445,7 +445,7 @@ export default function Statistics() {
               })}
             </div>
             <div className="mt-6 border-t border-fb-border pt-4 text-sm text-fb-muted">
-              Kilometerstand: {km(selected.startOdometerKm)} → {km(selected.endOdometerKm)}
+              Kilometerstand: {selected.actualKm != null ? `${km(selected.startOdometerKm)} → ${km(selected.endOdometerKm)}` : `Letzte Ablesung: ${km(selected.endOdometerKm ?? selected.startOdometerKm)} · Monatsgrenzen nicht vollständig abgelesen`}
             </div>
           </section>
         </>
