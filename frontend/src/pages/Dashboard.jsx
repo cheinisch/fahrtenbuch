@@ -11,6 +11,7 @@ import {
 
 import {
   getDashboard,
+  getPersonalSettings,
   getTripHistory,
   getTripPoints,
   mergeTrips,
@@ -325,6 +326,14 @@ export default function Dashboard() {
   });
 
   const [mapError, setMapError] = useState("");
+  const [routeColors, setRouteColors] = useState({});
+  useEffect(() => {
+    let active = true;
+    getPersonalSettings(accessToken).then((result) => {
+      if (active) setRouteColors(result.settings?.mapRouteColors || {});
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [accessToken]);
   const [selectedForMerge, setSelectedForMerge] = useState([]);
   const [tripAction, setTripAction] = useState({ busy: false, error: "", splitPoints: null });
   const [suggestions, setSuggestions] = useState([]);
@@ -515,6 +524,16 @@ export default function Dashboard() {
         : [],
     });
 
+    const fallbackColor = getComputedStyle(document.documentElement).getPropertyValue("--color-accent").trim() || "#0ea5e9";
+    map.setPaintProperty("trip-routes", "line-color", [
+      "match", ["get", "type"],
+      "private", routeColors.private || fallbackColor,
+      "business", routeColors.business || fallbackColor,
+      "commute", routeColors.commute || fallbackColor,
+      "unclassified", routeColors.unclassified || fallbackColor,
+      fallbackColor,
+    ]);
+
     map.setPaintProperty(
       "trip-routes",
       "line-width",
@@ -552,6 +571,7 @@ export default function Dashboard() {
     gpsMode,
     gpsPoints,
     selectedTripId,
+    routeColors,
   ]);
 
   useEffect(() => {
