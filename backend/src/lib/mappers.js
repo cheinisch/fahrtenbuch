@@ -55,6 +55,10 @@ export function mapVehicle(row) {
     leaseStartDate: row.lease_start_date ?? null,
     leaseEndDate: row.lease_end_date ?? null,
     leaseIncludedKm: row.lease_included_km == null ? null : Number(row.lease_included_km),
+    leaseExcessToleranceKm: row.lease_excess_tolerance_km == null ? null : Number(row.lease_excess_tolerance_km),
+    leaseShortfallToleranceKm: row.lease_shortfall_tolerance_km == null ? null : Number(row.lease_shortfall_tolerance_km),
+    leaseExcessRateEur: row.lease_excess_rate_eur == null ? null : Number(row.lease_excess_rate_eur),
+    leaseShortfallRateEur: row.lease_shortfall_rate_eur == null ? null : Number(row.lease_shortfall_rate_eur),
     isOwner: row.is_owner === undefined ? true : Boolean(row.is_owner),
     accessType: row.access_type ?? (row.is_owner === false ? "shared" : "owner"),
     owner: row.owner_display_name || row.owner_username
