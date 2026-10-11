@@ -74,8 +74,8 @@ function StatisticsChart({ data }) {
           const actualY = y(item.actualKm);
           const trackedY = y(item.trackedKm);
           return <g key={item.label}>
-            <rect x={center - barW - 2} y={actualY} width={barW} height={pad.top + innerH - actualY} rx="3" className="fill-fb-accent" />
-            <rect x={center + 2} y={trackedY} width={barW} height={pad.top + innerH - trackedY} rx="3" className="fill-fb-muted opacity-70" />
+            <rect x={center - barW - 2} y={actualY} width={barW} height={pad.top + innerH - actualY} rx="3" className="fill-fb-accent cursor-help"><title>{`${item.label} – Tatsächlich laut Ablesungen: ${km(item.actualKm)}`}</title></rect>
+            <rect x={center + 2} y={trackedY} width={barW} height={pad.top + innerH - trackedY} rx="3" className="fill-fb-muted opacity-70 cursor-help"><title>{`${item.label} – Erfasste Fahrten: ${km(item.trackedKm)}`}</title></rect>
             <text x={center} y={height - 16} textAnchor="middle" className="fill-fb-muted text-[11px]">{item.label}</text>
           </g>;
         })}
