@@ -414,18 +414,20 @@ statisticsRoutes.get("/leasing-live-km", asyncHandler(async (request, response) 
   const vehicleId = uuidValue(String(request.query.vehicleId || ""), "vehicleId");
   const result = await pool.query(`
     WITH last_reading AS (
-      SELECT reading_date, odometer_meters
+      SELECT reading_date, reading_at, odometer_meters
       FROM vehicle_odometer_readings
       WHERE user_id = $1 AND vehicle_id = $2
       ORDER BY reading_date DESC LIMIT 1
     )
-    SELECT r.reading_date, r.odometer_meters,
+    SELECT r.reading_date, r.reading_at, r.odometer_meters,
       COALESCE(SUM(t.distance_meters), 0)::bigint AS additional_meters,
       MAX(t.ended_at) AS last_trip_at
     FROM last_reading r
     LEFT JOIN trips t ON t.vehicle_id = $2 AND t.status = 'completed'
       AND t.archived_at IS NULL
-      AND t.started_at >= (r.reading_date + interval '1 day')
+      -- For legacy date-only readings the clock time is unknown: exclude that day.
+      AND t.started_at >= COALESCE(r.reading_at, (r.reading_date + interval '1 day') AT TIME ZONE 'Europe/Berlin')
+      AND t.ended_at > COALESCE(r.reading_at, (r.reading_date + interval '1 day') AT TIME ZONE 'Europe/Berlin')
       AND t.started_at < now()
       AND (t.user_id = $1 OR EXISTS (
         SELECT 1 FROM vehicle_ownership_periods p
@@ -433,11 +435,12 @@ statisticsRoutes.get("/leasing-live-km", asyncHandler(async (request, response) 
           AND t.started_at >= p.valid_from
           AND (p.valid_to IS NULL OR t.started_at < p.valid_to)
       ))
-    GROUP BY r.reading_date, r.odometer_meters
+    GROUP BY r.reading_date, r.reading_at, r.odometer_meters
   `, [request.auth.userId, vehicleId]);
   const row = result.rows[0];
   response.json(row ? {
     readingDate: row.reading_date,
+    readingAt: row.reading_at,
     odometerKm: Number(row.odometer_meters) / 1000,
     additionalKm: Number(row.additional_meters) / 1000,
     lastTripAt: row.last_trip_at,
