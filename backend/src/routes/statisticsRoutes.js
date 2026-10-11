@@ -337,11 +337,13 @@ statisticsRoutes.get(
       SELECT vm.vehicle_id, vm.vehicle_name, to_char(vm.month, 'YYYY-MM') AS month,
         d.tracked_meters, d.business_meters, d.private_meters, d.commute_meters, d.unclassified_meters,
         start_r.odometer_meters AS start_odometer_meters,
-        end_r.odometer_meters AS end_odometer_meters
+        start_r.reading_date AS start_reading_date,
+        end_r.odometer_meters AS end_odometer_meters,
+        end_r.reading_date AS end_reading_date
       FROM vehicle_months vm
       LEFT JOIN distances d ON d.vehicle_id = vm.vehicle_id AND d.month = vm.month
       LEFT JOIN LATERAL (
-        SELECT r.odometer_meters
+        SELECT r.odometer_meters, r.reading_date
         FROM vehicle_odometer_readings r
         WHERE r.user_id = $1 AND r.vehicle_id = vm.vehicle_id
           AND r.reading_date <= vm.month
@@ -349,7 +351,7 @@ statisticsRoutes.get(
         LIMIT 1
       ) start_r ON true
       LEFT JOIN LATERAL (
-        SELECT r.odometer_meters
+        SELECT r.odometer_meters, r.reading_date
         FROM vehicle_odometer_readings r
         WHERE r.user_id = $1 AND r.vehicle_id = vm.vehicle_id
           AND r.reading_date <= (vm.month + interval '1 month')::date
@@ -363,7 +365,7 @@ statisticsRoutes.get(
 
     response.json(result.rows.map((row) => {
       const tracked = Number(row.tracked_meters || 0);
-      const actual = row.start_odometer_meters == null || row.end_odometer_meters == null
+      const actual = row.start_odometer_meters == null || row.end_odometer_meters == null || !row.start_reading_date || !row.end_reading_date || String(row.start_reading_date) === String(row.end_reading_date)
         ? null
         : Math.max(0, Number(row.end_odometer_meters) - Number(row.start_odometer_meters));
       return {
