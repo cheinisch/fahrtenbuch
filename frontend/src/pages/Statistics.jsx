@@ -109,6 +109,7 @@ export default function Statistics() {
   const [leasingLive, setLeasingLive] = useState(null);
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [entryKm, setEntryKm] = useState("");
+  const [entryTime, setEntryTime] = useState(() => new Date().toTimeString().slice(0, 5));
   const [savingReading, setSavingReading] = useState(false);
   const [message, setMessage] = useState("");
   const [intervals, setIntervals] = useState([]);
@@ -183,7 +184,11 @@ export default function Statistics() {
     setError("");
     setMessage("");
     try {
-      await saveMonthlyOdometerReading(accessToken, vehicleId, entryMonth, value, entryDate);
+      const readingAt = new Date(`${entryDate}T${entryTime}:00`);
+      if (!/^\d{2}:\d{2}$/.test(entryTime) || !Number.isFinite(readingAt.getTime()) || readingAt.getTime() > Date.now()) {
+        throw new Error("Bitte eine gültige Ablesezeit angeben, die nicht in der Zukunft liegt.");
+      }
+      await saveMonthlyOdometerReading(accessToken, vehicleId, entryMonth, value, entryDate, readingAt.toISOString());
       setMessage(`Kilometerstand vom ${new Intl.DateTimeFormat("de-DE").format(new Date(`${entryDate}T00:00:00`))} wurde gespeichert.`);
       setEntryKm("");
       await loadData();
@@ -267,8 +272,9 @@ export default function Statistics() {
     if (!vehicleReadings.length) return null;
     const start = new Date(`${vehicle.leaseStartDate.slice(0, 10)}T00:00:00`);
     const end = new Date(`${vehicle.leaseEndDate.slice(0, 10)}T00:00:00`);
-    const first = vehicleReadings.find((reading) => reading.date >= start) || vehicleReadings[0];
-    const last = [...vehicleReadings].reverse().find((reading) => reading.date <= end) || vehicleReadings.at(-1);
+    const first = [...vehicleReadings].reverse().find((reading) => reading.date <= start) || vehicleReadings[0];
+    const baselineIsExact = first.date.getTime() === start.getTime();
+    const last = [...vehicleReadings].reverse().find((reading) => reading.date <= end && reading.date <= new Date()) || vehicleReadings.at(-1);
     const totalDays = Math.max(1, (end - start) / 86400000);
     const liveKm = leasingLive && isoDate(last.date) === String(leasingLive.readingDate).slice(0, 10) ? Number(leasingLive.additionalKm || 0) : 0;
     const effectiveLastDate = liveKm > 0 ? new Date(Math.min(end.getTime(), Date.now())) : last.date;
@@ -285,7 +291,7 @@ export default function Statistics() {
     const settlementConfigured = deviationKm >= 0
       ? vehicle.leaseExcessRateEur != null
       : vehicle.leaseShortfallRateEur != null;
-    return { vehicle, drivenKm, allowedKm, projectedKm, deviationKm, settlementEur, settlementConfigured, elapsedPercent: elapsedDays / totalDays * 100 };
+    return { vehicle, baselineIsExact, baselineDate: first.date, baselineKm: Number(first.odometerKm), currentOdometerKm: Number(last.odometerKm) + liveKm, drivenKm, allowedKm, projectedKm, deviationKm, settlementEur, settlementConfigured, elapsedPercent: elapsedDays / totalDays * 100 };
   }, [vehicleDetails, readings, vehicleId, leasingLive]);
 
   async function openCategory(key) {
@@ -348,6 +354,7 @@ export default function Statistics() {
         <form onSubmit={saveReading} className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_170px_180px_auto] sm:items-end">
           <label className="text-sm"><span className="mb-1 block text-fb-muted">Fahrzeug</span><select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2">{vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
           <label className="text-sm"><span className="mb-1 block text-fb-muted">Ablesedatum</span><input type="date" value={entryDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setEntryDate(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
+          <label className="text-sm"><span className="mb-1 block text-fb-muted">Ablesezeit</span><input type="time" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} required className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
           <label className="text-sm"><span className="mb-1 block text-fb-muted">Kilometerstand</span><div className="flex items-center gap-2"><input inputMode="decimal" value={entryKm} onChange={(e) => setEntryKm(e.target.value)} placeholder="z. B. 82450" className="min-w-0 w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /><span className="text-fb-muted">km</span></div></label>
           <button type="submit" disabled={savingReading || !vehicleId || !entryDate || !entryKm} className="rounded-lg bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{savingReading ? "Speichert …" : "Speichern"}</button>
         </form>
@@ -355,6 +362,7 @@ export default function Statistics() {
       </section>
       {leasing && <section className={`rounded-xl border p-5 ${leasing.deviationKm > 0 ? "border-fb-danger bg-fb-main" : "border-fb-border bg-fb-main"}`}>
         <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-bold">{leasing.vehicle.acquisitionType === "leasing" ? "Leasing-Kilometer" : "Vertragskilometer"}</h2><p className="mt-1 text-sm text-fb-muted">{new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseStartDate.slice(0,10)}T00:00:00`))} – {new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseEndDate.slice(0,10)}T00:00:00`))} · {km(leasing.vehicle.leaseIncludedKm)} Kilometerlimit</p></div>{leasing.deviationKm > 0 && <span className="rounded-full border border-fb-danger px-3 py-1 text-sm font-semibold text-fb-danger">{leasing.vehicle.acquisitionType === "leasing" ? "Mehrkilometer erwartet" : "Kilometerlimit voraussichtlich überschritten"}</span>}</div>
+        <p className="mt-3 text-xs text-fb-muted">Basis: {km(leasing.baselineKm)} am {new Intl.DateTimeFormat("de-DE").format(leasing.baselineDate)} → aktueller Stand {km(leasing.currentOdometerKm)}{!leasing.baselineIsExact ? " · Keine Ablesung am Vertragsbeginn; die Fahrleistung ist ab der ersten verfügbaren Ablesung berechnet." : ""}</p>
         <div className={`mt-5 grid gap-4 sm:grid-cols-2 ${(leasing.vehicle.acquisitionType === "leasing" || leasing.vehicle.leaseExcessRateEur != null || leasing.vehicle.leaseShortfallRateEur != null) ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}><div><div className="text-xs text-fb-muted">Bisher gefahren</div><div className="mt-1 text-xl font-bold">{km(leasing.drivenKm)}</div></div><div><div className="text-xs text-fb-muted">Zeitanteilig vorgesehen</div><div className="mt-1 text-xl font-bold">{km(leasing.allowedKm)}</div></div><div><div className="text-xs text-fb-muted">Prognose Vertragsende</div><div className="mt-1 text-xl font-bold">{km(leasing.projectedKm)}</div></div><div><div className="text-xs text-fb-muted">Prognose Abweichung</div><div className={`mt-1 text-xl font-bold ${leasing.deviationKm > 0 ? "text-fb-danger" : "text-fb-accent"}`}>{leasing.deviationKm > 0 ? "+" : ""}{km(leasing.deviationKm)}</div></div>{(leasing.vehicle.acquisitionType === "leasing" || leasing.vehicle.leaseExcessRateEur != null || leasing.vehicle.leaseShortfallRateEur != null) && <div><div className="text-xs text-fb-muted">Nachzahlung / Erstattung (Prognose)</div><div className={`mt-1 text-xl font-bold ${leasing.settlementEur > 0 ? "text-fb-danger" : "text-fb-accent"}`}>{leasing.settlementConfigured ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Math.abs(leasing.settlementEur)) : "–"}</div><div className="mt-1 text-xs text-fb-muted">{!leasing.settlementConfigured ? "Kilometersatz nicht hinterlegt" : leasing.settlementEur > 0 ? "Voraussichtliche Nachzahlung" : leasing.settlementEur < 0 ? "Voraussichtliche Erstattung" : "Keine Zahlung erwartet"}</div></div>}</div>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-fb-surface"><div className={`h-full rounded-full ${leasing.deviationKm > 0 ? "bg-fb-danger" : "bg-fb-accent"}`} style={{ width: `${Math.min(100, Math.max(0, leasing.elapsedPercent))}%` }} /></div>
       </section>}
@@ -534,6 +542,7 @@ export default function Statistics() {
         onEdit={(reading) => {
           setEntryDate(reading.readingDate || `${reading.month}-01`);
           setEntryKm(String(reading.odometerKm));
+          setEntryTime(reading.readingAt ? new Date(reading.readingAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "12:00");
         }}
       />
     </div>
