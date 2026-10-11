@@ -45,6 +45,15 @@ settingsRoutes.put(
       });
     }
 
+    if (body.mapRouteColors !== undefined) {
+      const colors = body.mapRouteColors;
+      if (!colors || typeof colors !== "object" || Array.isArray(colors) ||
+          Object.keys(colors).some((key) => !["private", "business", "commute", "unclassified"].includes(key)) ||
+          Object.values(colors).some((value) => value !== null && (typeof value !== "string" || !/^#[0-9a-fA-F]{6}$/.test(value)))) {
+        throw badRequest("VALIDATION_ERROR", "Ungültige Kartenfarben. Erlaubt sind Hex-Farben je Fahrtkategorie.");
+      }
+    }
+
     response.json(
       await updateUserSettings(request.auth.userId, body),
     );
