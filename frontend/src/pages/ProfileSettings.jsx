@@ -158,6 +158,7 @@ export default function ProfileSettings() {
     stopDelaySeconds: 180,
     saveAccuracy: true,
     mapProvider: "osm",
+    mapRouteColors: {},
   });
 
   const [passwords, setPasswords] = useState({
@@ -273,6 +274,7 @@ export default function ProfileSettings() {
           settingsResult.settings.saveAccuracy,
         mapProvider:
           settingsResult.settings.mapProvider,
+        mapRouteColors: settingsResult.settings.mapRouteColors || {},
       });
 
       setDevices(devicesResult);
@@ -713,6 +715,7 @@ export default function ProfileSettings() {
           updated.saveAccuracy,
         mapProvider:
           updated.mapProvider,
+        mapRouteColors: updated.mapRouteColors || {},
       });
 
       showSuccess(
@@ -1263,6 +1266,32 @@ export default function ProfileSettings() {
                     Eigener Atlas
                   </option>
                 </select>
+              <div className="mt-5">
+                <h3 className="text-sm font-semibold">Routenfarben nach Fahrtkategorie</h3>
+                <p className="mt-1 text-xs text-fb-muted">Optional. Ohne eigene Farbe wird die Standard-Akzentfarbe verwendet.</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {[
+                    ["private", "Privat"],
+                    ["business", "Beruflich"],
+                    ["commute", "Dienstwagen / Arbeitsweg"],
+                    ["unclassified", "Nicht zugeordnet"],
+                  ].map(([key, label]) => (
+                    <label key={key} className="flex items-center gap-3 rounded-lg border border-fb-border p-3 text-sm">
+                      <input type="checkbox" checked={Boolean(tracking.mapRouteColors?.[key])}
+                        onChange={(event) => setTracking((current) => ({
+                          ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.checked ? "#0ea5e9" : null },
+                        }))} />
+                      <span className="flex-1">{label}</span>
+                      <input type="color" aria-label={`Farbe für ${label}`} disabled={!tracking.mapRouteColors?.[key]}
+                        value={tracking.mapRouteColors?.[key] || "#0ea5e9"}
+                        onChange={(event) => setTracking((current) => ({
+                          ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.value },
+                        }))} className="h-9 w-12 cursor-pointer rounded border border-fb-border" />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               </label>
 
               <label className="flex items-center gap-3 self-end rounded-lg border border-fb-border bg-fb-surface px-4 py-3">
