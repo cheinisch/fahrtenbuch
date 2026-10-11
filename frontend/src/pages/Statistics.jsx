@@ -184,11 +184,11 @@ export default function Statistics() {
     setError("");
     setMessage("");
     try {
-      const readingAt = new Date(`${entryDate}T${entryTime}:00`);
-      if (!/^\d{2}:\d{2}$/.test(entryTime) || !Number.isFinite(readingAt.getTime()) || readingAt.getTime() > Date.now()) {
+      const readingAt = entryTime ? new Date(`${entryDate}T${entryTime}:00`) : null;
+      if (entryTime && (!/^\d{2}:\d{2}$/.test(entryTime) || !Number.isFinite(readingAt.getTime()) || readingAt.getTime() > Date.now())) {
         throw new Error("Bitte eine gültige Ablesezeit angeben, die nicht in der Zukunft liegt.");
       }
-      await saveMonthlyOdometerReading(accessToken, vehicleId, entryMonth, value, entryDate, readingAt.toISOString());
+      await saveMonthlyOdometerReading(accessToken, vehicleId, entryMonth, value, entryDate, readingAt?.toISOString() || null);
       setMessage(`Kilometerstand vom ${new Intl.DateTimeFormat("de-DE").format(new Date(`${entryDate}T00:00:00`))} wurde gespeichert.`);
       setEntryKm("");
       await loadData();
@@ -279,9 +279,10 @@ export default function Statistics() {
     const liveKm = leasingLive && isoDate(last.date) === String(leasingLive.readingDate).slice(0, 10) ? Number(leasingLive.additionalKm || 0) : 0;
     const effectiveLastDate = liveKm > 0 ? new Date(Math.min(end.getTime(), Date.now())) : last.date;
     const elapsedDays = Math.max(0, Math.min(totalDays, (effectiveLastDate - start) / 86400000));
+    const observationDays = Math.max(0, (effectiveLastDate - first.date) / 86400000);
     const drivenKm = Math.max(0, Number(last.odometerKm) - Number(first.odometerKm) + liveKm);
     const allowedKm = vehicle.leaseIncludedKm * elapsedDays / totalDays;
-    const projectedKm = elapsedDays > 0 ? drivenKm / elapsedDays * totalDays : 0;
+    const projectedKm = observationDays > 0 ? drivenKm / observationDays * totalDays : 0;
     const deviationKm = projectedKm - vehicle.leaseIncludedKm;
     const excessKm = Math.max(0, deviationKm - Number(vehicle.leaseExcessToleranceKm || 0));
     const shortfallKm = Math.max(0, -deviationKm - Number(vehicle.leaseShortfallToleranceKm || 0));
@@ -354,7 +355,7 @@ export default function Statistics() {
         <form onSubmit={saveReading} className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_170px_180px_auto] sm:items-end">
           <label className="text-sm"><span className="mb-1 block text-fb-muted">Fahrzeug</span><select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2">{vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
           <label className="text-sm"><span className="mb-1 block text-fb-muted">Ablesedatum</span><input type="date" value={entryDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setEntryDate(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
-          <label className="text-sm"><span className="mb-1 block text-fb-muted">Ablesezeit</span><input type="time" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} required className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
+          <label className="text-sm"><span className="mb-1 block text-fb-muted">Ablesezeit</span><input type="time" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
           <label className="text-sm"><span className="mb-1 block text-fb-muted">Kilometerstand</span><div className="flex items-center gap-2"><input inputMode="decimal" value={entryKm} onChange={(e) => setEntryKm(e.target.value)} placeholder="z. B. 82450" className="min-w-0 w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /><span className="text-fb-muted">km</span></div></label>
           <button type="submit" disabled={savingReading || !vehicleId || !entryDate || !entryKm} className="rounded-lg bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{savingReading ? "Speichert …" : "Speichern"}</button>
         </form>
@@ -542,7 +543,7 @@ export default function Statistics() {
         onEdit={(reading) => {
           setEntryDate(reading.readingDate || `${reading.month}-01`);
           setEntryKm(String(reading.odometerKm));
-          setEntryTime(reading.readingAt ? new Date(reading.readingAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "12:00");
+          setEntryTime(reading.readingAt ? new Date(reading.readingAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "");
         }}
       />
     </div>
