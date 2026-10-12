@@ -1,8 +1,8 @@
 # OpenAPI-Abdeckung
 
-**Status: 74/74 dokumentierte Operationen implementiert.**
+**Status:** The OpenAPI specification has been expanded beyond the original 74-operation baseline. The current implementation and specification should be compared using the coverage checker below; this historical table is not a complete inventory.
 
-Die Prüfung erfolgt zusätzlich über:
+Run the coverage check with:
 
 ```bash
 npm run check --workspace backend
