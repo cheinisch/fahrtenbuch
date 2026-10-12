@@ -125,13 +125,10 @@ volumes:
   fahrtenbuch-redis-data:
   fahrtenbuch-redis-insight-data:
   fahrtenbuch-db-data:
-    external: true
     name: fahrtenbuch-db-data
   fahrtenbuch-osm-cache:
-    external: true
     name: fahrtenbuch-osm-cache
   fahrtenbuch-backups:
-    external: true
     name: fahrtenbuch-backups
 
 networks:
