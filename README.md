@@ -1,0 +1,114 @@
+# Fahrtenbuch
+
+A self-hosted vehicle trip log with a web dashboard, GPS trip tracking, odometer readings, vehicle management, and mileage statistics.
+
+The application combines a **React** frontend, a **Node.js** backend, **PostgreSQL**, and background processing with **Redis**. It can be deployed with Docker Compose.
+
+## Features
+
+- **Trip management:** Review recorded trips, inspect routes on a map, assign categories, filter trips, and edit trip details.
+- **GPS routes:** Display recorded routes using OpenStreetMap-based maps, with optional Protomaps support.
+- **Odometer readings:** Record mileage readings with dates and optional exact reading times; review the reading history.
+- **Mileage statistics:** Compare odometer changes with recorded trips and examine monthly mileage trends.
+- **Leasing and financing:** Track contractual mileage allowances, estimate end-of-contract mileage, and optionally calculate excess-mileage charges or under-mileage reimbursements.
+- **Multiple vehicles and users:** Manage vehicles, access permissions, and user-specific settings.
+- **Personal map colors:** Configure optional route colors for private, business, commuting, and unclassified trips.
+- **Responsive dashboard:** Switch between the map and trip list on smaller screens.
+- **Data protection and history:** Support trip audit history and controlled vehicle sharing.
+- **Authentication:** Account-based access with support for additional authentication mechanisms.
+
+Some capabilities depend on the configured deployment and connected clients.
+
+## Requirements
+
+- Docker and Docker Compose for the recommended deployment
+- An accessible hostname and HTTPS reverse proxy for internet-facing installations
+- **Node.js 22 or newer** for local development
+
+## Quick start with Docker Compose
+
+Clone the repository and create your configuration file:
+
+```bash
+git clone https://github.com/cheinisch/fahrtenbuch.git
+cd fahrtenbuch
+cp .env.example .env
+```
+
+Edit `.env` before starting the application. At minimum, configure:
+
+- `POSTGRES_PASSWORD` — a strong database password
+- `JWT_SECRET` — a long, randomly generated signing secret
+- `TOTP_ENCRYPTION_KEY` — a separate strong encryption secret
+- `DEFAULT_ADMIN_USERNAME`, `DEFAULT_ADMIN_EMAIL`, and `DEFAULT_ADMIN_PASSWORD` — initial administrator credentials
+- `PUBLIC_BASE_URL`, `CORS_ORIGIN`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_ORIGIN` — values matching your public hostname and HTTPS origin
+- `IMAGE_TAG` — the container image tag to deploy (defaults to `latest` in the Compose file)
+
+The supplied Compose configuration expects three **pre-existing external Docker volumes**. Create them before the first startup:
+
+```bash
+docker volume create fahrtenbuch-db-data
+docker volume create fahrtenbuch-osm-cache
+docker volume create fahrtenbuch-backups
+```
+
+Start the services:
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+The application listens on port **3000** by default. Open `http://localhost:3000` for local access, or use your configured HTTPS hostname when deployed behind a reverse proxy.
+
+> **Security:** Change all example secrets and administrator credentials before exposing the service to the internet. Use HTTPS and restrict access to administrative services such as Redis Insight.
+
+## Updating
+
+Pull the selected image tag and recreate the services:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Keep the database and backup volumes intact. Back up your data before upgrading, especially when database migrations are involved.
+
+## Local development
+
+Install dependencies and run the backend and frontend development servers:
+
+```bash
+npm ci
+npm run dev
+```
+
+A configured PostgreSQL instance and the environment variables required by the backend are still needed. For a production frontend build:
+
+```bash
+npm run build
+```
+
+Other available scripts include `npm run lint` and `npm test`.
+
+## Repository structure
+
+| Path | Purpose |
+| --- | --- |
+| `frontend/` | React user interface |
+| `backend/` | API, business logic, database migrations, and background jobs |
+| `shared/` | Shared workspace code |
+| `api/openapi.yml` | API specification |
+| `docker-compose.yml` | Docker Compose deployment |
+| `.env.example` | Example environment configuration |
+| `PROTOMAPS.md` | Protomaps setup information |
+| `README_API.md` | Additional API documentation |
+| `INTEGRATION.md` | Integration notes |
+
+## API documentation
+
+The OpenAPI specification is available in [`api/openapi.yml`](api/openapi.yml). The optional Swagger interface can be enabled with `SHOW_API_UI=true`; when enabled, it is available at `/api` and `/api/docs`.
+
+## License
+
+This project is licensed under **AGPL-3.0-only**, as declared in `package.json`.
