@@ -1,6 +1,6 @@
 {
   "name": "@fahrtenbuch/frontend",
-  "version": "0.3.20-dev.105",
+  "version": "0.3.21",
   "private": true,
   "type": "module",
   "scripts": {
