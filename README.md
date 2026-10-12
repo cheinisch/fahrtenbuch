@@ -44,13 +44,9 @@ Edit `.env` before starting the application. At minimum, configure:
 - `PUBLIC_BASE_URL`, `CORS_ORIGIN`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_ORIGIN` — values matching your public hostname and HTTPS origin
 - `IMAGE_TAG` — the container image tag to deploy (defaults to `latest` in the Compose file)
 
-The supplied Compose configuration expects three **pre-existing external Docker volumes**. Create them before the first startup:
+Docker Compose automatically creates the required named volumes on first startup, including the PostgreSQL data, OSM tile cache, and backups volumes. Existing volumes with the same names are reused, so no manual `docker volume create` commands are necessary.
 
-```bash
-docker volume create fahrtenbuch-db-data
-docker volume create fahrtenbuch-osm-cache
-docker volume create fahrtenbuch-backups
-```
+> **Data safety:** `docker compose down` keeps the volumes, but `docker compose down -v` removes Compose-managed volumes and can permanently delete database and backup data. Back up your data before removing volumes.
 
 Start the services:
 
