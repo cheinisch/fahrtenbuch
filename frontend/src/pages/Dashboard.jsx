@@ -335,6 +335,7 @@ export default function Dashboard() {
     return () => { active = false; };
   }, [accessToken]);
   const [selectedForMerge, setSelectedForMerge] = useState([]);
+  const [mobilePanel, setMobilePanel] = useState("map");
   const [tripAction, setTripAction] = useState({ busy: false, error: "", splitPoints: null });
   const [suggestions, setSuggestions] = useState([]);
   const [mapMode, setMapMode] = useState(null);
@@ -925,6 +926,7 @@ export default function Dashboard() {
 
   function selectTrip(trip) {
     setSelectedTripId(trip.id);
+    setMobilePanel("map");
     setGpsMode("route");
     setGpsPoints([]);
     setGpsError("");
@@ -1099,8 +1101,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative h-[calc(100vh-4.5rem)] min-h-[520px] overflow-hidden">
-      <section className="absolute bottom-4 left-4 top-4 z-20 flex w-[min(410px,calc(100%-2rem))] min-h-0 flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:w-[410px]">
+    <div className="relative h-[calc(100dvh-4.5rem)] min-h-[400px] overflow-hidden">\n      <nav aria-label="Dashboard-Ansicht" className="absolute inset-x-3 top-3 z-30 flex gap-2 rounded-xl border border-fb-border bg-fb-main/95 p-1 shadow-lg backdrop-blur md:hidden">\n        <button type="button" aria-pressed={mobilePanel === "map"} onClick={() => setMobilePanel("map")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "map" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>Karte</button>\n        <button type="button" aria-pressed={mobilePanel === "trips"} onClick={() => setMobilePanel("trips")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "trips" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>Fahrten ({data.trips.length})</button>\n      </nav>
+      <section className={`${mobilePanel === "trips" ? "flex" : "hidden"} absolute inset-x-3 bottom-3 top-[4.5rem] z-20 w-auto min-h-0 flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:absolute md:bottom-4 md:left-4 md:right-auto md:top-4 md:flex md:w-[410px]`}>
         <header className="border-b border-fb-border p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -1387,7 +1389,7 @@ export default function Dashboard() {
           </div>
         )}
         {selectedTripId && (
-          <div className="absolute bottom-4 right-4 z-20 w-[min(420px,calc(100%-2rem))] overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur">
+          <div className={`${mobilePanel === "map" ? "block" : "hidden"} absolute bottom-3 left-3 right-3 z-20 max-h-[min(48dvh,420px)] overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:bottom-4 md:left-auto md:right-4 md:block md:max-h-[calc(100%-2rem)] md:w-[420px]`}>
             <div className="flex items-center justify-between border-b border-fb-border px-4 py-3">
               <div>
                 <div className="font-semibold">{t('tripDetails.title')}</div>
