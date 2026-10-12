@@ -103,7 +103,7 @@ Other available scripts include `npm run lint` and `npm test`.
 
 ## API documentation
 
-The OpenAPI specification is available in [`api/openapi.yml`](api/openapi.yml). The optional Swagger interface can be enabled with `SHOW_API_UI=true`; when enabled, it is available at `/api` and `/api/docs`.
+The complete [OpenAPI specification (YAML)](api/openapi.yml) documents the API endpoints, request and response schemas, and authentication requirements. For a guided introduction, see the [English API documentation](README_API.md). The optional Swagger interface can be enabled with `SHOW_API_UI=true`; when enabled, it is available at `/api` and `/api/docs`.
 
 ## License
 
