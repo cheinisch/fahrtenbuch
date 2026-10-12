@@ -1331,6 +1331,454 @@ paths:
       responses:
         '200': { description: Systeminformationen }
 
+  /statistics/leasing-live-km:
+    get:
+      tags: [Statistics]
+      summary: Get GPS mileage since the latest odometer reading
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /statistics/monthly-trips:
+    get:
+      tags: [Statistics]
+      summary: Get monthly trip statistics
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /map/osm/{z}/{x}/{y}.png:
+    get:
+      tags: [Services]
+      summary: Get cached OpenStreetMap raster tile
+      parameters:
+      - name: z
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: x
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: y
+        in: path
+        required: true
+        schema: { type: integer }
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /map/protomaps/tilejson:
+    get:
+      tags: [Services]
+      summary: Get Protomaps TileJSON
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /map/protomaps/tiles/{templateIndex}/{z}/{x}/{y}:
+    get:
+      tags: [Services]
+      summary: Get Protomaps vector tile
+      parameters:
+      - name: templateIndex
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: z
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: x
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: y
+        in: path
+        required: true
+        schema: { type: integer }
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /map/protomaps/fonts/{fontstack}/{range}:
+    get:
+      tags: [Services]
+      summary: Get Protomaps font glyphs
+      parameters:
+      - name: fontstack
+        in: path
+        required: true
+        schema: { type: string }
+      - name: range
+        in: path
+        required: true
+        schema: { type: string }
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /map/protomaps/sprites/v4/{file}:
+    get:
+      tags: [Services]
+      summary: Get Protomaps sprite resource
+      parameters:
+      - name: file
+        in: path
+        required: true
+        schema: { type: string }
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /admin/overview:
+    get:
+      tags: [Admin]
+      summary: Get administration overview
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /admin/settings:
+    get:
+      tags: [Admin]
+      summary: Get administrative settings
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /admin/settings:
+    patch:
+      tags: [Admin]
+      summary: Update administrative settings
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /admin/jobs/status:
+    get:
+      tags: [Admin]
+      summary: Get background job status
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /admin/jobs:
+    get:
+      tags: [Admin]
+      summary: List background jobs
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /admin/jobs/{id}/retry:
+    post:
+      tags: [Admin]
+      summary: Retry a background job
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /admin/jobs/{id}:
+    delete:
+      tags: [Admin]
+      summary: Delete a background job
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /admin/jobs/reverse-geocode:
+    post:
+      tags: [Admin]
+      summary: Start reverse geocoding job
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/profile:
+    patch:
+      tags: [Users]
+      summary: Update own profile
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/settings:
+    get:
+      tags: [Settings]
+      summary: Get own profile settings
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/settings:
+    patch:
+      tags: [Settings]
+      summary: Update own profile settings
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/home-location/search:
+    post:
+      tags: [Users]
+      summary: Search for a home location
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/home-location/reverse:
+    post:
+      tags: [Users]
+      summary: Reverse geocode home location
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/home-location:
+    put:
+      tags: [Users]
+      summary: Set home location
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/home-location:
+    delete:
+      tags: [Users]
+      summary: Remove home location
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/work-location:
+    put:
+      tags: [Users]
+      summary: Set work location
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/work-location:
+    delete:
+      tags: [Users]
+      summary: Remove work location
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /trips/archive:
+    get:
+      tags: [Trips]
+      summary: List archived trips
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /trips/{id}/restore:
+    post:
+      tags: [Trips]
+      summary: Restore archived trip
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /trips/{id}/permanent:
+    delete:
+      tags: [Trips]
+      summary: Permanently delete archived trip
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /export/countries:
+    get:
+      tags: [Import Export]
+      summary: List countries available for export
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/data:
+    get:
+      tags: [Users]
+      summary: Export own data
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /users/me/data:
+    post:
+      tags: [Users]
+      summary: Import own data
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /admin/data/export:
+    get:
+      tags: [Admin]
+      summary: Export administrative data
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+  /admin/data/import:
+    post:
+      tags: [Admin]
+      summary: Import administrative data
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
 components:
   securitySchemes:
     bearerAuth:
