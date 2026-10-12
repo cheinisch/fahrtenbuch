@@ -1,217 +1,125 @@
-# Fahrtenbuch API 1.0
+# Fahrtenbuch REST API
 
-Diese Dateien implementieren die vollständige REST-API aus `api/openapi.yml` für das vorhandene Fahrtenbuch-Projekt.
+The Fahrtenbuch API provides access to authentication, users, vehicles, trips, GPS tracking, odometer readings, statistics, map services, imports, exports, and administration.
 
-## Umfang
+**OpenAPI specification:** [api/openapi.yml](api/openapi.yml)
 
-Enthalten sind alle **74 dokumentierten API-Operationen** aus den Bereichen:
+## Base URL and authentication
 
-- Systemstatus
-- Login, Token-Refresh und Logout
-- Passwort-Reset
-- TOTP-MFA
-- Passkeys/WebAuthn
-- QR-App-Pairing und Geräteverwaltung
-- Benutzer
-- Fahrzeuge einschließlich Bluetooth-Zuordnung
-- Fahrten, Klassifizierung, Tags und Trackpunkte
-- Offline-taugliches Tracking in Punkt-Batches
-- Dashboard und Statistiken
-- Karten-, Photon- und Overpass-Konfiguration
-- Geocoding und Umkreissuche
-- persönliche Einstellungen
-- CSV-, GPX- und PDF-Export
-- CSV- und GPX-Import
-- Benutzer- und Systemadministration
-- JSON/GZIP-Datenbankbackup
-
-Die Datei `API_COVERAGE.md` führt alle Operationen einzeln auf.
-
-## Verzeichnisinhalt
+The default API base path is:
 
 ```text
-.
-├── .env.api.example
-├── API_COVERAGE.md
-├── README_API.md
-├── api/
-│   └── openapi.yml
-├── docker-compose.api.example.yml
-├── database/
-│   └── migrations/
-│       ├── 0001_initial.sql
-│       └── 0002_complete_api.sql
-└── backend/
-    ├── openapi.yml
-    ├── package.json
-    ├── scripts/
-    └── src/
+https://your-domain.example/api/v1
 ```
 
-## In das bestehende Repository übernehmen
+Protected endpoints use an access token:
 
-Den Inhalt dieses Archivs in den Root-Ordner des Fahrtenbuch-Repositories kopieren. Bestehende Backend-Dateien werden dabei ersetzt. Frontend-Dateien sind in diesem Paket nicht enthalten.
-
-Danach im Projekt-Root ausführen:
-
-```bash
-npm install
-npm run check --workspace backend
+```http
+Authorization: Bearer <accessToken>
 ```
 
-`npm install` aktualisiert die zentrale `package-lock.json` des npm-Workspaces. Diese Lock-Datei muss mit committed werden.
+Authenticate with `POST /api/v1/auth/login` and renew access using `POST /api/v1/auth/refresh`. Store refresh tokens securely and replace them after rotation.
 
-## Datenbankmigration
-
-`0002_complete_api.sql` erweitert das vorhandene Schema unter anderem um:
-
-- VIN und Notizen bei Fahrzeugen
-- externe Geräte-ID für die Android-App
-- zusätzliche Indizes
-- Backup-Aufträge
-- Standardkonfiguration für Karte, Photon und Overpass
-
-Die vorhandene Datenbank muss **nicht gelöscht** werden. Beim Start führt `runMigrations()` nur noch nicht registrierte Migrationen aus.
-
-Bei einer bestehenden Installation müssen beide Dateien im Image unter diesem Pfad liegen:
-
-```text
-/app/database/migrations/
-```
-
-## Erforderliche Konfiguration
-
-`.env.api.example` enthält alle Werte. Für den produktiven Start sind besonders wichtig:
-
-```dotenv
-POSTGRES_HOST=db
-POSTGRES_PORT=5432
-POSTGRES_DB=fahrtenbuch
-POSTGRES_USER=fahrtenbuch
-POSTGRES_PASSWORD=...
-
-JWT_ACCESS_SECRET=...
-JWT_ACCESS_TTL=15m
-JWT_REFRESH_TTL=30d
-JWT_ISSUER=fahrtenbuch
-JWT_AUDIENCE=fahrtenbuch-app
-
-PUBLIC_BASE_URL=https://fahrtenbuch.example.de
-TOTP_ENCRYPTION_KEY=...
-RP_NAME=Fahrtenbuch
-RP_ID=fahrtenbuch.example.de
-RP_ORIGIN=https://fahrtenbuch.example.de
-
-MIGRATIONS_DIR=/app/database/migrations
-STATIC_DIR=/app/frontend/dist
-BACKUP_DIR=/data/backups
-```
-
-Für Secrets sollten lange, zufällige Werte verwendet werden. Beispiel:
-
-```bash
-openssl rand -base64 48
-```
-
-## Passkeys und Pairing
-
-Passkeys funktionieren nur zuverlässig über HTTPS. Folgende Werte müssen zur tatsächlichen Domain passen:
-
-```dotenv
-PUBLIC_BASE_URL=https://fahrtenbuch.example.de
-RP_ID=fahrtenbuch.example.de
-RP_ORIGIN=https://fahrtenbuch.example.de
-```
-
-Der QR-Pairing-Code enthält Serveradresse, Pair-ID, Pair-Token, Benutzername, E-Mail-Adresse und Ablaufzeit. Die Standardgültigkeit beträgt 120 Sekunden und ist über die Admin-Einstellungen änderbar.
-
-## Passwort-Reset
-
-Der Endpunkt nimmt Anfragen immer neutral an, damit nicht erkennbar ist, ob eine E-Mail-Adresse existiert.
-
-Für den Versand kann ein Webhook konfiguriert werden:
-
-```dotenv
-PASSWORD_RESET_WEBHOOK_URL=https://automation.example.de/webhook/password-reset
-```
-
-Der Webhook erhält JSON mit `email`, `token`, `resetUrl` und `expiresAt`. Bei `DEBUG=true` liefert die API den Token zusätzlich als `debugResetToken`; das sollte nur in einer Entwicklungsumgebung verwendet werden.
-
-## Android-App anbinden
-
-Basis-URL:
-
-```text
-https://fahrtenbuch.example.de/api/v1
-```
-
-Login-Beispiel:
+Example login request:
 
 ```http
 POST /api/v1/auth/login
 Content-Type: application/json
 
 {
-  "identifier": "admin@example.de",
-  "password": "...",
-  "deviceName": "Android-App",
+  "identifier": "admin@example.com",
+  "password": "your-password",
+  "deviceName": "Android",
   "platform": "android",
   "appVersion": "1.0.0"
 }
 ```
 
-Geschützte Endpunkte verwenden:
+## API areas
 
-```http
-Authorization: Bearer <accessToken>
+| Area | Description |
+| --- | --- |
+| System | Health and system information |
+| Auth / MFA / Passkeys | Login, refresh tokens, password reset, TOTP, and WebAuthn |
+| App Pairing / Devices | QR-based device pairing and registered device management |
+| Users | User profiles and administrative user management |
+| Vehicles | Vehicle records, ownership, sharing, and Bluetooth assignments |
+| Trips / Tracking | Trip records, classification, GPS points, and tracking sessions |
+| Tags | Trip tags and categorization |
+| Dashboard / Statistics | Trip summaries, odometer readings, and mileage statistics |
+| Geocoding / Services | Map configuration, Photon geocoding, and Overpass searches |
+| Settings | Personal and service settings |
+| Import / Export | CSV, GPX, and PDF workflows |
+| Admin | Administration and backup operations |
+
+For exact endpoints, parameters, response schemas, and authorization requirements, refer to the [OpenAPI specification](api/openapi.yml).
+
+## API documentation in a running installation
+
+Swagger UI is optional and disabled by default. To enable it, set:
+
+```dotenv
+SHOW_API_UI=true
 ```
 
-Das Access-Token ist kurzlebig. Die App sollte das Refresh-Token sicher speichern und über `POST /auth/refresh` rotieren. Nach einer erfolgreichen Rotation darf das alte Refresh-Token nicht erneut verwendet werden.
+When enabled, the documentation is available at:
 
-## API-Datei abrufen
+- `/api`
+- `/api/docs`
+- `/api/v1/openapi.yml`
 
-Bei laufendem Server steht die Spezifikation zusätzlich hier bereit:
+Only expose API documentation where appropriate for your deployment.
 
-```text
-GET /api/v1/openapi.yml
+## Configuration
+
+Use the repository's [`.env.example`](.env.example) as the reference for supported environment variables. Important settings include:
+
+```dotenv
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+POSTGRES_DB=fahrtenbuch
+POSTGRES_USER=fahrtenbuch
+POSTGRES_PASSWORD=CHANGE_ME
+
+JWT_SECRET=CHANGE_ME_TO_A_LONG_RANDOM_SECRET
+JWT_EXPIRES_IN=15m
+REFRESH_TOKEN_EXPIRES_IN=30d
+
+PUBLIC_BASE_URL=https://your-domain.example
+TOTP_ENCRYPTION_KEY=CHANGE_ME_TO_A_SEPARATE_SECRET
+WEBAUTHN_RP_ID=your-domain.example
+WEBAUTHN_ORIGIN=https://your-domain.example
+
+MIGRATIONS_DIR=/app/backend/src/database/migrations
+BACKUP_DIR=/data/backups
 ```
 
-## Prüfungen
+Use strong, independent secrets. WebAuthn/passkeys require an appropriate HTTPS origin in production.
+
+## Development and validation
+
+Install workspace dependencies:
 
 ```bash
-npm run check --workspace backend
+npm ci
 ```
 
-Die Prüfung kontrolliert:
-
-- erforderliche Dateien
-- vollständige Pfad- und Methodenabdeckung der OpenAPI-Datei
-- 74 von 74 dokumentierten Operationen
-
-Zusätzlich wurden alle JavaScript-Dateien mit `node --check` geprüft. Ein vollständiger Integrationstest mit einer realen PostgreSQL-Instanz muss nach dem Einspielen in der Zielumgebung erfolgen.
-
-## Persistenter Backup-Speicher
-
-Der Backup-Endpunkt schreibt Dateien nach `/data/backups`. Damit sie beim Austausch des App-Containers erhalten bleiben, kann der Inhalt von `docker-compose.api.example.yml` in die bestehende Compose-Datei übernommen werden.
-
-## Bereitstellung
+Check the API specification and its coverage using the repository scripts:
 
 ```bash
-git add backend database api .env.api.example API_COVERAGE.md README_API.md package-lock.json
-git commit -m "Implement complete Fahrtenbuch API"
-git push origin main
+node backend/scripts/check-api-files.js
+node backend/scripts/check-openapi-coverage.js
 ```
 
-Nach erfolgreichem Image-Build auf dem Server:
+Database migrations are located in `backend/src/database/migrations/`. Back up your database before deploying schema changes.
 
-```bash
-docker compose pull
-docker compose up -d --force-recreate
-docker logs --tail 200 fahrtenbuch-app
-```
+## Additional references
 
-Gesundheitsprüfung:
+- [Main README](README.md)
+- [API coverage](API_COVERAGE.md)
+- [Integration notes](INTEGRATION.md)
+- [OpenAPI specification](api/openapi.yml)
 
-```bash
-curl -s http://127.0.0.1:3000/api/v1/health
-```
+## License
+
+AGPL-3.0-only.
