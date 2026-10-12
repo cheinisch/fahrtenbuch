@@ -381,9 +381,8 @@ export default function Statistics() {
             <span>{km(leasing.drivenKm)} / {km(leasing.vehicle.leaseIncludedKm)} ({(leasing.drivenKm / leasing.vehicle.leaseIncludedKm * 100).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %)</span>
           </div>
           <div role="progressbar" aria-label="Kilometerverbrauch" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, leasing.drivenKm / leasing.vehicle.leaseIncludedKm * 100))} className="h-2 overflow-hidden rounded-full bg-fb-surface">
-            <div className={`h-full rounded-full ${leasing.drivenKm > leasing.vehicle.leaseIncludedKm ? "bg-fb-danger" : "bg-fb-accent"}`} style={{ width: `${Math.min(100, Math.max(0, leasing.drivenKm / leasing.vehicle.leaseIncludedKm * 100))}%` }} />
+            <div className={`h-full rounded-full ${leasing.drivenKm >= leasing.vehicle.leaseIncludedKm ? "bg-fb-danger" : "bg-fb-accent"}`} style={{ width: `${Math.min(100, Math.max(0, leasing.drivenKm / leasing.vehicle.leaseIncludedKm * 100))}%` }} />
           </div>
-          <p className="mt-2 text-xs text-fb-muted">Der Balken zeigt gefahrene Kilometer, nicht die voraussichtliche Nachzahlung oder Erstattung.</p>
         </div>
       </section>}
       <section className="rounded-xl border border-fb-border bg-fb-main p-5">
