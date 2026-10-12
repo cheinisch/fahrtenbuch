@@ -3,16 +3,16 @@ info:
   title: Fahrtenbuch API
   version: 0.3.21
   description: |
-    REST-API für das selbst gehostete Fahrtenbuch. Die API umfasst
-    Authentifizierung, MFA, Passkeys, App-Pairing, Geräteverwaltung,
-    Benutzer, Fahrzeuge, Fahrten, Tracking, Statistiken, Import/Export,
-    Geocoding sowie zentrale Kartendienst-Konfiguration.
+    REST API for the self-hosted Fahrtenbuch application. It covers
+    authentication, MFA, passkeys, app pairing, device management,
+    users, vehicles, trips, tracking, statistics, imports and exports,
+    geocoding, and centralized map service configuration.
   license:
     name: GNU Affero General Public License v3.0
     identifier: AGPL-3.0-only
 servers:
   - url: /api/v1
-    description: Relativ zum Fahrtenbuch-Server
+    description: Relative to the Fahrtenbuch server
 security:
   - bearerAuth: []
 tags:
@@ -38,7 +38,7 @@ paths:
   /health:
     get:
       tags: [System]
-      summary: Systemstatus abrufen
+      summary: Get system health
       security: []
       responses:
         '200':
@@ -56,7 +56,7 @@ paths:
   /auth/login:
     post:
       tags: [Auth]
-      summary: Anmelden
+      summary: Log in
       security: []
       requestBody:
         required: true
@@ -73,7 +73,7 @@ paths:
   /auth/refresh:
     post:
       tags: [Auth]
-      summary: Access-Token erneuern
+      summary: Refresh access token
       security: []
       requestBody:
         required: true
@@ -93,19 +93,19 @@ paths:
   /auth/logout:
     post:
       tags: [Auth]
-      summary: Aktuelle Sitzung abmelden
+      summary: Log out of current session
       responses:
         '204': { description: Abgemeldet }
   /auth/logout-all:
     post:
       tags: [Auth]
-      summary: Alle Sitzungen abmelden
+      summary: Log out of all sessions
       responses:
         '204': { description: Alle Sitzungen widerrufen }
   /auth/password/forgot:
     post:
       tags: [Auth]
-      summary: Passwort-Reset anfordern
+      summary: Request password reset
       security: []
       requestBody:
         required: true
@@ -121,7 +121,7 @@ paths:
   /auth/password/reset:
     post:
       tags: [Auth]
-      summary: Passwort zurücksetzen
+      summary: Reset password
       security: []
       requestBody:
         required: true
@@ -139,7 +139,7 @@ paths:
   /auth/mfa/totp/setup:
     post:
       tags: [MFA]
-      summary: TOTP-Einrichtung starten
+      summary: Start TOTP setup
       responses:
         '200':
           description: TOTP-Konfiguration
@@ -154,7 +154,7 @@ paths:
   /auth/mfa/totp/verify:
     post:
       tags: [MFA]
-      summary: TOTP aktivieren
+      summary: Enable TOTP
       requestBody:
         required: true
         content:
@@ -169,20 +169,20 @@ paths:
   /auth/mfa/totp:
     delete:
       tags: [MFA]
-      summary: TOTP deaktivieren
+      summary: Disable TOTP
       responses:
         '204': { description: TOTP deaktiviert }
 
   /auth/passkeys/register/options:
     post:
       tags: [Passkeys]
-      summary: Passkey-Registrierungsoptionen erzeugen
+      summary: Generate passkey registration options
       responses:
         '200': { description: WebAuthn-Optionen }
   /auth/passkeys/register/verify:
     post:
       tags: [Passkeys]
-      summary: Passkey registrieren
+      summary: Register passkey
       requestBody:
         required: true
         content:
@@ -193,14 +193,14 @@ paths:
   /auth/passkeys/login/options:
     post:
       tags: [Passkeys]
-      summary: Passkey-Anmeldeoptionen erzeugen
+      summary: Generate passkey authentication options
       security: []
       responses:
         '200': { description: WebAuthn-Optionen }
   /auth/passkeys/login/verify:
     post:
       tags: [Passkeys]
-      summary: Mit Passkey anmelden
+      summary: Log in with passkey
       security: []
       requestBody:
         required: true
@@ -216,13 +216,13 @@ paths:
   /auth/passkeys:
     get:
       tags: [Passkeys]
-      summary: Eigene Passkeys auflisten
+      summary: List own passkeys
       responses:
         '200': { description: Passkey-Liste }
   /auth/passkeys/{id}:
     patch:
       tags: [Passkeys]
-      summary: Eigenen Passkey umbenennen
+      summary: Rename own passkey
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -238,7 +238,7 @@ paths:
         '200': { description: Passkey aktualisiert }
     delete:
       tags: [Passkeys]
-      summary: Passkey löschen
+      summary: Delete passkey
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -247,7 +247,7 @@ paths:
   /auth/pair/options:
     post:
       tags: [App Pairing]
-      summary: QR-Pairing erzeugen
+      summary: Create QR pairing
       responses:
         '200':
           description: Pairing-Optionen
@@ -257,7 +257,7 @@ paths:
   /auth/pair:
     post:
       tags: [App Pairing]
-      summary: Gerät per QR-Code koppeln
+      summary: Pair device via QR code
       security: []
       requestBody:
         required: true
@@ -273,7 +273,7 @@ paths:
   /auth/pair/{pairId}/status:
     get:
       tags: [App Pairing]
-      summary: Pairing-Status abrufen
+      summary: Get pairing status
       parameters:
         - name: pairId
           in: path
@@ -288,7 +288,7 @@ paths:
   /auth/pair/{pairId}:
     delete:
       tags: [App Pairing]
-      summary: Pairing abbrechen
+      summary: Cancel pairing
       parameters:
         - name: pairId
           in: path
@@ -300,7 +300,7 @@ paths:
   /users/me:
     get:
       tags: [Users]
-      summary: Eigenes Profil abrufen
+      summary: Get own profile
       responses:
         '200':
           description: Profil
@@ -309,7 +309,7 @@ paths:
               schema: { $ref: '#/components/schemas/User' }
     put:
       tags: [Users]
-      summary: Eigenes Profil aktualisieren
+      summary: Update own profile
       requestBody:
         required: true
         content:
@@ -324,7 +324,7 @@ paths:
   /users/me/password:
     put:
       tags: [Users]
-      summary: Eigenes Passwort ändern
+      summary: Change own password
       requestBody:
         required: true
         content:
@@ -340,7 +340,7 @@ paths:
   /users/me/devices:
     get:
       tags: [Devices]
-      summary: Eigene Geräte auflisten
+      summary: List own devices
       responses:
         '200':
           description: Geräte
@@ -352,7 +352,7 @@ paths:
   /users/me/devices/{deviceId}:
     delete:
       tags: [Devices]
-      summary: Gerät und zugehörige Sitzungen entfernen
+      summary: Remove device and associated sessions
       parameters:
         - name: deviceId
           in: path
@@ -364,7 +364,7 @@ paths:
   /vehicles:
     get:
       tags: [Vehicles]
-      summary: Fahrzeuge auflisten
+      summary: List vehicles
       responses:
         '200':
           description: Fahrzeuge
@@ -375,7 +375,7 @@ paths:
                 items: { $ref: '#/components/schemas/Vehicle' }
     post:
       tags: [Vehicles]
-      summary: Fahrzeug anlegen
+      summary: Create vehicle
       requestBody:
         required: true
         content:
@@ -390,7 +390,7 @@ paths:
   /vehicles/{id}:
     get:
       tags: [Vehicles]
-      summary: Fahrzeug abrufen
+      summary: Get vehicle
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -401,7 +401,7 @@ paths:
               schema: { $ref: '#/components/schemas/Vehicle' }
     put:
       tags: [Vehicles]
-      summary: Fahrzeug aktualisieren
+      summary: Update vehicle
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -417,7 +417,7 @@ paths:
               schema: { $ref: '#/components/schemas/Vehicle' }
     delete:
       tags: [Vehicles]
-      summary: Fahrzeug löschen
+      summary: Delete vehicle
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -425,7 +425,7 @@ paths:
   /vehicles/{id}/default:
     put:
       tags: [Vehicles]
-      summary: Eigenes Standardfahrzeug festlegen
+      summary: Set default vehicle
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -433,7 +433,7 @@ paths:
   /vehicles/{id}/bluetooth:
     put:
       tags: [Vehicles]
-      summary: Bluetooth-Zuordnung aktualisieren
+      summary: Update Bluetooth assignment
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -453,7 +453,7 @@ paths:
   /trips:
     get:
       tags: [Trips]
-      summary: Fahrten auflisten
+      summary: List trips
       parameters:
         - { name: vehicleId, in: query, schema: { type: string, format: uuid } }
         - { name: type, in: query, schema: { type: string, enum: [business, private, commute, unclassified] } }
@@ -471,7 +471,7 @@ paths:
                 items: { $ref: '#/components/schemas/Trip' }
     post:
       tags: [Trips]
-      summary: Fahrt manuell anlegen
+      summary: Create trip manually
       requestBody:
         required: true
         content:
@@ -486,7 +486,7 @@ paths:
   /trips/{id}:
     get:
       tags: [Trips]
-      summary: Fahrt abrufen
+      summary: Get trip
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -497,7 +497,7 @@ paths:
               schema: { $ref: '#/components/schemas/Trip' }
     put:
       tags: [Trips]
-      summary: Fahrt aktualisieren
+      summary: Update trip
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -513,7 +513,7 @@ paths:
               schema: { $ref: '#/components/schemas/Trip' }
     delete:
       tags: [Trips]
-      summary: Fahrt löschen
+      summary: Delete trip
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -521,7 +521,7 @@ paths:
   /trips/{id}/history:
     get:
       tags: [Trips]
-      summary: Unveränderliche Historie einer Fahrt abrufen
+      summary: Get immutable trip history
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -536,7 +536,7 @@ paths:
   /trips/{id}/points:
     get:
       tags: [Trips]
-      summary: GPS-Punkte einer Fahrt abrufen
+      summary: Get trip GPS points
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -550,7 +550,7 @@ paths:
   /trips/{id}/classify:
     put:
       tags: [Trips]
-      summary: Fahrt klassifizieren
+      summary: Classify trip
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -569,7 +569,7 @@ paths:
   /trips/{id}/tags:
     put:
       tags: [Trips]
-      summary: Tags einer Fahrt setzen
+      summary: Set trip tags
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -589,7 +589,7 @@ paths:
   /tracking/start:
     post:
       tags: [Tracking]
-      summary: Aufzeichnung starten
+      summary: Start tracking
       requestBody:
         required: true
         content:
@@ -609,7 +609,7 @@ paths:
   /tracking/points:
     post:
       tags: [Tracking]
-      summary: GPS-Punkte hochladen
+      summary: Upload GPS points
       requestBody:
         required: true
         content:
@@ -629,7 +629,7 @@ paths:
   /tracking/stop:
     post:
       tags: [Tracking]
-      summary: Aufzeichnung beenden
+      summary: Stop tracking
       requestBody:
         required: true
         content:
@@ -649,14 +649,14 @@ paths:
   /tracking/status:
     get:
       tags: [Tracking]
-      summary: Aktuellen Trackingstatus abrufen
+      summary: Get current tracking status
       responses:
         '200': { description: Trackingstatus }
 
   /tags:
     get:
       tags: [Tags]
-      summary: Tags auflisten
+      summary: List tags
       responses:
         '200':
           description: Tags
@@ -667,7 +667,7 @@ paths:
                 items: { $ref: '#/components/schemas/Tag' }
     post:
       tags: [Tags]
-      summary: Tag anlegen
+      summary: Create tag
       requestBody:
         required: true
         content:
@@ -682,7 +682,7 @@ paths:
   /tags/{id}:
     put:
       tags: [Tags]
-      summary: Tag aktualisieren
+      summary: Update tag
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -694,7 +694,7 @@ paths:
         '200': { description: Tag aktualisiert }
     delete:
       tags: [Tags]
-      summary: Tag löschen
+      summary: Delete tag
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -703,13 +703,13 @@ paths:
   /dashboard:
     get:
       tags: [Dashboard]
-      summary: Dashboarddaten abrufen
+      summary: Get dashboard data
       responses:
         '200': { description: Dashboarddaten }
   /language:
     get:
       tags: [System]
-      summary: Öffentliche Sprachkonfiguration abrufen
+      summary: Get public language configuration
       security: []
       responses:
         '200':
@@ -728,7 +728,7 @@ paths:
   /vehicles/{id}/shared-trip-activity:
     get:
       tags: [Vehicles]
-      summary: Fahrtenaktivität geteilter Benutzer für ein eigenes Fahrzeug abrufen
+      summary: Get shared-user trip activity for an owned vehicle
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -737,14 +737,14 @@ paths:
   /vehicles/{id}/shares:
     get:
       tags: [Vehicles]
-      summary: Bestätigte Fahrzeugfreigaben auflisten
+      summary: List confirmed vehicle shares
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         '200': { description: Bestätigte Freigaben }
     post:
       tags: [Vehicles]
-      summary: Fahrzeugfreigabe per E-Mail einladen
+      summary: Invite vehicle share by email
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -761,7 +761,7 @@ paths:
   /vehicles/{id}/shares/{userId}:
     delete:
       tags: [Vehicles]
-      summary: Fahrzeugfreigabe entziehen
+      summary: Revoke vehicle share
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -770,7 +770,7 @@ paths:
   /vehicles/{id}/share-link:
     post:
       tags: [Vehicles]
-      summary: Einmaligen Fahrzeug-Freigabelink erstellen
+      summary: Create one-time vehicle sharing link
       description: Der Link ist 24 Stunden gültig. Nach sieben Tagen wird der Einladungsdatensatz gelöscht.
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
@@ -788,7 +788,7 @@ paths:
   /vehicles/share-invitations/inspect:
     get:
       tags: [Vehicles]
-      summary: Fahrzeugfreigabe-Einladung prüfen
+      summary: Check vehicle sharing invitation
       parameters:
         - { name: token, in: query, required: true, schema: { type: string, minLength: 20 } }
       responses:
@@ -797,13 +797,13 @@ paths:
   /vehicles/share-invitations/pending:
     get:
       tags: [Vehicles]
-      summary: Eigene ausstehende E-Mail-Freigaben abrufen
+      summary: Get pending email sharing invitations
       responses:
         '200': { description: Ausstehende Einladungen }
   /vehicles/share-invitations/respond:
     post:
       tags: [Vehicles]
-      summary: Fahrzeugfreigabe annehmen oder ablehnen
+      summary: Accept or reject vehicle share
       requestBody:
         required: true
         content:
@@ -820,7 +820,7 @@ paths:
   /vehicles/{id}/deregister:
     post:
       tags: [Vehicles]
-      summary: Eigenes Fahrzeug dauerhaft abmelden
+      summary: Deregister owned vehicle
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -828,13 +828,13 @@ paths:
   /vehicles/archive:
     get:
       tags: [Vehicles]
-      summary: Archivierte eigene Fahrzeuge abrufen
+      summary: Get archived owned vehicles
       responses:
         '200': { description: Archivierte Fahrzeuge }
   /vehicles/{id}/restore:
     post:
       tags: [Vehicles]
-      summary: Archiviertes Fahrzeug wiederherstellen
+      summary: Restore archived vehicle
       description: Stellt das Fahrzeug als abgemeldetes/inaktives Fahrzeug wieder her. Eine Wiederanmeldung erfolgt separat.
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
@@ -845,7 +845,7 @@ paths:
   /vehicles/{id}/register:
     post:
       tags: [Vehicles]
-      summary: Abgemeldetes eigenes Fahrzeug wieder anmelden
+      summary: Re-register deregistered vehicle
       description: Startet eine neue aktive Besitzperiode; frühere Abmeldungen und Fahrten bleiben erhalten.
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
@@ -866,7 +866,7 @@ paths:
   /vehicles/{id}/transfer:
     post:
       tags: [Vehicles]
-      summary: Fahrzeugbesitz an einen anderen Benutzer übertragen
+      summary: Transfer vehicle ownership
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -885,20 +885,20 @@ paths:
   /odometer:
     get:
       tags: [Vehicles]
-      summary: Gespeicherte Kilometerstand-Ablesungen abrufen
+      summary: Get saved odometer readings
       responses:
         '200': { description: Kilometerstand-Ablesungen }
 
   /odometer/pending:
     get:
       tags: [Vehicles]
-      summary: Fehlende monatliche Kilometerstände abrufen
+      summary: Get missing monthly odometer readings
       responses:
         '200': { description: Fehlende Messwerte }
   /odometer/{vehicleId}/{month}:
     put:
       tags: [Vehicles]
-      summary: Monatlichen Kilometerstand speichern
+      summary: Save monthly odometer reading
       parameters:
         - in: path
           name: vehicleId
@@ -910,7 +910,7 @@ paths:
           schema: { type: string, pattern: '^\\d{4}-\\d{2}
     get:
       tags: [Statistics]
-      summary: Statistiken abrufen
+      summary: Get statistics
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -921,20 +921,20 @@ paths:
   /statistics/monthly:
     get:
       tags: [Statistics]
-      summary: Monatsstatistik abrufen
+      summary: Get monthly statistics
       responses:
         '200': { description: Monatsstatistik }
   /statistics/vehicles:
     get:
       tags: [Statistics]
-      summary: Fahrzeugstatistik abrufen
+      summary: Get vehicle statistics
       responses:
         '200': { description: Fahrzeugstatistik }
 
   /config/services:
     get:
       tags: [Services]
-      summary: Öffentliche Client-Konfiguration abrufen
+      summary: Get public client configuration
       description: |
         Liefert nur die für Clients benötigte Konfiguration. Interne Photon-
         und Overpass-URLs werden nicht ausgegeben. Web und Android verwenden
@@ -949,7 +949,7 @@ paths:
   /geocoding/search:
     get:
       tags: [Geocoding]
-      summary: Orte über den konfigurierten Photon-Dienst suchen
+      summary: Search places using configured Photon service
       parameters:
         - { name: q, in: query, required: true, schema: { type: string, minLength: 2 } }
         - { name: lang, in: query, schema: { type: string, default: de } }
@@ -959,7 +959,7 @@ paths:
   /geocoding/reverse:
     get:
       tags: [Geocoding]
-      summary: Koordinaten über den konfigurierten Photon-Dienst auflösen
+      summary: Reverse geocode using configured Photon service
       parameters:
         - { name: lat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
         - { name: lon, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
@@ -969,7 +969,7 @@ paths:
   /geocoding/nearby:
     get:
       tags: [Geocoding]
-      summary: POIs über den konfigurierten Overpass-Dienst suchen
+      summary: Search POIs using configured Overpass service
       description: Die API erzeugt die Overpass-QL-Abfrage selbst. Freie Abfragen durch Clients sind nicht erlaubt.
       parameters:
         - { name: lat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
@@ -986,12 +986,12 @@ paths:
   /settings:
     get:
       tags: [Settings]
-      summary: Eigene Einstellungen abrufen
+      summary: Get personal settings
       responses:
         '200': { description: Einstellungen }
     put:
       tags: [Settings]
-      summary: Eigene Einstellungen aktualisieren
+      summary: Update personal settings
       requestBody:
         required: true
         content:
@@ -1003,45 +1003,45 @@ paths:
   /compliance/checks:
     get:
       tags: [Trips]
-      summary: Fahrten auf Plausibilität und Vollständigkeit prüfen
+      summary: Check trip plausibility and completeness
       responses:
         '200': { description: Prüfergebnis }
   /compliance/integrity:
     get:
       tags: [Trips]
-      summary: Integrität der revisionssicheren Fahrtenhistorie prüfen
+      summary: Verify integrity of immutable trip history
       responses:
         '200': { description: Integritätsstatus }
   /compliance/periods:
     get:
       tags: [Trips]
-      summary: Abgeschlossene Zeiträume auflisten
+      summary: List closed periods
       responses:
         '200': { description: Abgeschlossene Zeiträume }
     post:
       tags: [Trips]
-      summary: Zeitraum revisionssicher abschließen
+      summary: Close period with audit trail
       responses:
         '201': { description: Zeitraum abgeschlossen }
 
   /compliance/checks:
     get:
       tags: [Trips]
-      summary: Plausibilitäts- und Vollständigkeitsprüfungen abrufen
+      summary: Get plausibility and completeness checks
       responses:
         '200': { description: Prüfzusammenfassung, Integrität und Auffälligkeiten }
 
   /places/{id}:
     put:
       tags: [Places]
-      summary: Gespeicherten Ort aktualisieren
+      summary: Update saved place
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         '200': { description: Ort aktualisiert }
     delete:
       tags: [Places]
-      summary: Gespeicherten Ort löschen
+      summary: Delete saved place
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -1050,7 +1050,7 @@ paths:
   /export/summary:
     get:
       tags: [Import Export]
-      summary: Exportstatistik mit Vollständigkeitshinweisen abrufen
+      summary: Get export statistics and completeness notices
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -1061,7 +1061,7 @@ paths:
   /export/csv:
     get:
       tags: [Import Export]
-      summary: Fahrten als CSV exportieren
+      summary: Export trips as CSV
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -1076,7 +1076,7 @@ paths:
   /export/gpx:
     get:
       tags: [Import Export]
-      summary: Fahrten als GPX exportieren
+      summary: Export trips as GPX
       parameters:
         - { name: tripId, in: query, schema: { type: string, format: uuid } }
       responses:
@@ -1088,7 +1088,7 @@ paths:
   /export/pdf:
     get:
       tags: [Import Export]
-      summary: Steuerorientierten Fahrten- und Statistikbericht als PDF exportieren
+      summary: Export tax-oriented trip and statistics PDF report
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -1103,7 +1103,7 @@ paths:
   /import/csv:
     post:
       tags: [Import Export]
-      summary: Fahrten aus CSV importieren
+      summary: Import trips from CSV
       requestBody:
         required: true
         content:
@@ -1119,7 +1119,7 @@ paths:
   /import/gpx:
     post:
       tags: [Import Export]
-      summary: GPX importieren
+      summary: Import GPX
       requestBody:
         required: true
         content:
@@ -1136,7 +1136,7 @@ paths:
   /admin/users:
     get:
       tags: [Admin]
-      summary: Benutzer auflisten
+      summary: List users
       responses:
         '200':
           description: Benutzer
@@ -1147,7 +1147,7 @@ paths:
                 items: { $ref: '#/components/schemas/User' }
     post:
       tags: [Admin]
-      summary: Benutzer anlegen
+      summary: Create user
       requestBody:
         required: true
         content:
@@ -1162,7 +1162,7 @@ paths:
   /admin/users/{id}:
     get:
       tags: [Admin]
-      summary: Benutzer abrufen
+      summary: Get user
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -1173,7 +1173,7 @@ paths:
               schema: { $ref: '#/components/schemas/AdminUser' }
     put:
       tags: [Admin]
-      summary: Benutzer aktualisieren
+      summary: Update user
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -1185,7 +1185,7 @@ paths:
         '200': { description: Benutzer aktualisiert }
     delete:
       tags: [Admin]
-      summary: Benutzer löschen
+      summary: Delete user
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -1193,7 +1193,7 @@ paths:
   /admin/users/{id}/totp:
     delete:
       tags: [Admin]
-      summary: TOTP für einen Benutzer deaktivieren
+      summary: Disable TOTP for a user
       description: Entfernt das verschlüsselte TOTP-Secret und widerruft andere Sitzungen.
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -1206,7 +1206,7 @@ paths:
   /admin/users/{id}/passkeys:
     delete:
       tags: [Admin]
-      summary: Alle Passkeys eines Benutzers löschen
+      summary: Delete all passkeys of a user
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -1218,7 +1218,7 @@ paths:
   /admin/users/{id}/passkeys/{passkeyId}:
     delete:
       tags: [Admin]
-      summary: Einen Passkey eines Benutzers löschen
+      summary: Delete a user's passkey
       parameters:
         - $ref: '#/components/parameters/Id'
         - name: passkeyId
@@ -1234,7 +1234,7 @@ paths:
   /admin/users/{id}/sessions:
     delete:
       tags: [Admin]
-      summary: Sitzungen eines Benutzers widerrufen
+      summary: Revoke a user's sessions
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -1250,7 +1250,7 @@ paths:
   /admin/settings/services:
     get:
       tags: [Admin]
-      summary: Interne Kartendienst-Konfiguration abrufen
+      summary: Get internal map service configuration
       responses:
         '200':
           description: Interne Servicekonfiguration
@@ -1260,7 +1260,7 @@ paths:
   /admin/settings/services/map:
     put:
       tags: [Admin]
-      summary: Kartenquelle konfigurieren
+      summary: Configure map source
       requestBody:
         required: true
         content:
@@ -1271,7 +1271,7 @@ paths:
   /admin/settings/services/photon:
     put:
       tags: [Admin]
-      summary: Photon konfigurieren
+      summary: Configure Photon
       description: Interne Server-URLs bleiben ausschließlich im Backend gespeichert.
       requestBody:
         required: true
@@ -1283,7 +1283,7 @@ paths:
   /admin/settings/services/overpass:
     put:
       tags: [Admin]
-      summary: Overpass konfigurieren
+      summary: Configure Overpass
       description: Interne Server-URLs bleiben ausschließlich im Backend gespeichert.
       requestBody:
         required: true
@@ -1295,7 +1295,7 @@ paths:
   /admin/settings/services/test:
     post:
       tags: [Admin]
-      summary: Kartendienst-Verbindung testen
+      summary: Test map service connection
       requestBody:
         required: true
         content:
@@ -1321,13 +1321,13 @@ paths:
   /admin/backup:
     post:
       tags: [Admin]
-      summary: Vollständiges Backup erstellen
+      summary: Create full backup
       responses:
         '202': { description: Backup gestartet }
   /admin/system:
     get:
       tags: [Admin]
-      summary: Systeminformationen abrufen
+      summary: Get system information
       responses:
         '200': { description: Systeminformationen }
 
@@ -1671,7 +1671,7 @@ components:
   /statistics/odometer-intervals:
     get:
       tags: [Statistics]
-      summary: Genauigkeit zwischen Kilometerstand-Ablesungen auswerten
+      summary: Evaluate accuracy between odometer readings
       parameters:
         - { name: vehicleId, in: query, required: true, schema: { type: string, format: uuid } }
         - { name: from, in: query, required: true, schema: { type: string, format: date } }
@@ -1682,14 +1682,14 @@ components:
   /statistics/monthly-odometer:
     get:
       tags: [Statistics]
-      summary: Monatsstatistik mit Kilometerstand und unbekannter Strecke
+      summary: Monthly statistics with odometer and untracked distance
       responses:
         '200': { description: Monatliche Kilometerstatistik }
 
   /trips/{id}/split:
     post:
       tags: [Trips]
-      summary: Fahrt an einem GPS-Punkt teilen
+      summary: Split trip at a GPS point
       parameters:
         - in: path
           name: id
@@ -1700,25 +1700,25 @@ components:
   /trips/merge:
     post:
       tags: [Trips]
-      summary: Mehrere Fahrten desselben Fahrzeugs zusammenführen
+      summary: Merge trips of the same vehicle
       responses:
         '200': { description: Zusammengeführte Fahrt }
 
   /places:
     get:
       tags: [Places]
-      summary: Gespeicherte Orte abrufen
+      summary: Get saved places
       responses:
         '200': { description: Gespeicherte Orte }
     post:
       tags: [Places]
-      summary: Ort für Klassifizierungsvorschläge speichern
+      summary: Save place for classification suggestions
       responses:
         '201': { description: Ort gespeichert }
   /trips/{id}/assignable-drivers:
     get:
       tags: [Trips]
-      summary: Zulässige Fahrer für die Zuordnung einer Fahrt abrufen
+      summary: Get eligible drivers for trip assignment
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -1726,7 +1726,7 @@ components:
   /trips/{id}/assign-driver:
     post:
       tags: [Trips]
-      summary: Fahrt einem Fahrer zuweisen oder an den Fahrzeugbesitzer zurückgeben
+      summary: Assign trip driver or return to vehicle owner
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -1745,20 +1745,20 @@ components:
   /trips/{id}/suggestions:
     get:
       tags: [Trips]
-      summary: Ortsbasierte Klassifizierungsvorschläge abrufen
+      summary: Get location-based classification suggestions
       responses:
         '200': { description: Vorschläge }
   /trips/{id}/route-correction:
     post:
       tags: [Trips]
-      summary: Route einer Fahrt manuell korrigieren
+      summary: Correct trip route manually
       responses:
         '200': { description: Korrigierte Fahrt }
 
   /statistics:
     get:
       tags: [Statistics]
-      summary: Statistiken abrufen
+      summary: Get statistics
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -1769,20 +1769,20 @@ components:
   /statistics/monthly:
     get:
       tags: [Statistics]
-      summary: Monatsstatistik abrufen
+      summary: Get monthly statistics
       responses:
         '200': { description: Monatsstatistik }
   /statistics/vehicles:
     get:
       tags: [Statistics]
-      summary: Fahrzeugstatistik abrufen
+      summary: Get vehicle statistics
       responses:
         '200': { description: Fahrzeugstatistik }
 
   /config/services:
     get:
       tags: [Services]
-      summary: Öffentliche Client-Konfiguration abrufen
+      summary: Get public client configuration
       description: |
         Liefert nur die für Clients benötigte Konfiguration. Interne Photon-
         und Overpass-URLs werden nicht ausgegeben. Web und Android verwenden
@@ -1797,7 +1797,7 @@ components:
   /geocoding/search:
     get:
       tags: [Geocoding]
-      summary: Orte über den konfigurierten Photon-Dienst suchen
+      summary: Search places using configured Photon service
       parameters:
         - { name: q, in: query, required: true, schema: { type: string, minLength: 2 } }
         - { name: lang, in: query, schema: { type: string, default: de } }
@@ -1807,7 +1807,7 @@ components:
   /geocoding/reverse:
     get:
       tags: [Geocoding]
-      summary: Koordinaten über den konfigurierten Photon-Dienst auflösen
+      summary: Reverse geocode using configured Photon service
       parameters:
         - { name: lat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
         - { name: lon, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
@@ -1817,7 +1817,7 @@ components:
   /geocoding/nearby:
     get:
       tags: [Geocoding]
-      summary: POIs über den konfigurierten Overpass-Dienst suchen
+      summary: Search POIs using configured Overpass service
       description: Die API erzeugt die Overpass-QL-Abfrage selbst. Freie Abfragen durch Clients sind nicht erlaubt.
       parameters:
         - { name: lat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
@@ -1834,12 +1834,12 @@ components:
   /settings:
     get:
       tags: [Settings]
-      summary: Eigene Einstellungen abrufen
+      summary: Get personal settings
       responses:
         '200': { description: Einstellungen }
     put:
       tags: [Settings]
-      summary: Eigene Einstellungen aktualisieren
+      summary: Update personal settings
       requestBody:
         required: true
         content:
@@ -1851,31 +1851,31 @@ components:
   /compliance/checks:
     get:
       tags: [Trips]
-      summary: Fahrten auf Plausibilität und Vollständigkeit prüfen
+      summary: Check trip plausibility and completeness
       responses:
         '200': { description: Prüfergebnis }
   /compliance/integrity:
     get:
       tags: [Trips]
-      summary: Integrität der revisionssicheren Fahrtenhistorie prüfen
+      summary: Verify integrity of immutable trip history
       responses:
         '200': { description: Integritätsstatus }
   /compliance/periods:
     get:
       tags: [Trips]
-      summary: Abgeschlossene Zeiträume auflisten
+      summary: List closed periods
       responses:
         '200': { description: Abgeschlossene Zeiträume }
     post:
       tags: [Trips]
-      summary: Zeitraum revisionssicher abschließen
+      summary: Close period with audit trail
       responses:
         '201': { description: Zeitraum abgeschlossen }
 
   /export/summary:
     get:
       tags: [Import Export]
-      summary: Exportstatistik mit Vollständigkeitshinweisen abrufen
+      summary: Get export statistics and completeness notices
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -1886,7 +1886,7 @@ components:
   /export/csv:
     get:
       tags: [Import Export]
-      summary: Fahrten als CSV exportieren
+      summary: Export trips as CSV
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -1901,7 +1901,7 @@ components:
   /export/gpx:
     get:
       tags: [Import Export]
-      summary: Fahrten als GPX exportieren
+      summary: Export trips as GPX
       parameters:
         - { name: tripId, in: query, schema: { type: string, format: uuid } }
       responses:
@@ -1913,7 +1913,7 @@ components:
   /export/pdf:
     get:
       tags: [Import Export]
-      summary: Steuerorientierten Fahrten- und Statistikbericht als PDF exportieren
+      summary: Export tax-oriented trip and statistics PDF report
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -1928,7 +1928,7 @@ components:
   /import/csv:
     post:
       tags: [Import Export]
-      summary: Fahrten aus CSV importieren
+      summary: Import trips from CSV
       requestBody:
         required: true
         content:
@@ -1944,7 +1944,7 @@ components:
   /import/gpx:
     post:
       tags: [Import Export]
-      summary: GPX importieren
+      summary: Import GPX
       requestBody:
         required: true
         content:
@@ -1961,7 +1961,7 @@ components:
   /admin/users:
     get:
       tags: [Admin]
-      summary: Benutzer auflisten
+      summary: List users
       responses:
         '200':
           description: Benutzer
@@ -1972,7 +1972,7 @@ components:
                 items: { $ref: '#/components/schemas/User' }
     post:
       tags: [Admin]
-      summary: Benutzer anlegen
+      summary: Create user
       requestBody:
         required: true
         content:
@@ -1987,7 +1987,7 @@ components:
   /admin/users/{id}:
     get:
       tags: [Admin]
-      summary: Benutzer abrufen
+      summary: Get user
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -1998,7 +1998,7 @@ components:
               schema: { $ref: '#/components/schemas/AdminUser' }
     put:
       tags: [Admin]
-      summary: Benutzer aktualisieren
+      summary: Update user
       parameters:
         - $ref: '#/components/parameters/Id'
       requestBody:
@@ -2010,7 +2010,7 @@ components:
         '200': { description: Benutzer aktualisiert }
     delete:
       tags: [Admin]
-      summary: Benutzer löschen
+      summary: Delete user
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -2018,7 +2018,7 @@ components:
   /admin/users/{id}/totp:
     delete:
       tags: [Admin]
-      summary: TOTP für einen Benutzer deaktivieren
+      summary: Disable TOTP for a user
       description: Entfernt das verschlüsselte TOTP-Secret und widerruft andere Sitzungen.
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -2031,7 +2031,7 @@ components:
   /admin/users/{id}/passkeys:
     delete:
       tags: [Admin]
-      summary: Alle Passkeys eines Benutzers löschen
+      summary: Delete all passkeys of a user
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -2043,7 +2043,7 @@ components:
   /admin/users/{id}/passkeys/{passkeyId}:
     delete:
       tags: [Admin]
-      summary: Einen Passkey eines Benutzers löschen
+      summary: Delete a user's passkey
       parameters:
         - $ref: '#/components/parameters/Id'
         - name: passkeyId
@@ -2059,7 +2059,7 @@ components:
   /admin/users/{id}/sessions:
     delete:
       tags: [Admin]
-      summary: Sitzungen eines Benutzers widerrufen
+      summary: Revoke a user's sessions
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -2075,7 +2075,7 @@ components:
   /admin/settings/services:
     get:
       tags: [Admin]
-      summary: Interne Kartendienst-Konfiguration abrufen
+      summary: Get internal map service configuration
       responses:
         '200':
           description: Interne Servicekonfiguration
@@ -2085,7 +2085,7 @@ components:
   /admin/settings/services/map:
     put:
       tags: [Admin]
-      summary: Kartenquelle konfigurieren
+      summary: Configure map source
       requestBody:
         required: true
         content:
@@ -2096,7 +2096,7 @@ components:
   /admin/settings/services/photon:
     put:
       tags: [Admin]
-      summary: Photon konfigurieren
+      summary: Configure Photon
       description: Interne Server-URLs bleiben ausschließlich im Backend gespeichert.
       requestBody:
         required: true
@@ -2108,7 +2108,7 @@ components:
   /admin/settings/services/overpass:
     put:
       tags: [Admin]
-      summary: Overpass konfigurieren
+      summary: Configure Overpass
       description: Interne Server-URLs bleiben ausschließlich im Backend gespeichert.
       requestBody:
         required: true
@@ -2120,7 +2120,7 @@ components:
   /admin/settings/services/test:
     post:
       tags: [Admin]
-      summary: Kartendienst-Verbindung testen
+      summary: Test map service connection
       requestBody:
         required: true
         content:
@@ -2146,13 +2146,13 @@ components:
   /admin/backup:
     post:
       tags: [Admin]
-      summary: Vollständiges Backup erstellen
+      summary: Create full backup
       responses:
         '202': { description: Backup gestartet }
   /admin/system:
     get:
       tags: [Admin]
-      summary: Systeminformationen abrufen
+      summary: Get system information
       responses:
         '200': { description: Systeminformationen }
 
