@@ -1731,7 +1731,7 @@ paths:
         '401':
           description: Authentication required
 
-  /users/me/data:
+  /export/data:
     get:
       tags: [Users]
       summary: Export own data
@@ -1743,7 +1743,7 @@ paths:
         '401':
           description: Authentication required
 
-  /users/me/data:
+  /import/data:
     post:
       tags: [Users]
       summary: Import own data
