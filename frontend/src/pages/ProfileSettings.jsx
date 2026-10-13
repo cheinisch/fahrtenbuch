@@ -155,6 +155,7 @@ export default function ProfileSettings() {
 
   const [personalLanguage, setPersonalLanguage] = useState("");
   const [distanceUnit, setDistanceUnit] = useState("km");
+  const [dateFormat, setDateFormat] = useState("EU");
 
   const [tracking, setTracking] = useState({
     automaticTrackingEnabled: false,
@@ -265,6 +266,7 @@ export default function ProfileSettings() {
 
       setPersonalLanguage(settingsResult.settings.language || "");
       setDistanceUnit(settingsResult.settings.distanceUnit === "mi" ? "mi" : "km");
+      setDateFormat(settingsResult.settings.dateFormat === "US" ? "US" : "EU");
 
       setTracking({
         automaticTrackingEnabled:
@@ -698,6 +700,20 @@ export default function ProfileSettings() {
     } catch(saveError){showError(saveError);} finally{setSaving("");}
   }
 
+  async function saveDateFormat(event) {
+    event.preventDefault();
+    setSaving("date-format");
+    try {
+      const updated = await updatePersonalSettings(accessToken, { dateFormat });
+      setDateFormat(updated.dateFormat === "US" ? "US" : "EU");
+      showSuccess(t("datePreference.saved"));
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
   async function saveDistanceUnit(event) {
     event.preventDefault();
     setSaving("distance-unit");
@@ -1079,6 +1095,17 @@ export default function ProfileSettings() {
         </Section>
       </form>
 
+
+      <form onSubmit={saveDateFormat}>
+        <Section title={t("datePreference.title")} description={t("datePreference.description")}>
+          <label className={labelClass} htmlFor="profile-date-format">{t("datePreference.label")}</label>
+          <select id="profile-date-format" className={fieldClass} value={dateFormat} onChange={(event) => setDateFormat(event.target.value)}>
+            <option value="EU">{t("datePreference.EU")}</option>
+            <option value="US">{t("datePreference.US")}</option>
+          </select>
+          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "date-format"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "date-format" ? t("datePreference.saving") : t("datePreference.save")}</button></div>
+        </Section>
+      </form>
 
       <form onSubmit={saveDistanceUnit}>
         <Section title={t("distancePreference.title")} description={t("distancePreference.description")}>
