@@ -133,21 +133,21 @@ export default function VehicleEditorModal({
               <div className="space-y-5 p-5 sm:p-6">
                 {error && <div className="rounded-lg border border-fb-danger px-3 py-2 text-sm text-fb-danger">{error}</div>}
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <label className="text-sm font-medium">{t("vehicleEditor.name")}<input value={form.name} onChange={(e) => update("name", e.target.value)} required maxLength={120} className={fieldClass} placeholder="z. B. Golf" /></label>
+                  <label className="text-sm font-medium">{t("vehicleEditor.name")}<input value={form.name} onChange={(e) => update("name", e.target.value)} required maxLength={120} className={fieldClass} placeholder={t("vehicleEditor.nameExample")} /></label>
                   <label className="text-sm font-medium">{t("vehicleEditor.plate")}<input value={form.licensePlate} onChange={(e) => update("licensePlate", e.target.value)} maxLength={64} className={fieldClass} placeholder="RÜD-AB 123" /></label>
                   <label className="text-sm font-medium">{t("vehicleEditor.manufacturer")}<input value={form.manufacturer} onChange={(e) => update("manufacturer", e.target.value)} maxLength={120} className={fieldClass} /></label>
                   <label className="text-sm font-medium">{t("vehicleEditor.model")}<input value={form.model} onChange={(e) => update("model", e.target.value)} maxLength={120} className={fieldClass} /></label>
                   <label className="text-sm font-medium">{t("vehicleEditor.odometer")}<input type="number" min="0" step="0.1" value={form.odometerKm} onChange={(e) => update("odometerKm", e.target.value)} className={fieldClass} /></label>
                   <label className="text-sm font-medium">{t("vehicleEditor.color")}<input value={form.color} onChange={(e) => update("color", e.target.value)} maxLength={64} className={fieldClass} /></label>
-                  <label className="text-sm font-medium">FIN / VIN<input value={form.vin} onChange={(e) => update("vin", e.target.value)} maxLength={64} className={fieldClass} /></label>
+                  <label className="text-sm font-medium">{t("vehicleEditor.vin")}<input value={form.vin} onChange={(e) => update("vin", e.target.value)} maxLength={64} className={fieldClass} /></label>
                   <label className="text-sm font-medium">{t("vehicleEditor.bluetooth")}<input value={form.bluetoothMac} onChange={(e) => update("bluetoothMac", e.target.value)} maxLength={64} className={fieldClass} placeholder="AA:BB:CC:DD:EE:FF" /></label>
                 </div>
                 <div className="rounded-xl border border-fb-border bg-fb-surface p-4">
                   <label className="block text-sm font-semibold">{t("vehicleEditor.acquisition")}
                     <select value={form.acquisitionType} onChange={(e) => update("acquisitionType", e.target.value)} className={fieldClass}>
-                      <option value="owned">Eigentum / keine Finanzierung</option>
-                      <option value="leasing">Leasing</option>
-                      <option value="financing">Finanzierung</option>
+                      <option value="owned">{t("vehicleEditor.owned")}</option>
+                      <option value="leasing">{t("vehicleEditor.leasing")}</option>
+                      <option value="financing">{t("vehicleEditor.financing")}</option>
                     </select>
                   </label>
                   {form.acquisitionType !== "owned" && <>
@@ -155,13 +155,13 @@ export default function VehicleEditorModal({
                     <div className="mt-4 grid gap-4 sm:grid-cols-3">
                       <label className="text-sm font-medium">{t("vehicleEditor.contractStart")}<input type="date" value={form.leaseStartDate} onChange={(e) => update("leaseStartDate", e.target.value)} className={fieldClass} /></label>
                       <label className="text-sm font-medium">{t("vehicleEditor.contractEnd")}<input type="date" value={form.leaseEndDate} min={form.leaseStartDate || undefined} onChange={(e) => update("leaseEndDate", e.target.value)} className={fieldClass} /></label>
-                      <label className="text-sm font-medium">{t("vehicleEditor.kmLimit")}<input type="number" min="1" step="1" value={form.leaseIncludedKm} onChange={(e) => update("leaseIncludedKm", e.target.value)} className={fieldClass} placeholder="z. B. 60000" /></label>
+                      <label className="text-sm font-medium">{t("vehicleEditor.kmLimit")}<input type="number" min="1" step="1" value={form.leaseIncludedKm} onChange={(e) => update("leaseIncludedKm", e.target.value)} className={fieldClass} placeholder={t("vehicleEditor.kmExample")} /></label>
                     </div>
                     {form.acquisitionType !== "owned" && <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <label className="text-sm font-medium">Mehrkilometer-Freigrenze (km)<input type="number" min="0" step="1" value={form.leaseExcessToleranceKm} onChange={(e) => update("leaseExcessToleranceKm", e.target.value)} className={fieldClass} /></label>
-                      <label className="text-sm font-medium">Minderkilometer-Freigrenze (km)<input type="number" min="0" step="1" value={form.leaseShortfallToleranceKm} onChange={(e) => update("leaseShortfallToleranceKm", e.target.value)} className={fieldClass} /></label>
-                      <label className="text-sm font-medium">Nachzahlung je Mehrkilometer (€/km)<input type="number" min="0" step="0.0001" value={form.leaseExcessRateEur} onChange={(e) => update("leaseExcessRateEur", e.target.value)} className={fieldClass} /></label>
-                      <label className="text-sm font-medium">Erstattung je Minderkilometer (€/km)<input type="number" min="0" step="0.0001" value={form.leaseShortfallRateEur} onChange={(e) => update("leaseShortfallRateEur", e.target.value)} className={fieldClass} /></label>
+                      <label className="text-sm font-medium">{t("vehicleEditor.excessTolerance")}<input type="number" min="0" step="1" value={form.leaseExcessToleranceKm} onChange={(e) => update("leaseExcessToleranceKm", e.target.value)} className={fieldClass} /></label>
+                      <label className="text-sm font-medium">{t("vehicleEditor.shortfallTolerance")}<input type="number" min="0" step="1" value={form.leaseShortfallToleranceKm} onChange={(e) => update("leaseShortfallToleranceKm", e.target.value)} className={fieldClass} /></label>
+                      <label className="text-sm font-medium">{t("vehicleEditor.excessRate")}<input type="number" min="0" step="0.0001" value={form.leaseExcessRateEur} onChange={(e) => update("leaseExcessRateEur", e.target.value)} className={fieldClass} /></label>
+                      <label className="text-sm font-medium">{t("vehicleEditor.shortfallRate")}<input type="number" min="0" step="0.0001" value={form.leaseShortfallRateEur} onChange={(e) => update("leaseShortfallRateEur", e.target.value)} className={fieldClass} /></label>
                     </div>}
                   </>}
                 </div>
