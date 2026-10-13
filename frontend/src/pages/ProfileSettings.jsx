@@ -154,6 +154,7 @@ export default function ProfileSettings() {
   ] = useState("DE");
 
   const [personalLanguage, setPersonalLanguage] = useState("");
+  const [distanceUnit, setDistanceUnit] = useState("km");
 
   const [tracking, setTracking] = useState({
     automaticTrackingEnabled: false,
@@ -263,6 +264,7 @@ export default function ProfileSettings() {
       });
 
       setPersonalLanguage(settingsResult.settings.language || "");
+      setDistanceUnit(settingsResult.settings.distanceUnit === "mi" ? "mi" : "km");
 
       setTracking({
         automaticTrackingEnabled:
@@ -696,6 +698,20 @@ export default function ProfileSettings() {
     } catch(saveError){showError(saveError);} finally{setSaving("");}
   }
 
+  async function saveDistanceUnit(event) {
+    event.preventDefault();
+    setSaving("distance-unit");
+    try {
+      const updated = await updatePersonalSettings(accessToken, { distanceUnit });
+      setDistanceUnit(updated.distanceUnit === "mi" ? "mi" : "km");
+      showSuccess(t("distancePreference.saved"));
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
   async function saveTracking(event) {
     event.preventDefault();
     setSaving("tracking");
@@ -1063,6 +1079,17 @@ export default function ProfileSettings() {
         </Section>
       </form>
 
+
+      <form onSubmit={saveDistanceUnit}>
+        <Section title={t("distancePreference.title")} description={t("distancePreference.description")}>
+          <label className={labelClass} htmlFor="profile-distance-unit">{t("distancePreference.label")}</label>
+          <select id="profile-distance-unit" className={fieldClass} value={distanceUnit} onChange={(event) => setDistanceUnit(event.target.value)}>
+            <option value="km">{t("distancePreference.km")}</option>
+            <option value="mi">{t("distancePreference.mi")}</option>
+          </select>
+          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "distance-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "distance-unit" ? t("distancePreference.saving") : t("distancePreference.save")}</button></div>
+        </Section>
+      </form>
 
       <form onSubmit={saveHomeCountry}>
         <Section
