@@ -43,6 +43,7 @@ function saveDownload({
 function ResultSummary({
   result,
 }) {
+  const { t } = useI18n();
   if (!result) {
     return null;
   }
