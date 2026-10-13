@@ -1,4 +1,5 @@
 export default {
+  timePreference: {"title":"Time format","description":"Choose between 24-hour and 12-hour clock display with AM/PM.","label":"Display time in","24h":"24-hour format (14:30)","12h":"12-hour format (2:30 PM)","save":"Save time format","saving":"Saving…","saved":"Time format saved."},
   unitSettingsTab: {"title":"Units & formats","description":"Personal preferences for distances, speeds, and date display."},
   speedPreference: {"title":"Speed unit","description":"Choose how speeds are displayed. Stored measurements remain unchanged.","label":"Display speed in","kmh":"Kilometers per hour (km/h)","mph":"Miles per hour (mph)","save":"Save unit","saving":"Saving…","saved":"Speed unit saved."},
 
