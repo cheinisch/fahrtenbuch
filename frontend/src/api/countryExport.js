@@ -1,12 +1,13 @@
 import {
   ApiError,
 } from "./auth.js";
+import { authenticatedFetch } from "./app.js";
 
 async function request(
   accessToken,
   path,
 ) {
-  const response = await fetch(path, {
+  const response = await authenticatedFetch(accessToken, path, {
     headers: {
       Accept: "application/json",
       Authorization:
@@ -80,7 +81,8 @@ export async function downloadCountryExport(
   format,
   filters,
 ) {
-  const response = await fetch(
+  const response = await authenticatedFetch(
+    accessToken,
     `/api/v1/export/${encodeURIComponent(
       format,
     )}${buildQuery(filters)}`,
