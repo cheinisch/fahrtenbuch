@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -12,6 +13,7 @@ import {
   logout as logoutRequest,
   refresh as refreshRequest,
 } from "../api/auth.js";
+import { configureApiAuth } from "../api/app.js";
 
 const STORAGE_KEY = "fahrtenbuch.auth";
 const AuthContext = createContext(null);
@@ -73,6 +75,53 @@ function applyTheme(themeMode) {
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(null);
   const [loading, setLoading] = useState(true);
+  const refreshPromiseRef = useRef(null);
+
+
+  useEffect(() => {
+    return configureApiAuth({
+      refreshAccessToken: async () => {
+        if (!refreshPromiseRef.current) {
+          refreshPromiseRef.current = (async () => {
+            const storedAuth = readStoredAuth();
+
+            if (!storedAuth?.refreshToken) {
+              clearStoredAuth();
+              setAuth(null);
+              throw new Error("SESSION_EXPIRED");
+            }
+
+            try {
+              const tokens = await refreshRequest(storedAuth.refreshToken);
+              const refreshedAuth = {
+                ...storedAuth,
+                ...tokens,
+              };
+
+              storeAuth(
+                refreshedAuth,
+                storedAuth.remember,
+              );
+              setAuth((current) => current
+                ? { ...current, ...tokens }
+                : refreshedAuth,
+              );
+
+              return tokens.accessToken;
+            } catch (error) {
+              clearStoredAuth();
+              setAuth(null);
+              throw error;
+            } finally {
+              refreshPromiseRef.current = null;
+            }
+          })();
+        }
+
+        return refreshPromiseRef.current;
+      },
+    });
+  }, []);
 
   useEffect(() => {
     applyTheme(auth?.user?.themeMode || "system");
