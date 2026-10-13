@@ -1,7 +1,8 @@
 import { ApiError } from "./auth.js";
+import { authenticatedFetch } from "./app.js";
 
 async function request(accessToken, path, options = {}) {
-  const response = await fetch(path, {
+  const response = await authenticatedFetch(accessToken, path, {
     ...options,
     headers: {
       Accept: "application/json",
