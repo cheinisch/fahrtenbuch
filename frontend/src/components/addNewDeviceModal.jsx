@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/I18nProvider.jsx";
 import {
   Dialog,
   DialogBackdrop,
@@ -72,6 +73,8 @@ export default function AddNewDeviceModal({
   onClose,
   onPaired,
 }) {
+  const { t } = useI18n();
+
   const { accessToken } = useAuth();
 
   const [pairing, setPairing] = useState(null);
@@ -345,7 +348,7 @@ export default function AddNewDeviceModal({
           setError(
             statusError instanceof Error
               ? statusError.message
-              : "Der Pairing-Status konnte nicht geprüft werden.",
+              : t("profileTranslations.73"),
           );
         }
       }
@@ -424,7 +427,7 @@ export default function AddNewDeviceModal({
             <header className="flex items-start justify-between gap-4 border-b border-fb-border px-5 py-4 sm:px-6">
               <div>
                 <DialogTitle className="text-xl font-bold text-fb-text">
-                  Neues Gerät hinzufügen
+                  {t("profileTranslations.48")}
                 </DialogTitle>
 
                 <p className="mt-1 text-sm text-fb-muted">
@@ -439,7 +442,7 @@ export default function AddNewDeviceModal({
                 className="rounded-lg p-2 text-fb-muted transition hover:bg-fb-surface hover:text-fb-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent"
               >
                 <span className="sr-only">
-                  Dialog schließen
+                  {t("profileTranslations.52")}
                 </span>
                 <XMarkIcon className="size-5" />
               </button>
@@ -468,7 +471,7 @@ export default function AddNewDeviceModal({
                   {pairingStatus === "completed" ? (
                     <div className="inline-flex items-center gap-2 rounded-full bg-fb-accent-soft px-3 py-1.5 text-sm font-semibold text-fb-accent">
                       <CheckCircleIcon className="size-5" />
-                      Gerät verbunden
+                      {t("profileTranslations.53")}
                     </div>
                   ) : (
                     <>
@@ -499,13 +502,13 @@ export default function AddNewDeviceModal({
 
                 <div className="rounded-xl border border-fb-border bg-fb-surface p-4">
                   <h3 className="text-sm font-bold text-fb-text">
-                    Verbindungsdaten
+                    {t("profileTranslations.54")}
                   </h3>
 
                   <dl className="mt-4 space-y-3 text-sm">
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-fb-muted">
-                        Server
+                        {t("profileTranslations.55")}
                       </dt>
                       <dd className="mt-1 break-all text-fb-text">
                         {payloadObject?.server || "–"}
@@ -514,7 +517,7 @@ export default function AddNewDeviceModal({
 
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-fb-muted">
-                        Benutzer
+                        {t("profileTranslations.56")}
                       </dt>
                       <dd className="mt-1 text-fb-text">
                         {payloadObject?.username ||
@@ -524,7 +527,7 @@ export default function AddNewDeviceModal({
 
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-fb-muted">
-                        E-Mail-Adresse
+                        {t("profileTranslations.17")}
                       </dt>
                       <dd className="mt-1 break-all text-fb-text">
                         {payloadObject?.email || "–"}
@@ -533,7 +536,7 @@ export default function AddNewDeviceModal({
 
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-fb-muted">
-                        Ablaufzeit
+                        {t("profileTranslations.57")}
                       </dt>
                       <dd className="mt-1 text-fb-text">
                         {formatExpiration(
@@ -588,7 +591,7 @@ export default function AddNewDeviceModal({
                           : "",
                       ].join(" ")}
                     />
-                    QR-Code erneuern
+                    {t("profileTranslations.58")}
                   </button>
                 </div>
               </div>
