@@ -1,4 +1,6 @@
 export default {
+  speedPreference: {"title":"Geschwindigkeitseinheit","description":"Wähle, wie Geschwindigkeiten angezeigt werden. Gespeicherte Messwerte bleiben unverändert.","label":"Geschwindigkeit anzeigen in","kmh":"Kilometer pro Stunde (km/h)","mph":"Meilen pro Stunde (mph)","save":"Einheit speichern","saving":"Speichern …","saved":"Geschwindigkeitseinheit gespeichert."},
+
   datePreference: {"title":"Datumsformat","description":"Wähle, wie Datumsangaben in deinem Benutzerkonto dargestellt werden.","label":"Datumsformat","EU":"Europa (TT.MM.JJJJ)","US":"USA (MM/TT/JJJJ)","save":"Datumsformat speichern","saving":"Speichern …","saved":"Datumsformat gespeichert."},
 
   distancePreference: {"title":"Entfernungseinheit","description":"Wähle die bevorzugte Einheit für Streckenangaben. Gespeicherte Entfernungen bleiben unverändert.","label":"Strecken anzeigen in","km":"Kilometer (km)","mi":"Meilen (mi)","save":"Einheit speichern","saving":"Speichern …","saved":"Entfernungseinheit gespeichert."},
