@@ -110,16 +110,16 @@ export default function ProfileSettings() {
   ] = useSearchParams();
 
   const activeTab =
-    searchParams.get("tab") === "backup"
-      ? "backup"
+    ["backup", "units"].includes(searchParams.get("tab"))
+      ? searchParams.get("tab")
       : "settings";
 
   function openTab(tab) {
     const next =
       new URLSearchParams(searchParams);
 
-    if (tab === "backup") {
-      next.set("tab", "backup");
+    if (tab === "backup" || tab === "units") {
+      next.set("tab", tab);
     } else {
       next.delete("tab");
     }
@@ -927,6 +927,13 @@ export default function ProfileSettings() {
         </TabButton>
 
         <TabButton
+          active={activeTab === "units"}
+          onClick={() => openTab("units")}
+        >
+          {t("unitSettingsTab.title")}
+        </TabButton>
+
+        <TabButton
           active={activeTab === "backup"}
           onClick={() =>
             openTab("backup")
@@ -1111,39 +1118,6 @@ export default function ProfileSettings() {
         </Section>
       </form>
 
-
-      <form onSubmit={saveSpeedUnit}>
-        <Section title={t("speedPreference.title")} description={t("speedPreference.description")}>
-          <label className={labelClass} htmlFor="profile-speed-unit">{t("speedPreference.label")}</label>
-          <select id="profile-speed-unit" className={fieldClass} value={speedUnit} onChange={(event) => setSpeedUnit(event.target.value)}>
-            <option value="kmh">{t("speedPreference.kmh")}</option>
-            <option value="mph">{t("speedPreference.mph")}</option>
-          </select>
-          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "speed-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "speed-unit" ? t("speedPreference.saving") : t("speedPreference.save")}</button></div>
-        </Section>
-      </form>
-
-      <form onSubmit={saveDateFormat}>
-        <Section title={t("datePreference.title")} description={t("datePreference.description")}>
-          <label className={labelClass} htmlFor="profile-date-format">{t("datePreference.label")}</label>
-          <select id="profile-date-format" className={fieldClass} value={dateFormat} onChange={(event) => setDateFormat(event.target.value)}>
-            <option value="EU">{t("datePreference.EU")}</option>
-            <option value="US">{t("datePreference.US")}</option>
-          </select>
-          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "date-format"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "date-format" ? t("datePreference.saving") : t("datePreference.save")}</button></div>
-        </Section>
-      </form>
-
-      <form onSubmit={saveDistanceUnit}>
-        <Section title={t("distancePreference.title")} description={t("distancePreference.description")}>
-          <label className={labelClass} htmlFor="profile-distance-unit">{t("distancePreference.label")}</label>
-          <select id="profile-distance-unit" className={fieldClass} value={distanceUnit} onChange={(event) => setDistanceUnit(event.target.value)}>
-            <option value="km">{t("distancePreference.km")}</option>
-            <option value="mi">{t("distancePreference.mi")}</option>
-          </select>
-          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "distance-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "distance-unit" ? t("distancePreference.saving") : t("distancePreference.save")}</button></div>
-        </Section>
-      </form>
 
       <form onSubmit={saveHomeCountry}>
         <Section
@@ -2097,6 +2071,48 @@ export default function ProfileSettings() {
           );
         }}
       />
+        </>
+      ) : activeTab === "units" ? (
+        <>
+          <header className="space-y-1">
+            <h2 className="text-xl font-semibold">{t("unitSettingsTab.title")}</h2>
+            <p className="text-sm text-fb-muted">{t("unitSettingsTab.description")}</p>
+          </header>
+          {message && <div className="rounded-xl border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent">{message}</div>}
+          {error && <div className="rounded-xl border border-fb-danger px-4 py-3 text-sm text-fb-danger">{error}</div>}
+      <form onSubmit={saveSpeedUnit}>
+        <Section title={t("speedPreference.title")} description={t("speedPreference.description")}>
+          <label className={labelClass} htmlFor="profile-speed-unit">{t("speedPreference.label")}</label>
+          <select id="profile-speed-unit" className={fieldClass} value={speedUnit} onChange={(event) => setSpeedUnit(event.target.value)}>
+            <option value="kmh">{t("speedPreference.kmh")}</option>
+            <option value="mph">{t("speedPreference.mph")}</option>
+          </select>
+          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "speed-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "speed-unit" ? t("speedPreference.saving") : t("speedPreference.save")}</button></div>
+        </Section>
+      </form>
+
+      <form onSubmit={saveDateFormat}>
+        <Section title={t("datePreference.title")} description={t("datePreference.description")}>
+          <label className={labelClass} htmlFor="profile-date-format">{t("datePreference.label")}</label>
+          <select id="profile-date-format" className={fieldClass} value={dateFormat} onChange={(event) => setDateFormat(event.target.value)}>
+            <option value="EU">{t("datePreference.EU")}</option>
+            <option value="US">{t("datePreference.US")}</option>
+          </select>
+          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "date-format"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "date-format" ? t("datePreference.saving") : t("datePreference.save")}</button></div>
+        </Section>
+      </form>
+
+      <form onSubmit={saveDistanceUnit}>
+        <Section title={t("distancePreference.title")} description={t("distancePreference.description")}>
+          <label className={labelClass} htmlFor="profile-distance-unit">{t("distancePreference.label")}</label>
+          <select id="profile-distance-unit" className={fieldClass} value={distanceUnit} onChange={(event) => setDistanceUnit(event.target.value)}>
+            <option value="km">{t("distancePreference.km")}</option>
+            <option value="mi">{t("distancePreference.mi")}</option>
+          </select>
+          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "distance-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "distance-unit" ? t("distancePreference.saving") : t("distancePreference.save")}</button></div>
+        </Section>
+      </form>
+
         </>
       ) : (
         <UserDataTransfer />
