@@ -18,11 +18,13 @@ export async function authenticatedFetch(accessToken, path, options = {}, allowR
     ...options,
     headers: {
       Accept: "application/json",
-      Authorization: `Bearer ${accessToken}`,
       ...(options.body
         ? { "Content-Type": "application/json" }
         : {}),
       ...options.headers,
+      // Always let the token supplied to this attempt win. This is
+      // important when a failed request is retried with a refreshed token.
+      Authorization: `Bearer ${accessToken}`,
     },
   });
 
