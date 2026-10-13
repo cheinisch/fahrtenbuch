@@ -267,6 +267,14 @@ function createBounds(coordinates) {
   return bounds;
 }
 
+function pointCoordinates(point) {
+  const longitude = Number(point?.longitude ?? point?.lon);
+  const latitude = Number(point?.latitude ?? point?.lat);
+  return Number.isFinite(longitude) && Number.isFinite(latitude)
+    ? [longitude, latitude]
+    : null;
+}
+
 export default function Dashboard() {
   const { accessToken } = useAuth();
   const { t, locale } = useI18n();
@@ -304,6 +312,7 @@ export default function Dashboard() {
   const mapLoadedRef = useRef(false);
   const selectedTripIdRef = useRef(null);
   const mapModeRef = useRef(null);
+  const splitPointsRef = useRef([]);
 
   const [filters, setFilters] = useState({
     from: "",
@@ -340,6 +349,7 @@ export default function Dashboard() {
   const [tripAction, setTripAction] = useState({ busy: false, error: "", splitPoints: null });
   const [suggestions, setSuggestions] = useState([]);
   const [mapMode, setMapMode] = useState(null);
+  const [hoveredSplitPointId, setHoveredSplitPointId] = useState(null);
   const [routeDraft, setRouteDraft] = useState([]);
   const [driverAssignment, setDriverAssignment] = useState({ loading: false, drivers: [], selected: "", reason: "" });
 
@@ -364,6 +374,7 @@ export default function Dashboard() {
 
   useEffect(() => { selectedTripIdRef.current = selectedTripId; }, [selectedTripId]);
   useEffect(() => { mapModeRef.current = mapMode; }, [mapMode]);
+  useEffect(() => { splitPointsRef.current = tripAction.splitPoints || []; }, [tripAction.splitPoints]);
 
   const [status, setStatus] = useState({
     loading: true,
@@ -465,6 +476,35 @@ export default function Dashboard() {
           geometry: { type: "Point", coordinates: [Number(p.lon), Number(p.lat)] },
         }))
         : [],
+    });
+
+    const splitCandidates = mapMode === "split"
+      ? (tripAction.splitPoints || []).map((point) => {
+          const coordinates = pointCoordinates(point);
+          return coordinates ? {
+            type: "Feature",
+            properties: { pointId: String(point.id) },
+            geometry: { type: "Point", coordinates },
+          } : null;
+        }).filter(Boolean)
+      : [];
+
+    map.getSource("split-candidates")?.setData({
+      type: "FeatureCollection",
+      features: splitCandidates,
+    });
+
+    const hoveredSplitPoint = (tripAction.splitPoints || []).find(
+      (point) => String(point.id) === String(hoveredSplitPointId),
+    );
+    const hoveredCoordinates = pointCoordinates(hoveredSplitPoint);
+    map.getSource("split-highlight")?.setData({
+      type: "FeatureCollection",
+      features: hoveredCoordinates ? [{
+        type: "Feature",
+        properties: { pointId: String(hoveredSplitPoint.id) },
+        geometry: { type: "Point", coordinates: hoveredCoordinates },
+      }] : [],
     });
 
     const pointSource =
@@ -574,6 +614,9 @@ export default function Dashboard() {
     gpsPoints,
     selectedTripId,
     routeColors,
+    mapMode,
+    tripAction.splitPoints,
+    hoveredSplitPointId,
   ]);
 
   useEffect(() => {
@@ -694,6 +737,39 @@ export default function Dashboard() {
         paint: { "circle-radius": 3, "circle-color": accent, "circle-stroke-width": 1, "circle-stroke-color": "#ffffff" },
       });
 
+      map.addSource("split-candidates", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "split-candidates",
+        type: "circle",
+        source: "split-candidates",
+        paint: {
+          "circle-radius": 5,
+          "circle-color": "#ffffff",
+          "circle-stroke-width": 2,
+          "circle-stroke-color": accent,
+          "circle-opacity": 0.95,
+        },
+      });
+
+      map.addSource("split-highlight", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "split-highlight",
+        type: "circle",
+        source: "split-highlight",
+        paint: {
+          "circle-radius": 10,
+          "circle-color": accent,
+          "circle-stroke-width": 3,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
+
       map.addSource("trip-endpoints", {
         type: "geojson",
         data: {
@@ -773,18 +849,33 @@ export default function Dashboard() {
         if (!activeTripId) return;
         if (activeMode === "split") {
           try {
-            const points = await getTripPoints(accessToken, activeTripId);
-            if (points.length < 3) return;
-            let nearest = points[1], best = Infinity;
-            for (const point of points.slice(1, -1)) {
-              const p = map.project([point.longitude, point.latitude]);
-              const d = Math.hypot(p.x - event.point.x, p.y - event.point.y);
-              if (d < best) { best = d; nearest = point; }
+            let points = splitPointsRef.current;
+            if (!points.length) {
+              const loadedPoints = await getTripPoints(accessToken, activeTripId);
+              points = loadedPoints.slice(1, -1);
+              splitPointsRef.current = points;
+              setTripAction((state) => ({ ...state, splitPoints: points, error: "" }));
             }
-            if (best <= 40) await splitTrip(accessToken, activeTripId, nearest.id).then(async () => {
-              setSelectedTripId(null); setMapMode(null);
+            if (!points.length) return;
+            let nearest = null;
+            let best = Infinity;
+            for (const point of points) {
+              const coordinates = pointCoordinates(point);
+              if (!coordinates) continue;
+              const projected = map.project(coordinates);
+              const distance = Math.hypot(projected.x - event.point.x, projected.y - event.point.y);
+              if (distance < best) { best = distance; nearest = point; }
+            }
+            if (nearest && best <= 40) {
+              setHoveredSplitPointId(nearest.id);
+              await splitTrip(accessToken, activeTripId, nearest.id);
+              splitPointsRef.current = [];
+              setTripAction({ busy: false, error: "", splitPoints: null });
+              setHoveredSplitPointId(null);
+              setSelectedTripId(null);
+              setMapMode(null);
               setData(await getDashboard(accessToken, filters));
-            });
+            }
           } catch (error) {
             setTripAction((state) => ({ ...state, error: error.message }));
           }
@@ -996,7 +1087,11 @@ export default function Dashboard() {
     try {
       const points = await getTripPoints(accessToken, selectedTripId);
       if (points.length < 3) throw new Error("Die Fahrt hat zu wenige GPS-Punkte zum Teilen.");
-      setTripAction({ busy: false, error: "", splitPoints: points.slice(1, -1) });
+      const splitPoints = points.slice(1, -1);
+      splitPointsRef.current = splitPoints;
+      setHoveredSplitPointId(null);
+      setMapMode("split");
+      setTripAction({ busy: false, error: "", splitPoints });
     } catch (error) {
       setTripAction({ busy: false, error: error.message, splitPoints: null });
     }
@@ -1006,6 +1101,9 @@ export default function Dashboard() {
     setTripAction((state) => ({ ...state, busy: true, error: "" }));
     try {
       await splitTrip(accessToken, selectedTripId, pointId);
+      splitPointsRef.current = [];
+      setHoveredSplitPointId(null);
+      setMapMode(null);
       setTripAction({ busy: false, error: "", splitPoints: null });
       setSelectedTripId(null);
       const result = await getDashboard(accessToken, filters);
@@ -1487,7 +1585,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 disabled={tripAction.busy}
-                onClick={() => { setMapMode("split"); setTripAction((s)=>({...s,splitPoints:null,error:""})); }}
+                onClick={beginSplit}
                 className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
               >
                 Auf Karte teilen
@@ -1501,7 +1599,7 @@ export default function Dashboard() {
                 Route korrigieren
               </button>
               </div>
-              {mapMode === "split" && <div className="mt-2 text-xs text-fb-muted">Klicke nahe an der gewünschten Trennstelle auf die Route.</div>}
+              {mapMode === "split" && <div className="mt-2 text-xs text-fb-muted">Fahre in der Liste über einen Trennpunkt, um ihn auf der Karte hervorzuheben, oder klicke direkt auf einen markierten Punkt der Route.</div>}
               {mapMode === "correct" && (
                 <div className="mt-2">
                   <div className="text-xs text-fb-muted">Klicke die korrigierte Route der Reihe nach auf der Karte ab.</div>
@@ -1536,7 +1634,11 @@ export default function Dashboard() {
                       key={point.id}
                       type="button"
                       onClick={() => performSplit(point.id)}
-                      className="block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-fb-accent-soft"
+                      onMouseEnter={() => setHoveredSplitPointId(point.id)}
+                      onMouseLeave={() => setHoveredSplitPointId(null)}
+                      onFocus={() => setHoveredSplitPointId(point.id)}
+                      onBlur={() => setHoveredSplitPointId(null)}
+                      className={`block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-fb-accent-soft focus:bg-fb-accent-soft ${String(hoveredSplitPointId) === String(point.id) ? "bg-fb-accent-soft text-fb-accent" : ""}`}
                     >
                       {formatDate(point.recordedAt)}
                     </button>
