@@ -350,6 +350,7 @@ export default function Dashboard() {
   const [suggestions, setSuggestions] = useState([]);
   const [mapMode, setMapMode] = useState(null);
   const [hoveredSplitPointId, setHoveredSplitPointId] = useState(null);
+  const [selectedSplitPointId, setSelectedSplitPointId] = useState(null);
   const [routeDraft, setRouteDraft] = useState([]);
   const [driverAssignment, setDriverAssignment] = useState({ loading: false, drivers: [], selected: "", reason: "" });
 
@@ -494,8 +495,9 @@ export default function Dashboard() {
       features: splitCandidates,
     });
 
+    const highlightedSplitPointId = hoveredSplitPointId ?? selectedSplitPointId;
     const hoveredSplitPoint = (tripAction.splitPoints || []).find(
-      (point) => String(point.id) === String(hoveredSplitPointId),
+      (point) => String(point.id) === String(highlightedSplitPointId),
     );
     const hoveredCoordinates = pointCoordinates(hoveredSplitPoint);
     map.getSource("split-highlight")?.setData({
@@ -617,6 +619,7 @@ export default function Dashboard() {
     mapMode,
     tripAction.splitPoints,
     hoveredSplitPointId,
+    selectedSplitPointId,
   ]);
 
   useEffect(() => {
@@ -867,14 +870,8 @@ export default function Dashboard() {
               if (distance < best) { best = distance; nearest = point; }
             }
             if (nearest && best <= 40) {
-              setHoveredSplitPointId(nearest.id);
-              await splitTrip(accessToken, activeTripId, nearest.id);
-              splitPointsRef.current = [];
-              setTripAction({ busy: false, error: "", splitPoints: null });
+              setSelectedSplitPointId(nearest.id);
               setHoveredSplitPointId(null);
-              setSelectedTripId(null);
-              setMapMode(null);
-              setData(await getDashboard(accessToken, filters));
             }
           } catch (error) {
             setTripAction((state) => ({ ...state, error: error.message }));
@@ -1090,6 +1087,7 @@ export default function Dashboard() {
       const splitPoints = points.slice(1, -1);
       splitPointsRef.current = splitPoints;
       setHoveredSplitPointId(null);
+      setSelectedSplitPointId(null);
       setMapMode("split");
       setTripAction({ busy: false, error: "", splitPoints });
     } catch (error) {
@@ -1103,6 +1101,7 @@ export default function Dashboard() {
       await splitTrip(accessToken, selectedTripId, pointId);
       splitPointsRef.current = [];
       setHoveredSplitPointId(null);
+      setSelectedSplitPointId(null);
       setMapMode(null);
       setTripAction({ busy: false, error: "", splitPoints: null });
       setSelectedTripId(null);
@@ -1115,13 +1114,34 @@ export default function Dashboard() {
 
   async function performMerge() {
     if (selectedForMerge.length < 2) return;
+
+    const selectedTrips = data.trips
+      .filter((trip) => selectedForMerge.includes(trip.id))
+      .sort((a, b) => new Date(a.startedAt) - new Date(b.startedAt));
+
+    if (selectedTrips.length !== selectedForMerge.length) {
+      setTripAction((state) => ({ ...state, error: "Mindestens eine ausgewählte Fahrt ist nicht mehr verfügbar." }));
+      return;
+    }
+    if (new Set(selectedTrips.map((trip) => trip.vehicle?.id || trip.vehicleId)).size !== 1) {
+      setTripAction((state) => ({ ...state, error: "Es können nur Fahrten desselben Fahrzeugs zusammengeführt werden." }));
+      return;
+    }
+
+    const first = selectedTrips[0];
+    const last = selectedTrips[selectedTrips.length - 1];
+    const confirmed = window.confirm(
+      `${selectedTrips.length} Fahrten von ${formatDate(first.startedAt)} bis ${formatDate(last.endedAt || last.startedAt)} zusammenführen? Die einzelnen Fahrten werden anschließend archiviert.`,
+    );
+    if (!confirmed) return;
+
     setTripAction({ busy: true, error: "", splitPoints: null });
     try {
-      await mergeTrips(accessToken, selectedForMerge);
+      const result = await mergeTrips(accessToken, selectedForMerge);
       setSelectedForMerge([]);
-      setSelectedTripId(null);
-      const result = await getDashboard(accessToken, filters);
-      setData(result);
+      setSelectedTripId(result?.trip?.id || null);
+      const dashboard = await getDashboard(accessToken, filters);
+      setData(dashboard);
       setTripAction({ busy: false, error: "", splitPoints: null });
     } catch (error) {
       setTripAction({ busy: false, error: error.message, splitPoints: null });
@@ -1599,7 +1619,7 @@ export default function Dashboard() {
                 Route korrigieren
               </button>
               </div>
-              {mapMode === "split" && <div className="mt-2 text-xs text-fb-muted">Fahre in der Liste über einen Trennpunkt, um ihn auf der Karte hervorzuheben, oder klicke direkt auf einen markierten Punkt der Route.</div>}
+              {mapMode === "split" && <div className="mt-2 text-xs text-fb-muted">Fahre in der Liste über einen Trennpunkt, um ihn auf der Karte hervorzuheben. Wähle einen Punkt in der Liste oder auf der Karte aus und bestätige anschließend das Teilen.</div>}
               {mapMode === "correct" && (
                 <div className="mt-2">
                   <div className="text-xs text-fb-muted">Klicke die korrigierte Route der Reihe nach auf der Karte ab.</div>
@@ -1633,16 +1653,35 @@ export default function Dashboard() {
                     <button
                       key={point.id}
                       type="button"
-                      onClick={() => performSplit(point.id)}
+                      onClick={() => setSelectedSplitPointId(point.id)}
                       onMouseEnter={() => setHoveredSplitPointId(point.id)}
                       onMouseLeave={() => setHoveredSplitPointId(null)}
                       onFocus={() => setHoveredSplitPointId(point.id)}
                       onBlur={() => setHoveredSplitPointId(null)}
-                      className={`block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-fb-accent-soft focus:bg-fb-accent-soft ${String(hoveredSplitPointId) === String(point.id) ? "bg-fb-accent-soft text-fb-accent" : ""}`}
+                      aria-pressed={String(selectedSplitPointId) === String(point.id)}
+                      className={`block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-fb-accent-soft focus:bg-fb-accent-soft ${String(selectedSplitPointId) === String(point.id) ? "bg-fb-accent text-fb-accent-text" : String(hoveredSplitPointId) === String(point.id) ? "bg-fb-accent-soft text-fb-accent" : ""}`}
                     >
                       {formatDate(point.recordedAt)}
                     </button>
                   ))}
+                  <div className="sticky bottom-0 mt-2 flex gap-2 border-t border-fb-border bg-fb-surface pt-2">
+                    <button
+                      type="button"
+                      disabled={!selectedSplitPointId || tripAction.busy}
+                      onClick={() => performSplit(selectedSplitPointId)}
+                      className="flex-1 rounded-lg bg-fb-accent px-3 py-2 text-xs font-semibold text-fb-accent-text disabled:opacity-50"
+                    >
+                      An diesem Punkt teilen
+                    </button>
+                    <button
+                      type="button"
+                      disabled={tripAction.busy}
+                      onClick={() => { setSelectedSplitPointId(null); setHoveredSplitPointId(null); setMapMode(null); setTripAction((state) => ({ ...state, splitPoints: null, error: "" })); }}
+                      className="rounded-lg border border-fb-border px-3 py-2 text-xs font-semibold"
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
