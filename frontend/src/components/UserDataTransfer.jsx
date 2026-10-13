@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/I18nProvider.jsx";
 import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
@@ -104,7 +105,7 @@ function ResultSummary({
 
             <div>
               <div className="text-sm font-semibold">
-                Hinweise
+                {t("profileTranslations.59")}
               </div>
 
               <ul className="mt-2 space-y-1 text-sm text-fb-muted">
@@ -125,6 +126,8 @@ function ResultSummary({
 }
 
 export default function UserDataTransfer() {
+  const { t } = useI18n();
+
   const { accessToken } = useAuth();
 
   const fileInputRef =
@@ -163,13 +166,13 @@ export default function UserDataTransfer() {
       setMessage(
         download.checksum
           ? `Das persönliche Backup wurde erstellt. SHA-256: ${download.checksum}`
-          : "Das persönliche Backup wurde erstellt.",
+          : t("profileTranslations.74"),
       );
     } catch (exportError) {
       setError(
         exportError instanceof Error
           ? exportError.message
-          : "Das persönliche Backup konnte nicht erstellt werden.",
+          : t("profileTranslations.75"),
       );
     } finally {
       setBusy("");
@@ -188,7 +191,7 @@ export default function UserDataTransfer() {
   async function validateFile() {
     if (!file) {
       setError(
-        "Bitte wähle zuerst eine JSON-Backupdatei aus.",
+        t("profileTranslations.76"),
       );
       return;
     }
@@ -209,14 +212,14 @@ export default function UserDataTransfer() {
       );
 
       setMessage(
-        "Das Backup wurde vollständig geprüft. Es wurden noch keine Daten gespeichert.",
+        t("profileTranslations.78"),
       );
     } catch (validationError) {
       setValidationResult(null);
       setError(
         validationError instanceof Error
           ? validationError.message
-          : "Die Backupdatei ist ungültig.",
+          : t("profileTranslations.77"),
       );
     } finally {
       setBusy("");
@@ -244,7 +247,7 @@ export default function UserDataTransfer() {
       );
 
       setMessage(
-        "Dein Backup wurde wiederhergestellt. Vorhandene Datensätze wurden anhand ihrer IDs zusammengeführt.",
+        t("profileTranslations.79"),
       );
     } catch (importError) {
       setError(
@@ -279,7 +282,7 @@ export default function UserDataTransfer() {
 
           <div>
             <h2 className="text-lg font-bold">
-              Persönliches Backup
+              {t("profileTranslations.60")}
             </h2>
 
             <p className="mt-1 text-sm text-fb-muted">
@@ -299,7 +302,7 @@ export default function UserDataTransfer() {
 
             <div className="text-sm">
               <div className="font-semibold">
-                Anmeldedaten werden nicht gesichert
+                {t("profileTranslations.61")}
               </div>
 
               <p className="mt-1 text-fb-muted">
@@ -322,7 +325,7 @@ export default function UserDataTransfer() {
           <ArrowDownTrayIcon className="size-5" />
           {busy === "export"
             ? "Backup wird erstellt …"
-            : "Persönliches Backup herunterladen"}
+            : t("profileTranslations.62")}
         </button>
       </section>
 
@@ -381,8 +384,8 @@ export default function UserDataTransfer() {
           >
             <CheckCircleIcon className="size-5" />
             {busy === "validate"
-              ? "Prüfung läuft …"
-              : "Backup prüfen"}
+              ? t("profileTranslations.64")
+              : t("profileTranslations.63")}
           </button>
 
           <button
@@ -397,8 +400,8 @@ export default function UserDataTransfer() {
           >
             <ArrowUpTrayIcon className="size-5" />
             {busy === "import"
-              ? "Wiederherstellung läuft …"
-              : "Geprüftes Backup wiederherstellen"}
+              ? t("profileTranslations.65")
+              : t("profileTranslations.66")}
           </button>
         </div>
 
