@@ -434,6 +434,22 @@ tripRoutes.post(
         [secondId, secondPoints.map((point) => point.id)],
       );
 
+      // The selected split point belongs to both resulting routes:
+      // it remains sequence 0 of the second trip and is cloned as the final
+      // track point of the first trip.
+      await client.query(
+        `INSERT INTO track_points (
+           trip_id, sequence_number, lat, lon, altitude_meters, accuracy_meters,
+           speed_mps, bearing_degrees, recorded_at
+         )
+         SELECT $1,
+                COALESCE((SELECT MAX(sequence_number) + 1 FROM track_points WHERE trip_id=$1), 0),
+                lat, lon, altitude_meters, accuracy_meters, speed_mps, bearing_degrees, recorded_at
+         FROM track_points
+         WHERE id=$2 AND trip_id=$3`,
+        [tripId, splitPointId, secondId],
+      );
+
       const tagResult = await client.query(
         `SELECT tag_id FROM trip_tags WHERE trip_id=$1 AND user_id=$2`,
         [tripId, request.auth.userId],
