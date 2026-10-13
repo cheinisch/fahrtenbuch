@@ -156,6 +156,7 @@ export default function ProfileSettings() {
   const [personalLanguage, setPersonalLanguage] = useState("");
   const [distanceUnit, setDistanceUnit] = useState("km");
   const [dateFormat, setDateFormat] = useState("EU");
+  const [timeFormat, setTimeFormat] = useState("24h");
   const [speedUnit, setSpeedUnit] = useState("kmh");
 
   const [tracking, setTracking] = useState({
@@ -268,6 +269,7 @@ export default function ProfileSettings() {
       setPersonalLanguage(settingsResult.settings.language || "");
       setDistanceUnit(settingsResult.settings.distanceUnit === "mi" ? "mi" : "km");
       setDateFormat(settingsResult.settings.dateFormat === "US" ? "US" : "EU");
+      setTimeFormat(settingsResult.settings.timeFormat === "12h" ? "12h" : "24h");
       setSpeedUnit(settingsResult.settings.speedUnit === "mph" ? "mph" : "kmh");
 
       setTracking({
@@ -709,6 +711,20 @@ export default function ProfileSettings() {
       const updated = await updatePersonalSettings(accessToken, { speedUnit });
       setSpeedUnit(updated.speedUnit === "mph" ? "mph" : "kmh");
       showSuccess(t("speedPreference.saved"));
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function saveTimeFormat(event) {
+    event.preventDefault();
+    setSaving("time-format");
+    try {
+      const updated = await updatePersonalSettings(accessToken, { timeFormat });
+      setTimeFormat(updated.timeFormat === "12h" ? "12h" : "24h");
+      showSuccess(t("timePreference.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -2088,6 +2104,21 @@ export default function ProfileSettings() {
             <option value="mph">{t("speedPreference.mph")}</option>
           </select>
           <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "speed-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "speed-unit" ? t("speedPreference.saving") : t("speedPreference.save")}</button></div>
+        </Section>
+      </form>
+
+      <form onSubmit={saveTimeFormat}>
+        <Section title={t("timePreference.title")} description={t("timePreference.description")}>
+          <label className={labelClass} htmlFor="profile-time-format">{t("timePreference.label")}</label>
+          <select id="profile-time-format" className={fieldClass} value={timeFormat} onChange={(event) => setTimeFormat(event.target.value)}>
+            <option value="24h">{t("timePreference.24h")}</option>
+            <option value="12h">{t("timePreference.12h")}</option>
+          </select>
+          <div className="mt-6 flex justify-end">
+            <button type="submit" disabled={saving === "time-format"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">
+              {saving === "time-format" ? t("timePreference.saving") : t("timePreference.save")}
+            </button>
+          </div>
         </Section>
       </form>
 
