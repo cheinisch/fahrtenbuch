@@ -371,6 +371,10 @@ userRoutes.patch(
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
 
+    if (body.timeFormat !== undefined && !["12h", "24h"].includes(body.timeFormat)) {
+      throw badRequest("VALIDATION_ERROR", "Das Uhrzeitformat muss 12h oder 24h sein.");
+    }
+
     if (body.speedUnit !== undefined && !["kmh", "mph"].includes(body.speedUnit)) {
       throw badRequest("VALIDATION_ERROR", "Die Geschwindigkeitseinheit muss kmh oder mph sein.");
     }
