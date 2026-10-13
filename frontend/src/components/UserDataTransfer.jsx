@@ -287,12 +287,7 @@ export default function UserDataTransfer() {
             </h2>
 
             <p className="mt-1 text-sm text-fb-muted">
-              Das Backup enthält dein Profil,
-              deine Einstellungen, alle Fahrzeuge,
-              alle Fahrten, sämtliche GPS-Datenpunkte,
-              GPS-Upload-Batches, Tags,
-              Tag-Zuordnungen, archivierte Daten
-              und Änderungsnachweise.
+              {t("profileTranslations.118")}
             </p>
           </div>
         </div>
@@ -307,11 +302,7 @@ export default function UserDataTransfer() {
               </div>
 
               <p className="mt-1 text-fb-muted">
-                Passwort-Hashes, TOTP-Secrets,
-                Passkeys, aktive Sitzungen,
-                Reset- und Pairing-Tokens sowie
-                Push-Tokens sind aus
-                Sicherheitsgründen ausgeschlossen.
+                {t("profileTranslations.119")}
               </p>
             </div>
           </div>
@@ -332,15 +323,11 @@ export default function UserDataTransfer() {
 
       <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
         <h2 className="text-lg font-bold">
-          Persönliches Backup
-          wiederherstellen
+          {t("profileTranslations.121")}
         </h2>
 
         <p className="mt-2 text-sm text-fb-muted">
-          Der Import arbeitet im
-          Zusammenführen-Modus. E-Mail-Adresse,
-          Anmeldename, Rolle, Passwort, TOTP und
-          Passkeys werden nicht verändert.
+          {t("profileTranslations.120")}
         </p>
 
         <input
