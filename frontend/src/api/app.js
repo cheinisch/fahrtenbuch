@@ -13,7 +13,7 @@ export function configureApiAuth({ refreshAccessToken } = {}) {
   };
 }
 
-async function authenticatedFetch(accessToken, path, options = {}, allowRefresh = true) {
+export async function authenticatedFetch(accessToken, path, options = {}, allowRefresh = true) {
   const response = await fetch(path, {
     ...options,
     headers: {
