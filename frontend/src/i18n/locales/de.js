@@ -1,4 +1,5 @@
 export default {
+  timePreference: {"title":"Uhrzeitformat","description":"Wähle zwischen 24-Stunden-Anzeige und 12-Stunden-Anzeige mit AM/PM.","label":"Uhrzeiten anzeigen im","24h":"24 Stunden (14:30)","12h":"12 Stunden (2:30 PM)","save":"Uhrzeitformat speichern","saving":"Speichern …","saved":"Uhrzeitformat gespeichert."},
   unitSettingsTab: {"title":"Einheiten & Formate","description":"Persönliche Einstellungen für Entfernungen, Geschwindigkeiten und Datumsangaben."},
   speedPreference: {"title":"Geschwindigkeitseinheit","description":"Wähle, wie Geschwindigkeiten angezeigt werden. Gespeicherte Messwerte bleiben unverändert.","label":"Geschwindigkeit anzeigen in","kmh":"Kilometer pro Stunde (km/h)","mph":"Meilen pro Stunde (mph)","save":"Einheit speichern","saving":"Speichern …","saved":"Geschwindigkeitseinheit gespeichert."},
 
