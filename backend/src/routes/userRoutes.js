@@ -371,6 +371,10 @@ userRoutes.patch(
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
 
+    if (body.distanceUnit !== undefined && !["km", "mi"].includes(body.distanceUnit)) {
+      throw badRequest("VALIDATION_ERROR", "Die Entfernungseinheit muss km oder mi sein.");
+    }
+
     if (body.language !== undefined && !["de","en",null].includes(body.language)) {
       throw badRequest("VALIDATION_ERROR", "Die Spracheinstellung ist ungültig.");
     }
