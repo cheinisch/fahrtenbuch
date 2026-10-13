@@ -1,4 +1,6 @@
 export default {
+  distancePreference: {"title":"Entfernungseinheit","description":"Wähle die bevorzugte Einheit für Streckenangaben. Gespeicherte Entfernungen bleiben unverändert.","label":"Strecken anzeigen in","km":"Kilometer (km)","mi":"Meilen (mi)","save":"Einheit speichern","saving":"Speichern …","saved":"Entfernungseinheit gespeichert."},
+
   profileTranslations: {
   "0": "Persönliche Einstellungen",
   "1": "Benutzerkonto",
