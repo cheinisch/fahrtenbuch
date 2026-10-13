@@ -8,6 +8,7 @@ const DEFAULT_USER_SETTINGS = Object.freeze({
   mapProvider: "osm",
   distanceUnit: "km",
   dateFormat: "EU",
+  speedUnit: "kmh",
 });
 
 function isObject(value) {
@@ -52,6 +53,7 @@ export function mapUserSettings(row) {
 
     distanceUnit: ["km", "mi"].includes(customSettings.distanceUnit) ? customSettings.distanceUnit : DEFAULT_USER_SETTINGS.distanceUnit,
     dateFormat: ["EU", "US"].includes(customSettings.dateFormat) ? customSettings.dateFormat : DEFAULT_USER_SETTINGS.dateFormat,
+    speedUnit: ["kmh", "mph"].includes(customSettings.speedUnit) ? customSettings.speedUnit : DEFAULT_USER_SETTINGS.speedUnit,
 
     customSettings,
 
