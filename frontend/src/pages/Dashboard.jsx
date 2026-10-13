@@ -1215,7 +1215,7 @@ export default function Dashboard() {
 
           <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
             <label className="text-xs font-medium text-fb-muted">
-              Von
+              {t("dashboard.filters.from")}
               <input
                 type="date"
                 value={filters.from}
@@ -1230,7 +1230,7 @@ export default function Dashboard() {
             </label>
 
             <label className="text-xs font-medium text-fb-muted">
-              Bis
+              {t("dashboard.filters.to")}
               <input
                 type="date"
                 value={filters.to}
@@ -1245,7 +1245,7 @@ export default function Dashboard() {
             </label>
 
             <label className="text-xs font-medium text-fb-muted">
-              Typ
+              {t("dashboard.filters.type")}
               <select
                 value={filters.type}
                 onChange={(event) =>
@@ -1269,13 +1269,13 @@ export default function Dashboard() {
                   {t("dashboard.tripTypes.commute")}
                 </option>
                 <option value="unclassified">
-                  Nicht zugeordnet
+                  {t("dashboard.tripTypes.unclassified")}
                 </option>
               </select>
             </label>
 
             <label className="text-xs font-medium text-fb-muted">
-              Tag
+              {t("dashboard.filters.tag")}
               <select
                 value={filters.tagId}
                 onChange={(event) =>
@@ -1350,8 +1350,7 @@ export default function Dashboard() {
               </div>
 
               <p className="mt-2 text-sm text-fb-muted">
-                Passe die Filter an oder erfasse
-                deine erste Fahrt.
+                {t("dashboard.noTripsHint")}
               </p>
             </div>
           ) : (
@@ -1385,9 +1384,7 @@ export default function Dashboard() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold">
-                          {tripTypeLabels[
-                            trip.type
-                          ] || trip.type}
+                          {tripTypeLabel(t, trip.type)}
                         </span>
 
                         <span className="text-xs text-fb-muted">
@@ -1477,7 +1474,7 @@ export default function Dashboard() {
           </div>
         )}
         {selectedTripId && (
-          <div className={`${mobilePanel === "map" ? "flex" : "hidden"} absolute bottom-3 left-3 right-3 z-20 max-h-[calc(100%-5.5rem)] flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:bottom-4 md:left-auto md:right-4 md:block md:max-h-[calc(100%-2rem)] md:w-[420px]`}>
+          <div className={`${mobilePanel === "map" ? "flex" : "hidden"} absolute bottom-3 left-3 right-3 z-20 max-h-[calc(100%-5.5rem)] flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:bottom-4 md:left-auto md:right-4 md:flex md:max-h-[calc(100%-2rem)] md:w-[420px] md:flex-col`}>
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-fb-border px-3 py-2 sm:px-4 sm:py-3">
               <div>
                 <div className="font-semibold">{t('tripDetails.title')}</div>
@@ -1715,7 +1712,7 @@ export default function Dashboard() {
                 {data.map.homeLocation ? (
                   <>
                     <div className="font-semibold">
-                      Heimatort
+                      {t("dashboard.home.title")}
                     </div>
                     <div className="mt-1 text-fb-muted">
                       {
@@ -1727,11 +1724,10 @@ export default function Dashboard() {
                 ) : (
                   <>
                     <div className="font-semibold">
-                      Kein Heimatort hinterlegt
+                      {t("dashboard.home.missing")}
                     </div>
                     <div className="mt-1 text-fb-muted">
-                      Lege ihn unter Eigene
-                      Einstellungen fest.
+                      {t("dashboard.home.missingHint")}
                     </div>
                   </>
                 )}
