@@ -861,10 +861,7 @@ export default function ProfileSettings() {
         </h1>
 
         <p className="mt-2 text-fb-muted">
-          Verwalte dein Profil, deine
-          Tracking-Vorgaben, die Sicherheit
-          deines Kontos und dein persönliches
-          Backup.
+          {t("profileTranslations.101")}
         </p>
       </header>
 
@@ -1059,8 +1056,8 @@ export default function ProfileSettings() {
               className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
             >
               {saving === "profile"
-                ? "Speichern …"
-                : "Profil speichern"}
+                ? t("profileTranslations.135")
+                : t("profileTranslations.132")}
             </button>
           </div>
         </Section>
@@ -1118,8 +1115,7 @@ export default function ProfileSettings() {
                 if (!selected) {
                   return (
                     <p className="mt-2 text-sm text-fb-muted">
-                      Das Länderprofil wird
-                      geladen.
+                      {t("profileTranslations.122")}
                     </p>
                   );
                 }
@@ -1160,8 +1156,8 @@ export default function ProfileSettings() {
               className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
             >
               {saving === "home-country"
-                ? "Speichern …"
-                : "Heimatland speichern"}
+                ? t("profileTranslations.135")
+                : t("profileTranslations.133")}
             </button>
           </div>
         </Section>
@@ -1179,8 +1175,7 @@ export default function ProfileSettings() {
                   {t("profileTranslations.26")}
                 </span>
                 <span className="mt-1 block text-sm text-fb-muted">
-                  Fahrten automatisch starten, sobald ein
-                  bekanntes Fahrzeug erkannt wird.
+                  {t("profileTranslations.106")}
                 </span>
               </span>
 
@@ -1272,7 +1267,7 @@ export default function ProfileSettings() {
         </label>
               <div className="mt-5">
                 <h3 className="text-sm font-semibold">{t("profileTranslations.34")}</h3>
-                <p className="mt-1 text-xs text-fb-muted">Optional. Ohne eigene Farbe wird die Standard-Akzentfarbe verwendet.</p>
+                <p className="mt-1 text-xs text-fb-muted">{t("profileTranslations.107")}</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   {[
                     ["private", t("profileTranslations.7")],
@@ -1323,8 +1318,8 @@ export default function ProfileSettings() {
               className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
             >
               {saving === "tracking"
-                ? "Speichern …"
-                : "Tracking speichern"}
+                ? t("profileTranslations.135")
+                : t("profileTranslations.134")}
             </button>
           </div>
         </Section>
@@ -1402,8 +1397,8 @@ export default function ProfileSettings() {
             className="self-end rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
           >
             {homeSearchLoading
-              ? "Suche …"
-              : "Adresse suchen"}
+              ? t("profileTranslations.136")
+              : t("profileTranslations.129")}
           </button>
         </div>
 
@@ -1541,8 +1536,7 @@ export default function ProfileSettings() {
 
           {!window.isSecureContext && (
             <p className="text-xs text-fb-danger">
-              GPS im Browser benötigt in der
-              Regel HTTPS oder localhost.
+              {t("profileTranslations.109")}
             </p>
           )}
         </div>
@@ -1576,8 +1570,8 @@ export default function ProfileSettings() {
             className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
           >
             {saving === "home-save"
-              ? "Speichern …"
-              : "Heimatort speichern"}
+              ? t("profileTranslations.135")
+              : t("profileTranslations.130")}
           </button>
         </div>
       </Section>
@@ -1634,7 +1628,7 @@ export default function ProfileSettings() {
             onClick={findWorkCandidates}
             className="self-end rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
           >
-            {workSearchLoading ? "Suche …" : "Adresse suchen"}
+            {workSearchLoading ? t("profileTranslations.136") : t("profileTranslations.129")}
           </button>
         </div>
 
@@ -1743,7 +1737,7 @@ export default function ProfileSettings() {
             onClick={saveEnteredWorkLocation}
             className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
           >
-            {saving === "work-save" ? "Speichern …" : "Arbeitsort speichern"}
+            {saving === "work-save" ? t("profileTranslations.135") : t("profileTranslations.131")}
           </button>
         </div>
       </Section>
@@ -1769,7 +1763,7 @@ export default function ProfileSettings() {
           </label>
 
           <div className="text-sm text-fb-muted">
-            Gilt gemeinsam für Heimatort und Arbeitsort. Empfohlen sind etwa 100–300 m; bei großen Firmen- oder Parkplatzgeländen kann ein größerer Radius sinnvoll sein.
+            {t("profileTranslations.110")}
           </div>
         </div>
 
@@ -1780,7 +1774,7 @@ export default function ProfileSettings() {
             onClick={saveRecognitionRadius}
             className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
           >
-            {saving === "location-radius" ? "Speichern …" : "Radius speichern"}
+            {saving === "location-radius" ? t("profileTranslations.135") : "Radius speichern"}
           </button>
         </div>
       </Section>
@@ -1852,7 +1846,7 @@ export default function ProfileSettings() {
               className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
             >
               {saving === "password"
-                ? "Ändern …"
+                ? t("profileTranslations.137")
                 : t("profileTranslations.95")}
             </button>
           </div>
@@ -1870,15 +1864,15 @@ export default function ProfileSettings() {
             </div>
             <div className="mt-1 text-sm text-fb-muted">
               {user?.totpEnabled
-                ? "Für dein Konto aktiviert."
-                : "Für dein Konto noch nicht aktiviert."}
+                ? t("profileTranslations.127")
+                : t("profileTranslations.128")}
             </div>
           </div>
 
           <div className="rounded-lg border border-fb-border bg-fb-surface p-4 sm:col-span-2">
             <div className="font-semibold">{t("profileTranslations.44")}</div>
             <p className="mt-1 text-sm text-fb-muted">
-              Passwortlos mit Fingerabdruck, Gesichtserkennung, PIN oder Sicherheitsschlüssel anmelden.
+              {t("profileTranslations.112")}
             </p>
 
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -1902,7 +1896,7 @@ export default function ProfileSettings() {
 
             {user?.passkeyEnabled === false && (
               <p className="mt-3 text-sm text-fb-danger">
-                Passkeys sind für dieses Konto durch die Administration deaktiviert.
+                {t("profileTranslations.113")}
               </p>
             )}
 
