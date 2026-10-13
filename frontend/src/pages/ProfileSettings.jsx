@@ -2096,7 +2096,8 @@ export default function ProfileSettings() {
           </header>
           {message && <div className="rounded-xl border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent">{message}</div>}
           {error && <div className="rounded-xl border border-fb-danger px-4 py-3 text-sm text-fb-danger">{error}</div>}
-      <form onSubmit={saveSpeedUnit}>
+      <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+      <form onSubmit={saveSpeedUnit} className="h-full">
         <Section title={t("speedPreference.title")} description={t("speedPreference.description")}>
           <label className={labelClass} htmlFor="profile-speed-unit">{t("speedPreference.label")}</label>
           <select id="profile-speed-unit" className={fieldClass} value={speedUnit} onChange={(event) => setSpeedUnit(event.target.value)}>
@@ -2107,7 +2108,7 @@ export default function ProfileSettings() {
         </Section>
       </form>
 
-      <form onSubmit={saveTimeFormat}>
+      <form onSubmit={saveTimeFormat} className="h-full">
         <Section title={t("timePreference.title")} description={t("timePreference.description")}>
           <label className={labelClass} htmlFor="profile-time-format">{t("timePreference.label")}</label>
           <select id="profile-time-format" className={fieldClass} value={timeFormat} onChange={(event) => setTimeFormat(event.target.value)}>
@@ -2122,7 +2123,7 @@ export default function ProfileSettings() {
         </Section>
       </form>
 
-      <form onSubmit={saveDateFormat}>
+      <form onSubmit={saveDateFormat} className="h-full">
         <Section title={t("datePreference.title")} description={t("datePreference.description")}>
           <label className={labelClass} htmlFor="profile-date-format">{t("datePreference.label")}</label>
           <select id="profile-date-format" className={fieldClass} value={dateFormat} onChange={(event) => setDateFormat(event.target.value)}>
@@ -2133,7 +2134,7 @@ export default function ProfileSettings() {
         </Section>
       </form>
 
-      <form onSubmit={saveDistanceUnit}>
+      <form onSubmit={saveDistanceUnit} className="h-full">
         <Section title={t("distancePreference.title")} description={t("distancePreference.description")}>
           <label className={labelClass} htmlFor="profile-distance-unit">{t("distancePreference.label")}</label>
           <select id="profile-distance-unit" className={fieldClass} value={distanceUnit} onChange={(event) => setDistanceUnit(event.target.value)}>
@@ -2144,6 +2145,7 @@ export default function ProfileSettings() {
         </Section>
       </form>
 
+      </div>
         </>
       ) : (
         <UserDataTransfer />
