@@ -1,7 +1,7 @@
 {
   "name": "@fahrtenbuch/shared",
-  "version": "0.3.23-dev.133",
+  "version": "0.3.23-dev.134",
   "private": true,
   "type": "module",
-  "build": 133
+  "build": 134
 }
