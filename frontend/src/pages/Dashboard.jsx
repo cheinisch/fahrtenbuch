@@ -94,53 +94,22 @@ function createMapStyle(settings) {
 }
 
 
-const tripTypeLabels = {
-  business: "Dienstlich",
-  private: "Privat",
-  commute: "Arbeitsweg",
-  unclassified: "Nicht zugeordnet",
-};
+function tripTypeLabel(t, type) {
+  return t(`dashboard.tripTypes.${type}`) || type;
+}
 
-const historyEventLabels = {
-  CREATED: "Fahrt angelegt",
-  UPDATED: "Fahrt geändert",
-  CLASSIFIED: "Fahrttyp geändert",
-  ARCHIVED: "Fahrt archiviert",
-  DELETED: "Fahrt gelöscht",
-  TAG_ADDED: "Tag hinzugefügt",
-  TAG_REMOVED: "Tag entfernt",
-  MAP_MATCHED: "Strecke auf Straßennetz abgeglichen",
-  TRIP_SPLIT: "Fahrt geteilt",
-  TRIP_MERGED: "Fahrten zusammengeführt",
-  TRACK_DUPLICATE: "Doppelte Geräteaufzeichnung erkannt",
-  TRACK_RECONCILED: "Geräteaufzeichnungen zusammengeführt",
-  DRIVER_ASSIGNED: "Fahrer geändert",
-  ROUTE_CORRECTED: "Route manuell korrigiert",
-  AUTO_CLASSIFIED: "Automatisch klassifiziert",
-  BASELINE: "Historie aktiviert",
-};
+function historyEventLabel(t, eventType) {
+  return t(`dashboard.historyEvents.${eventType}`) || eventType;
+}
 
-const historyFieldLabels = {
-  vehicle_id: "Fahrzeug",
-  type: "Fahrttyp",
-  status: "Status",
-  started_at: "Startzeit",
-  ended_at: "Endzeit",
-  start_address: "Startadresse",
-  end_address: "Zieladresse",
-  purpose: "Zweck",
-  contact: "Kontakt",
-  notes: "Notizen",
-  distance_meters: "Strecke",
-  duration_seconds: "Dauer",
-  archived_at: "Archivierung",
-  tags: "Tags",
-};
+function historyFieldLabel(t, field) {
+  return t(`dashboard.historyFields.${field}`) || field;
+}
 
-function historySummary(entry) {
+function historySummary(entry, t) {
   const fields = Object.keys(entry.changedFields || {})
     .filter((field) => !["updated_at", "version"].includes(field))
-    .map((field) => historyFieldLabels[field] || field);
+    .map((field) => historyFieldLabel(t, field));
 
   if (fields.length === 0) {
     return "";
@@ -168,7 +137,7 @@ function formatDate(value) {
   }).format(date);
 }
 
-function toLineFeatures(trips) {
+function toLineFeatures(trips, t) {
   return trips
     .filter((trip) => trip.route.length >= 2)
     .map((trip) => ({
@@ -177,7 +146,7 @@ function toLineFeatures(trips) {
       properties: {
         tripId: trip.id,
         type: trip.type,
-        label: tripTypeLabels[trip.type] || trip.type,
+        label: tripTypeLabel(t, trip.type),
         startedAt: trip.startedAt,
       },
       geometry: {
@@ -391,8 +360,8 @@ export default function Dashboard() {
   );
 
   const lineFeatures = useMemo(
-    () => selectedTripId && gpsMode === "points" ? [] : toLineFeatures(visibleTrips),
-    [visibleTrips, selectedTripId, gpsMode],
+    () => selectedTripId && gpsMode === "points" ? [] : toLineFeatures(visibleTrips, t),
+    [visibleTrips, selectedTripId, gpsMode, t],
   );
 
   const endpointFeatures = useMemo(
@@ -704,7 +673,7 @@ export default function Dashboard() {
     }
 
     map.on("error", (event) => {
-      const message = event?.error?.message || "Die Karte konnte nicht geladen werden.";
+      const message = event?.error?.message || t("dashboard.mapLoadFailed");
       setMapError(message);
       console.error("MapLibre:", event?.error || event);
     });
@@ -941,7 +910,7 @@ export default function Dashboard() {
             error:
               error instanceof Error
                 ? error.message
-                : "Die Fahrten konnten nicht geladen werden.",
+                : t("dashboard.tripsLoadFailed"),
           });
         }
       }
@@ -1002,7 +971,7 @@ export default function Dashboard() {
             error:
               error instanceof Error
                 ? error.message
-                : "Die Historie konnte nicht geladen werden.",
+                : t("dashboard.historyLoadFailed"),
             entries: [],
           });
         }
@@ -1083,7 +1052,7 @@ export default function Dashboard() {
     setTripAction({ busy: true, error: "", splitPoints: null });
     try {
       const points = await getTripPoints(accessToken, selectedTripId);
-      if (points.length < 3) throw new Error("Die Fahrt hat zu wenige GPS-Punkte zum Teilen.");
+      if (points.length < 3) throw new Error(t("dashboard.split.tooFewPoints"));
       const splitPoints = points.slice(1, -1);
       splitPointsRef.current = splitPoints;
       setHoveredSplitPointId(null);
@@ -1120,18 +1089,18 @@ export default function Dashboard() {
       .sort((a, b) => new Date(a.startedAt) - new Date(b.startedAt));
 
     if (selectedTrips.length !== selectedForMerge.length) {
-      setTripAction((state) => ({ ...state, error: "Mindestens eine ausgewählte Fahrt ist nicht mehr verfügbar." }));
+      setTripAction((state) => ({ ...state, error: t("dashboard.merge.unavailable") }));
       return;
     }
     if (new Set(selectedTrips.map((trip) => trip.vehicle?.id || trip.vehicleId)).size !== 1) {
-      setTripAction((state) => ({ ...state, error: "Es können nur Fahrten desselben Fahrzeugs zusammengeführt werden." }));
+      setTripAction((state) => ({ ...state, error: t("dashboard.merge.vehicleMismatch") }));
       return;
     }
 
     const first = selectedTrips[0];
     const last = selectedTrips[selectedTrips.length - 1];
     const confirmed = window.confirm(
-      `${selectedTrips.length} Fahrten von ${formatDate(first.startedAt)} bis ${formatDate(last.endedAt || last.startedAt)} zusammenführen? Die einzelnen Fahrten werden anschließend archiviert.`,
+      t("dashboard.merge.confirm", { count: selectedTrips.length, from: formatDate(first.startedAt), to: formatDate(last.endedAt || last.startedAt) }),
     );
     if (!confirmed) return;
 
@@ -1220,17 +1189,17 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative h-[calc(100dvh-4.5rem)] min-h-[320px] overflow-hidden">\n      <nav aria-label="Dashboard-Ansicht" className="absolute inset-x-3 top-3 z-30 flex gap-2 rounded-xl border border-fb-border bg-fb-main/95 p-1 shadow-lg backdrop-blur md:hidden">\n        <button type="button" aria-pressed={mobilePanel === "map"} onClick={() => setMobilePanel("map")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "map" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>Karte</button>\n        <button type="button" aria-pressed={mobilePanel === "trips"} onClick={() => setMobilePanel("trips")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "trips" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>Fahrten ({data.trips.length})</button>\n      </nav>
+    <div className="relative h-[calc(100dvh-4.5rem)] min-h-[320px] overflow-hidden">\n      <nav aria-label={t("dashboard.mobileViewLabel")} className="absolute inset-x-3 top-3 z-30 flex gap-2 rounded-xl border border-fb-border bg-fb-main/95 p-1 shadow-lg backdrop-blur md:hidden">\n        <button type="button" aria-pressed={mobilePanel === "map"} onClick={() => setMobilePanel("map")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "map" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>{t("dashboard.map")}</button>\n        <button type="button" aria-pressed={mobilePanel === "trips"} onClick={() => setMobilePanel("trips")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "trips" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>{t("dashboard.trips")} ({data.trips.length})</button>\n      </nav>
       <section className={`${mobilePanel === "trips" ? "flex" : "hidden"} absolute inset-x-3 bottom-3 top-[4.5rem] z-20 w-auto min-h-0 flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:absolute md:bottom-4 md:left-4 md:right-auto md:top-4 md:flex md:w-[410px]`}>
         <header className="max-h-[55%] shrink-0 overflow-y-auto border-b border-fb-border p-3 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h1 className="text-xl font-bold">
-                Fahrten
+                {t("dashboard.trips")}
               </h1>
 
               <p className="mt-1 text-sm text-fb-muted">
-                {data.trips.length} Treffer
+                {t("dashboard.results", { count: data.trips.length })}
               </p>
             </div>
 
@@ -1239,7 +1208,7 @@ export default function Dashboard() {
               onClick={resetFilters}
               className="rounded-lg border border-fb-border px-3 py-2 text-xs font-semibold text-fb-muted transition hover:border-fb-accent hover:text-fb-accent"
             >
-              Filter löschen
+              {t("dashboard.clearFilters")}
             </button>
             <button type="button" onClick={() => { setArchiveError(""); setArchiveOpen((v) => !v); }} className="rounded-lg border border-fb-border px-3 py-2 text-xs font-semibold">{archiveOpen ? t("tripArchive.close") : t("tripArchive.open")}</button>
           </div>
@@ -1288,16 +1257,16 @@ export default function Dashboard() {
                 className="mt-1 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm text-fb-text outline-none focus:border-fb-accent"
               >
                 <option value="">
-                  Alle Typen
+                  {t("dashboard.allTypes")}
                 </option>
                 <option value="business">
-                  Dienstlich
+                  {t("dashboard.tripTypes.business")}
                 </option>
                 <option value="private">
-                  Privat
+                  {t("dashboard.tripTypes.private")}
                 </option>
                 <option value="commute">
-                  Arbeitsweg
+                  {t("dashboard.tripTypes.commute")}
                 </option>
                 <option value="unclassified">
                   Nicht zugeordnet
@@ -1318,7 +1287,7 @@ export default function Dashboard() {
                 className="mt-1 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm text-fb-text outline-none focus:border-fb-accent"
               >
                 <option value="">
-                  Alle Tags
+                  {t("dashboard.allTags")}
                 </option>
 
                 {data.filters.tags.map((tag) => (
@@ -1343,21 +1312,21 @@ export default function Dashboard() {
             }}
             className="w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent"
           >
-            Alle Fahrten anzeigen
+            {t("dashboard.showAllTrips")}
           </button>
         </div>
 
         {selectedForMerge.length > 0 && (
           <div className="border-b border-fb-border p-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-fb-muted">{selectedForMerge.length} Fahrt(en) gewählt</span>
+              <span className="text-xs text-fb-muted">{t("dashboard.merge.selected", { count: selectedForMerge.length })}</span>
               <button
                 type="button"
                 disabled={selectedForMerge.length < 2 || tripAction.busy}
                 onClick={performMerge}
                 className="rounded-lg bg-fb-accent px-3 py-2 text-xs font-semibold text-fb-accent-text disabled:opacity-50"
               >
-                Zusammenführen
+                {t("dashboard.merge.action")}
               </button>
             </div>
           </div>
@@ -1372,12 +1341,12 @@ export default function Dashboard() {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {status.loading ? (
             <div className="p-8 text-center text-sm text-fb-muted">
-              Fahrten werden geladen …
+              {t("dashboard.loadingTrips")}
             </div>
           ) : data.trips.length === 0 ? (
             <div className="p-8 text-center">
               <div className="font-semibold">
-                Keine Fahrten gefunden
+                {t("dashboard.noTrips")}
               </div>
 
               <p className="mt-2 text-sm text-fb-muted">
@@ -1394,7 +1363,7 @@ export default function Dashboard() {
                     "relative transition", selectedForMerge.includes(trip.id) ? "bg-fb-accent-soft" : "",
                   ].join(" ")}
                 >
-                  <label className="absolute left-3 top-4 z-10 flex cursor-pointer items-center" title="Für Zusammenführen auswählen">
+                  <label className="absolute left-3 top-4 z-10 flex cursor-pointer items-center" title={t("dashboard.merge.selectForMerge")}>
                     <input
                       type="checkbox"
                       checked={selectedForMerge.includes(trip.id)}
@@ -1428,13 +1397,13 @@ export default function Dashboard() {
 
                       <div className="mt-2 truncate text-sm">
                         {trip.startAddress ||
-                          "Unbekannter Start"}
+                          t("dashboard.unknownStart")}
                       </div>
 
                       <div className="mt-1 truncate text-sm text-fb-muted">
                         →{" "}
                         {trip.endAddress ||
-                          "Unbekanntes Ziel"}
+                          t("dashboard.unknownDestination")}
                       </div>
                     </div>
 
@@ -1481,7 +1450,7 @@ export default function Dashboard() {
 
         {mapError && (
           <div className="absolute left-1/2 top-4 z-20 w-[min(720px,calc(100%-2rem))] -translate-x-1/2 rounded-lg border border-red-500/50 bg-fb-main/95 px-4 py-3 text-sm text-red-400 shadow-lg">
-            <strong className="block">MapLibre-Kartenfehler</strong>
+            <strong className="block">{t("dashboard.mapErrorTitle")}</strong>
             <span className="mt-1 block break-words">{mapError}</span>
           </div>
         )}
@@ -1517,13 +1486,13 @@ export default function Dashboard() {
                   <button type="button" onClick={() => setDetailsTab('history')} className={detailsTab === 'history' ? 'font-semibold text-fb-accent' : 'text-fb-muted'}>{t('tripDetails.history')}</button>
                 </div>
               </div>
-              <button type="button" onClick={() => setMobileDetailsExpanded((v) => !v)} className="min-h-11 rounded-lg border border-fb-border px-3 text-xs font-semibold md:hidden">{mobileDetailsExpanded ? "Verkleinern" : "Details öffnen"}</button>
+              <button type="button" onClick={() => setMobileDetailsExpanded((v) => !v)} className="min-h-11 rounded-lg border border-fb-border px-3 text-xs font-semibold md:hidden">{mobileDetailsExpanded ? t("dashboard.collapseDetails") : t("dashboard.openDetails")}</button>
               <button
                 type="button"
                 onClick={() => { setSelectedTripId(null); setMobileDetailsExpanded(false); }}
                 className="rounded-lg border border-fb-border px-2 py-1 text-xs text-fb-muted hover:border-fb-accent hover:text-fb-accent"
               >
-                Schließen
+                {t("common.close")}
               </button>
             </div>
 
@@ -1552,7 +1521,7 @@ export default function Dashboard() {
                 </div>
                 <label className="mt-3 block font-medium">{t('tripDetails.category')}
                   <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="mt-1 w-full rounded border border-fb-border bg-fb-surface p-2">
-                    {['unclassified','private','business','commute'].map((type) => <option key={type} value={type}>{tripTypeLabels[type]}</option>)}
+                    {['unclassified','private','business','commute'].map((type) => <option key={type} value={type}>{tripTypeLabel(t, type)}</option>)}
                   </select>
                 </label>
                 <div className="mt-3 font-medium">{t('tripDetails.tags')}</div>
@@ -1567,35 +1536,35 @@ export default function Dashboard() {
                 <button type="button" disabled={editBusy} onClick={saveTripDetails} className="mt-3 rounded bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{t('tripDetails.save')}</button>
               </div>
             )}
-            <div className={`${mobileDetailsExpanded ? "block" : "hidden"} min-h-0 overflow-y-auto border-b border-fb-border p-3 md:block`}>
+            <div className={`${mobileDetailsExpanded ? "block" : "hidden"} min-h-0 flex-1 overflow-y-auto overscroll-contain border-b border-fb-border p-3 md:block md:max-h-[calc(50vh-1rem)]`}>
               <button type="button" disabled={archiveBusy} onClick={() => changeTrip(selectedTripId, 'archive')} className="mb-3 rounded-lg border border-red-500 px-3 py-2 text-sm text-red-500">{t("tripArchive.moveToArchive")}</button>
               {archiveError && <p role="alert" className="mb-2 text-red-500">{archiveError}</p>}
               {selectedTrip?.reconciliationMetadata?.splitRecommended && (
                 <div className="mb-3 rounded-lg border border-fb-accent bg-fb-accent-soft p-3 text-sm">
-                  <div className="font-semibold">Aus mehreren Geräten zusammengeführt</div>
-                  <div className="mt-1 text-xs text-fb-muted">Die Aufteilung dieser Fahrt sollte geprüft werden.</div>
-                  <button type="button" onClick={() => { setMapMode("split"); beginSplit(); }} className="mt-2 rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text">Aufteilung prüfen</button>
+                  <div className="font-semibold">{t("dashboard.reconciliation.title")}</div>
+                  <div className="mt-1 text-xs text-fb-muted">{t("dashboard.reconciliation.hint")}</div>
+                  <button type="button" onClick={() => { setMapMode("split"); beginSplit(); }} className="mt-2 rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text">{t("dashboard.reconciliation.review")}</button>
                 </div>
               )}
               {driverAssignment.drivers.length > 0 && (() => {
                 const returnOnly = driverAssignment.drivers.every((driver) => driver.returnOnly);
                 return (
                   <div className="mb-3 rounded-lg border border-fb-border bg-fb-surface p-3">
-                    <div className="text-xs font-semibold">{returnOnly ? "Fahrt an Besitzer zurückgeben" : "Fahrer zuweisen"}</div>
+                    <div className="text-xs font-semibold">{returnOnly ? t("dashboard.driver.returnTitle") : t("dashboard.driver.assignTitle")}</div>
                     {returnOnly ? (
                       <>
-                        <div className="mt-1 text-xs text-fb-muted">Du kannst diese Fahrt nicht an andere Benutzer verschieben. Wenn du nicht gefahren bist, kannst du sie an den Fahrzeugbesitzer zurückgeben.</div>
-                        <button type="button" onClick={() => setDriverAssignment((s)=>({...s,selected:s.drivers[0]?.userId || "",reason:"Ich bin nicht gefahren."}))} className="mt-2 rounded-lg border border-fb-border px-3 py-1.5 text-xs font-semibold hover:border-fb-accent">Ich bin nicht gefahren</button>
-                        <textarea value={driverAssignment.reason} onChange={(e)=>setDriverAssignment((s)=>({...s,reason:e.target.value,selected:s.selected || s.drivers[0]?.userId || ""}))} placeholder="Oder eigenen Grund angeben …" maxLength={500} className="mt-2 min-h-16 w-full rounded-lg border border-fb-border bg-fb-main px-2 py-1.5 text-sm" />
-                        <button type="button" disabled={!driverAssignment.reason.trim() || tripAction.busy} onClick={() => { if (!driverAssignment.selected) setDriverAssignment((s)=>({...s,selected:s.drivers[0]?.userId || ""})); performDriverAssignment(); }} className="mt-2 rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text disabled:opacity-50">An Besitzer zurückgeben</button>
+                        <div className="mt-1 text-xs text-fb-muted">{t("dashboard.driver.returnHint")}</div>
+                        <button type="button" onClick={() => setDriverAssignment((s)=>({...s,selected:s.drivers[0]?.userId || "",reason:t("dashboard.driver.notDriverReason")}))} className="mt-2 rounded-lg border border-fb-border px-3 py-1.5 text-xs font-semibold hover:border-fb-accent">{t("dashboard.driver.notDriver")}</button>
+                        <textarea value={driverAssignment.reason} onChange={(e)=>setDriverAssignment((s)=>({...s,reason:e.target.value,selected:s.selected || s.drivers[0]?.userId || ""}))} placeholder={t("dashboard.driver.reasonPlaceholder")} maxLength={500} className="mt-2 min-h-16 w-full rounded-lg border border-fb-border bg-fb-main px-2 py-1.5 text-sm" />
+                        <button type="button" disabled={!driverAssignment.reason.trim() || tripAction.busy} onClick={() => { if (!driverAssignment.selected) setDriverAssignment((s)=>({...s,selected:s.drivers[0]?.userId || ""})); performDriverAssignment(); }} className="mt-2 rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text disabled:opacity-50">{t("dashboard.driver.returnAction")}</button>
                       </>
                     ) : (
                       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                         <select value={driverAssignment.selected} onChange={(e)=>setDriverAssignment((s)=>({...s,selected:e.target.value}))} className="min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-main px-2 py-1.5 text-sm">
-                          <option value="">Benutzer auswählen …</option>
-                          {driverAssignment.drivers.map((driver)=><option key={driver.userId} value={driver.userId}>{driver.displayName || driver.username}{driver.isOwner ? " (Besitzer)" : ""}</option>)}
+                          <option value="">{t("dashboard.driver.selectUser")}</option>
+                          {driverAssignment.drivers.map((driver)=><option key={driver.userId} value={driver.userId}>{driver.displayName || driver.username}{driver.isOwner ? ` (${t("dashboard.driver.owner")})` : ""}</option>)}
                         </select>
-                        <button type="button" disabled={!driverAssignment.selected || tripAction.busy} onClick={performDriverAssignment} className="rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text disabled:opacity-50">Zuweisen</button>
+                        <button type="button" disabled={!driverAssignment.selected || tripAction.busy} onClick={performDriverAssignment} className="rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text disabled:opacity-50">{t("dashboard.driver.assignAction")}</button>
                       </div>
                     )}
                   </div>
@@ -1608,7 +1577,7 @@ export default function Dashboard() {
                 onClick={beginSplit}
                 className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
               >
-                Auf Karte teilen
+                {t("dashboard.split.onMap")}
               </button>
               <button
                 type="button"
@@ -1616,24 +1585,24 @@ export default function Dashboard() {
                 onClick={() => { setMapMode("correct"); setRouteDraft([]); }}
                 className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
               >
-                Route korrigieren
+                {t("dashboard.routeCorrection.action")}
               </button>
               </div>
-              {mapMode === "split" && <div className="mt-2 text-xs text-fb-muted">Fahre in der Liste über einen Trennpunkt, um ihn auf der Karte hervorzuheben. Wähle einen Punkt in der Liste oder auf der Karte aus und bestätige anschließend das Teilen.</div>}
+              {mapMode === "split" && <div className="mt-2 text-xs text-fb-muted">{t("dashboard.split.hint")}</div>}
               {mapMode === "correct" && (
                 <div className="mt-2">
-                  <div className="text-xs text-fb-muted">Klicke die korrigierte Route der Reihe nach auf der Karte ab.</div>
+                  <div className="text-xs text-fb-muted">{t("dashboard.routeCorrection.hint")}</div>
                   <div className="mt-2 flex gap-2">
-                    <button type="button" onClick={() => setRouteDraft((p)=>p.slice(0,-1))} className="rounded border border-fb-border px-2 py-1 text-xs">Letzten Punkt entfernen</button>
-                    <button type="button" disabled={routeDraft.length < 2 || tripAction.busy} onClick={saveRouteCorrection} className="rounded bg-fb-accent px-2 py-1 text-xs font-semibold text-fb-accent-text disabled:opacity-50">Route speichern</button>
+                    <button type="button" onClick={() => setRouteDraft((p)=>p.slice(0,-1))} className="rounded border border-fb-border px-2 py-1 text-xs">{t("dashboard.routeCorrection.removeLast")}</button>
+                    <button type="button" disabled={routeDraft.length < 2 || tripAction.busy} onClick={saveRouteCorrection} className="rounded bg-fb-accent px-2 py-1 text-xs font-semibold text-fb-accent-text disabled:opacity-50">{t("dashboard.routeCorrection.save")}</button>
                   </div>
                 </div>
               )}
               {suggestions.length > 0 && (
                 <div className="mt-3 rounded-lg border border-fb-border bg-fb-surface p-2">
-                  <div className="text-xs font-semibold">Klassifizierungsvorschlag</div>
+                  <div className="text-xs font-semibold">{t("dashboard.suggestionTitle")}</div>
                   {suggestions.slice(0,3).map((suggestion,index) => (
-                    <div key={index} className="mt-1 text-xs text-fb-muted">{suggestion.reason}: {tripTypeLabels[suggestion.type] || suggestion.type}</div>
+                    <div key={index} className="mt-1 text-xs text-fb-muted">{suggestion.reason}: {tripTypeLabel(t, suggestion.type)}</div>
                   ))}
                 </div>
               )}
@@ -1643,12 +1612,12 @@ export default function Dashboard() {
                 onClick={beginSplit}
                 className="w-full rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
               >
-                Fahrt teilen
+                {t("dashboard.split.action")}
               </button>
               {tripAction.error && <div className="mt-2 text-xs text-fb-danger">{tripAction.error}</div>}
               {tripAction.splitPoints && (
                 <div className="mt-3 max-h-40 overflow-y-auto rounded-lg border border-fb-border bg-fb-surface p-2">
-                  <div className="mb-2 text-xs text-fb-muted">Trennpunkt auswählen</div>
+                  <div className="mb-2 text-xs text-fb-muted">{t("dashboard.split.selectPoint")}</div>
                   {tripAction.splitPoints.map((point) => (
                     <button
                       key={point.id}
@@ -1671,7 +1640,7 @@ export default function Dashboard() {
                       onClick={() => performSplit(selectedSplitPointId)}
                       className="flex-1 rounded-lg bg-fb-accent px-3 py-2 text-xs font-semibold text-fb-accent-text disabled:opacity-50"
                     >
-                      An diesem Punkt teilen
+                      {t("dashboard.split.confirmPoint")}
                     </button>
                     <button
                       type="button"
@@ -1679,7 +1648,7 @@ export default function Dashboard() {
                       onClick={() => { setSelectedSplitPointId(null); setHoveredSplitPointId(null); setMapMode(null); setTripAction((state) => ({ ...state, splitPoints: null, error: "" })); }}
                       className="rounded-lg border border-fb-border px-3 py-2 text-xs font-semibold"
                     >
-                      Abbrechen
+                      {t("common.cancel")}
                     </button>
                   </div>
                 </div>
@@ -1689,7 +1658,7 @@ export default function Dashboard() {
             {detailsTab === 'history' && <div className={`${mobileDetailsExpanded ? "block" : "hidden"} min-h-0 flex-1 overflow-y-auto p-3 md:block md:max-h-72`}>
               {history.loading ? (
                 <div className="px-1 py-3 text-sm text-fb-muted">
-                  Historie wird geladen …
+                  {t("dashboard.loadingHistory")}
                 </div>
               ) : history.error ? (
                 <div className="rounded-lg border border-fb-danger px-3 py-2 text-sm text-fb-danger">
@@ -1697,17 +1666,17 @@ export default function Dashboard() {
                 </div>
               ) : history.entries.length === 0 ? (
                 <div className="px-1 py-3 text-sm text-fb-muted">
-                  Noch keine Historieneinträge vorhanden.
+                  {t("dashboard.noHistory")}
                 </div>
               ) : (
                 <div className="space-y-2">
                   {history.entries.map((entry) => {
-                    const summary = historySummary(entry);
+                    const summary = historySummary(entry, t);
                     const actor =
                       entry.actor?.displayName ||
                       entry.actor?.username ||
                       entry.actor?.email ||
-                      "System";
+                      t("dashboard.systemActor");
 
                     return (
                       <div
@@ -1716,7 +1685,7 @@ export default function Dashboard() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="font-medium text-sm">
-                            {historyEventLabels[entry.eventType] || entry.eventType}
+                            {historyEventLabel(t, entry.eventType)}
                           </div>
                           <time className="shrink-0 text-[11px] text-fb-muted">
                             {formatDate(entry.createdAt)}
