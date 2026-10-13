@@ -1,6 +1,7 @@
 import {
   ApiError,
 } from "./auth.js";
+import { authenticatedFetch } from "./app.js";
 
 function filenameFromResponse(
   response,
@@ -44,7 +45,7 @@ async function download(
   path,
   fallbackFilename,
 ) {
-  const response = await fetch(path, {
+  const response = await authenticatedFetch(accessToken, path, {
     headers: {
       Authorization:
         `Bearer ${accessToken}`,
@@ -100,7 +101,7 @@ async function upload(
     );
   }
 
-  const response = await fetch(path, {
+  const response = await authenticatedFetch(accessToken, path, {
     method: "POST",
     headers: {
       Authorization:
