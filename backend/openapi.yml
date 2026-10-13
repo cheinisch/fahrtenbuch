@@ -1581,7 +1581,7 @@ paths:
     get:
       tags: [Settings]
       summary: Get own profile settings
-      description: Returns the signed-in user's profile and personal preferences, including distanceUnit (km or mi) and dateFormat (EU or US). Defaults are km and EU.
+      description: Returns the signed-in user's profile and personal preferences, including distanceUnit (km or mi), dateFormat (EU or US), and speedUnit (kmh or mph). Defaults are km, EU, and kmh.
       responses:
         '200':
           description: User profile and settings
@@ -1600,7 +1600,7 @@ paths:
     patch:
       tags: [Settings]
       summary: Update own profile settings
-      description: Updates the signed-in user's personal preferences. Set distanceUnit to km or mi and dateFormat to EU or US. Stored trip distances and timestamps are not modified.
+      description: Updates the signed-in user's personal preferences. Set distanceUnit to km or mi, dateFormat to EU or US, and speedUnit to kmh or mph. Stored trip distances, timestamps, and speeds are not modified.
       requestBody:
         required: true
         content:
@@ -1616,9 +1616,14 @@ paths:
                   type: string
                   enum: [EU, US]
                   description: Preferred date display format (EU DD.MM.YYYY; US MM/DD/YYYY).
+                speedUnit:
+                  type: string
+                  enum: [kmh, mph]
+                  description: Preferred speed display unit (km/h or mph).
             example:
               distanceUnit: mi
               dateFormat: US
+              speedUnit: mph
       responses:
         '200':
           description: Updated personal settings
@@ -1627,7 +1632,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PersonalSettings'
         '400':
-          description: Invalid distanceUnit or dateFormat (must be km/mi and EU/US)
+          description: Invalid distanceUnit, dateFormat, or speedUnit (must be km/mi, EU/US, or kmh/mph)
         '401':
           description: Authentication required
 
@@ -2131,6 +2136,11 @@ components:
           enum: [EU, US]
           default: EU
           description: Preferred date display format. Does not change stored timestamps or API ISO dates.
+        speedUnit:
+          type: string
+          enum: [kmh, mph]
+          default: kmh
+          description: Preferred speed display unit (km/h or mph). Stored measurements are unchanged.
       additionalProperties: true
 
     MapServiceSettings:
