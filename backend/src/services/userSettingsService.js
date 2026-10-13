@@ -6,6 +6,7 @@ const DEFAULT_USER_SETTINGS = Object.freeze({
   stopDelaySeconds: 180,
   saveAccuracy: true,
   mapProvider: "osm",
+  distanceUnit: "km",
 });
 
 function isObject(value) {
@@ -47,6 +48,8 @@ export function mapUserSettings(row) {
     mapProvider:
       row?.map_provider ||
       DEFAULT_USER_SETTINGS.mapProvider,
+
+    distanceUnit: ["km", "mi"].includes(customSettings.distanceUnit) ? customSettings.distanceUnit : DEFAULT_USER_SETTINGS.distanceUnit,
 
     customSettings,
 
