@@ -1,10 +1,19 @@
 import { ApiError } from "./auth.js";
 
-async function apiRequest(
-  accessToken,
-  path,
-  options = {},
-) {
+let refreshAccessTokenHandler = null;
+
+export function configureApiAuth({ refreshAccessToken } = {}) {
+  refreshAccessTokenHandler =
+    typeof refreshAccessToken === "function"
+      ? refreshAccessToken
+      : null;
+
+  return () => {
+    refreshAccessTokenHandler = null;
+  };
+}
+
+async function authenticatedFetch(accessToken, path, options = {}, allowRefresh = true) {
   const response = await fetch(path, {
     ...options,
     headers: {
@@ -17,6 +26,48 @@ async function apiRequest(
     },
   });
 
+  if (
+    allowRefresh &&
+    response.status === 401 &&
+    refreshAccessTokenHandler
+  ) {
+    const body = await response.clone().json().catch(() => null);
+    const code =
+      body?.error?.code ||
+      (typeof body?.error === "string" ? body.error : null);
+
+    if (code === "INVALID_ACCESS_TOKEN") {
+      try {
+        const refreshedAccessToken = await refreshAccessTokenHandler();
+
+        if (refreshedAccessToken) {
+          return authenticatedFetch(
+            refreshedAccessToken,
+            path,
+            options,
+            false,
+          );
+        }
+      } catch {
+        // The auth provider clears the local session when refreshing fails.
+      }
+    }
+  }
+
+  return response;
+}
+
+async function apiRequest(
+  accessToken,
+  path,
+  options = {},
+) {
+  const response = await authenticatedFetch(
+    accessToken,
+    path,
+    options,
+  );
+
   if (response.status === 204) {
     return null;
   }
@@ -24,15 +75,20 @@ async function apiRequest(
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ApiError(
-      body?.message ||
-        body?.error?.message ||
-        "Die Anfrage ist fehlgeschlagen.",
-      response.status,
+    const code =
       body?.error?.code ||
-        (typeof body?.error === "string"
-          ? body.error
-          : "REQUEST_FAILED"),
+      (typeof body?.error === "string"
+        ? body.error
+        : "REQUEST_FAILED");
+
+    throw new ApiError(
+      code === "INVALID_ACCESS_TOKEN"
+        ? "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an."
+        : body?.message ||
+          body?.error?.message ||
+          "Die Anfrage ist fehlgeschlagen.",
+      response.status,
+      code,
     );
   }
 
@@ -367,11 +423,11 @@ function buildQuery(filters = {}) {
 }
 
 async function downloadRequest(accessToken, path) {
-  const response = await fetch(path, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+  const response = await authenticatedFetch(
+    accessToken,
+    path,
+    {},
+  );
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
