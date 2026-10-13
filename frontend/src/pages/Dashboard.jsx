@@ -336,6 +336,7 @@ export default function Dashboard() {
   }, [accessToken]);
   const [selectedForMerge, setSelectedForMerge] = useState([]);
   const [mobilePanel, setMobilePanel] = useState("map");
+  const [mobileDetailsExpanded, setMobileDetailsExpanded] = useState(false);
   const [tripAction, setTripAction] = useState({ busy: false, error: "", splitPoints: null });
   const [suggestions, setSuggestions] = useState([]);
   const [mapMode, setMapMode] = useState(null);
@@ -1101,10 +1102,10 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative h-[calc(100dvh-4.5rem)] min-h-[400px] overflow-hidden">\n      <nav aria-label="Dashboard-Ansicht" className="absolute inset-x-3 top-3 z-30 flex gap-2 rounded-xl border border-fb-border bg-fb-main/95 p-1 shadow-lg backdrop-blur md:hidden">\n        <button type="button" aria-pressed={mobilePanel === "map"} onClick={() => setMobilePanel("map")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "map" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>Karte</button>\n        <button type="button" aria-pressed={mobilePanel === "trips"} onClick={() => setMobilePanel("trips")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "trips" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>Fahrten ({data.trips.length})</button>\n      </nav>
+    <div className="relative h-[calc(100dvh-4.5rem)] min-h-[320px] overflow-hidden">\n      <nav aria-label="Dashboard-Ansicht" className="absolute inset-x-3 top-3 z-30 flex gap-2 rounded-xl border border-fb-border bg-fb-main/95 p-1 shadow-lg backdrop-blur md:hidden">\n        <button type="button" aria-pressed={mobilePanel === "map"} onClick={() => setMobilePanel("map")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "map" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>Karte</button>\n        <button type="button" aria-pressed={mobilePanel === "trips"} onClick={() => setMobilePanel("trips")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "trips" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>Fahrten ({data.trips.length})</button>\n      </nav>
       <section className={`${mobilePanel === "trips" ? "flex" : "hidden"} absolute inset-x-3 bottom-3 top-[4.5rem] z-20 w-auto min-h-0 flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:absolute md:bottom-4 md:left-4 md:right-auto md:top-4 md:flex md:w-[410px]`}>
-        <header className="border-b border-fb-border p-4">
-          <div className="flex items-center justify-between gap-3">
+        <header className="max-h-[55%] shrink-0 overflow-y-auto border-b border-fb-border p-3 sm:p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h1 className="text-xl font-bold">
                 Fahrten
@@ -1125,7 +1126,7 @@ export default function Dashboard() {
             <button type="button" onClick={() => { setArchiveError(""); setArchiveOpen((v) => !v); }} className="rounded-lg border border-fb-border px-3 py-2 text-xs font-semibold">{archiveOpen ? t("tripArchive.close") : t("tripArchive.open")}</button>
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
             <label className="text-xs font-medium text-fb-muted">
               Von
               <input
@@ -1215,7 +1216,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <div className="border-b border-fb-border p-3">
+        <div className="hidden border-b border-fb-border p-3 md:block">
           <button
             type="button"
             onClick={() => {
@@ -1293,7 +1294,7 @@ export default function Dashboard() {
                       : "hover:bg-fb-surface",
                   ].join(" ")}
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold">
@@ -1319,7 +1320,7 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    <div className="shrink-0 text-right">
+                    <div className="flex flex-wrap items-center justify-between gap-2 sm:block sm:shrink-0 sm:text-right">
                       <div className="font-bold text-fb-accent">
                         {formatDistance(
                           trip.distanceMeters,
@@ -1389,8 +1390,8 @@ export default function Dashboard() {
           </div>
         )}
         {selectedTripId && (
-          <div className={`${mobilePanel === "map" ? "block" : "hidden"} absolute bottom-3 left-3 right-3 z-20 max-h-[min(48dvh,420px)] overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:bottom-4 md:left-auto md:right-4 md:block md:max-h-[calc(100%-2rem)] md:w-[420px]`}>
-            <div className="flex items-center justify-between border-b border-fb-border px-4 py-3">
+          <div className={`${mobilePanel === "map" ? "flex" : "hidden"} absolute bottom-3 left-3 right-3 z-20 max-h-[calc(100%-5.5rem)] flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:bottom-4 md:left-auto md:right-4 md:block md:max-h-[calc(100%-2rem)] md:w-[420px]`}>
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-fb-border px-3 py-2 sm:px-4 sm:py-3">
               <div>
                 <div className="font-semibold">{t('tripDetails.title')}</div>
                 <div className="mt-2 flex gap-2">
@@ -1398,9 +1399,10 @@ export default function Dashboard() {
                   <button type="button" onClick={() => setDetailsTab('history')} className={detailsTab === 'history' ? 'font-semibold text-fb-accent' : 'text-fb-muted'}>{t('tripDetails.history')}</button>
                 </div>
               </div>
+              <button type="button" onClick={() => setMobileDetailsExpanded((v) => !v)} className="min-h-11 rounded-lg border border-fb-border px-3 text-xs font-semibold md:hidden">{mobileDetailsExpanded ? "Verkleinern" : "Details öffnen"}</button>
               <button
                 type="button"
-                onClick={() => setSelectedTripId(null)}
+                onClick={() => { setSelectedTripId(null); setMobileDetailsExpanded(false); }}
                 className="rounded-lg border border-fb-border px-2 py-1 text-xs text-fb-muted hover:border-fb-accent hover:text-fb-accent"
               >
                 Schließen
@@ -1408,7 +1410,7 @@ export default function Dashboard() {
             </div>
 
             {detailsTab === 'details' && selectedTrip && (
-              <div className="max-h-[50vh] overflow-y-auto border-b border-fb-border p-3 text-sm">
+              <div className={`${mobileDetailsExpanded ? "block" : "hidden"} min-h-0 flex-1 overflow-y-auto border-b border-fb-border p-3 text-sm md:block md:flex-none md:max-h-[50vh]`}>
                 <div className="grid grid-cols-2 gap-2">
                   <div><span className="text-fb-muted">{t('tripDetails.start')}</span><div>{formatDate(selectedTrip.startedAt)}</div></div>
                   <div><span className="text-fb-muted">{t('tripDetails.end')}</span><div>{selectedTrip.endedAt ? formatDate(selectedTrip.endedAt) : '–'}</div></div>
@@ -1447,7 +1449,7 @@ export default function Dashboard() {
                 <button type="button" disabled={editBusy} onClick={saveTripDetails} className="mt-3 rounded bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{t('tripDetails.save')}</button>
               </div>
             )}
-            <div className="border-b border-fb-border p-3">
+            <div className={`${mobileDetailsExpanded ? "block" : "hidden"} min-h-0 overflow-y-auto border-b border-fb-border p-3 md:block`}>
               <button type="button" disabled={archiveBusy} onClick={() => changeTrip(selectedTripId, 'archive')} className="mb-3 rounded-lg border border-red-500 px-3 py-2 text-sm text-red-500">{t("tripArchive.moveToArchive")}</button>
               {archiveError && <p role="alert" className="mb-2 text-red-500">{archiveError}</p>}
               {selectedTrip?.reconciliationMetadata?.splitRecommended && (
@@ -1470,7 +1472,7 @@ export default function Dashboard() {
                         <button type="button" disabled={!driverAssignment.reason.trim() || tripAction.busy} onClick={() => { if (!driverAssignment.selected) setDriverAssignment((s)=>({...s,selected:s.drivers[0]?.userId || ""})); performDriverAssignment(); }} className="mt-2 rounded-lg bg-fb-accent px-3 py-1.5 text-xs font-semibold text-fb-accent-text disabled:opacity-50">An Besitzer zurückgeben</button>
                       </>
                     ) : (
-                      <div className="mt-2 flex gap-2">
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                         <select value={driverAssignment.selected} onChange={(e)=>setDriverAssignment((s)=>({...s,selected:e.target.value}))} className="min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-main px-2 py-1.5 text-sm">
                           <option value="">Benutzer auswählen …</option>
                           {driverAssignment.drivers.map((driver)=><option key={driver.userId} value={driver.userId}>{driver.displayName || driver.username}{driver.isOwner ? " (Besitzer)" : ""}</option>)}
@@ -1543,7 +1545,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            {detailsTab === 'history' && <div className="max-h-72 overflow-y-auto p-3">
+            {detailsTab === 'history' && <div className={`${mobileDetailsExpanded ? "block" : "hidden"} min-h-0 flex-1 overflow-y-auto p-3 md:block md:max-h-72`}>
               {history.loading ? (
                 <div className="px-1 py-3 text-sm text-fb-muted">
                   Historie wird geladen …
