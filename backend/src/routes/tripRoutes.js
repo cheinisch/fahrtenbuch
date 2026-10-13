@@ -513,17 +513,63 @@ tripRoutes.post(
       const sourceIds = trips.slice(1).map((trip) => trip.id);
       const last = trips[trips.length - 1];
 
+      // Every trip starts its point sequence at 0. Moving source points to
+      // the target trip without changing the sequence first violates the
+      // UNIQUE (trip_id, sequence_number) constraint. Append all source
+      // points behind the current target sequence with unique numbers.
       await client.query(
-        `UPDATE track_points SET trip_id=$1 WHERE trip_id=ANY($2::uuid[])`,
+        `WITH target_max AS (
+           SELECT COALESCE(MAX(sequence_number), -1) AS max_sequence
+           FROM track_points
+           WHERE trip_id=$1
+         ),
+         source_order AS (
+           SELECT tp.id,
+                  row_number() OVER (
+                    ORDER BY t.started_at, tp.recorded_at, tp.sequence_number, tp.id
+                  ) - 1 AS offset_sequence
+           FROM track_points tp
+           INNER JOIN trips t ON t.id=tp.trip_id
+           WHERE tp.trip_id=ANY($2::uuid[])
+         )
+         UPDATE track_points tp
+         SET trip_id=$1,
+             sequence_number=target_max.max_sequence + 1 + source_order.offset_sequence
+         FROM source_order, target_max
+         WHERE tp.id=source_order.id`,
         [target.id, sourceIds],
       );
+
+      // Normalize the merged route to a dense 0..n sequence. Use a temporary
+      // offset first so the unique index cannot collide while rows are being
+      // renumbered.
+      const mergePointCountResult = await client.query(
+        `SELECT COUNT(*)::bigint AS point_count FROM track_points WHERE trip_id=$1`,
+        [target.id],
+      );
+      const mergePointCount = Number(mergePointCountResult.rows[0]?.point_count || 0);
+      const sequenceOffset = mergePointCount + 1;
+
+      await client.query(
+        `UPDATE track_points
+         SET sequence_number=sequence_number+$2
+         WHERE trip_id=$1`,
+        [target.id, sequenceOffset],
+      );
+
       await client.query(
         `WITH ordered AS (
-           SELECT id, row_number() OVER (ORDER BY recorded_at, sequence_number, id)-1 AS seq
-           FROM track_points WHERE trip_id=$1
+           SELECT id,
+                  row_number() OVER (
+                    ORDER BY recorded_at, sequence_number, id
+                  ) - 1 AS seq
+           FROM track_points
+           WHERE trip_id=$1
          )
-         UPDATE track_points SET sequence_number=ordered.seq
-         FROM ordered WHERE track_points.id=ordered.id`,
+         UPDATE track_points
+         SET sequence_number=ordered.seq
+         FROM ordered
+         WHERE track_points.id=ordered.id`,
         [target.id],
       );
 
