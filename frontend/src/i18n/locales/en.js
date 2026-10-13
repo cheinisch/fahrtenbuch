@@ -1,4 +1,5 @@
 export default {
+  unitSettingsTab: {"title":"Units & formats","description":"Personal preferences for distances, speeds, and date display."},
   speedPreference: {"title":"Speed unit","description":"Choose how speeds are displayed. Stored measurements remain unchanged.","label":"Display speed in","kmh":"Kilometers per hour (km/h)","mph":"Miles per hour (mph)","save":"Save unit","saving":"Saving…","saved":"Speed unit saved."},
 
   datePreference: {"title":"Date format","description":"Choose how dates are displayed in your account.","label":"Date format","EU":"Europe (DD.MM.YYYY)","US":"United States (MM/DD/YYYY)","save":"Save date format","saving":"Saving…","saved":"Date format saved."},
