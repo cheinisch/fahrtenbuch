@@ -1,4 +1,6 @@
 export default {
+  datePreference: {"title":"Date format","description":"Choose how dates are displayed in your account.","label":"Date format","EU":"Europe (DD.MM.YYYY)","US":"United States (MM/DD/YYYY)","save":"Save date format","saving":"Saving…","saved":"Date format saved."},
+
   distancePreference: {"title":"Distance unit","description":"Choose your preferred unit for distances. Stored distances remain unchanged.","label":"Display distances in","km":"Kilometers (km)","mi":"Miles (mi)","save":"Save unit","saving":"Saving…","saved":"Distance unit saved."},
 
   profileTranslations: {
