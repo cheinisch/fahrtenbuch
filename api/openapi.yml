@@ -1581,23 +1581,48 @@ paths:
     get:
       tags: [Settings]
       summary: Get own profile settings
+      description: Returns the signed-in user's profile and personal preferences, including distanceUnit (km or mi). The default is km.
       responses:
         '200':
-          description: Successful response
-        '400':
-          description: Invalid request
+          description: User profile and settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    additionalProperties: true
+                  settings:
+                    $ref: '#/components/schemas/PersonalSettings'
         '401':
           description: Authentication required
-
-  /users/me/settings:
     patch:
       tags: [Settings]
       summary: Update own profile settings
+      description: Updates the signed-in user's personal preferences. Set distanceUnit to km or mi. Stored trip distances are not converted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                distanceUnit:
+                  type: string
+                  enum: [km, mi]
+                  description: Preferred display unit for distances.
+            example:
+              distanceUnit: mi
       responses:
         '200':
-          description: Successful response
+          description: Updated personal settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalSettings'
         '400':
-          description: Invalid request
+          description: Invalid distanceUnit (must be km or mi)
         '401':
           description: Authentication required
 
@@ -2087,6 +2112,17 @@ components:
         minZoom: { type: integer }
         maxZoom: { type: integer }
         tileSize: { type: integer, enum: [256, 512] }
+    PersonalSettings:
+      type: object
+      description: User preferences. Unspecified distanceUnit defaults to km.
+      properties:
+        distanceUnit:
+          type: string
+          enum: [km, mi]
+          default: km
+          description: Preferred distance display unit. Stored trip distances remain in kilometers.
+      additionalProperties: true
+
     MapServiceSettings:
       allOf:
         - $ref: '#/components/schemas/PublicMapConfig'
