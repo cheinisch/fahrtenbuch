@@ -431,8 +431,7 @@ export default function AddNewDeviceModal({
                 </DialogTitle>
 
                 <p className="mt-1 text-sm text-fb-muted">
-                  Öffne die Fahrtenbuch-App und
-                  scanne den QR-Code.
+                  {t("profileTranslations.115")}
                 </p>
               </div>
 
@@ -485,8 +484,7 @@ export default function AddNewDeviceModal({
                       </div>
 
                       <div className="mt-1 text-xs text-fb-muted">
-                        Der QR-Code wird nach Ablauf
-                        automatisch erneuert.
+                        {t("profileTranslations.116")}
                       </div>
                     </>
                   )}
@@ -549,11 +547,7 @@ export default function AddNewDeviceModal({
 
                 <div className="mt-4 rounded-xl border border-fb-border p-4">
                   <p className="text-sm text-fb-muted">
-                    Der QR-Code enthält ein
-                    einmalig verwendbares Token. Teile
-                    den Code nur mit einem Gerät, das
-                    Zugriff auf dein Fahrtenbuch
-                    erhalten soll.
+                    {t("profileTranslations.117")}
                   </p>
                 </div>
 
