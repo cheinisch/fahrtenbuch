@@ -26,11 +26,11 @@ const STACK_SEGMENTS = [
 ];
 
 const labels = {
-  businessKm: "Beruflich",
+  businessKm: "Dienstlich",
   privateKm: "Privat",
   commuteKm: "Arbeitsweg",
   unclassifiedKm: "Nicht zugeordnet",
-  unknownKm: "Unbekannt / nicht erfasst",
+  unknownKm: "Nicht erklärt",
 };
 
 function km(value) {
@@ -509,14 +509,19 @@ export default function Statistics() {
     setMonth(rows.find((row) => row.vehicleId === nextVehicleId)?.month || "");
   }
 
-  // Jahreskennzahlen für die Kopfzeile: Ablesungen vs. erfasste Fahrten.
+  // Jahreskennzahlen aus der Monatsstatistik (dieselbe Quelle wie das Diagramm).
   const yearSummary = useMemo(() => {
-    if (!chartData.length) return null;
-    const actualKm = chartData.reduce((sum, item) => sum + item.actualKm, 0);
-    const trackedKm = chartData.reduce((sum, item) => sum + item.trackedKm, 0);
     const yearRows = rows.filter((row) => row.vehicleId === vehicleId && String(row.month).startsWith(`${chartYear}-`));
-    const businessKm = yearRows.reduce((sum, row) => sum + (Number(row.businessKm) || 0), 0);
-    const classifiedKm = yearRows.reduce((sum, row) => sum + (Number(row.businessKm) || 0) + (Number(row.privateKm) || 0) + (Number(row.commuteKm) || 0), 0);
+    if (!yearRows.length) return null;
+    const sum = (key) => yearRows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
+    const businessKm = sum("businessKm");
+    const trackedKm = businessKm + sum("privateKm") + sum("commuteKm") + sum("unclassifiedKm");
+    const classifiedKm = businessKm + sum("privateKm") + sum("commuteKm");
+    // Für Monate ohne Ablesung zählen die erfassten Kilometer als gefahren.
+    const actualKm = yearRows.reduce((total, row) => {
+      const tracked = ["businessKm", "privateKm", "commuteKm", "unclassifiedKm"].reduce((t, key) => t + (Number(row[key]) || 0), 0);
+      return total + (row.actualKm != null ? Math.max(Number(row.actualKm), tracked) : tracked);
+    }, 0);
     return {
       actualKm,
       trackedKm,
@@ -525,7 +530,7 @@ export default function Statistics() {
       businessKm,
       businessShare: classifiedKm > 0 ? businessKm / classifiedKm * 100 : null,
     };
-  }, [chartData, rows, vehicleId, chartYear]);
+  }, [rows, vehicleId, chartYear]);
 
   const percent = (value) => `${Number(value).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %`;
   const selected = rows.find((row) => row.vehicleId === vehicleId && row.month === month) || null;
@@ -738,7 +743,7 @@ export default function Statistics() {
             </header>
             {categoryModal === "unknownKm" ? (
               <div className="mt-5 space-y-3 text-sm">
-                <p>„Unbekannt / nicht erfasst“ ist keine Fahrtenkategorie. Die Kilometer ergeben sich aus der Differenz zwischen Kilometerstandsänderung und aufgezeichneten Fahrten. Einzelne Fahrten können daher nicht aufgelistet werden.</p>
+                <p>„Nicht erklärt“ ist keine Fahrtenkategorie. Die Kilometer ergeben sich aus der Differenz zwischen Kilometerstandsänderung und aufgezeichneten Fahrten. Einzelne Fahrten können daher nicht aufgelistet werden.</p>
                 <p>Kilometerstand: {km(selected?.startOdometerKm)} → {km(selected?.endOdometerKm)}</p>
                 <p>Erfasste Fahrten: {km(selected?.trackedKm)}</p>
                 <p>Nicht erfasst (berechnet): {km(selected?.unknownKm)}</p>
@@ -755,7 +760,7 @@ export default function Statistics() {
                     {categoryModal === "unclassifiedKm" && <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-fb-muted">Zuordnen:</span>
                       {[
-                        ["business", "Beruflich"],
+                        ["business", "Dienstlich"],
                         ["private", "Privat"],
                         ["commute", "Arbeitsweg"],
                       ].map(([type, label]) => <button key={type} type="button"

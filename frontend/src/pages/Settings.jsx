@@ -1,3 +1,4 @@
+import PageHeader from "../components/PageHeader.jsx";
 import {
   useCallback,
   useEffect,
@@ -55,17 +56,17 @@ function OverviewCard({
   hint,
 }) {
   return (
-    <div className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm">
-      <div className="text-sm text-fb-muted">
+    <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
+      <div className="text-[13px] text-fb-muted">
         {label}
       </div>
 
-      <div className="mt-2 text-3xl font-bold">
-        {value}
+      <div className="mt-1 text-[28px] font-bold leading-tight">
+        {typeof value === "number" ? value.toLocaleString("de-DE") : value}
       </div>
 
       {hint && (
-        <div className="mt-2 text-xs text-fb-muted">
+        <div className="mt-0.5 text-xs text-fb-muted">
           {hint}
         </div>
       )}
@@ -83,10 +84,10 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={[
-        "border-b-2 px-1 pb-3 text-sm font-semibold transition",
+        "h-11 whitespace-nowrap border-b-2 text-sm transition",
         active
-          ? "border-fb-accent text-fb-accent"
-          : "border-transparent text-fb-muted hover:border-fb-border hover:text-fb-text",
+          ? "border-fb-accent font-semibold text-fb-accent-strong"
+          : "border-transparent font-medium text-fb-muted hover:text-fb-text",
       ].join(" ")}
     >
       {children}
@@ -199,21 +200,11 @@ export default function Settings() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <p className="text-sm font-semibold text-fb-accent">
-          Administration
-        </p>
-
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">
-          Systemeinstellungen
-        </h1>
-
-        <p className="mt-2 text-fb-muted">
-          Verwalte zentrale Vorgaben,
-          Benutzerkonten und das vollständige
-          System-Backup.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Administration"
+        title="Systemeinstellungen"
+        subtitle="Zentrale Vorgaben, Benutzerkonten, Hintergrundaufgaben und das vollständige System-Backup."
+      />
 
       <nav className="flex gap-7 overflow-x-auto border-b border-fb-border">
         <TabButton
@@ -254,7 +245,7 @@ export default function Settings() {
       {activeTab === "system" ? (
         <div className="space-y-8">
           {message && (
-            <div className="rounded-xl border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent">
+            <div className="rounded-xl border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent-strong">
               {message}
             </div>
           )}
@@ -300,7 +291,7 @@ export default function Settings() {
           {settings && (
             <form
               onSubmit={saveSystemSettings}
-              className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6"
+              className="rounded-xl border border-fb-border bg-fb-main p-[22px]"
             >
               <div>
                 <h2 className="text-lg font-bold">
