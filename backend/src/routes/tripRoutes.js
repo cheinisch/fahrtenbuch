@@ -210,7 +210,7 @@ tripRoutes.get(
       }
 
       parameters.push(specialCategory);
-      conditions.push(`t.special_category = ${parameters.length}`);
+      conditions.push(`t.special_category = $${parameters.length}`);
     }
 
     if (request.query.from) {
