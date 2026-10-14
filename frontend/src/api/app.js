@@ -115,6 +115,10 @@ export function getDashboard(
     query.set("type", filters.type);
   }
 
+  if (filters.specialCategory) {
+    query.set("specialCategory", filters.specialCategory);
+  }
+
   if (filters.tagId) {
     query.set("tagId", filters.tagId);
   }
@@ -748,7 +752,10 @@ export const getArchivedTrips = (token) => apiRequest(token, "/api/v1/trips/arch
 export const restoreArchivedTrip = (token, id) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(id)}/restore`, { method: "POST" });
 export const permanentlyDeleteTrip = (token, id) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(id)}/permanent`, { method: "DELETE" });
 
-export const classifyTrip = (token, id, category, purpose, contact) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(id)}/classify`, { method: "PUT", body: JSON.stringify({ category, purpose, contact }) });
+export const classifyTrip = (token, id, category, specialCategory = null) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(id)}/classify`, {
+  method: "PUT",
+  body: JSON.stringify({ category, specialCategory }),
+});
 export const updateTripTags = (token, id, tagIds) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(id)}/tags`, { method: "PUT", body: JSON.stringify({ tagIds }) });
 
 export const getJobStatus = (token) => apiRequest(token, "/api/v1/admin/jobs/status");
