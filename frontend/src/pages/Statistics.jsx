@@ -457,7 +457,7 @@ export default function Statistics() {
           <div><h2 className="text-lg font-bold">Kilometerentwicklung</h2><p className="mt-1 text-sm text-fb-muted">Vergleich der Kilometer laut Ablesungen mit den im Fahrtenbuch erfassten Strecken.</p></div>
           <div className="flex flex-wrap items-center gap-4">
             {monthlyContractLimit != null && <label className="flex cursor-pointer items-center gap-2 text-xs text-fb-muted"><input type="checkbox" checked={showMonthlyLimit} onChange={(event) => setShowMonthlyLimit(event.target.checked)} className="accent-[var(--color-accent)]" />Monatliches Kilometerlimit anzeigen</label>}
-            <label className="text-xs text-fb-muted"><span className="mb-1 block">Jahr</span><select value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm">{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+            <label className="text-xs text-fb-muted"><span className="mb-1 block">Jahr</span><select value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm">{chartYears.length === 0 && <option value={chartYear}>{chartYear}</option>}{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
           </div>
         </div>
         {chartData.length > 0 ? <StatisticsChart data={chartData} monthlyLimitKm={showMonthlyLimit ? monthlyContractLimit : null} /> : <div className="mt-5 rounded-lg bg-fb-surface p-6 text-center text-sm text-fb-muted">Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor.</div>}

@@ -260,6 +260,15 @@ function createBounds(coordinates) {
   return bounds;
 }
 
+// Auf dem Desktop liegen Fahrtenliste (links) und Detailpanel (rechts) über
+// der Karte; beim Einpassen der Route deren Breite freihalten.
+function mapPadding(detailsOpen, base) {
+  if (!window.matchMedia?.("(min-width: 768px)").matches) {
+    return base;
+  }
+  return { top: base, bottom: base, left: 440 + base / 2, right: detailsOpen ? 450 + base / 2 : base };
+}
+
 function pointCoordinates(point) {
   const longitude = Number(point?.longitude ?? point?.lon);
   const latitude = Number(point?.latitude ?? point?.lat);
@@ -428,7 +437,7 @@ export default function Dashboard() {
 
     if (bounds) {
       map.fitBounds(bounds, {
-        padding: 70,
+        padding: mapPadding(Boolean(selectedTripIdRef.current), 70),
         maxZoom: 15,
         duration: 500,
       });
@@ -883,8 +892,12 @@ export default function Dashboard() {
         }
       });
       mapLoadedRef.current = true;
-      updateMapData();
-      fitAllTrips();
+      // Über Refs die aktuelle Version aufrufen: „load“ kann deutlich nach dem
+      // Anlegen der Karte feuern (langsamer Tile-Server). Die beim Anlegen
+      // gebundenen Funktionen würden sonst eine inzwischen gewählte Fahrt
+      // mit veralteten Daten überzeichnen.
+      updateMapDataRef.current?.();
+      fitAllTripsRef.current?.();
     });
 
     mapRef.current = map;
@@ -902,6 +915,11 @@ export default function Dashboard() {
     data.map.settings?.protomapsAssetsUrl,
     data.map.settings?.protomapsFlavor,
   ]);
+
+  const updateMapDataRef = useRef(updateMapData);
+  const fitAllTripsRef = useRef(fitAllTrips);
+  updateMapDataRef.current = updateMapData;
+  fitAllTripsRef.current = fitAllTrips;
 
   useEffect(() => {
     updateMapData();
@@ -1060,7 +1078,7 @@ export default function Dashboard() {
     }
 
     map.fitBounds(createBounds(coordinates), {
-      padding: 80,
+      padding: mapPadding(true, 80),
       maxZoom: 16,
       duration: 500,
     });
@@ -1399,8 +1417,8 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Zoom-Steuerung neben das Detailpanel schieben, damit sie nicht verdeckt wird. */}
-      <section className={`absolute inset-0 z-0 overflow-hidden ${selectedTrip ? "md:[&_.maplibregl-ctrl-top-right]:mr-[440px]" : ""}`}>
+      {/* Zoom-Steuerung unter den mobilen Umschalter bzw. neben das Detailpanel schieben. */}
+      <section className={`absolute inset-0 z-0 overflow-hidden [&_.maplibregl-ctrl-top-right]:mt-[4.5rem] md:[&_.maplibregl-ctrl-top-right]:mt-0 ${selectedTrip ? "md:[&_.maplibregl-ctrl-top-right]:mr-[440px]" : ""}`}>
         <div ref={mapContainerRef} className="h-full w-full" />
 
         {mapError && (
