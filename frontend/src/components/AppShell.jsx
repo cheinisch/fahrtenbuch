@@ -26,19 +26,19 @@ import MonthlyOdometerPrompt from "./MonthlyOdometerPrompt.jsx";
 
 function desktopNavigationClass({ isActive }) {
   return [
-    "inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition",
+    "inline-flex items-center rounded-lg px-3.5 py-2 text-sm transition",
     isActive
-      ? "border-fb-accent text-fb-text"
-      : "border-transparent text-fb-muted hover:border-fb-border hover:text-fb-text",
+      ? "bg-fb-accent-soft font-semibold text-fb-accent"
+      : "font-medium text-fb-muted hover:bg-fb-surface hover:text-fb-text",
   ].join(" ");
 }
 
 function mobileNavigationClass({ isActive }) {
   return [
-    "block border-l-4 py-2 pr-4 pl-3 text-base font-medium transition",
+    "mx-2 block rounded-lg px-3 py-2.5 text-base transition",
     isActive
-      ? "border-fb-accent bg-fb-accent-soft text-fb-accent"
-      : "border-transparent text-fb-muted hover:border-fb-border hover:bg-fb-surface hover:text-fb-text",
+      ? "bg-fb-accent-soft font-semibold text-fb-accent"
+      : "font-medium text-fb-muted hover:bg-fb-surface hover:text-fb-text",
   ].join(" ");
 }
 
@@ -115,7 +115,7 @@ export default function AppShell() {
                 </span>
               </NavLink>
 
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+              <div className="hidden sm:ml-8 sm:flex sm:items-center sm:gap-1">
                 <NavLink
                   to="/"
                   end
@@ -142,7 +142,7 @@ export default function AppShell() {
                   to="/export"
                   className={desktopNavigationClass}
                 >
-                  Export
+                  {t("nav.export")}
                 </NavLink>
 
                 <NavLink
@@ -281,7 +281,7 @@ export default function AppShell() {
               to="/export"
               className={mobileNavigationClass}
             >
-              Export
+              {t("nav.export")}
             </DisclosureButton>
 
             <DisclosureButton
@@ -300,7 +300,7 @@ export default function AppShell() {
         <div
           className={
             dashboardIsOpen
-              ? "w-full px-3 py-3 sm:px-4 sm:py-4"
+              ? "w-full"
               : "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"
           }
         >
