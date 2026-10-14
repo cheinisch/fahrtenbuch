@@ -104,7 +104,7 @@ dashboardRoutes.get(
 
     if (specialCategory) {
       parameters.push(specialCategory);
-      conditions.push(`t.special_category = ${parameters.length}`);
+      conditions.push(`t.special_category = $${parameters.length}`);
     }
 
     if (tagId) {
