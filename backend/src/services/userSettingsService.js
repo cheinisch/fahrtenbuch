@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 import { pool } from "../database/pool.js";
 
 const DEFAULT_USER_SETTINGS = Object.freeze({
@@ -56,6 +57,9 @@ export function mapUserSettings(row) {
     dateFormat: ["EU", "US"].includes(customSettings.dateFormat) ? customSettings.dateFormat : DEFAULT_USER_SETTINGS.dateFormat,
     speedUnit: ["kmh", "mph"].includes(customSettings.speedUnit) ? customSettings.speedUnit : DEFAULT_USER_SETTINGS.speedUnit,
     timeFormat: ["12h", "24h"].includes(customSettings.timeFormat) ? customSettings.timeFormat : DEFAULT_USER_SETTINGS.timeFormat,
+    // Persönliche Wahl (Standard: an) und ob die Instanz Gravatar überhaupt erlaubt
+    gravatarEnabled: customSettings.gravatarEnabled !== false,
+    gravatarAvailable: config.gravatarEnabled,
 
     customSettings,
 

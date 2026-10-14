@@ -40,6 +40,7 @@ import AddNewDeviceModal from "../components/addNewDeviceModal.jsx";
 import UserDataTransfer from "../components/UserDataTransfer.jsx";
 import { DEFAULT_ROUTE_COLORS } from "../lib/routeColors.js";
 import PageHeader from "../components/PageHeader.jsx";
+import { GRAVATAR_SETTING_EVENT } from "../lib/gravatar.js";
 
 // Gruppen der Abschnittsnavigation (wie im Mockup); der Anker zeigt auf den
 // ersten Abschnitt der Gruppe, SECTION_GROUP ordnet jeden Abschnitt zu.
@@ -192,6 +193,8 @@ export default function ProfileSettings() {
   const [distanceUnit, setDistanceUnit] = useState("km");
   const [dateFormat, setDateFormat] = useState("EU");
   const [timeFormat, setTimeFormat] = useState("24h");
+  const [gravatarEnabled, setGravatarEnabled] = useState(true);
+  const [gravatarAvailable, setGravatarAvailable] = useState(true);
   const [speedUnit, setSpeedUnit] = useState("kmh");
 
   const [tracking, setTracking] = useState({
@@ -305,6 +308,8 @@ export default function ProfileSettings() {
       setDistanceUnit(settingsResult.settings.distanceUnit === "mi" ? "mi" : "km");
       setDateFormat(settingsResult.settings.dateFormat === "US" ? "US" : "EU");
       setTimeFormat(settingsResult.settings.timeFormat === "12h" ? "12h" : "24h");
+      setGravatarEnabled(settingsResult.settings.gravatarEnabled !== false);
+      setGravatarAvailable(settingsResult.settings.gravatarAvailable !== false);
       setSpeedUnit(settingsResult.settings.speedUnit === "mph" ? "mph" : "kmh");
 
       setTracking({
@@ -760,6 +765,24 @@ export default function ProfileSettings() {
       const updated = await updatePersonalSettings(accessToken, { timeFormat });
       setTimeFormat(updated.timeFormat === "12h" ? "12h" : "24h");
       showSuccess(t("timePreference.saved"));
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function saveGravatar(event) {
+    event.preventDefault();
+    setSaving("gravatar");
+    try {
+      const updated = await updatePersonalSettings(accessToken, { gravatarEnabled });
+      setGravatarEnabled(updated.gravatarEnabled !== false);
+      // Kopfzeile sofort aktualisieren
+      window.dispatchEvent(new CustomEvent(GRAVATAR_SETTING_EVENT, {
+        detail: updated.gravatarEnabled !== false && updated.gravatarAvailable !== false,
+      }));
+      showSuccess(t("gravatarPreference.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -2196,6 +2219,24 @@ export default function ProfileSettings() {
             <option value="mi">{t("distancePreference.mi")}</option>
           </select>
           <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "distance-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "distance-unit" ? t("distancePreference.saving") : t("distancePreference.save")}</button></div>
+        </Section>
+      </form>
+
+      <form onSubmit={saveGravatar} className="h-full">
+        <Section title={t("gravatarPreference.title")} description={t("gravatarPreference.description")}>
+          <label className={labelClass} htmlFor="profile-gravatar">{t("gravatarPreference.label")}</label>
+          <select
+            id="profile-gravatar"
+            className={fieldClass}
+            value={gravatarEnabled ? "on" : "off"}
+            disabled={!gravatarAvailable}
+            onChange={(event) => setGravatarEnabled(event.target.value === "on")}
+          >
+            <option value="on">{t("gravatarPreference.on")}</option>
+            <option value="off">{t("gravatarPreference.off")}</option>
+          </select>
+          {!gravatarAvailable && <p className="mt-2 text-sm text-fb-muted">{t("gravatarPreference.disabledByAdmin")}</p>}
+          <div className="mt-6 flex justify-end"><button type="submit" disabled={!gravatarAvailable || saving === "gravatar"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "gravatar" ? t("gravatarPreference.saving") : t("gravatarPreference.save")}</button></div>
         </Section>
       </form>
 

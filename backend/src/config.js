@@ -149,6 +149,12 @@ export const config = Object.freeze({
     false,
   ),
 
+  // Profilbilder von Gravatar für die ganze Instanz erlauben (Datenschutz: false schaltet es ab)
+  gravatarEnabled: booleanValue(
+    "GRAVATAR_ENABLED",
+    true,
+  ),
+
   debug: booleanValue(
     ["DEBUG", "APP_DEBUG"],
     false,

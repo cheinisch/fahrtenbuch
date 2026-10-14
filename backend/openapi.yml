@@ -2206,6 +2206,14 @@ components:
           enum: [12h, 24h]
           default: 24h
           description: Preferred clock display format. Stored timestamps and API ISO dates are unchanged.
+        gravatarEnabled:
+          type: boolean
+          default: true
+          description: Show the user's Gravatar (looked up by the hashed e-mail address) as profile picture in web and app. Can be changed via PATCH.
+        gravatarAvailable:
+          type: boolean
+          readOnly: true
+          description: False when the instance disables Gravatar (environment variable GRAVATAR_ENABLED=false); clients must not load Gravatar images then.
       additionalProperties: true
 
     MapServiceSettings:

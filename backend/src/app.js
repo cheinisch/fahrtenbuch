@@ -72,9 +72,10 @@ app.use(
           "'self'",
           "data:",
           "blob:",
-          "https://www.gravatar.com",
-          "https://secure.gravatar.com",
-          "https://*.gravatar.com",
+          // Gravatar nur, wenn die Instanz es erlaubt (GRAVATAR_ENABLED)
+          ...(config.gravatarEnabled
+            ? ["https://www.gravatar.com", "https://secure.gravatar.com", "https://*.gravatar.com"]
+            : []),
           "https://tile.openstreetmap.org",
         ],
         connectSrc: [

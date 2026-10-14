@@ -381,6 +381,12 @@ userRoutes.patch(
       throw badRequest("VALIDATION_ERROR", "Das Datumsformat muss EU oder US sein.");
     }
 
+    if (body.gravatarEnabled !== undefined && typeof body.gravatarEnabled !== "boolean") {
+      throw badRequest("VALIDATION_ERROR", "gravatarEnabled muss true oder false sein.");
+    }
+    // Nur zur Anzeige, wird nicht gespeichert
+    delete body.gravatarAvailable;
+
     if (body.distanceUnit !== undefined && !["km", "mi"].includes(body.distanceUnit)) {
       throw badRequest("VALIDATION_ERROR", "Die Entfernungseinheit muss km oder mi sein.");
     }
