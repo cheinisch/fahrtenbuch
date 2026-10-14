@@ -16,7 +16,8 @@ export function androidOrigin(fingerprint) {
 
 // Web-Dashboard und die Android-App (Passkeys aus beiden funktionieren überall)
 function expectedOrigins() {
-  return [config.webauthn.origin, ...config.androidApp.certFingerprints.map(androidOrigin)];
+  const fingerprints = config.androidApps.flatMap((androidApp) => androidApp.certFingerprints);
+  return [config.webauthn.origin, ...new Set(fingerprints.map(androidOrigin))];
 }
 
 export async function createRegistrationOptions(user, passkeys) {

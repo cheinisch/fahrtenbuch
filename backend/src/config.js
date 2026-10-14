@@ -70,6 +70,58 @@ function integerValue(
   return value;
 }
 
+// Offizielle Android-App (Google Play). Der Fingerabdruck des App-Signaturschlüssels ist
+// nicht geheim – er steht in jeder ausgelieferten APK –, daher hier fest hinterlegt.
+export const OFFICIAL_ANDROID_APP = {
+  packageName: "app.fahrtenbuch.mobile",
+  certFingerprints: [
+    // SHA-256 des App-Signaturschlüssels (Play Console › App-Integrität › App-Signatur)
+  ],
+};
+
+/** "AA:BB:…" bzw. "AABB…" → "AA:BB:…"; ungültige Werte → null. */
+export function normalizeFingerprint(value) {
+  const hex = String(value || "").trim().toUpperCase().replace(/:/g, "");
+  return /^[0-9A-F]{64}$/.test(hex) ? hex.match(/.{2}/g).join(":") : null;
+}
+
+function fingerprintList(value) {
+  return String(value || "")
+    .split(/[,\s|]+/)
+    .map(normalizeFingerprint)
+    .filter(Boolean);
+}
+
+/**
+ * Android-Apps, die Passkeys dieser Instanz nutzen dürfen (assetlinks.json + WebAuthn-Origin):
+ * - die offizielle App (abschaltbar mit ANDROID_OFFICIAL_APP_ENABLED=false),
+ * - ANDROID_APP_CERT_SHA256: zusätzliche Fingerabdrücke für das Paket ANDROID_APP_PACKAGE
+ *   (Standard: offizielles Paket, z. B. für selbst gebaute Debug-APKs),
+ * - ANDROID_EXTRA_APPS: weitere Apps als "paket=FP[|FP]; paket2=FP".
+ */
+export function androidAppsConfig(env = process.env) {
+  const apps = new Map();
+  const add = (packageName, fingerprints) => {
+    const name = String(packageName || "").trim();
+    if (!/^[A-Za-z][\w]*(\.[A-Za-z][\w]*)+$/.test(name) || fingerprints.length === 0) return;
+    const set = apps.get(name) || new Set();
+    fingerprints.forEach((fingerprint) => set.add(fingerprint));
+    apps.set(name, set);
+  };
+
+  const officialEnabled = !["false", "0", "no", "off"].includes(String(env.ANDROID_OFFICIAL_APP_ENABLED ?? "true").trim().toLowerCase());
+  if (officialEnabled) {
+    add(OFFICIAL_ANDROID_APP.packageName, OFFICIAL_ANDROID_APP.certFingerprints.map(normalizeFingerprint).filter(Boolean));
+  }
+  add(env.ANDROID_APP_PACKAGE || OFFICIAL_ANDROID_APP.packageName, fingerprintList(env.ANDROID_APP_CERT_SHA256));
+  for (const entry of String(env.ANDROID_EXTRA_APPS || "").split(/[;\n]+/)) {
+    const [packageName, fingerprints] = entry.split("=");
+    if (fingerprints) add(packageName, fingerprintList(fingerprints));
+  }
+
+  return [...apps].map(([packageName, fingerprints]) => ({ packageName, certFingerprints: [...fingerprints] }));
+}
+
 function booleanValue(names, fallback = false) {
   const list = Array.isArray(names) ? names : [names];
   const raw = stringValue(list);
@@ -280,15 +332,9 @@ export const config = Object.freeze({
   // Android-App: Passkeys über den Credential Manager. Die App ist über
   // /.well-known/assetlinks.json mit der Domain (WEBAUTHN_RP_ID) verknüpft und
   // meldet sich mit dem Origin android:apk-key-hash:<SHA-256 des Signaturzertifikats>.
-  androidApp: {
-    packageName: stringValue("ANDROID_APP_PACKAGE", "app.fahrtenbuch.mobile"),
-    // Kommagetrennte SHA-256-Fingerabdrücke (Play App Signing, Upload- bzw. Debug-Zertifikat)
-    certFingerprints: (stringValue("ANDROID_APP_CERT_SHA256", "") || "")
-      .split(/[,\s]+/)
-      .map((value) => value.trim().toUpperCase())
-      .filter((value) => /^([0-9A-F]{2}:?){31}[0-9A-F]{2}$/.test(value))
-      .map((value) => value.replace(/:/g, "").match(/.{2}/g).join(":")),
-  },
+  // Jede Instanz erlaubt die offizielle App aus Google Play (fest hinterlegter Fingerabdruck),
+  // weitere Zertifikate (Debug-Builds) und eigene Apps/Forks kommen optional per Umgebung dazu.
+  androidApps: androidAppsConfig(),
 
   // Anmeldung mit verknüpftem Google-/Microsoft-Konto. Ein Anbieter ist
   // aktiv, sobald Client-ID und Secret gesetzt sind. Redirect-URI beim

@@ -144,26 +144,26 @@ const authLimiter = rateLimit({
 });
 
 // Digital Asset Links: verknüpft die Android-App mit dieser Domain, damit sie Passkeys
-// (und gespeicherte Anmeldedaten) der Website verwenden darf. Nur mit ANDROID_APP_CERT_SHA256.
+// (und gespeicherte Anmeldedaten) der Website verwenden darf: offizielle App plus konfigurierte.
 app.get("/.well-known/assetlinks.json", (_request, response) => {
-  const fingerprints = config.androidApp.certFingerprints;
-  if (fingerprints.length === 0) {
+  const apps = config.androidApps;
+  if (apps.length === 0) {
     response.status(404).json({ error: "ASSETLINKS_NOT_CONFIGURED" });
     return;
   }
-  response.json([
-    {
+  response.json(
+    apps.map((androidApp) => ({
       relation: [
         "delegate_permission/common.handle_all_urls",
         "delegate_permission/common.get_login_creds",
       ],
       target: {
         namespace: "android_app",
-        package_name: config.androidApp.packageName,
-        sha256_cert_fingerprints: fingerprints,
+        package_name: androidApp.packageName,
+        sha256_cert_fingerprints: androidApp.certFingerprints,
       },
-    },
-  ]);
+    })),
+  );
 });
 
 app.get("/api/v1/language", async (_request,response,next) => {
