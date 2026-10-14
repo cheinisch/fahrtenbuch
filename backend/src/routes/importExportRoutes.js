@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { formatInTimeZone, localIsoInTimeZone, offsetInTimeZone, resolveTimeZone } from "../lib/timezone.js";
 import { Router } from "express";
 import { parse as parseCsv } from "csv-parse/sync";
 import { XMLParser } from "fast-xml-parser";
@@ -72,6 +73,15 @@ const TYPE_LABELS = {
   commute: "Arbeitsweg",
   unclassified: "Nicht zugeordnet",
 };
+
+/** Zone of the trip: stored trip zone, else the user's account zone. */
+function tripStartZone(trip) {
+  return resolveTimeZone(trip.start_timezone, trip.user_timezone);
+}
+
+function tripEndZone(trip) {
+  return resolveTimeZone(trip.end_timezone, trip.start_timezone, trip.user_timezone);
+}
 
 const SPECIAL_CATEGORIES = [
   "medical",
@@ -165,6 +175,7 @@ async function loadExportTrips(request, options = {}) {
     `
       SELECT
         t.*,
+        (SELECT u.timezone FROM users u WHERE u.id = t.user_id) AS user_timezone,
         v.name AS vehicle_name,
         v.manufacturer,
         v.model,
@@ -406,6 +417,12 @@ exportRoutes.get(
       "specialCategory",
       "startedAt",
       "endedAt",
+      "startTimeZone",
+      "startedAtLocal",
+      "startUtcOffset",
+      "endTimeZone",
+      "endedAtLocal",
+      "endUtcOffset",
       "startAddress",
       "endAddress",
       "purpose",
@@ -430,6 +447,12 @@ exportRoutes.get(
           trip.special_category,
           trip.started_at?.toISOString?.() || trip.started_at,
           trip.ended_at?.toISOString?.() || trip.ended_at,
+          tripStartZone(trip),
+          localIsoInTimeZone(trip.started_at, tripStartZone(trip)),
+          offsetInTimeZone(trip.started_at, tripStartZone(trip)),
+          tripEndZone(trip),
+          localIsoInTimeZone(trip.ended_at, tripEndZone(trip)),
+          offsetInTimeZone(trip.ended_at, tripEndZone(trip)),
           trip.start_address,
           trip.end_address,
           trip.purpose,
@@ -507,7 +530,7 @@ exportRoutes.get(
       trackParts.push(`
         <trk>
           <name>${xmlEscape(
-            `${trip.vehicle_name} - ${new Date(trip.started_at).toLocaleString("de-DE")}`,
+            `${trip.vehicle_name} - ${formatInTimeZone(trip.started_at, tripStartZone(trip))}`,
           )}</name>
           <desc>${xmlEscape(
             `${trip.start_address || ""} -> ${trip.end_address || ""}`,
@@ -641,10 +664,8 @@ function drawTripRow(document, trip, y, rowIndex) {
 
   document.font("Helvetica").fontSize(7.2).fillColor("#1d1d1d");
   document.text(
-    new Date(trip.started_at).toLocaleString("de-DE", {
-      dateStyle: "short",
-      timeStyle: "short",
-    }),
+    // Local time where the trip took place (DST-aware via IANA zone)
+    formatInTimeZone(trip.started_at, tripStartZone(trip)),
     40,
     y + 6,
     { width: 68 },

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { timeZoneField } from "../lib/timezone.js";
 
 import { pool } from "../database/pool.js";
 import {
@@ -133,6 +134,9 @@ function parseTripInput(body) {
     tagIds: parseTagIds(input),
     startedAt,
     endedAt: endedAt ?? null,
+    // Optional IANA zones; undefined = keep (update) / user zone (create)
+    startTimeZone: timeZoneField(input, "startTimeZone"),
+    endTimeZone: timeZoneField(input, "endTimeZone"),
     startAddress: stringField(
       input,
       "startAddress",
@@ -333,12 +337,15 @@ tripRoutes.post(
             contact,
             notes,
             duration_seconds,
+            start_timezone,
+            end_timezone,
             source,
             completed_at
           )
           VALUES (
             $1, $2, $3, $4, $5, $6, $7,
             $8, $9, $10, $11, $12, $13,
+            $14, COALESCE($15, $14),
             'manual',
             CASE
               WHEN $5 = 'completed'
@@ -362,6 +369,8 @@ tripRoutes.post(
           input.contact,
           input.notes,
           durationSeconds,
+          input.startTimeZone ?? null,
+          input.endTimeZone ?? null,
         ],
       );
 
@@ -435,15 +444,16 @@ tripRoutes.post(
         `INSERT INTO trips (
            user_id, vehicle_id, type, special_category, status, started_at, ended_at,
            start_lat, start_lon, end_lat, end_lon, start_address, end_address,
-           purpose, contact, notes, source, completed_at
+           purpose, contact, notes, source, completed_at, start_timezone, end_timezone
          )
-         VALUES ($1,$2,$3,$4,'completed',$5,$6,$7,$8,$9,$10,NULL,$11,$12,$13,$14,$15,now())
+         VALUES ($1,$2,$3,$4,'completed',$5,$6,$7,$8,$9,$10,NULL,$11,$12,$13,$14,$15,now(),$16,$17)
          RETURNING id`,
         [
           request.auth.userId, trip.vehicle_id, trip.type, trip.special_category, splitAt, originalEnd,
           Number(points[splitIndex].lat), Number(points[splitIndex].lon),
           trip.end_lat, trip.end_lon, trip.end_address, trip.purpose, trip.contact,
           trip.notes, trip.source,
+          trip.end_timezone ?? trip.start_timezone ?? null, trip.end_timezone ?? null,
         ],
       );
       const secondId = created.rows[0].id;
@@ -1123,6 +1133,8 @@ tripRoutes.put(
                 duration_seconds,
                 $14
               ),
+            start_timezone = CASE WHEN $15::boolean THEN $16 ELSE start_timezone END,
+            end_timezone = CASE WHEN $17::boolean THEN $18 ELSE end_timezone END,
             completed_at = CASE
               WHEN $6 = 'completed'
                 THEN COALESCE(
@@ -1152,6 +1164,10 @@ tripRoutes.put(
           input.contact,
           input.notes,
           durationSeconds,
+          input.startTimeZone !== undefined,
+          input.startTimeZone ?? null,
+          input.endTimeZone !== undefined,
+          input.endTimeZone ?? null,
         ],
       );
 

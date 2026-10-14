@@ -604,6 +604,10 @@ paths:
               properties:
                 vehicleId: { type: string, format: uuid }
                 startedAt: { type: [string, 'null'], format: date-time }
+                timeZone:
+                  type: [string, 'null']
+                  example: Europe/Berlin
+                  description: IANA time zone of the device at trip start. Stored as zone id, so daylight saving time is applied per timestamp.
       responses:
         '201':
           description: Aufzeichnung gestartet
@@ -644,6 +648,10 @@ paths:
               properties:
                 tripId: { type: string, format: uuid }
                 endedAt: { type: [string, 'null'], format: date-time }
+                timeZone:
+                  type: [string, 'null']
+                  example: Europe/Berlin
+                  description: IANA time zone of the device at trip end; defaults to the start time zone.
       responses:
         '200':
           description: Aufzeichnung beendet
@@ -1076,6 +1084,7 @@ paths:
     get:
       tags: [Import Export]
       summary: Export trips as CSV
+      description: Includes UTC timestamps plus local time, IANA time zone and UTC offset (DST-aware) for start and end of each trip.
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -2043,6 +2052,18 @@ components:
         status: { type: string, enum: [recording, completed, cancelled] }
         startedAt: { type: string, format: date-time }
         endedAt: { type: [string, 'null'], format: date-time }
+        startTimeZone:
+          type: [string, 'null']
+          example: Europe/Berlin
+          description: IANA time zone in which the trip started. Falls back to the user's time zone. Format startedAt in this zone to show local time (DST-aware).
+        endTimeZone:
+          type: [string, 'null']
+          example: Europe/Berlin
+          description: IANA time zone in which the trip ended. Falls back to startTimeZone, then the user's time zone.
+        timeZoneSource:
+          type: [string, 'null']
+          enum: [trip, user, null]
+          description: trip = recorded with the trip, user = fallback to the account time zone.
         startAddress: { type: [string, 'null'] }
         endAddress: { type: [string, 'null'] }
         purpose: { type: [string, 'null'] }
@@ -2087,6 +2108,8 @@ components:
           description: Optional secondary purpose category independent of the primary trip type.
         startedAt: { type: string, format: date-time }
         endedAt: { type: [string, 'null'], format: date-time }
+        startTimeZone: { type: [string, 'null'], example: Europe/Berlin, description: 'IANA time zone; omitted = keep (update) or account time zone (create).' }
+        endTimeZone: { type: [string, 'null'], example: Europe/Berlin, description: 'IANA time zone; defaults to startTimeZone.' }
         startAddress: { type: [string, 'null'] }
         endAddress: { type: [string, 'null'] }
         purpose: { type: [string, 'null'] }
@@ -2423,6 +2446,7 @@ components:
     get:
       tags: [Import Export]
       summary: Export trips as CSV
+      description: Includes UTC timestamps plus local time, IANA time zone and UTC offset (DST-aware) for start and end of each trip.
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -2898,6 +2922,18 @@ components:
         status: { type: string, enum: [recording, completed, cancelled] }
         startedAt: { type: string, format: date-time }
         endedAt: { type: [string, 'null'], format: date-time }
+        startTimeZone:
+          type: [string, 'null']
+          example: Europe/Berlin
+          description: IANA time zone in which the trip started. Falls back to the user's time zone. Format startedAt in this zone to show local time (DST-aware).
+        endTimeZone:
+          type: [string, 'null']
+          example: Europe/Berlin
+          description: IANA time zone in which the trip ended. Falls back to startTimeZone, then the user's time zone.
+        timeZoneSource:
+          type: [string, 'null']
+          enum: [trip, user, null]
+          description: trip = recorded with the trip, user = fallback to the account time zone.
         startAddress: { type: [string, 'null'] }
         endAddress: { type: [string, 'null'] }
         purpose: { type: [string, 'null'] }

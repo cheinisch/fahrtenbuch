@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { timeZoneField } from "../lib/timezone.js";
 
 import { pool } from "../database/pool.js";
 import {
@@ -48,6 +49,8 @@ trackingRoutes.post(
         "startedAt",
         { nullable: true },
       ) || new Date();
+    // Time zone of the device when the trip starts (IANA id, DST-aware)
+    const startTimeZone = timeZoneField(body, "timeZone") ?? null;
 
     const category =
       body.category !== undefined
@@ -141,7 +144,8 @@ trackingRoutes.post(
             type,
             status,
             started_at,
-            source
+            source,
+            start_timezone
           )
           VALUES (
             $1,
@@ -149,7 +153,8 @@ trackingRoutes.post(
             $3,
             'recording',
             $4,
-            'android'
+            'android',
+            $5
           )
           RETURNING id
         `,
@@ -158,6 +163,7 @@ trackingRoutes.post(
           vehicleId,
           category,
           startedAt,
+          startTimeZone,
         ],
       );
 
@@ -346,6 +352,8 @@ trackingRoutes.post(
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
     const tripId = uuidField(body, "tripId", true);
+    // Time zone of the device when the trip ends (may differ after crossing a border)
+    const endTimeZone = timeZoneField(body, "timeZone") ?? null;
     const endedAt =
       dateTimeField(body, "endedAt", { nullable: true }) || new Date();
     const client = await pool.connect();
@@ -382,6 +390,7 @@ trackingRoutes.post(
           SET
             status = 'completed',
             ended_at = $3,
+            end_timezone = COALESCE($4, end_timezone, start_timezone),
             duration_seconds = COALESCE(
               duration_seconds,
               GREATEST(0, extract(epoch FROM ($3 - started_at))::integer)
@@ -392,7 +401,7 @@ trackingRoutes.post(
             AND user_id = $2
           RETURNING *
         `,
-        [tripId, request.auth.userId, endedAt],
+        [tripId, request.auth.userId, endedAt, endTimeZone],
       );
 
       const reconciliation = await reconcileCompletedTracking(client, tripId);

@@ -30,7 +30,10 @@ export const TRIP_SELECT = `
   t.canonical_trip_id,
   t.reconciliation_metadata,
   t.created_at,
-  t.updated_at
+  t.updated_at,
+  t.start_timezone,
+  t.end_timezone,
+  (SELECT u.timezone FROM users u WHERE u.id = t.user_id) AS user_timezone
 `;
 
 export const TRIP_WITH_TAGS_SELECT = `

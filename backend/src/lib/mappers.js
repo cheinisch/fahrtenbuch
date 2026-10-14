@@ -141,6 +141,10 @@ export function mapTrip(row) {
     status: row.status,
     startedAt: row.started_at,
     endedAt: row.ended_at ?? null,
+    // IANA zone of the trip (DST-aware); falls back to the user's time zone
+    startTimeZone: row.start_timezone ?? row.user_timezone ?? null,
+    endTimeZone: row.end_timezone ?? row.start_timezone ?? row.user_timezone ?? null,
+    timeZoneSource: row.start_timezone ? "trip" : (row.user_timezone ? "user" : null),
     startAddress: row.start_address ?? null,
     endAddress: row.end_address ?? null,
     startLat:
