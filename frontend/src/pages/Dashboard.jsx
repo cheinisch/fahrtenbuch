@@ -243,6 +243,40 @@ function collectCoordinates(trips) {
   );
 }
 
+const FRAMING_RADIUS_KM = 300;
+
+function distanceKm([lon1, lat1], [lon2, lat2]) {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(a));
+}
+
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+// Ausschnitt für die Übersicht: Einzelne GPS-Ausreißer (z. B. Emulator-Standort
+// oder Sprünge beim Fix) sollen die Karte nicht auf Weltansicht zoomen. Gezeigt
+// wird der Bereich um den Median der Fahrten; gezeichnet werden weiterhin alle Punkte.
+function framingCoordinates(trips) {
+  const all = collectCoordinates(trips);
+  const midpoints = trips
+    .filter((trip) => trip.route.length > 0)
+    .map((trip) => {
+      const point = trip.route[Math.floor(trip.route.length / 2)];
+      return [point.longitude, point.latitude];
+    });
+  if (midpoints.length < 3) {
+    return all;
+  }
+  const center = [median(midpoints.map((c) => c[0])), median(midpoints.map((c) => c[1]))];
+  const nearby = all.filter((coordinate) => distanceKm(coordinate, center) <= FRAMING_RADIUS_KM);
+  return nearby.length > 0 ? nearby : all;
+}
+
 function createBounds(coordinates) {
   if (coordinates.length === 0) {
     return null;
@@ -420,7 +454,7 @@ export default function Dashboard() {
       return;
     }
 
-    const coordinates = collectCoordinates(
+    const coordinates = framingCoordinates(
       visibleTrips,
     );
 
