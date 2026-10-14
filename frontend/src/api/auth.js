@@ -84,3 +84,17 @@ export function verifyPasskeyLogin(credential) {
     }),
   });
 }
+
+export function requestPasswordReset(email) {
+  return request("/api/v1/auth/password/forgot", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function resetPassword(token, password) {
+  return request("/api/v1/auth/password/reset", {
+    method: "POST",
+    body: JSON.stringify({ token, password }),
+  });
+}

@@ -5,10 +5,44 @@ import {
   getComplianceChecks,
   getMonthlyOdometerStatistics,
 } from "../api/app.js";
-import { useAuth } from "../auth/AuthProvider.jsx";
+import { Link } from "react-router-dom";
 
+import { useAuth } from "../auth/AuthProvider.jsx";
+import PageHeader from "../components/PageHeader.jsx";
+
+// Lokaler Kalendertag; toISOString() würde kurz nach Mitternacht den Vortag liefern.
 function dateValue(date) {
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatDay(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ""));
+  return match ? `${match[3]}.${match[2]}.${match[1]}` : "–";
+}
+
+function formatKm(value) {
+  return `${Number(value || 0).toLocaleString("de-DE", { maximumFractionDigits: 1 })} km`;
+}
+
+function StatusTile({ tone, label, value, detail, icon }) {
+  const tones = {
+    danger: "border-fb-danger/40 [&_.tile-icon]:bg-fb-danger/10 [&_.tile-icon]:text-fb-danger",
+    warning: "border-amber-500/50 [&_.tile-icon]:bg-amber-500/10 [&_.tile-icon]:text-amber-700 dark:[&_.tile-icon]:text-amber-400",
+    ok: "border-emerald-600/40 [&_.tile-icon]:bg-emerald-600/10 [&_.tile-icon]:text-emerald-700 dark:[&_.tile-icon]:text-emerald-400",
+    neutral: "border-fb-border [&_.tile-icon]:bg-fb-surface [&_.tile-icon]:text-fb-muted",
+  };
+  return (
+    <div className={`flex min-w-0 items-center gap-4 rounded-xl border bg-fb-main p-5 ${tones[tone]}`}>
+      <span className="tile-icon flex size-11 shrink-0 items-center justify-center rounded-xl">
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+      </span>
+      <div className="min-w-0">
+        <div className="text-sm text-fb-muted">{label}</div>
+        <div className="text-2xl font-bold leading-tight">{value}</div>
+        {detail && <div className="truncate font-mono text-[11px] text-fb-muted" title={detail}>{detail}</div>}
+      </div>
+    </div>
+  );
 }
 
 export default function Compliance() {
@@ -23,6 +57,7 @@ export default function Compliance() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [severityFilter, setSeverityFilter] = useState("all");
 
   async function load() {
     const [nextChecks, nextPeriods, nextMonthly] = await Promise.all([
@@ -40,7 +75,7 @@ export default function Compliance() {
   }, [accessToken]);
 
   async function handleClose() {
-    if (!window.confirm(`Zeitraum ${from} bis ${to} endgültig abschließen? Fahrten darin können danach nicht mehr geändert werden.`)) return;
+    if (!window.confirm(`Zeitraum ${formatDay(from)} bis ${formatDay(to)} endgültig abschließen? Fahrten darin können danach nicht mehr geändert werden.`)) return;
     setBusy(true);
     setError("");
     setMessage("");
@@ -56,92 +91,154 @@ export default function Compliance() {
   }
 
   const issues = checks?.issues || [];
+  const errorCount = checks?.summary?.errors ?? 0;
+  const warningCount = checks?.summary?.warnings ?? 0;
+  const visibleIssues = severityFilter === "all" ? issues : issues.filter((issue) => issue.severity === severityFilter);
+  // Neueste Monate mit Ablesung zuerst, damit die Kontrolle aktuell bleibt.
+  const monthlyRows = monthly
+    .filter((row) => row.actualKm != null)
+    .sort((a, b) => String(b.month).localeCompare(String(a.month)))
+    .slice(0, 6);
+  const integrityValid = checks?.summary?.integrityValid;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Prüfung und Abschluss</h1>
-        <p className="mt-1 text-sm text-fb-muted">
-          Prüfe Fahrten auf Unstimmigkeiten, kontrolliere die Integrität der Revisionen und schließe fertige Zeiträume.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Prüfung"
+        title="Prüfung und Abschluss"
+        subtitle="Fahrten auf Unstimmigkeiten prüfen, die Revisionskette kontrollieren und fertige Zeiträume abschließen."
+      />
 
-      {error && <div className="rounded-lg border border-fb-danger p-4 text-sm text-fb-danger">{error}</div>}
-      {message && <div className="rounded-lg border border-fb-accent p-4 text-sm">{message}</div>}
+      {error && <div role="alert" className="rounded-lg border border-fb-danger p-4 text-sm text-fb-danger">{error}</div>}
+      {message && <div role="status" className="rounded-lg border border-fb-accent bg-fb-accent-soft p-4 text-sm text-fb-accent">{message}</div>}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-fb-border bg-fb-main p-5">
-          <div className="text-sm text-fb-muted">Fehler</div>
-          <div className="mt-2 text-3xl font-bold">{checks?.summary?.errors ?? "…"}</div>
-        </div>
-        <div className="rounded-xl border border-fb-border bg-fb-main p-5">
-          <div className="text-sm text-fb-muted">Warnungen</div>
-          <div className="mt-2 text-3xl font-bold">{checks?.summary?.warnings ?? "…"}</div>
-        </div>
-        <div className="rounded-xl border border-fb-border bg-fb-main p-5">
-          <div className="text-sm text-fb-muted">Revisionskette</div>
-          <div className="mt-2 text-lg font-bold">
-            {checks ? (checks.summary.integrityValid ? "Integer" : "Fehlerhaft") : "…"}
-          </div>
-          <div className="mt-1 break-all text-xs text-fb-muted">
-            {checks?.integrity?.headHash || "Noch keine Revisionen"}
-          </div>
-        </div>
+        <StatusTile
+          tone={!checks ? "neutral" : errorCount > 0 ? "danger" : "ok"}
+          label="Fehler"
+          value={checks ? errorCount : "…"}
+          icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5h.01" /></>}
+        />
+        <StatusTile
+          tone={!checks ? "neutral" : warningCount > 0 ? "warning" : "ok"}
+          label="Warnungen"
+          value={checks ? warningCount : "…"}
+          icon={<><path d="M12 3l9 16H3z" /><path d="M12 10v4M12 17h.01" /></>}
+        />
+        <StatusTile
+          tone={!checks ? "neutral" : integrityValid ? "ok" : "danger"}
+          label="Revisionskette"
+          value={checks ? (integrityValid ? "Integer" : "Fehlerhaft") : "…"}
+          detail={checks?.integrity?.headHash || "Noch keine Revisionen"}
+          icon={<><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z" />{integrityValid !== false && <path d="M9 12l2 2 4-4" />}</>}
+        />
       </div>
 
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
-        <h2 className="text-lg font-bold">Auffälligkeiten</h2>
-        <div className="mt-4 divide-y divide-fb-border">
-          {issues.length === 0 ? (
-            <p className="py-4 text-sm text-fb-muted">Keine Auffälligkeiten gefunden.</p>
-          ) : issues.map((issue, index) => (
-            <div key={`${issue.tripId}-${issue.code}-${index}`} className="py-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold">{issue.severity === "error" ? "Fehler" : "Warnung"}</span>
-                <span className="text-xs text-fb-muted">{new Date(issue.startedAt).toLocaleString("de-DE")}</span>
-              </div>
-              <p className="mt-1 text-sm">{issue.message}</p>
-            </div>
-          ))}
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">Auffälligkeiten</h2>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Auffälligkeiten filtern">
+            {[
+              ["all", `Alle (${issues.length})`],
+              ["error", `Fehler (${errorCount})`],
+              ["warning", `Warnungen (${warningCount})`],
+            ].map(([value, text]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={severityFilter === value}
+                onClick={() => setSeverityFilter(value)}
+                className={`min-h-9 rounded-full border px-3 text-sm transition ${severityFilter === value ? "border-fb-accent bg-fb-accent-soft font-semibold text-fb-accent" : "border-fb-border hover:border-fb-accent"}`}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
         </div>
+        <ul className="mt-4 divide-y divide-fb-border">
+          {visibleIssues.length === 0 ? (
+            <li className="py-4 text-sm text-fb-muted">Keine Auffälligkeiten gefunden.</li>
+          ) : visibleIssues.map((issue, index) => (
+            <li key={`${issue.tripId}-${issue.code}-${index}`} className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+              <div className="flex min-w-0 flex-[1_1_420px] items-start gap-3">
+              <span className={`mt-0.5 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${issue.severity === "error" ? "bg-fb-danger/10 text-fb-danger" : "bg-amber-500/15 text-amber-800 dark:text-amber-300"}`}>
+                {issue.severity === "error" ? "Fehler" : "Warnung"}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{issue.message}</p>
+                <p className="mt-0.5 text-xs text-fb-muted">{issue.startedAt ? new Date(issue.startedAt).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–"}</p>
+              </div>
+              </div>
+              {issue.tripId && <Link to={`/?trip=${encodeURIComponent(issue.tripId)}`} className="py-2.5 text-[13px] font-semibold text-fb-accent-strong hover:underline">Fahrt öffnen</Link>}
+            </li>
+          ))}
+        </ul>
       </section>
 
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <h2 className="text-lg font-bold">Monatskontrolle</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {monthly.filter((row)=>row.actualKm != null).slice(0,4).map((row)=>(
-            <div key={`${row.vehicleId}-${row.month}`} className="rounded-lg border border-fb-border bg-fb-surface p-4 text-sm">
-              <div className="font-semibold">{row.vehicleName} · {row.month}</div>
-              <div className="mt-2 text-fb-muted">
-                Tacho {row.actualKm.toLocaleString("de-DE")} km · erfasst {row.trackedKm.toLocaleString("de-DE")} km · unbekannt {(row.unknownKm || 0).toLocaleString("de-DE")} km
-              </div>
-            </div>
-          ))}
-        </div>
+        <p className="mt-1 text-sm text-fb-muted">Anteil der laut Tacho gefahrenen Kilometer, der durch erfasste Fahrten belegt ist.</p>
+        {monthlyRows.length === 0 ? (
+          <p className="mt-4 text-sm text-fb-muted">Für die letzten Monate liegen noch keine vollständigen Ablesungen vor.</p>
+        ) : (
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {monthlyRows.map((row) => {
+              const coverage = row.actualKm > 0 ? Math.min(100, Math.max(0, (row.trackedKm || 0) / row.actualKm * 100)) : 100;
+              const good = coverage >= 95;
+              return (
+                <div key={`${row.vehicleId}-${row.month}`} className="rounded-lg border border-fb-border bg-fb-surface p-4 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{row.vehicleName} · {row.month}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${good ? "bg-emerald-600/10 text-emerald-800 dark:text-emerald-300" : "bg-amber-500/15 text-amber-800 dark:text-amber-300"}`}>
+                      {coverage.toLocaleString("de-DE", { maximumFractionDigits: 0 })} %
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-fb-muted">
+                    <span>Tacho <strong className="text-fb-text">{formatKm(row.actualKm)}</strong></span>
+                    <span>erfasst <strong className="text-fb-text">{formatKm(row.trackedKm)}</strong></span>
+                    <span>unbekannt <strong className="text-fb-text">{formatKm(row.unknownKm)}</strong></span>
+                  </div>
+                  <div aria-hidden="true" className="mt-3 h-1.5 overflow-hidden rounded-full bg-fb-border">
+                    <div className={`h-full rounded-full ${good ? "bg-emerald-600" : "bg-amber-500"}`} style={{ width: `${coverage}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <h2 className="text-lg font-bold">Zeitraum abschließen</h2>
         <p className="mt-1 text-sm text-fb-muted">
           Ein Abschluss ist dauerhaft. Fahrten und Tags im Zeitraum werden anschließend auf Datenbankebene gegen Änderungen gesperrt.
         </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
-          <label className="text-sm">Von<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-2 w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2" /></label>
-          <label className="text-sm">Bis<input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-2 w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2" /></label>
-          <label className="text-sm">Bezeichnung<input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} className="mt-2 w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2" /></label>
-          <button type="button" disabled={busy || !checks?.summary?.integrityValid} onClick={handleClose} className="self-end rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">
+        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_2fr_auto] md:items-end">
+          <label className="text-sm font-medium">Von<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1.5 h-11 w-full rounded-lg border border-fb-border bg-fb-surface px-3" /></label>
+          <label className="text-sm font-medium">Bis<input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1.5 h-11 w-full rounded-lg border border-fb-border bg-fb-surface px-3" /></label>
+          <label className="text-sm font-medium">Bezeichnung<input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} className="mt-1.5 h-11 w-full rounded-lg border border-fb-border bg-fb-surface px-3" /></label>
+          <button type="button" disabled={busy || !checks?.summary?.integrityValid} onClick={handleClose} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text disabled:opacity-50">
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
             {busy ? "Schließe …" : "Zeitraum abschließen"}
           </button>
         </div>
+        {checks && !checks.summary?.integrityValid && (
+          <p className="mt-2 text-xs text-fb-danger">Solange die Revisionskette fehlerhaft ist, kann kein Zeitraum abgeschlossen werden.</p>
+        )}
 
-        <div className="mt-6 divide-y divide-fb-border">
-          {periods.map((period) => (
-            <div key={period.id} className="py-3 text-sm">
-              <div className="font-semibold">{period.label || "Abgeschlossener Zeitraum"}</div>
-              <div className="mt-1 text-fb-muted">{String(period.periodStart).slice(0,10)} – {String(period.periodEnd).slice(0,10)} · abgeschlossen {new Date(period.closedAt).toLocaleString("de-DE")}</div>
-            </div>
-          ))}
-        </div>
+        {periods.length > 0 && (
+          <ul className="mt-6 divide-y divide-fb-border border-t border-fb-border">
+            {periods.map((period) => (
+              <li key={period.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                <div>
+                  <div className="font-semibold">{period.label || "Abgeschlossener Zeitraum"}</div>
+                  <div className="mt-0.5 text-fb-muted">{formatDay(period.periodStart)} – {formatDay(period.periodEnd)}</div>
+                </div>
+                <span className="text-fb-muted">abgeschlossen am {new Date(period.closedAt).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );

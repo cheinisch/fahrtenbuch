@@ -4,10 +4,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   ApiError,
   getPasskeyLoginOptions,
+  requestPasswordReset,
   verifyPasskeyLogin,
 } from "../api/auth.js";
 import { authenticateWithPasskey } from "../lib/webauthn.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import AuthLayout, { authInputClass, authPrimaryButtonClass } from "../components/AuthLayout.jsx";
 import { useI18n } from "../i18n/I18nProvider.jsx";
 
 export default function LoginPage() {
@@ -19,6 +21,7 @@ export default function LoginPage() {
   const { signIn, completeSignIn } = useAuth();
   const { t } = useI18n();
 
+  const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
@@ -26,10 +29,16 @@ export default function LoginPage() {
   const [totpRequired, setTotpRequired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [resetRequested, setResetRequested] = useState(false);
+
+  function switchMode(next) {
+    setMode(next);
+    setErrorMessage("");
+    setResetRequested(false);
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
-
     setSubmitting(true);
     setErrorMessage("");
 
@@ -42,24 +51,29 @@ export default function LoginPage() {
         },
         rememberMe,
       );
-
       navigate(returnTo, { replace: true });
     } catch (error) {
-      if (
-        error instanceof ApiError &&
-        error.code === "MFA_REQUIRED"
-      ) {
+      if (error instanceof ApiError && error.code === "MFA_REQUIRED") {
         setTotpRequired(true);
-        setErrorMessage(
-          t("login.mfaRequired"),
-        );
+        setErrorMessage(t("login.mfaRequired"));
       } else {
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : t("login.failed"),
-        );
+        setErrorMessage(error instanceof Error ? error.message : t("login.failed"));
       }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleForgot(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      await requestPasswordReset(email.trim());
+      setResetRequested(true);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : t("login.failed"));
     } finally {
       setSubmitting(false);
     }
@@ -77,239 +91,122 @@ export default function LoginPage() {
       navigate(returnTo, { replace: true });
     } catch (error) {
       if (error?.name !== "NotAllowedError") {
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : t("login.passkeyFailed"),
-        );
+        setErrorMessage(error instanceof Error ? error.message : t("login.passkeyFailed"));
       }
     } finally {
       setSubmitting(false);
     }
   }
 
-  return (
-    <>
-      <div className="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h2 className="mt-6 text-center text-2xl/9 font-bold tracking-tight text-white">
-            {t("login.title")}
-          </h2>
-        </div>
+  const errorBox = errorMessage && (
+    <div role="alert" className="rounded-lg border border-fb-danger px-3 py-2 text-sm text-fb-danger">
+      {errorMessage}
+    </div>
+  );
 
-        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-[480px]">
-          <div className="bg-fb-main px-6 py-12 outline -outline-offset-1 outline-white/10 sm:rounded-lg sm:px-12">
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-6"
-            >
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm/6 font-medium text-white"
-                >
-                  {t("login.email")}
-                </label>
+  if (mode === "forgot") {
+    return (
+      <AuthLayout>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("login.forgotTitle")}</h1>
+        <p className="mt-2 text-fb-muted">{t("login.forgotHint")}</p>
 
-                <div className="mt-2">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    value={email}
-                    onChange={(event) =>
-                      setEmail(event.target.value)
-                    }
-                    disabled={submitting}
-                    className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-fb-accent disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm/6"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm/6 font-medium text-white"
-                >
-                  {t("login.password")}
-                </label>
-
-                <div className="mt-2">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(event) =>
-                      setPassword(event.target.value)
-                    }
-                    disabled={submitting}
-                    className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-fb-accent disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm/6"
-                  />
-                </div>
-              </div>
-
-              {totpRequired && (
-                <div>
-                  <label
-                    htmlFor="totp-code"
-                    className="block text-sm/6 font-medium text-white"
-                  >
-                    {t("login.totp")}
-                  </label>
-
-                  <div className="mt-2">
-                    <input
-                      id="totp-code"
-                      name="totp-code"
-                      type="text"
-                      required
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      value={totpCode}
-                      onChange={(event) =>
-                        setTotpCode(
-                          event.target.value
-                            .replace(/\D/g, "")
-                            .slice(0, 6),
-                        )
-                      }
-                      disabled={submitting}
-                      className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base tracking-[0.25em] text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-fb-accent disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm/6"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <div className="flex gap-3">
-                  <div className="flex h-6 shrink-0 items-center">
-                    <div className="group grid size-4 grid-cols-1">
-                      <input
-                        id="remember-me"
-                        name="remember-me"
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(event) =>
-                          setRememberMe(event.target.checked)
-                        }
-                        disabled={submitting}
-                        className="col-start-1 row-start-1 appearance-none rounded-sm border border-white/10 bg-white/5 checked:border-indigo-500 checked:bg-indigo-500 indeterminate:border-indigo-500 indeterminate:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
-                      />
-
-                      <svg
-                        fill="none"
-                        viewBox="0 0 14 14"
-                        aria-hidden="true"
-                        className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-white/25"
-                      >
-                        <path
-                          d="M3 8L6 11L11 3.5"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="opacity-0 group-has-checked:opacity-100"
-                        />
-
-                        <path
-                          d="M3 7H11"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="opacity-0 group-has-indeterminate:opacity-100"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-
-                  <label
-                    htmlFor="remember-me"
-                    className="block text-sm/6 text-white"
-                  >
-                    {t("login.remember")}
-                  </label>
-                </div>
-
-                <div className="text-sm/6">
-                  <a
-                    href="#"
-                    className="font-semibold text-fb-accent hover:text-fb-accent-secondary"
-                  >
-                    {t("login.password")} vergessen?
-                  </a>
-                </div>
-              </div>
-
-              {errorMessage && (
-                <div
-                  role="alert"
-                  className="rounded-md border border-fb-danger px-3 py-2 text-sm text-fb-danger"
-                >
-                  {errorMessage}
-                </div>
-              )}
-
-              <div>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex w-full justify-center rounded-md bg-fb-accent px-3 py-1.5 text-sm/6 font-semibold text-fb-accent-text hover:bg-fb-accent-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent-secondary disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {submitting
-                    ? t("login.submitting")
-                    : t("login.submit")}
-                </button>
-              </div>
-            </form>
-
-            <div>
-              <div className="mt-10 flex items-center gap-x-6">
-                <div className="w-full flex-1 border-t border-white/10" />
-
-                <p className="text-sm/6 font-medium text-nowrap text-white">
-                  {t("login.or")}
-                </p>
-
-                <div className="w-full flex-1 border-t border-white/10" />
-              </div>
-
-              <div className="mt-6">
-                <button
-                  type="button"
-                  onClick={handlePasskeyLogin}
-                  disabled={submitting}
-                  className="flex w-full items-center justify-center gap-3 rounded-md bg-white/10 px-3 py-2 text-sm font-semibold text-white inset-ring inset-ring-white/5 transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent-secondary disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={1.8}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className="size-5"
-                  >
-                    <circle cx="8" cy="15" r="4" />
-                    <path d="m11 12 7-7" />
-                    <path d="m16 7 2 2" />
-                    <path d="m14 9 2 2" />
-                  </svg>
-
-                  <span className="text-sm/6 font-semibold">
-                    {t("login.passkey")}
-                  </span>
-                </button>
-              </div>
-            </div>
+        {resetRequested ? (
+          <div role="status" className="mt-8 rounded-xl border border-fb-accent bg-fb-accent-soft p-4 text-sm text-fb-accent">
+            {t("login.forgotSent")}
           </div>
+        ) : (
+          <form onSubmit={handleForgot} className="mt-8 space-y-5">
+            <label className="block text-sm font-medium">
+              {t("login.email")}
+              <input type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={submitting} className={authInputClass} />
+            </label>
+            {errorBox}
+            <button type="submit" disabled={submitting} className={authPrimaryButtonClass}>
+              {submitting ? t("login.forgotSending") : t("login.forgotSubmit")}
+            </button>
+          </form>
+        )}
+
+        <button type="button" onClick={() => switchMode("login")} className="mt-6 min-h-11 text-sm font-semibold text-fb-accent hover:text-fb-accent-secondary">
+          {t("login.backToLogin")}
+        </button>
+      </AuthLayout>
+    );
+  }
+
+  return (
+    <AuthLayout>
+      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("login.title")}</h1>
+      <p className="mt-2 text-fb-muted">{t("login.welcome")}</p>
+
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+        <label className="block text-sm font-medium">
+          {t("login.email")}
+          <input id="email" name="email" type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={submitting} className={authInputClass} />
+        </label>
+
+        <div>
+          <div className="flex items-baseline justify-between gap-3">
+            <label htmlFor="password" className="text-sm font-medium">{t("login.password")}</label>
+            <button type="button" onClick={() => switchMode("forgot")} className="text-sm font-medium text-fb-accent hover:text-fb-accent-secondary">
+              {t("login.forgot")}
+            </button>
+          </div>
+          <input id="password" name="password" type="password" required autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={submitting} className={authInputClass} />
         </div>
+
+        {totpRequired && (
+          <label className="block rounded-xl border border-fb-border bg-fb-main p-4 text-sm font-medium">
+            {t("login.totp")}
+            <input
+              id="totp-code"
+              name="totp-code"
+              type="text"
+              required
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              autoFocus
+              value={totpCode}
+              onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              disabled={submitting}
+              className={`${authInputClass} bg-fb-surface tracking-[0.3em]`}
+            />
+          </label>
+        )}
+
+        <label className="flex min-h-11 items-center gap-2.5 text-sm">
+          <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} disabled={submitting} className="size-4 accent-[var(--color-accent)]" />
+          {t("login.remember")}
+        </label>
+
+        {errorBox}
+
+        <button type="submit" disabled={submitting} className={authPrimaryButtonClass}>
+          {submitting ? t("login.submitting") : t("login.submit")}
+        </button>
+      </form>
+
+      <div className="mt-8 flex items-center gap-3 text-sm text-fb-muted">
+        <span className="h-px flex-1 bg-fb-border" />
+        {t("login.or")}
+        <span className="h-px flex-1 bg-fb-border" />
       </div>
-    </>
+
+      <button
+        type="button"
+        onClick={handlePasskeyLogin}
+        disabled={submitting}
+        className="mt-6 flex h-12 w-full items-center justify-center gap-2.5 rounded-lg border border-fb-border bg-fb-main px-4 text-sm font-semibold text-fb-text transition hover:border-fb-accent disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-5">
+          <circle cx="8" cy="15" r="4" />
+          <path d="m11 12 7-7" />
+          <path d="m16 7 2 2" />
+          <path d="m14 9 2 2" />
+        </svg>
+        {t("login.passkey")}
+      </button>
+    </AuthLayout>
   );
 }

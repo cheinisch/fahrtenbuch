@@ -13,13 +13,19 @@
   --color-muted-text: #666666;
   --color-accent-soft: #e0f2fe;
   --color-danger: #b42318;
+  /* Akzent als Textfarbe (Überzeilen, Links) – dunkler für ausreichenden Kontrast. */
+  --color-accent-strong: #0369a1;
 
   color: var(--color-text);
   background: var(--color-surface);
 }
 
+/*
+ * Dunkles Thema: folgt dem System, außer das Konto erzwingt per
+ * data-theme (gesetzt in AuthProvider.applyTheme) hell oder dunkel.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-main: #1d1d1d;
     --color-text: #f7f7f5;
     --color-accent: #0284c7;
@@ -30,6 +36,34 @@
     --color-muted-text: #a8a8a8;
     --color-accent-soft: #082f49;
     --color-danger: #ff7b72;
+    --color-accent-strong: #7dd3fc;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-main: #1d1d1d;
+  --color-text: #f7f7f5;
+  --color-accent: #0284c7;
+  --color-accent-secondary: #0ea5e9;
+  --color-accent-text: #ffffff;
+  --color-surface: #121212;
+  --color-border: #3a3a3a;
+  --color-muted-text: #a8a8a8;
+  --color-accent-soft: #082f49;
+  --color-danger: #ff7b72;
+  --color-accent-strong: #7dd3fc;
+  color-scheme: dark;
+}
+
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
   }
 }
 
@@ -47,6 +81,11 @@
   --color-fb-muted: var(--color-muted-text);
   --color-fb-accent-soft: var(--color-accent-soft);
   --color-fb-danger: var(--color-danger);
+  --color-fb-accent-strong: var(--color-accent-strong);
+
+  /* Radien wie im Mockup: Karten 14px, Felder und Buttons 10px. */
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
 }
 
 * {

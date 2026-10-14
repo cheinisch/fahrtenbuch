@@ -1,16 +1,22 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "../../i18n/I18nProvider.jsx";
 
+// Lokaler Kalendertag; toISOString() liefert kurz nach Mitternacht noch den Vortag.
+function localToday() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export default function VehicleLifecycleModal({ vehicle, mode, saving, onClose, onConfirm }) {
   const { t }=useI18n();
   const [confirmed, setConfirmed] = useState(false);
   const [account, setAccount] = useState("");
-  const [effectiveDate, setEffectiveDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [effectiveDate, setEffectiveDate] = useState(() => localToday());
 
   useEffect(() => {
     setConfirmed(false);
     setAccount("");
-    setEffectiveDate(new Date().toISOString().slice(0, 10));
+    setEffectiveDate(localToday());
   }, [vehicle, mode]);
 
   if (!vehicle || !mode) return null;

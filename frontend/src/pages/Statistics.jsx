@@ -2,14 +2,35 @@ import { useEffect, useMemo, useState } from "react";
 
 import { classifyTrip, getLeasingLiveKm, getMonthlyCategoryTrips, getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, getVehicles, saveMonthlyOdometerReading } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import { useI18n } from "../i18n/I18nProvider.jsx";
 import OdometerReadingLogModal from "../components/OdometerReadingLogModal.jsx";
+import PageHeader from "../components/PageHeader.jsx";
+
+const PART_COLORS = {
+  businessKm: "bg-sky-600",
+  commuteKm: "bg-violet-700 dark:bg-violet-500",
+  privateKm: "bg-orange-600",
+  unclassifiedKm: "bg-neutral-400",
+  unknownKm: "bg-fb-danger",
+};
+
+// Reihenfolge von unten nach oben. Privat liegt zwischen Dienstlich (blau) und
+// Arbeitsweg (violett), damit die beiden ähnlich wirkenden Farben nie aneinandergrenzen.
+// Violett hat im dunklen Thema eine hellere Stufe (Kontrast zur Fläche).
+const STACK_SEGMENTS = [
+  { key: "businessKm", fill: "fill-sky-600", swatch: "bg-sky-600" },
+  { key: "privateKm", fill: "fill-orange-600", swatch: "bg-orange-600" },
+  { key: "commuteKm", fill: "fill-violet-700 dark:fill-violet-500", swatch: "bg-violet-700 dark:bg-violet-500" },
+  { key: "unclassifiedKm", fill: "fill-neutral-400", swatch: "bg-neutral-400" },
+  { key: "unexplainedKm", fill: "", swatch: "" },
+];
 
 const labels = {
-  businessKm: "Beruflich",
+  businessKm: "Dienstlich",
   privateKm: "Privat",
   commuteKm: "Arbeitsweg",
   unclassifiedKm: "Nicht zugeordnet",
-  unknownKm: "Unbekannt / nicht erfasst",
+  unknownKm: "Nicht erklärt",
 };
 
 function km(value) {
@@ -49,6 +70,135 @@ function intervalMonthKey(endDate) {
   if (!Number.isFinite(date.getTime())) return "";
   date.setUTCDate(date.getUTCDate() - 1);
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+// Gestapelte Monatsbalken: erfasste Kilometer nach Kategorie plus der Teil, der
+// laut Ablesung gefahren, aber keiner Fahrt zugeordnet ist (schraffiert).
+function StackedMonthChart({ months, monthlyLimitKm = null, selectedMonth, onSelectMonth, labelFor }) {
+  const [hovered, setHovered] = useState(null);
+  const width = 900;
+  const height = 300;
+  const pad = { left: 56, right: 16, top: 28, bottom: 40 };
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const max = Math.max(1, monthlyLimitKm ?? 0, ...months.map((month) => month.total));
+  const groupW = innerW / Math.max(1, months.length);
+  const barW = Math.min(44, groupW * 0.55);
+  const y = (value) => pad.top + innerH - (Math.max(0, value) / max) * innerH;
+  const GAP = 2;
+  const hoveredIndex = months.findIndex((month) => month.key === hovered);
+  const hoveredMonth = hoveredIndex >= 0 ? months[hoveredIndex] : null;
+  // Tooltip neben den Balken setzen (rechte Hälfte: links davon), damit er
+  // weder den Balken noch die Summen der Nachbarmonate verdeckt.
+  const tooltipStyle = (() => {
+    if (hoveredIndex < 0) return {};
+    const xPct = (pad.left + groupW * hoveredIndex + groupW / 2) / width * 100;
+    const offset = (barW / 2 + 10) / width * 100;
+    return xPct > 55 ? { right: `${100 - xPct + offset}%` } : { left: `${xPct + offset}%` };
+  })();
+
+  return (
+    <div className="relative mt-4">
+      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-fb-text/80">
+        {STACK_SEGMENTS.map((segment) => (
+          <span key={segment.key} className="flex items-center gap-2">
+            {segment.key === "unexplainedKm"
+              ? <svg aria-hidden="true" className="size-3 rounded-sm"><rect width="12" height="12" fill="url(#unexplained-hatch)" /></svg>
+              : <span aria-hidden="true" className={`size-3 rounded-sm ${segment.swatch}`} />}
+            {labelFor(segment.key)}
+          </span>
+        ))}
+        {monthlyLimitKm != null && <span className="flex items-center gap-2"><span className="w-5 border-t-2 border-dashed border-amber-500" />Vertragliches Monatslimit: {km(monthlyLimitKm)}</span>}
+      </div>
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[640px]" role="img" aria-label="Kilometer pro Monat nach Kategorie">
+          <defs>
+            <pattern id="unexplained-hatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+              <rect width="6" height="6" className="fill-fb-surface" />
+              <line x1="0" y1="0" x2="0" y2="6" strokeWidth="2.5" className="stroke-fb-muted" />
+            </pattern>
+          </defs>
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+            const yy = pad.top + innerH - ratio * innerH;
+            return (
+              <g key={ratio}>
+                <line x1={pad.left} y1={yy} x2={width - pad.right} y2={yy} className={ratio === 0 ? "stroke-fb-muted" : "stroke-fb-border"} strokeWidth="1" />
+                <text x={pad.left - 8} y={yy + 4} textAnchor="end" className="fill-fb-muted text-[11px]">{Math.round(max * ratio).toLocaleString("de-DE")}</text>
+              </g>
+            );
+          })}
+          {months.map((month, index) => {
+            const center = pad.left + groupW * index + groupW / 2;
+            let base = 0;
+            const segments = STACK_SEGMENTS.map((segment) => {
+              const value = month[segment.key] || 0;
+              const y0 = y(base);
+              base += value;
+              const y1 = y(base);
+              return { ...segment, value, top: y1, height: Math.max(0, y0 - y1 - GAP) };
+            }).filter((segment) => segment.value > 0 && segment.height > 0);
+            const isSelected = month.key === selectedMonth;
+            const dimmed = hovered && hovered !== month.key;
+            return (
+              <g
+                key={month.key}
+                role="button"
+                tabIndex={0}
+                aria-label={`${month.label}: ${km(month.total)} – Details anzeigen`}
+                onClick={() => onSelectMonth(month.key)}
+                onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectMonth(month.key); } }}
+                onMouseEnter={() => setHovered(month.key)}
+                onMouseLeave={() => setHovered(null)}
+                onFocus={() => setHovered(month.key)}
+                onBlur={() => setHovered(null)}
+                className="cursor-pointer outline-none"
+                style={{ opacity: dimmed ? 0.45 : 1, transition: "opacity 120ms" }}
+              >
+                <rect x={center - groupW / 2} y={pad.top} width={groupW} height={innerH + pad.bottom} fill="transparent" />
+                {segments.map((segment, segmentIndex) => (
+                  <rect
+                    key={segment.key}
+                    x={center - barW / 2}
+                    y={segment.top}
+                    width={barW}
+                    height={segment.height}
+                    rx={segmentIndex === segments.length - 1 ? 4 : 1}
+                    className={segment.fill}
+                    fill={segment.key === "unexplainedKm" ? "url(#unexplained-hatch)" : undefined}
+                  />
+                ))}
+                <text x={center} y={y(month.total) - 8} textAnchor="middle" className="fill-fb-muted text-[11px]">{Math.round(month.total).toLocaleString("de-DE")}</text>
+                <text x={center} y={height - 14} textAnchor="middle" className={`text-[12px] ${isSelected ? "fill-fb-accent font-semibold" : "fill-fb-muted"}`}>{month.label}</text>
+              </g>
+            );
+          })}
+          {monthlyLimitKm != null && (
+            <line x1={pad.left} y1={y(monthlyLimitKm)} x2={width - pad.right} y2={y(monthlyLimitKm)} stroke="#f59e0b" strokeWidth="2" strokeDasharray="7 5" pointerEvents="none" />
+          )}
+        </svg>
+      </div>
+
+      {hoveredMonth && (
+        <div style={tooltipStyle} className="pointer-events-none absolute top-6 z-10 w-56 rounded-lg border border-fb-border bg-fb-main p-3 text-xs shadow-lg">
+          <div className="font-semibold text-fb-text">{hoveredMonth.label} · {km(hoveredMonth.total)}</div>
+          <ul className="mt-2 space-y-1">
+            {[...STACK_SEGMENTS].reverse().filter((segment) => hoveredMonth[segment.key] > 0).map((segment) => (
+              <li key={segment.key} className="flex items-center justify-between gap-3 text-fb-muted">
+                <span className="flex items-center gap-1.5">
+                  {segment.key === "unexplainedKm"
+                    ? <svg aria-hidden="true" className="size-2.5 rounded-sm"><rect width="10" height="10" fill="url(#unexplained-hatch)" /></svg>
+                    : <span aria-hidden="true" className={`size-2.5 rounded-sm ${segment.swatch}`} />}
+                  {labelFor(segment.key)}
+                </span>
+                <span className="font-medium text-fb-text">{km(hoveredMonth[segment.key])}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+    </div>
+  );
 }
 
 function StatisticsChart({ data, monthlyLimitKm = null }) {
@@ -95,6 +245,7 @@ function StatisticsChart({ data, monthlyLimitKm = null }) {
 
 export default function Statistics() {
   const { accessToken } = useAuth();
+  const { t } = useI18n();
   const [rows, setRows] = useState([]);
   const [categoryModal, setCategoryModal] = useState(null);
   const [categoryTrips, setCategoryTrips] = useState([]);
@@ -107,7 +258,8 @@ export default function Statistics() {
   const [readings, setReadings] = useState([]);
   const [vehicleDetails, setVehicleDetails] = useState([]);
   const [leasingLive, setLeasingLive] = useState(null);
-  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  // Lokales Datum statt UTC – sonst ist kurz nach Mitternacht noch „gestern“.
+  const [entryDate, setEntryDate] = useState(() => isoDate(new Date()));
   const [entryKm, setEntryKm] = useState("");
   const [entryTime, setEntryTime] = useState(() => new Date().toTimeString().slice(0, 5));
   const [savingReading, setSavingReading] = useState(false);
@@ -251,6 +403,26 @@ export default function Statistics() {
     }).filter(Boolean);
   }, [intervals, chartYear]);
 
+  // Monatswerte für das gestapelte Diagramm aus der Monatsstatistik des Fahrzeugs.
+  const stackedMonths = useMemo(() => rows
+    .filter((row) => row.vehicleId === vehicleId && String(row.month).startsWith(`${chartYear}-`))
+    .sort((a, b) => String(a.month).localeCompare(String(b.month)))
+    .map((row) => {
+      const businessKm = Number(row.businessKm) || 0;
+      const privateKm = Number(row.privateKm) || 0;
+      const commuteKm = Number(row.commuteKm) || 0;
+      const unclassifiedKm = Number(row.unclassifiedKm) || 0;
+      const trackedKm = businessKm + privateKm + commuteKm + unclassifiedKm;
+      const unexplainedKm = row.actualKm != null ? Math.max(0, Number(row.actualKm) - trackedKm) : 0;
+      return {
+        key: row.month,
+        label: monthLabel(row.month).replace(/\s+\d{4}$/, ""),
+        businessKm, privateKm, commuteKm, unclassifiedKm, unexplainedKm,
+        total: trackedKm + unexplainedKm,
+      };
+    })
+    .filter((month) => month.total > 0), [rows, vehicleId, chartYear]);
+
   const monthlyContractLimit = useMemo(() => {
     const vehicle = vehicleDetails.find((item) => item.id === vehicleId);
     if (!vehicle || !["leasing", "financing"].includes(vehicle.acquisitionType)
@@ -332,6 +504,35 @@ export default function Statistics() {
     }
   }
 
+  function changeVehicle(nextVehicleId) {
+    setVehicleId(nextVehicleId);
+    setMonth(rows.find((row) => row.vehicleId === nextVehicleId)?.month || "");
+  }
+
+  // Jahreskennzahlen aus der Monatsstatistik (dieselbe Quelle wie das Diagramm).
+  const yearSummary = useMemo(() => {
+    const yearRows = rows.filter((row) => row.vehicleId === vehicleId && String(row.month).startsWith(`${chartYear}-`));
+    if (!yearRows.length) return null;
+    const sum = (key) => yearRows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
+    const businessKm = sum("businessKm");
+    const trackedKm = businessKm + sum("privateKm") + sum("commuteKm") + sum("unclassifiedKm");
+    const classifiedKm = businessKm + sum("privateKm") + sum("commuteKm");
+    // Für Monate ohne Ablesung zählen die erfassten Kilometer als gefahren.
+    const actualKm = yearRows.reduce((total, row) => {
+      const tracked = ["businessKm", "privateKm", "commuteKm", "unclassifiedKm"].reduce((t, key) => t + (Number(row[key]) || 0), 0);
+      return total + (row.actualKm != null ? Math.max(Number(row.actualKm), tracked) : tracked);
+    }, 0);
+    return {
+      actualKm,
+      trackedKm,
+      coverage: actualKm > 0 ? Math.min(100, trackedKm / actualKm * 100) : null,
+      unexplainedKm: Math.max(0, actualKm - trackedKm),
+      businessKm,
+      businessShare: classifiedKm > 0 ? businessKm / classifiedKm * 100 : null,
+    };
+  }, [rows, vehicleId, chartYear]);
+
+  const percent = (value) => `${Number(value).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %`;
   const selected = rows.find((row) => row.vehicleId === vehicleId && row.month === month) || null;
   // Use recorded trip kilometres as the live baseline until the odometer readings
   // cover the whole month. A zero-km reading interval must not hide recorded trips.
@@ -350,28 +551,55 @@ export default function Statistics() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Statistik</h1>
-        <p className="mt-1 text-sm text-fb-muted">
-          Monatsauswertung aus aufgezeichneten Fahrten und den manuellen Kilometerständen des Fahrzeugs.
-        </p>
-      </div>
+      <PageHeader eyebrow={t("nav.statistics")} title={t("statistics.heading")} subtitle={t("statistics.subtitle")}>
+        <label className="text-[13px] font-medium text-fb-muted">
+          {t("statistics.vehicle")}
+          <select value={vehicleId} onChange={(e) => changeVehicle(e.target.value)} className="mt-1 block h-11 min-w-[220px] rounded-lg border border-fb-border bg-fb-main px-3 text-sm text-fb-text">
+            {vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </select>
+        </label>
+      </PageHeader>
+      {yearSummary && (
+        <section aria-label={t("statistics.yearSummary", { year: chartYear })} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
+            <div className="text-[13px] text-fb-muted">{t("statistics.drivenYear", { year: chartYear })}</div>
+            <div className="mt-1.5 text-[28px] font-bold leading-tight">{km(yearSummary.actualKm)}</div>
+            <div className="mt-1 text-xs text-fb-muted">{t("statistics.byReadings")}</div>
+          </div>
+          <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
+            <div className="text-[13px] text-fb-muted">{t("statistics.tracked")}</div>
+            <div className="mt-1.5 text-[28px] font-bold leading-tight">{km(yearSummary.trackedKm)}</div>
+            <div className="mt-1 text-xs text-fb-muted">{yearSummary.coverage != null ? t("statistics.coverage", { value: percent(yearSummary.coverage) }) : "–"}</div>
+          </div>
+          <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
+            <div className="text-[13px] text-fb-muted">{t("statistics.businessShare")}</div>
+            <div className="mt-1.5 text-[28px] font-bold leading-tight">{yearSummary.businessShare != null ? percent(yearSummary.businessShare) : "–"}</div>
+            <div className="mt-1 text-xs text-fb-muted">{km(yearSummary.businessKm)}</div>
+          </div>
+          <div className={`rounded-xl border bg-fb-main p-[18px] ${yearSummary.unexplainedKm > 0 ? "border-fb-danger/40" : "border-fb-border"}`}>
+            <div className="text-[13px] text-fb-muted">{t("statistics.unexplained")}</div>
+            <div className={`mt-1.5 text-3xl font-bold ${yearSummary.unexplainedKm > 0 ? "text-fb-danger" : ""}`}>{km(yearSummary.unexplainedKm)}</div>
+            <div className="mt-1 text-xs text-fb-muted">{t("statistics.unexplainedHint")}</div>
+          </div>
+        </section>
+      )}
       {error && <div className="rounded-lg border border-fb-danger p-4 text-sm text-fb-danger">{error}</div>}
       {message && <div className="rounded-lg border border-fb-accent bg-fb-accent-soft p-4 text-sm text-fb-accent">{message}</div>}
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <h2 className="text-lg font-bold">Kilometerstand nachtragen</h2>
         <p className="mt-1 text-sm text-fb-muted">Kilometerstände können für beliebige Tage nachgetragen werden. Mehrere Zwischenablesungen pro Monat sind möglich; die Reihenfolge zu vorherigen und folgenden Messwerten wird geprüft.</p>
-        <form onSubmit={saveReading} className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_170px_180px_auto] sm:items-end">
-          <label className="text-sm"><span className="mb-1 block text-fb-muted">Fahrzeug</span><select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2">{vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
-          <label className="text-sm"><span className="mb-1 block text-fb-muted">Ablesedatum</span><input type="date" value={entryDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setEntryDate(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
-          <label className="text-sm"><span className="mb-1 block text-fb-muted">Ablesezeit</span><input type="time" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
-          <label className="text-sm"><span className="mb-1 block text-fb-muted">Kilometerstand</span><div className="flex items-center gap-2"><input inputMode="decimal" value={entryKm} onChange={(e) => setEntryKm(e.target.value)} placeholder="z. B. 82450" className="min-w-0 w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /><span className="text-fb-muted">km</span></div></label>
-          <button type="submit" disabled={savingReading || !vehicleId || !entryDate || !entryKm} className="rounded-lg bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{savingReading ? "Speichert …" : "Speichern"}</button>
+        <form onSubmit={saveReading} className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="flex flex-[1_1_160px] flex-col gap-1 text-[13px] font-medium text-fb-muted">Ablesedatum<input type="date" value={entryDate} max={isoDate(new Date())} onChange={(e) => setEntryDate(e.target.value)} className="h-11 rounded-lg border border-fb-border bg-fb-surface px-3 text-sm font-normal text-fb-text" /></label>
+          <label className="flex flex-[1_1_120px] flex-col gap-1 text-[13px] font-medium text-fb-muted">Ablesezeit<input type="time" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} className="h-11 rounded-lg border border-fb-border bg-fb-surface px-3 text-sm font-normal text-fb-text" /></label>
+          <label className="flex flex-[2_1_200px] flex-col gap-1 text-[13px] font-medium text-fb-muted">Kilometerstand<span className="flex items-center gap-2"><input inputMode="decimal" value={entryKm} onChange={(e) => setEntryKm(e.target.value)} placeholder="z. B. 82450" className="h-11 min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-surface px-3 text-sm font-normal text-fb-text" /><span className="text-sm text-fb-muted">km</span></span></label>
+          <button type="submit" disabled={savingReading || !vehicleId || !entryDate || !entryKm} className="h-11 rounded-lg bg-fb-accent px-[18px] text-sm font-semibold text-fb-accent-text disabled:opacity-50">{savingReading ? "Speichert …" : t("statistics.saveReading")}</button>
+          {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <button type="button" onClick={() => setReadingLogOpen(true)} className="h-11 rounded-lg border border-fb-border bg-fb-main px-4 text-sm font-semibold text-fb-text hover:border-fb-accent">{t("statistics.readingLog", { count: readings.filter((r) => r.vehicleId === vehicleId).length })}</button>}
         </form>
-        {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-fb-border pt-4"><div><p className="text-sm font-semibold">Ableseprotokoll</p><p className="mt-1 text-xs text-fb-muted">{readings.filter((r) => r.vehicleId === vehicleId).length} gespeicherte Ablesungen</p></div><button type="button" onClick={() => setReadingLogOpen(true)} className="rounded-lg border border-fb-border px-4 py-2 text-sm font-semibold hover:border-fb-accent">Ableseprotokoll anzeigen</button></div>}
       </section>
-      {leasing && <section className={`rounded-xl border p-5 ${leasing.deviationKm > 0 ? "border-fb-danger bg-fb-main" : "border-fb-border bg-fb-main"}`}>
-        <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-bold">{leasing.vehicle.acquisitionType === "leasing" ? "Leasing-Kilometer" : "Vertragskilometer"}</h2><p className="mt-1 text-sm text-fb-muted">{new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseStartDate.slice(0,10)}T00:00:00`))} – {new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseEndDate.slice(0,10)}T00:00:00`))} · {km(leasing.vehicle.leaseIncludedKm)} Kilometerlimit</p></div>{leasing.deviationKm > 0 && <span className="rounded-full border border-fb-danger px-3 py-1 text-sm font-semibold text-fb-danger">{leasing.vehicle.acquisitionType === "leasing" ? "Mehrkilometer erwartet" : "Kilometerlimit voraussichtlich überschritten"}</span>}</div>
+      {leasing && <section className={`rounded-xl border bg-fb-main p-[22px] ${leasing.deviationKm > 0 ? "border-fb-danger/50" : "border-fb-border"}`}>
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-bold">{leasing.vehicle.acquisitionType === "leasing" ? "Leasing-Kilometer" : "Vertragskilometer"}</h2><p className="mt-1 text-sm text-fb-muted">{new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseStartDate.slice(0,10)}T00:00:00`))} – {new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseEndDate.slice(0,10)}T00:00:00`))} · {km(leasing.vehicle.leaseIncludedKm)} Kilometerlimit</p></div>{leasing.deviationKm > 0
+          ? <span className="self-start rounded-full bg-fb-danger/10 px-3 py-1.5 text-xs font-semibold text-fb-danger">{leasing.vehicle.acquisitionType === "leasing" ? "Mehrkilometer erwartet" : "Kilometerlimit voraussichtlich überschritten"}</span>
+          : leasing.deviationKm != null && <span className="self-start rounded-full bg-emerald-600/10 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">{t("statistics.onTrack")}</span>}</div>
         <p className="mt-3 text-xs text-fb-muted">Basis: {km(leasing.baselineKm)} am {new Intl.DateTimeFormat("de-DE").format(leasing.baselineDate)} → aktueller Stand {km(leasing.currentOdometerKm)}{!leasing.baselineIsExact ? " · Keine Ablesung am Vertragsbeginn; die Fahrleistung wird anhand des verfügbaren Ablesezeitraums hochgerechnet." : ""}</p>
         <p className="mt-1 text-xs text-fb-muted">Letzte Ablesung: {km(leasing.lastReadingKm)} am {new Intl.DateTimeFormat("de-DE").format(leasing.lastReadingDate)} · danach erfasste Fahrten: {km(leasing.gpsSinceReadingKm)}. Zwischenablesungen ersetzen die zuvor geschätzten Fahrtkilometer.</p>
         <div className={`mt-5 grid gap-4 sm:grid-cols-2 ${(leasing.vehicle.acquisitionType === "leasing" || leasing.vehicle.leaseExcessRateEur != null || leasing.vehicle.leaseShortfallRateEur != null) ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}><div><div className="text-xs text-fb-muted">Bisher gefahren</div><div className="mt-1 text-xl font-bold">{km(leasing.drivenKm)}</div></div><div><div className="text-xs text-fb-muted">Zeitanteilig vorgesehen</div><div className="mt-1 text-xl font-bold">{km(leasing.allowedKm)}</div></div><div><div className="text-xs text-fb-muted">Prognose Vertragsende</div><div className="mt-1 text-xl font-bold">{km(leasing.projectedKm)}</div></div><div><div className="text-xs text-fb-muted">Prognose Abweichung</div><div className={`mt-1 text-xl font-bold ${leasing.deviationKm > 0 ? "text-fb-danger" : "text-fb-accent"}`}>{leasing.deviationKm > 0 ? "+" : ""}{km(leasing.deviationKm)}</div></div>{(leasing.vehicle.acquisitionType === "leasing" || leasing.vehicle.leaseExcessRateEur != null || leasing.vehicle.leaseShortfallRateEur != null) && <div><div className="text-xs text-fb-muted">Nachzahlung / Erstattung (Prognose)</div><div className={`mt-1 text-xl font-bold ${leasing.settlementEur > 0 ? "text-fb-danger" : "text-fb-accent"}`}>{leasing.settlementConfigured ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Math.abs(leasing.settlementEur)) : "–"}</div><div className="mt-1 text-xs text-fb-muted">{!leasing.settlementConfigured ? "Kilometersatz nicht hinterlegt" : leasing.settlementEur > 0 ? "Voraussichtliche Nachzahlung" : leasing.settlementEur < 0 ? "Voraussichtliche Erstattung" : "Keine Zahlung erwartet"}</div></div>}</div>
@@ -380,29 +608,34 @@ export default function Statistics() {
             <span>Kilometerverbrauch im Verhältnis zum Vertragslimit</span>
             <span>{km(leasing.drivenKm)} / {km(leasing.vehicle.leaseIncludedKm)} ({(leasing.drivenKm / leasing.vehicle.leaseIncludedKm * 100).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %)</span>
           </div>
-          <div role="progressbar" aria-label="Kilometerverbrauch" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, leasing.drivenKm / leasing.vehicle.leaseIncludedKm * 100))} className="h-2 overflow-hidden rounded-full bg-fb-surface">
+          <div role="progressbar" aria-label="Kilometerverbrauch" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, leasing.drivenKm / leasing.vehicle.leaseIncludedKm * 100))} className="relative h-2.5 overflow-hidden rounded-full bg-fb-surface">
             <div className={`h-full rounded-full ${leasing.drivenKm >= leasing.vehicle.leaseIncludedKm ? "bg-fb-danger" : "bg-fb-accent"}`} style={{ width: `${Math.min(100, Math.max(0, leasing.drivenKm / leasing.vehicle.leaseIncludedKm * 100))}%` }} />
+            <div aria-hidden="true" className="absolute inset-y-0 w-0.5 bg-fb-text" style={{ left: `${Math.min(100, Math.max(0, leasing.elapsedPercent))}%` }} />
           </div>
+          <p className="mt-1.5 text-xs text-fb-muted">{t("statistics.targetMarker", { value: percent(leasing.elapsedPercent) })}</p>
         </div>
       </section>}
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div><h2 className="text-lg font-bold">Kilometerentwicklung</h2><p className="mt-1 text-sm text-fb-muted">Vergleich der Kilometer laut Ablesungen mit den im Fahrtenbuch erfassten Strecken.</p></div>
+          <div><h2 className="text-lg font-bold">Kilometerentwicklung</h2><p className="mt-1 text-sm text-fb-muted">{t("statistics.chartHint")}</p></div>
           <div className="flex flex-wrap items-center gap-4">
-            {monthlyContractLimit != null && <label className="flex cursor-pointer items-center gap-2 text-xs text-fb-muted"><input type="checkbox" checked={showMonthlyLimit} onChange={(event) => setShowMonthlyLimit(event.target.checked)} className="accent-sky-500" />Monatliches Kilometerlimit anzeigen</label>}
-            <label className="text-xs text-fb-muted"><span className="mb-1 block">Jahr</span><select value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm">{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+            {monthlyContractLimit != null && <label className="flex cursor-pointer items-center gap-2 text-xs text-fb-muted"><input type="checkbox" checked={showMonthlyLimit} onChange={(event) => setShowMonthlyLimit(event.target.checked)} className="accent-[var(--color-accent)]" />Monatslimit zeigen</label>}
+            <label className="sr-only" htmlFor="chart-year">Jahr</label><select id="chart-year" value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="h-10 rounded-lg border border-fb-border bg-fb-main px-3 text-sm">{chartYears.length === 0 && <option value={chartYear}>{chartYear}</option>}{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select>
           </div>
         </div>
-        {chartData.length > 0 ? <StatisticsChart data={chartData} monthlyLimitKm={showMonthlyLimit ? monthlyContractLimit : null} /> : <div className="mt-5 rounded-lg bg-fb-surface p-6 text-center text-sm text-fb-muted">Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor.</div>}
+        {stackedMonths.length > 0 ? (
+          <StackedMonthChart
+            months={stackedMonths}
+            monthlyLimitKm={showMonthlyLimit ? monthlyContractLimit : null}
+            selectedMonth={month}
+            onSelectMonth={(key) => {
+              setMonth(key);
+              document.getElementById("statistics-month-details")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            labelFor={(key) => (key === "unexplainedKm" ? t("statistics.unexplained") : labels[key])}
+          />
+        ) : chartData.length > 0 ? <StatisticsChart data={chartData} monthlyLimitKm={showMonthlyLimit ? monthlyContractLimit : null} /> : <div className="mt-5 rounded-lg bg-fb-surface p-6 text-center text-sm text-fb-muted">Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor.</div>}
       </section>
-      {intervals.length > 0 && (
-        <section className="rounded-xl border border-fb-border bg-fb-main p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-lg font-bold">Genauigkeit nach Ableseintervall</h2><p className="mt-1 text-sm text-fb-muted">Abweichungen zwischen Kilometerständen und erfassten Fahrten.</p></div>
-            <button type="button" onClick={() => setIntervalModalOpen(true)} className="rounded-lg border border-fb-border px-4 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent">Details anzeigen</button>
-          </div>
-        </section>
-      )}
       {intervalModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIntervalModalOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="interval-modal-title" className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-2xl">
@@ -437,78 +670,70 @@ export default function Statistics() {
           </section>
         </div>
       )}
-      <div className="flex flex-wrap gap-3">
-        <select value={vehicleId} onChange={(e) => {
-          const nextVehicleId = e.target.value;
-          setVehicleId(nextVehicleId);
-          setMonth(rows.find((row) => row.vehicleId === nextVehicleId)?.month || "");
-        }} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2">
-          {vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-        </select>
-        <select
-          value={selectedYear}
-          disabled={availableYears.length === 0}
-          onChange={(e) => {
-            const year = e.target.value;
-            const firstMonth = availableMonths.find((value) => value.startsWith(`${year}-`));
-            setMonth(firstMonth || "");
-          }}
-          className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 disabled:opacity-50"
-        >
-          {availableYears.length === 0 && <option value="">Kein Jahr</option>}
-          {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
-        </select>
-        <select
-          value={month}
-          disabled={monthsForYear.length === 0}
-          onChange={(e) => setMonth(e.target.value)}
-          className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 disabled:opacity-50"
-        >
-          {monthsForYear.length === 0 && <option value="">Kein Monat</option>}
-          {monthsForYear.map((value) => <option key={value} value={value}>{monthLabel(value).replace(/\s+\d{4}$/, "")}</option>)}
-        </select>
-      </div>
-      {selected && (
-        <>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-fb-border bg-fb-main p-5">
-              <div className="text-sm text-fb-muted">Gefahren laut Kilometerstand</div>
-              <div className="mt-2 text-3xl font-bold">{km(selected.actualKm)}</div>
-              {selected.actualKm == null && <div className="mt-2 text-xs text-fb-muted">Für diesen Monat fehlen geeignete Ablesungen an den Monatsgrenzen.</div>}
-            </div>
-            <div className="rounded-xl border border-fb-border bg-fb-main p-5">
-              <div className="text-sm text-fb-muted">Aufgezeichnet</div>
-              <div className="mt-2 text-3xl font-bold">{km(selected.trackedKm)}</div>
-            </div>
-            <div className="rounded-xl border border-fb-border bg-fb-main p-5">
-              <div className="text-sm text-fb-muted">Unbekannt / nicht erfasst</div>
-              <div className="mt-2 text-3xl font-bold">{km(selected.unknownKm)}</div>
-            </div>
+      <section id="statistics-month-details" className="scroll-mt-6 rounded-xl border border-fb-border bg-fb-main p-[22px]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold">{selected ? monthLabel(selected.month) : t("statistics.monthTitle")}</h2>
+            <p className="mt-1 text-sm text-fb-muted">
+              {selected
+                ? (selected.actualKm != null ? `Tacho ${km(selected.actualKm)} · erfasst ${km(selected.trackedKm)}` : `Erfasst ${km(selected.trackedKm)} · Monatsgrenzen nicht vollständig abgelesen`)
+                : t("statistics.monthHint")}
+            </p>
           </div>
-          <section className="rounded-xl border border-fb-border bg-fb-main p-5">
-            <h2 className="text-lg font-bold">{monthLabel(selected.month)}</h2>
-            <div className="mt-5 space-y-4">
-              {parts.map(([key, value]) => {
-                const percent = total > 0 && value != null ? Math.min(100, Math.max(0, Number(value) / total * 100)) : 0;
-                return (
-                  <button type="button" key={key} onClick={() => openCategory(key)} className="block w-full rounded-lg p-1 text-left transition hover:bg-fb-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-fb-accent" aria-label={`${labels[key]} anzeigen`}>
-                    <div className="flex justify-between gap-4 text-sm">
-                      <span>{labels[key]}</span>
-                      <span className="font-semibold">{km(value)} · {percent.toLocaleString("de-DE", { maximumFractionDigits: 1 })} %</span>
-                    </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-fb-surface">
-                      <div className="h-full rounded-full bg-fb-accent transition-[width] duration-500" style={{ width: `${percent}%` }} />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-6 border-t border-fb-border pt-4 text-sm text-fb-muted">
-              Kilometerstand: {selected.actualKm != null ? `${km(selected.startOdometerKm)} → ${km(selected.endOdometerKm)}` : `Letzte Ablesung: ${km(selected.endOdometerKm ?? selected.startOdometerKm)} · Monatsgrenzen nicht vollständig abgelesen`}
-            </div>
-          </section>
-        </>
-      )}
+          <div className="flex flex-wrap gap-2">
+            <select
+              aria-label={t("statistics.year")}
+              value={selectedYear}
+              disabled={availableYears.length === 0}
+              onChange={(e) => {
+                const year = e.target.value;
+                const firstMonth = availableMonths.find((value) => value.startsWith(`${year}-`));
+                setMonth(firstMonth || "");
+              }}
+              className="h-10 rounded-lg border border-fb-border bg-fb-main px-3 text-sm disabled:opacity-50"
+            >
+              {availableYears.length === 0 && <option value="">Kein Jahr</option>}
+              {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+            <select
+              aria-label={t("statistics.month")}
+              value={month}
+              disabled={monthsForYear.length === 0}
+              onChange={(e) => setMonth(e.target.value)}
+              className="h-10 rounded-lg border border-fb-border bg-fb-main px-3 text-sm disabled:opacity-50"
+            >
+              {monthsForYear.length === 0 && <option value="">Kein Monat</option>}
+              {monthsForYear.map((value) => <option key={value} value={value}>{monthLabel(value).replace(/\s+\d{4}$/, "")}</option>)}
+            </select>
+            {intervals.length > 0 && (
+              <button type="button" onClick={() => setIntervalModalOpen(true)} className="h-10 rounded-lg border border-fb-border bg-fb-main px-3.5 text-[13px] font-semibold text-fb-text hover:border-fb-accent">Genauigkeit nach Ableseintervall</button>
+            )}
+          </div>
+        </div>
+        {selected && (
+          <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
+            {parts.map(([key, value]) => {
+              const unknown = key === "unknownKm";
+              const share = total > 0 && value != null ? Math.min(100, Math.max(0, Number(value) / total * 100)) : 0;
+              return (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => openCategory(key)}
+                  className={`rounded-lg border p-3.5 text-left transition hover:border-fb-accent ${unknown ? "border-fb-danger/40 bg-fb-danger/5" : "border-fb-border bg-fb-surface"}`}
+                >
+                  <span className="flex items-center gap-1.5 text-xs text-fb-muted"><span aria-hidden="true" className={`size-2 rounded-full ${PART_COLORS[key]}`} />{labels[key]}</span>
+                  <span className={`mt-0.5 block text-xl font-bold ${unknown ? "text-fb-danger" : ""}`}>{km(value)}</span>
+                  <span className="mt-0.5 block text-xs text-fb-muted">{percent(share)}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {selected && selected.actualKm != null && (
+          <p className="mt-4 border-t border-fb-border pt-3 text-xs text-fb-muted">Kilometerstand: {km(selected.startOdometerKm)} → {km(selected.endOdometerKm)}</p>
+        )}
+      </section>
       {categoryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCategoryModal(null); }}>
           <section role="dialog" aria-modal="true" aria-label={labels[categoryModal]} className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-fb-border bg-fb-main p-5 shadow-xl">
@@ -518,7 +743,7 @@ export default function Statistics() {
             </header>
             {categoryModal === "unknownKm" ? (
               <div className="mt-5 space-y-3 text-sm">
-                <p>„Unbekannt / nicht erfasst“ ist keine Fahrtenkategorie. Die Kilometer ergeben sich aus der Differenz zwischen Kilometerstandsänderung und aufgezeichneten Fahrten. Einzelne Fahrten können daher nicht aufgelistet werden.</p>
+                <p>„Nicht erklärt“ ist keine Fahrtenkategorie. Die Kilometer ergeben sich aus der Differenz zwischen Kilometerstandsänderung und aufgezeichneten Fahrten. Einzelne Fahrten können daher nicht aufgelistet werden.</p>
                 <p>Kilometerstand: {km(selected?.startOdometerKm)} → {km(selected?.endOdometerKm)}</p>
                 <p>Erfasste Fahrten: {km(selected?.trackedKm)}</p>
                 <p>Nicht erfasst (berechnet): {km(selected?.unknownKm)}</p>
@@ -535,7 +760,7 @@ export default function Statistics() {
                     {categoryModal === "unclassifiedKm" && <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-fb-muted">Zuordnen:</span>
                       {[
-                        ["business", "Beruflich"],
+                        ["business", "Dienstlich"],
                         ["private", "Privat"],
                         ["commute", "Arbeitsweg"],
                       ].map(([type, label]) => <button key={type} type="button"

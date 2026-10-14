@@ -38,15 +38,36 @@ import { useAuth } from "../auth/AuthProvider.jsx";
 import { createPasskey } from "../lib/webauthn.js";
 import AddNewDeviceModal from "../components/addNewDeviceModal.jsx";
 import UserDataTransfer from "../components/UserDataTransfer.jsx";
+import { DEFAULT_ROUTE_COLORS } from "../lib/routeColors.js";
+import PageHeader from "../components/PageHeader.jsx";
+
+// Gruppen der Abschnittsnavigation (wie im Mockup); der Anker zeigt auf den
+// ersten Abschnitt der Gruppe, SECTION_GROUP ordnet jeden Abschnitt zu.
+const SETTINGS_GROUPS = [
+  ["profile", "Profil"],
+  ["home", "Orte"],
+  ["tracking", "Tracking & Karte"],
+  ["credentials", "Sicherheit"],
+  ["devices", "Geräte"],
+];
+
+const SECTION_GROUP = {
+  profile: "profile", language: "profile", country: "profile",
+  home: "home", work: "home", recognition: "home", places: "home",
+  tracking: "tracking",
+  credentials: "credentials", security: "credentials",
+  devices: "devices",
+};
 
 function Section({
+  id,
   title,
   description,
   children,
 }) {
   return (
-    <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
-      <div className="mb-6">
+    <section id={id ? `section-${id}` : undefined} data-section={id} className="scroll-mt-6 rounded-xl border border-fb-border bg-fb-main p-[22px]">
+      <div className="mb-4">
         <h2 className="text-lg font-bold">{title}</h2>
         <p className="mt-1 text-sm text-fb-muted">
           {description}
@@ -68,10 +89,10 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={[
-        "whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-semibold transition",
+        "h-11 whitespace-nowrap border-b-2 text-sm transition",
         active
-          ? "border-fb-accent text-fb-accent"
-          : "border-transparent text-fb-muted hover:border-fb-border hover:text-fb-text",
+          ? "border-fb-accent font-semibold text-fb-accent-strong"
+          : "border-transparent font-medium text-fb-muted hover:text-fb-text",
       ].join(" ")}
     >
       {children}
@@ -113,6 +134,20 @@ export default function ProfileSettings() {
     ["backup", "units"].includes(searchParams.get("tab"))
       ? searchParams.get("tab")
       : "settings";
+
+  // Aktive Gruppe in der Abschnittsnavigation: der oberste sichtbare Abschnitt.
+  const [activeGroup, setActiveGroup] = useState("profile");
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return undefined;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      const group = visible && SECTION_GROUP[visible.target.dataset.section];
+      if (group) setActiveGroup(group);
+    }, { rootMargin: "0px 0px -60% 0px" });
+    document.querySelectorAll("[data-section]").forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  });
 
   function openTab(tab) {
     const next =
@@ -915,19 +950,11 @@ export default function ProfileSettings() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <p className="text-sm font-semibold text-fb-accent">
-          {t("profileTranslations.1")}
-        </p>
-
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">
-          {t("profileTranslations.0")}
-        </h1>
-
-        <p className="mt-2 text-fb-muted">
-          {t("profileTranslations.101")}
-        </p>
-      </header>
+      <PageHeader
+        eyebrow={t("profileTranslations.1")}
+        title={t("profileTranslations.2")}
+        subtitle={t("profileTranslations.101")}
+      />
 
       <nav
         aria-label="Persönliche Einstellungen"
@@ -939,7 +966,7 @@ export default function ProfileSettings() {
             openTab("settings")
           }
         >
-          {t("profileTranslations.2")}
+          {t("profileTranslations.0")}
         </TabButton>
 
         <TabButton
@@ -973,45 +1000,26 @@ export default function ProfileSettings() {
         </div>
       )}
 
-      <Section
-        title="Gespeicherte Orte"
-        description="Kunden, Niederlassungen und häufige Ziele für automatische Klassifizierungsvorschläge."
-      >
-        <form onSubmit={addSavedPlace} className="grid gap-3 md:grid-cols-3">
-          <input required placeholder="Name, z. B. Kunde Müller" value={newPlace.name} onChange={(e)=>setNewPlace(p=>({...p,name:e.target.value}))} className={fieldClass} />
-          <input placeholder="Adresse" value={newPlace.address} onChange={(e)=>setNewPlace(p=>({...p,address:e.target.value}))} className={fieldClass} />
-          <select value={newPlace.suggestedType} onChange={(e)=>setNewPlace(p=>({...p,suggestedType:e.target.value}))} className={fieldClass}>
-            <option value="">{t("profileTranslations.5")}</option><option value="business">{t("profileTranslations.6")}</option><option value="private">{t("profileTranslations.7")}</option><option value="commute">{t("profileTranslations.8")}</option>
-          </select>
-          <input required type="number" step="any" placeholder="Breitengrad" value={newPlace.latitude} onChange={(e)=>setNewPlace(p=>({...p,latitude:e.target.value}))} className={fieldClass} />
-          <input required type="number" step="any" placeholder="Längengrad" value={newPlace.longitude} onChange={(e)=>setNewPlace(p=>({...p,longitude:e.target.value}))} className={fieldClass} />
-          <div className="flex gap-2"><input required type="number" min="25" max="5000" value={newPlace.radiusMeters} onChange={(e)=>setNewPlace(p=>({...p,radiusMeters:e.target.value}))} className={fieldClass} /><button disabled={saving==="saved-place"} className="mt-2 rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text">{t("profileTranslations.9")}</button></div>
-        </form>
-        <div className="mt-5 divide-y divide-fb-border">
-          {savedPlaces.map((place)=>(
-            <div key={place.id} className="flex items-center justify-between gap-4 py-3 text-sm">
-              <div><div className="font-semibold">{place.name}</div><div className="text-fb-muted">{place.address || `${place.latitude}, ${place.longitude}`} · {place.radiusMeters || locationRecognitionRadiusMeters} m</div></div>
-              <button type="button" onClick={()=>removeSavedPlace(place.id)} className="rounded border border-fb-border px-3 py-1.5 text-xs">{t("profileTranslations.10")}</button>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <form onSubmit={saveLanguage}>
-        <Section title="Sprache" description="Überschreibt die globale Standardsprache nur für dein Benutzerkonto.">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <label className={labelClass}>{t("profileTranslations.11")}
-              <select value={personalLanguage} onChange={(e)=>setPersonalLanguage(e.target.value)} className={fieldClass}>
-                <option value="">{t("profileTranslations.12")}</option><option value="de">{t("profileTranslations.13")}</option><option value="en">English</option>
-              </select>
-            </label>
-            <button disabled={saving==="language"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-50">{t("profileTranslations.14")}</button>
-          </div>
-        </Section>
-      </form>
-
+      <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start lg:gap-8">
+        <nav aria-label="Abschnitte" className="mb-6 hidden lg:sticky lg:top-6 lg:mb-0 lg:block">
+          <ul className="space-y-0.5 text-sm">
+            {SETTINGS_GROUPS.map(([id, title]) => (
+              <li key={id}>
+                <a
+                  href={`#section-${id}`}
+                  aria-current={activeGroup === id ? "true" : undefined}
+                  className={`block rounded-lg px-3 py-2.5 transition ${activeGroup === id ? "bg-fb-accent-soft font-semibold text-fb-accent-strong" : "text-fb-muted hover:bg-fb-main hover:text-fb-text"}`}
+                >
+                  {title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="min-w-0 space-y-5">
       <form onSubmit={saveProfile}>
         <Section
+          id="profile"
           title="Profil"
           description="Persönliche Angaben und Darstellung der Weboberfläche."
         >
@@ -1134,9 +1142,22 @@ export default function ProfileSettings() {
         </Section>
       </form>
 
+      <form onSubmit={saveLanguage}>
+        <Section id="language" title="Sprache" description="Überschreibt die globale Standardsprache nur für dein Benutzerkonto.">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className={labelClass}>{t("profileTranslations.11")}
+              <select value={personalLanguage} onChange={(e)=>setPersonalLanguage(e.target.value)} className={fieldClass}>
+                <option value="">{t("profileTranslations.12")}</option><option value="de">{t("profileTranslations.13")}</option><option value="en">English</option>
+              </select>
+            </label>
+            <button disabled={saving==="language"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-50">{t("profileTranslations.14")}</button>
+          </div>
+        </Section>
+      </form>
 
       <form onSubmit={saveHomeCountry}>
         <Section
+          id="country"
           title="Heimatland und Steuerexport"
           description="Das gewählte Land bestimmt Aufbau, Sprache, Einheit und Hinweise des PDF-Exports."
         >
@@ -1234,170 +1255,8 @@ export default function ProfileSettings() {
         </Section>
       </form>
 
-      <form onSubmit={saveTracking}>
-        <Section
-          title="Tracking"
-          description="Vorgaben für die Android-App und die automatische Fahrterkennung."
-        >
-          <div className="space-y-5">
-            <label className="flex items-start justify-between gap-6 rounded-lg border border-fb-border bg-fb-surface p-4">
-              <span>
-                <span className="block text-sm font-semibold">
-                  {t("profileTranslations.26")}
-                </span>
-                <span className="mt-1 block text-sm text-fb-muted">
-                  {t("profileTranslations.106")}
-                </span>
-              </span>
-
-              <input
-                type="checkbox"
-                checked={
-                  tracking.automaticTrackingEnabled
-                }
-                onChange={(event) =>
-                  setTracking((current) => ({
-                    ...current,
-                    automaticTrackingEnabled:
-                      event.target.checked,
-                  }))
-                }
-                className="mt-1 size-5 accent-[var(--color-accent)]"
-              />
-            </label>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <label className={labelClass}>
-                {t("profileTranslations.27")}
-                <select
-                  value={
-                    tracking.trackingAccuracyMode
-                  }
-                  onChange={(event) =>
-                    setTracking((current) => ({
-                      ...current,
-                      trackingAccuracyMode:
-                        event.target.value,
-                    }))
-                  }
-                  className={fieldClass}
-                >
-                  <option value="high">
-                    {t("profileTranslations.28")}
-                  </option>
-                  <option value="balanced">
-                    {t("profileTranslations.29")}
-                  </option>
-                  <option value="battery">
-                    {t("profileTranslations.30")}
-                  </option>
-                </select>
-              </label>
-
-              <label className={labelClass}>
-                {t("profileTranslations.31")}
-                <input
-                  type="number"
-                  min="0"
-                  max="3600"
-                  value={tracking.stopDelaySeconds}
-                  onChange={(event) =>
-                    setTracking((current) => ({
-                      ...current,
-                      stopDelaySeconds:
-                        Number(event.target.value),
-                    }))
-                  }
-                  className={fieldClass}
-                />
-              </label>
-
-              <label className={labelClass}>
-                {t("profileTranslations.32")}
-                <select
-                  value={tracking.mapProvider}
-                  onChange={(event) =>
-                    setTracking((current) => ({
-                      ...current,
-                      mapProvider:
-                        event.target.value,
-                    }))
-                  }
-                  className={fieldClass}
-                >
-                  <option value="osm">
-                    OpenStreetMap
-                  </option>
-                  <option value="maplibre">
-                    MapLibre
-                  </option>
-                  <option value="atlas">
-                    {t("profileTranslations.33")}
-                  </option>
-                </select>
-        </label>
-              <div className="mt-5">
-                <h3 className="text-sm font-semibold">{t("profileTranslations.34")}</h3>
-                <p className="mt-1 text-xs text-fb-muted">{t("profileTranslations.107")}</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {[
-                    ["private", t("profileTranslations.7")],
-                    ["business", "Beruflich"],
-                    ["commute", t("profileTranslations.8")],
-                    ["unclassified", "Nicht zugeordnet"],
-                  ].map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-3 rounded-lg border border-fb-border p-3 text-sm">
-                      <input type="checkbox" checked={Boolean(tracking.mapRouteColors?.[key])}
-                        onChange={(event) => setTracking((current) => ({
-                          ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.checked ? "#0ea5e9" : null },
-                        }))} />
-                      <span className="flex-1">{label}</span>
-                      <input type="color" aria-label={`Farbe für ${label}`} disabled={!tracking.mapRouteColors?.[key]}
-                        value={tracking.mapRouteColors?.[key] || "#0ea5e9"}
-                        onChange={(event) => setTracking((current) => ({
-                          ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.value },
-                        }))} className="h-9 w-12 cursor-pointer rounded border border-fb-border" />
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <label className="flex items-center gap-3 self-end rounded-lg border border-fb-border bg-fb-surface px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={tracking.saveAccuracy}
-                  onChange={(event) =>
-                    setTracking((current) => ({
-                      ...current,
-                      saveAccuracy:
-                        event.target.checked,
-                    }))
-                  }
-                  className="size-5 accent-[var(--color-accent)]"
-                />
-                <span className="text-sm font-medium">
-                  {t("profileTranslations.35")}
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              type="submit"
-              disabled={saving === "tracking"}
-              className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
-            >
-              {saving === "tracking"
-                ? t("profileTranslations.135")
-                : t("profileTranslations.134")}
-            </button>
-          </div>
-        </Section>
-      </form>
-
-
       <Section
+        id="home"
         title="Heimatort"
         description="Wird auf dem Dashboard als Kartenmittelpunkt verwendet, wenn noch keine Fahrt vorhanden ist."
       >
@@ -1648,6 +1507,7 @@ export default function ProfileSettings() {
       </Section>
 
       <Section
+        id="work"
         title="Arbeitsort (optional)"
         description="Optionaler Arbeitsort für die Erkennung von Arbeitswegen. Die Adresse wird wie der Heimatort als Koordinate gespeichert."
       >
@@ -1814,6 +1674,7 @@ export default function ProfileSettings() {
       </Section>
 
       <Section
+        id="recognition"
         title="Ortserkennung"
         description="Legt fest, wie nah Start oder Ziel an Heimat- bzw. Arbeitsort liegen müssen, damit der Ort als Treffer erkannt wird."
       >
@@ -1850,8 +1711,197 @@ export default function ProfileSettings() {
         </div>
       </Section>
 
+      <Section
+        id="places"
+        title="Gespeicherte Orte"
+        description="Kunden, Niederlassungen und häufige Ziele für automatische Klassifizierungsvorschläge."
+      >
+        <form onSubmit={addSavedPlace} className="grid gap-3 md:grid-cols-3">
+          <input required placeholder="Name, z. B. Kunde Müller" value={newPlace.name} onChange={(e)=>setNewPlace(p=>({...p,name:e.target.value}))} className={fieldClass} />
+          <input placeholder="Adresse" value={newPlace.address} onChange={(e)=>setNewPlace(p=>({...p,address:e.target.value}))} className={fieldClass} />
+          <select value={newPlace.suggestedType} onChange={(e)=>setNewPlace(p=>({...p,suggestedType:e.target.value}))} className={fieldClass}>
+            <option value="">{t("profileTranslations.5")}</option><option value="business">{t("profileTranslations.6")}</option><option value="private">{t("profileTranslations.7")}</option><option value="commute">{t("profileTranslations.8")}</option>
+          </select>
+          <input required type="number" step="any" placeholder="Breitengrad" value={newPlace.latitude} onChange={(e)=>setNewPlace(p=>({...p,latitude:e.target.value}))} className={fieldClass} />
+          <input required type="number" step="any" placeholder="Längengrad" value={newPlace.longitude} onChange={(e)=>setNewPlace(p=>({...p,longitude:e.target.value}))} className={fieldClass} />
+          <div className="flex gap-2"><input required type="number" min="25" max="5000" value={newPlace.radiusMeters} onChange={(e)=>setNewPlace(p=>({...p,radiusMeters:e.target.value}))} className={fieldClass} /><button disabled={saving==="saved-place"} className="mt-2 rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text">{t("profileTranslations.9")}</button></div>
+        </form>
+        <div className="mt-5 divide-y divide-fb-border">
+          {savedPlaces.map((place)=>(
+            <div key={place.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+              <div><div className="font-semibold">{place.name}</div><div className="text-fb-muted">{place.address || `${place.latitude}, ${place.longitude}`} · {place.radiusMeters || locationRecognitionRadiusMeters} m</div></div>
+              <button type="button" onClick={()=>removeSavedPlace(place.id)} className="rounded border border-fb-border px-3 py-1.5 text-xs">{t("profileTranslations.10")}</button>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <form onSubmit={saveTracking}>
+        <Section
+          id="tracking"
+          title="Tracking"
+          description="Vorgaben für die Android-App und die automatische Fahrterkennung."
+        >
+          <div className="space-y-5">
+            <label className="flex items-start justify-between gap-6 rounded-lg border border-fb-border bg-fb-surface p-4">
+              <span>
+                <span className="block text-sm font-semibold">
+                  {t("profileTranslations.26")}
+                </span>
+                <span className="mt-1 block text-sm text-fb-muted">
+                  {t("profileTranslations.106")}
+                </span>
+              </span>
+
+              <input
+                type="checkbox"
+                checked={
+                  tracking.automaticTrackingEnabled
+                }
+                onChange={(event) =>
+                  setTracking((current) => ({
+                    ...current,
+                    automaticTrackingEnabled:
+                      event.target.checked,
+                  }))
+                }
+                className="mt-1 size-5 accent-[var(--color-accent)]"
+              />
+            </label>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className={labelClass}>
+                {t("profileTranslations.27")}
+                <select
+                  value={
+                    tracking.trackingAccuracyMode
+                  }
+                  onChange={(event) =>
+                    setTracking((current) => ({
+                      ...current,
+                      trackingAccuracyMode:
+                        event.target.value,
+                    }))
+                  }
+                  className={fieldClass}
+                >
+                  <option value="high">
+                    {t("profileTranslations.28")}
+                  </option>
+                  <option value="balanced">
+                    {t("profileTranslations.29")}
+                  </option>
+                  <option value="battery">
+                    {t("profileTranslations.30")}
+                  </option>
+                </select>
+              </label>
+
+              <label className={labelClass}>
+                {t("profileTranslations.31")}
+                <input
+                  type="number"
+                  min="0"
+                  max="3600"
+                  value={tracking.stopDelaySeconds}
+                  onChange={(event) =>
+                    setTracking((current) => ({
+                      ...current,
+                      stopDelaySeconds:
+                        Number(event.target.value),
+                    }))
+                  }
+                  className={fieldClass}
+                />
+              </label>
+
+              <label className={labelClass}>
+                {t("profileTranslations.32")}
+                <select
+                  value={tracking.mapProvider}
+                  onChange={(event) =>
+                    setTracking((current) => ({
+                      ...current,
+                      mapProvider:
+                        event.target.value,
+                    }))
+                  }
+                  className={fieldClass}
+                >
+                  <option value="osm">
+                    OpenStreetMap
+                  </option>
+                  <option value="maplibre">
+                    MapLibre
+                  </option>
+                  <option value="atlas">
+                    {t("profileTranslations.33")}
+                  </option>
+                </select>
+        </label>
+              <div className="mt-5">
+                <h3 className="text-sm font-semibold">{t("profileTranslations.34")}</h3>
+                <p className="mt-1 text-xs text-fb-muted">{t("profileTranslations.107")}</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {[
+                    ["private", t("profileTranslations.7")],
+                    ["business", t("profileTranslations.6")],
+                    ["commute", t("profileTranslations.8")],
+                    ["unclassified", "Nicht zugeordnet"],
+                  ].map(([key, label]) => (
+                    <label key={key} className="flex items-center gap-3 rounded-lg border border-fb-border p-3 text-sm">
+                      <input type="checkbox" checked={Boolean(tracking.mapRouteColors?.[key])}
+                        onChange={(event) => setTracking((current) => ({
+                          ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.checked ? DEFAULT_ROUTE_COLORS[key] : null },
+                        }))} />
+                      <span className="flex-1">{label}</span>
+                      <input type="color" aria-label={`Farbe für ${label}`} disabled={!tracking.mapRouteColors?.[key]}
+                        value={tracking.mapRouteColors?.[key] || DEFAULT_ROUTE_COLORS[key]}
+                        onChange={(event) => setTracking((current) => ({
+                          ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.value },
+                        }))} className="h-9 w-12 cursor-pointer rounded border border-fb-border" />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <label className="flex items-center gap-3 self-end rounded-lg border border-fb-border bg-fb-surface px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={tracking.saveAccuracy}
+                  onChange={(event) =>
+                    setTracking((current) => ({
+                      ...current,
+                      saveAccuracy:
+                        event.target.checked,
+                    }))
+                  }
+                  className="size-5 accent-[var(--color-accent)]"
+                />
+                <span className="text-sm font-medium">
+                  {t("profileTranslations.35")}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              type="submit"
+              disabled={saving === "tracking"}
+              className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
+            >
+              {saving === "tracking"
+                ? t("profileTranslations.135")
+                : t("profileTranslations.134")}
+            </button>
+          </div>
+        </Section>
+      </form>
+
       <form onSubmit={savePassword}>
         <Section
+          id="credentials"
           title="Passwort"
           description="Nach einer Änderung werden alle anderen Sitzungen beendet."
         >
@@ -1925,6 +1975,7 @@ export default function ProfileSettings() {
       </form>
 
       <Section
+        id="security"
         title="Sicherheit"
         description="Status der zusätzlichen Anmeldeverfahren."
       >
@@ -2000,6 +2051,7 @@ export default function ProfileSettings() {
       </Section>
 
       <Section
+        id="devices"
         title="Geräte und Sitzungen"
         description="Geräte, die sich mit deinem Konto angemeldet haben."
       >
@@ -2087,6 +2139,8 @@ export default function ProfileSettings() {
           );
         }}
       />
+        </div>
+      </div>
         </>
       ) : activeTab === "units" ? (
         <>

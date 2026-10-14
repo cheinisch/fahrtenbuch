@@ -12,6 +12,7 @@ import AppShell from "./components/AppShell.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Compliance from "./pages/Compliance.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
+import PasswordResetPage from "./pages/PasswordResetPage.jsx";
 import ExportPage from "./pages/Export.jsx";
 import ProfileSettings from "./pages/ProfileSettings.jsx";
 import Settings from "./pages/Settings.jsx";
@@ -43,6 +44,11 @@ export default function App() {
       <Route
         path="/login"
         element={<LoginRoute />}
+      />
+
+      <Route
+        path="/password-reset"
+        element={<PasswordResetPage />}
       />
 
       <Route element={<ProtectedRoute />}>
