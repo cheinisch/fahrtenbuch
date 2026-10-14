@@ -910,10 +910,11 @@ tripRoutes.put(
     const category = body.category !== undefined
       ? enumField(body, "category", TRIP_TYPES, { required: true })
       : enumField(body, "type", TRIP_TYPES, { required: true });
-    const specialCategory =
+    const hasSpecialCategory = body.specialCategory !== undefined;
+    const requestedSpecialCategory =
       body.specialCategory === null
         ? null
-        : enumField(body, "specialCategory", SPECIAL_CATEGORIES, { nullable: true }) ?? null;
+        : enumField(body, "specialCategory", SPECIAL_CATEGORIES, { nullable: true });
 
     const client = await pool.connect();
     try {
@@ -922,6 +923,10 @@ tripRoutes.put(
       if (!existing) {
         throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
       }
+
+      const specialCategory = hasSpecialCategory
+        ? requestedSpecialCategory ?? null
+        : existing.special_category ?? null;
 
       if (
         existing.type !== category ||
