@@ -22,6 +22,15 @@ const TRIP_TYPES = [
   "unclassified",
 ];
 
+const SPECIAL_CATEGORIES = [
+  "medical",
+  "volunteer",
+  "education",
+  "application",
+  "moving",
+  "other",
+];
+
 function createFallbackRoute(row) {
   const route = [];
 
@@ -52,10 +61,17 @@ dashboardRoutes.get(
     const from = dateQuery(request.query.from, "from");
     const to = dateQuery(request.query.to, "to");
     const type = request.query.type ? String(request.query.type) : null;
+    const specialCategory = request.query.specialCategory
+      ? String(request.query.specialCategory)
+      : null;
     const tagId = request.query.tagId ? String(request.query.tagId) : null;
 
     if (type && !TRIP_TYPES.includes(type)) {
       throw badRequest("VALIDATION_ERROR", "Der Fahrttyp ist ungültig.");
+    }
+
+    if (specialCategory && !SPECIAL_CATEGORIES.includes(specialCategory)) {
+      throw badRequest("VALIDATION_ERROR", "Die Sonderkategorie ist ungültig.");
     }
 
     if (tagId && !isUuid(tagId)) {
@@ -84,6 +100,11 @@ dashboardRoutes.get(
     if (type) {
       parameters.push(type);
       conditions.push(`t.type = $${parameters.length}::trip_type`);
+    }
+
+    if (specialCategory) {
+      parameters.push(specialCategory);
+      conditions.push(`t.special_category = ${parameters.length}`);
     }
 
     if (tagId) {
