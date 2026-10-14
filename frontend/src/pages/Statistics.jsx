@@ -7,11 +7,22 @@ import OdometerReadingLogModal from "../components/OdometerReadingLogModal.jsx";
 
 const PART_COLORS = {
   businessKm: "bg-sky-600",
-  commuteKm: "bg-violet-700",
+  commuteKm: "bg-violet-700 dark:bg-violet-500",
   privateKm: "bg-orange-600",
   unclassifiedKm: "bg-neutral-400",
   unknownKm: "bg-fb-danger",
 };
+
+// Reihenfolge von unten nach oben. Privat liegt zwischen Dienstlich (blau) und
+// Arbeitsweg (violett), damit die beiden ähnlich wirkenden Farben nie aneinandergrenzen.
+// Violett hat im dunklen Thema eine hellere Stufe (Kontrast zur Fläche).
+const STACK_SEGMENTS = [
+  { key: "businessKm", fill: "fill-sky-600", swatch: "bg-sky-600" },
+  { key: "privateKm", fill: "fill-orange-600", swatch: "bg-orange-600" },
+  { key: "commuteKm", fill: "fill-violet-700 dark:fill-violet-500", swatch: "bg-violet-700 dark:bg-violet-500" },
+  { key: "unclassifiedKm", fill: "fill-neutral-400", swatch: "bg-neutral-400" },
+  { key: "unexplainedKm", fill: "", swatch: "" },
+];
 
 const labels = {
   businessKm: "Beruflich",
@@ -58,6 +69,135 @@ function intervalMonthKey(endDate) {
   if (!Number.isFinite(date.getTime())) return "";
   date.setUTCDate(date.getUTCDate() - 1);
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+// Gestapelte Monatsbalken: erfasste Kilometer nach Kategorie plus der Teil, der
+// laut Ablesung gefahren, aber keiner Fahrt zugeordnet ist (schraffiert).
+function StackedMonthChart({ months, monthlyLimitKm = null, selectedMonth, onSelectMonth, labelFor }) {
+  const [hovered, setHovered] = useState(null);
+  const width = 900;
+  const height = 300;
+  const pad = { left: 56, right: 16, top: 28, bottom: 40 };
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const max = Math.max(1, monthlyLimitKm ?? 0, ...months.map((month) => month.total));
+  const groupW = innerW / Math.max(1, months.length);
+  const barW = Math.min(44, groupW * 0.55);
+  const y = (value) => pad.top + innerH - (Math.max(0, value) / max) * innerH;
+  const GAP = 2;
+  const hoveredIndex = months.findIndex((month) => month.key === hovered);
+  const hoveredMonth = hoveredIndex >= 0 ? months[hoveredIndex] : null;
+  // Tooltip neben den Balken setzen (rechte Hälfte: links davon), damit er
+  // weder den Balken noch die Summen der Nachbarmonate verdeckt.
+  const tooltipStyle = (() => {
+    if (hoveredIndex < 0) return {};
+    const xPct = (pad.left + groupW * hoveredIndex + groupW / 2) / width * 100;
+    const offset = (barW / 2 + 10) / width * 100;
+    return xPct > 55 ? { right: `${100 - xPct + offset}%` } : { left: `${xPct + offset}%` };
+  })();
+
+  return (
+    <div className="relative mt-5">
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[640px]" role="img" aria-label="Kilometer pro Monat nach Kategorie">
+          <defs>
+            <pattern id="unexplained-hatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+              <rect width="6" height="6" className="fill-fb-surface" />
+              <line x1="0" y1="0" x2="0" y2="6" strokeWidth="2.5" className="stroke-fb-muted" />
+            </pattern>
+          </defs>
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+            const yy = pad.top + innerH - ratio * innerH;
+            return (
+              <g key={ratio}>
+                <line x1={pad.left} y1={yy} x2={width - pad.right} y2={yy} className={ratio === 0 ? "stroke-fb-muted" : "stroke-fb-border"} strokeWidth="1" />
+                <text x={pad.left - 8} y={yy + 4} textAnchor="end" className="fill-fb-muted text-[11px]">{Math.round(max * ratio).toLocaleString("de-DE")}</text>
+              </g>
+            );
+          })}
+          {months.map((month, index) => {
+            const center = pad.left + groupW * index + groupW / 2;
+            let base = 0;
+            const segments = STACK_SEGMENTS.map((segment) => {
+              const value = month[segment.key] || 0;
+              const y0 = y(base);
+              base += value;
+              const y1 = y(base);
+              return { ...segment, value, top: y1, height: Math.max(0, y0 - y1 - GAP) };
+            }).filter((segment) => segment.value > 0 && segment.height > 0);
+            const isSelected = month.key === selectedMonth;
+            const dimmed = hovered && hovered !== month.key;
+            return (
+              <g
+                key={month.key}
+                role="button"
+                tabIndex={0}
+                aria-label={`${month.label}: ${km(month.total)} – Details anzeigen`}
+                onClick={() => onSelectMonth(month.key)}
+                onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectMonth(month.key); } }}
+                onMouseEnter={() => setHovered(month.key)}
+                onMouseLeave={() => setHovered(null)}
+                onFocus={() => setHovered(month.key)}
+                onBlur={() => setHovered(null)}
+                className="cursor-pointer outline-none"
+                style={{ opacity: dimmed ? 0.45 : 1, transition: "opacity 120ms" }}
+              >
+                <rect x={center - groupW / 2} y={pad.top} width={groupW} height={innerH + pad.bottom} fill="transparent" />
+                {segments.map((segment, segmentIndex) => (
+                  <rect
+                    key={segment.key}
+                    x={center - barW / 2}
+                    y={segment.top}
+                    width={barW}
+                    height={segment.height}
+                    rx={segmentIndex === segments.length - 1 ? 4 : 1}
+                    className={segment.fill}
+                    fill={segment.key === "unexplainedKm" ? "url(#unexplained-hatch)" : undefined}
+                  />
+                ))}
+                <text x={center} y={y(month.total) - 8} textAnchor="middle" className="fill-fb-muted text-[11px]">{Math.round(month.total).toLocaleString("de-DE")}</text>
+                <text x={center} y={height - 14} textAnchor="middle" className={`text-[12px] ${isSelected ? "fill-fb-accent font-semibold" : "fill-fb-muted"}`}>{month.label}</text>
+              </g>
+            );
+          })}
+          {monthlyLimitKm != null && (
+            <line x1={pad.left} y1={y(monthlyLimitKm)} x2={width - pad.right} y2={y(monthlyLimitKm)} stroke="#f59e0b" strokeWidth="2" strokeDasharray="7 5" pointerEvents="none" />
+          )}
+        </svg>
+      </div>
+
+      {hoveredMonth && (
+        <div style={tooltipStyle} className="pointer-events-none absolute top-6 z-10 w-56 rounded-lg border border-fb-border bg-fb-main p-3 text-xs shadow-lg">
+          <div className="font-semibold text-fb-text">{hoveredMonth.label} · {km(hoveredMonth.total)}</div>
+          <ul className="mt-2 space-y-1">
+            {[...STACK_SEGMENTS].reverse().filter((segment) => hoveredMonth[segment.key] > 0).map((segment) => (
+              <li key={segment.key} className="flex items-center justify-between gap-3 text-fb-muted">
+                <span className="flex items-center gap-1.5">
+                  {segment.key === "unexplainedKm"
+                    ? <svg aria-hidden="true" className="size-2.5 rounded-sm"><rect width="10" height="10" fill="url(#unexplained-hatch)" /></svg>
+                    : <span aria-hidden="true" className={`size-2.5 rounded-sm ${segment.swatch}`} />}
+                  {labelFor(segment.key)}
+                </span>
+                <span className="font-medium text-fb-text">{km(hoveredMonth[segment.key])}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-fb-muted">
+        {STACK_SEGMENTS.map((segment) => (
+          <span key={segment.key} className="flex items-center gap-2">
+            {segment.key === "unexplainedKm"
+              ? <svg aria-hidden="true" className="size-3 rounded-sm"><rect width="12" height="12" fill="url(#unexplained-hatch)" /></svg>
+              : <span aria-hidden="true" className={`size-3 rounded-sm ${segment.swatch}`} />}
+            {labelFor(segment.key)}
+          </span>
+        ))}
+        {monthlyLimitKm != null && <span className="flex items-center gap-2"><span className="w-5 border-t-2 border-dashed border-amber-500" />Vertragliches Monatslimit: {km(monthlyLimitKm)}</span>}
+      </div>
+    </div>
+  );
 }
 
 function StatisticsChart({ data, monthlyLimitKm = null }) {
@@ -262,6 +402,26 @@ export default function Statistics() {
     }).filter(Boolean);
   }, [intervals, chartYear]);
 
+  // Monatswerte für das gestapelte Diagramm aus der Monatsstatistik des Fahrzeugs.
+  const stackedMonths = useMemo(() => rows
+    .filter((row) => row.vehicleId === vehicleId && String(row.month).startsWith(`${chartYear}-`))
+    .sort((a, b) => String(a.month).localeCompare(String(b.month)))
+    .map((row) => {
+      const businessKm = Number(row.businessKm) || 0;
+      const privateKm = Number(row.privateKm) || 0;
+      const commuteKm = Number(row.commuteKm) || 0;
+      const unclassifiedKm = Number(row.unclassifiedKm) || 0;
+      const trackedKm = businessKm + privateKm + commuteKm + unclassifiedKm;
+      const unexplainedKm = row.actualKm != null ? Math.max(0, Number(row.actualKm) - trackedKm) : 0;
+      return {
+        key: row.month,
+        label: monthLabel(row.month).replace(/\s+\d{4}$/, ""),
+        businessKm, privateKm, commuteKm, unclassifiedKm, unexplainedKm,
+        total: trackedKm + unexplainedKm,
+      };
+    })
+    .filter((month) => month.total > 0), [rows, vehicleId, chartYear]);
+
   const monthlyContractLimit = useMemo(() => {
     const vehicle = vehicleDetails.find((item) => item.id === vehicleId);
     if (!vehicle || !["leasing", "financing"].includes(vehicle.acquisitionType)
@@ -454,13 +614,24 @@ export default function Statistics() {
       </section>}
       <section className="rounded-xl border border-fb-border bg-fb-main p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div><h2 className="text-lg font-bold">Kilometerentwicklung</h2><p className="mt-1 text-sm text-fb-muted">Vergleich der Kilometer laut Ablesungen mit den im Fahrtenbuch erfassten Strecken.</p></div>
+          <div><h2 className="text-lg font-bold">Kilometerentwicklung</h2><p className="mt-1 text-sm text-fb-muted">{t("statistics.chartHint")}</p></div>
           <div className="flex flex-wrap items-center gap-4">
             {monthlyContractLimit != null && <label className="flex cursor-pointer items-center gap-2 text-xs text-fb-muted"><input type="checkbox" checked={showMonthlyLimit} onChange={(event) => setShowMonthlyLimit(event.target.checked)} className="accent-[var(--color-accent)]" />Monatliches Kilometerlimit anzeigen</label>}
             <label className="text-xs text-fb-muted"><span className="mb-1 block">Jahr</span><select value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm">{chartYears.length === 0 && <option value={chartYear}>{chartYear}</option>}{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
           </div>
         </div>
-        {chartData.length > 0 ? <StatisticsChart data={chartData} monthlyLimitKm={showMonthlyLimit ? monthlyContractLimit : null} /> : <div className="mt-5 rounded-lg bg-fb-surface p-6 text-center text-sm text-fb-muted">Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor.</div>}
+        {stackedMonths.length > 0 ? (
+          <StackedMonthChart
+            months={stackedMonths}
+            monthlyLimitKm={showMonthlyLimit ? monthlyContractLimit : null}
+            selectedMonth={month}
+            onSelectMonth={(key) => {
+              setMonth(key);
+              document.getElementById("statistics-month-details")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            labelFor={(key) => (key === "unexplainedKm" ? t("statistics.unexplained") : labels[key])}
+          />
+        ) : chartData.length > 0 ? <StatisticsChart data={chartData} monthlyLimitKm={showMonthlyLimit ? monthlyContractLimit : null} /> : <div className="mt-5 rounded-lg bg-fb-surface p-6 text-center text-sm text-fb-muted">Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor.</div>}
       </section>
       {intervals.length > 0 && (
         <section className="rounded-xl border border-fb-border bg-fb-main p-5">
@@ -504,7 +675,7 @@ export default function Statistics() {
           </section>
         </div>
       )}
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+      <section id="statistics-month-details" className="scroll-mt-6 rounded-xl border border-fb-border bg-fb-main p-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold">{selected ? monthLabel(selected.month) : t("statistics.monthTitle")}</h2>
