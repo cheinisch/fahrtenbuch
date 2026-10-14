@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import { pool } from "../database/pool.js";
 import { badRequest, notFound } from "../lib/errors.js";
+import { userTimeZone } from "../lib/timezone.js";
 import { uuidValue } from "../lib/validation.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
@@ -123,8 +124,9 @@ odometerRoutes.put(
         throw badRequest("VALIDATION_ERROR", "Die Ablesezeit ist ungültig.");
       }
       readingAt = new Date(rawReadingAt);
+      // Ablesedatum ist ein Kalendertag in der Kontozeitzone
       const localDate = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit",
+        timeZone: await userTimeZone(pool, request.auth.userId), year: "numeric", month: "2-digit", day: "2-digit",
       }).format(readingAt);
       if (localDate !== readingDate || readingAt.getTime() > Date.now()) {
         throw badRequest("VALIDATION_ERROR", "Die Ablesezeit muss zum Ablesedatum passen und darf nicht in der Zukunft liegen.");

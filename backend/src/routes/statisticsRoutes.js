@@ -6,6 +6,7 @@ import {
   dateQuery,
   uuidValue,
 } from "../lib/validation.js";
+import { tripLocalStartSql, userTimeZone } from "../lib/timezone.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
@@ -13,8 +14,19 @@ export const statisticsRoutes = Router();
 
 statisticsRoutes.use(requireAuth);
 
-function buildConditions(request) {
+// Tages- und Monatsgrenzen gelten in der Ortszeit der Fahrt (Zone beim Start,
+// sonst Kontozeitzone), nicht in UTC – inkl. Sommer-/Winterzeit.
+function buildConditions(request, timeZone) {
   const parameters = [request.auth.userId];
+  // Zone nur als Parameter anhängen, wenn sie gebraucht wird (ungenutzte Parameter mag PostgreSQL nicht)
+  let localStart = null;
+  const local = () => {
+    if (!localStart) {
+      parameters.push(timeZone);
+      localStart = tripLocalStartSql("t", `$${parameters.length}`);
+    }
+    return localStart;
+  };
   const conditions = [
     "t.user_id = $1",
     "t.archived_at IS NULL",
@@ -25,15 +37,15 @@ function buildConditions(request) {
   const to = dateQuery(request.query.to, "to");
 
   if (from) {
+    const expression = local();
     parameters.push(from);
-    conditions.push(`t.started_at >= $${parameters.length}::date`);
+    conditions.push(`${expression}::date >= $${parameters.length}::date`);
   }
 
   if (to) {
+    const expression = local();
     parameters.push(to);
-    conditions.push(
-      `t.started_at < $${parameters.length}::date + interval '1 day'`,
-    );
+    conditions.push(`${expression}::date <= $${parameters.length}::date`);
   }
 
   if (request.query.vehicleId) {
@@ -61,7 +73,8 @@ function buildConditions(request) {
 statisticsRoutes.get(
   "/",
   asyncHandler(async (request, response) => {
-    const { parameters, where } = buildConditions(request);
+    const timeZone = await userTimeZone(pool, request.auth.userId);
+    const { parameters, where } = buildConditions(request, timeZone);
 
     const [summaryResult, typeResult] = await Promise.all([
       pool.query(
@@ -129,12 +142,13 @@ statisticsRoutes.get(
       );
     }
 
+    const timeZone = await userTimeZone(pool, request.auth.userId);
     const result = await pool.query(
       `
         WITH months AS (
           SELECT generate_series(
-            date_trunc('month', now()) - (($2 - 1) || ' months')::interval,
-            date_trunc('month', now()),
+            date_trunc('month', now() AT TIME ZONE $3::text) - (($2 - 1) || ' months')::interval,
+            date_trunc('month', now() AT TIME ZONE $3::text),
             interval '1 month'
           ) AS month
         )
@@ -145,14 +159,14 @@ statisticsRoutes.get(
           coalesce(sum(t.duration_seconds), 0) AS duration_seconds
         FROM months
         LEFT JOIN trips t
-          ON date_trunc('month', t.started_at) = months.month
+          ON date_trunc('month', ${tripLocalStartSql("t", "$3")}) = months.month
           AND t.user_id = $1
           AND t.status = 'completed'
           AND t.archived_at IS NULL
         GROUP BY months.month
         ORDER BY months.month
       `,
-      [request.auth.userId, months],
+      [request.auth.userId, months, timeZone],
     );
 
     response.json(
@@ -262,12 +276,12 @@ statisticsRoutes.get(
       LEFT JOIN trips t
         ON t.user_id=$1 AND t.vehicle_id=i.vehicle_id
        AND t.archived_at IS NULL AND t.status='completed'
-       AND t.started_at >= greatest(i.reading_date, $3::date)::timestamp
-       AND t.started_at < (least(i.next_date, $4::date)::timestamp + interval '1 day')
+       AND ${tripLocalStartSql("t", "$5")}::date >= greatest(i.reading_date, $3::date)
+       AND ${tripLocalStartSql("t", "$5")}::date <= least(i.next_date, $4::date)
       GROUP BY i.id, i.next_id, i.reading_date, i.next_date, i.odometer_meters, i.next_meter
       ORDER BY i.reading_date DESC
       `,
-      [request.auth.userId, vehicleId, from, to],
+      [request.auth.userId, vehicleId, from, to, await userTimeZone(pool, request.auth.userId)],
     );
 
     response.json(result.rows.map((row) => {
@@ -301,14 +315,15 @@ statisticsRoutes.get(
       throw badRequest("VALIDATION_ERROR", "Der Parameter „months“ muss zwischen 1 und 120 liegen.");
     }
 
+    const timeZone = await userTimeZone(pool, request.auth.userId);
     const result = await pool.query(
       `
       WITH bounds AS (
         SELECT greatest(
-          date_trunc('month', current_date)::date,
-          coalesce((SELECT date_trunc('month', max(t.started_at AT TIME ZONE 'Europe/Berlin'))::date
+          date_trunc('month', now() AT TIME ZONE $3::text)::date,
+          coalesce((SELECT date_trunc('month', max(${tripLocalStartSql("t", "$3")}))::date
                     FROM trips t WHERE t.user_id = $1 AND t.archived_at IS NULL AND t.status = 'completed'),
-                   date_trunc('month', current_date)::date)
+                   date_trunc('month', now() AT TIME ZONE $3::text)::date)
         ) AS last_month
       ),
       month_series AS (
@@ -324,7 +339,7 @@ statisticsRoutes.get(
         WHERE v.user_id = $1 AND v.archived_at IS NULL
       ),
       distances AS (
-        SELECT vehicle_id, date_trunc('month', started_at AT TIME ZONE 'Europe/Berlin')::date AS month,
+        SELECT vehicle_id, date_trunc('month', ${tripLocalStartSql("", "$3")})::date AS month,
           coalesce(sum(distance_meters), 0)::bigint AS tracked_meters,
           coalesce(sum(distance_meters) FILTER (WHERE type = 'business'), 0)::bigint AS business_meters,
           coalesce(sum(distance_meters) FILTER (WHERE type = 'private'), 0)::bigint AS private_meters,
@@ -332,7 +347,7 @@ statisticsRoutes.get(
           coalesce(sum(distance_meters) FILTER (WHERE type = 'unclassified'), 0)::bigint AS unclassified_meters
         FROM trips
         WHERE user_id = $1 AND archived_at IS NULL AND status = 'completed'
-        GROUP BY vehicle_id, date_trunc('month', started_at AT TIME ZONE 'Europe/Berlin')
+        GROUP BY vehicle_id, date_trunc('month', ${tripLocalStartSql("", "$3")})
       )
       SELECT vm.vehicle_id, vm.vehicle_name, to_char(vm.month, 'YYYY-MM') AS month,
         d.tracked_meters, d.business_meters, d.private_meters, d.commute_meters, d.unclassified_meters,
@@ -360,7 +375,7 @@ statisticsRoutes.get(
       ) end_r ON true
       ORDER BY vm.month DESC, lower(vm.vehicle_name)
       `,
-      [request.auth.userId, months],
+      [request.auth.userId, months, timeZone],
     );
 
     response.json(result.rows.map((row) => {
@@ -398,9 +413,9 @@ statisticsRoutes.get("/monthly-trips", asyncHandler(async (request, response) =>
      FROM trips t
      WHERE t.user_id = $1 AND t.vehicle_id = $2 AND t.status = 'completed'
        AND t.archived_at IS NULL AND t.type = $4::trip_type
-       AND to_char(t.started_at AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = $3
+       AND to_char(${tripLocalStartSql("t", "$5")}, 'YYYY-MM') = $3
      ORDER BY t.started_at DESC`,
-    [request.auth.userId, vehicleId, month, type],
+    [request.auth.userId, vehicleId, month, type, await userTimeZone(pool, request.auth.userId)],
   );
   response.json(result.rows.map((row) => ({
     id: row.id, startedAt: row.started_at, endedAt: row.ended_at,
@@ -425,9 +440,10 @@ statisticsRoutes.get("/leasing-live-km", asyncHandler(async (request, response) 
     FROM last_reading r
     LEFT JOIN trips t ON t.vehicle_id = $2 AND t.status = 'completed'
       AND t.archived_at IS NULL
-      -- For legacy date-only readings the clock time is unknown: exclude that day.
-      AND t.started_at >= COALESCE(r.reading_at, (r.reading_date + interval '1 day') AT TIME ZONE 'Europe/Berlin')
-      AND t.ended_at > COALESCE(r.reading_at, (r.reading_date + interval '1 day') AT TIME ZONE 'Europe/Berlin')
+      -- For legacy date-only readings the clock time is unknown: exclude that day
+      -- (day boundary in the user's time zone).
+      AND t.started_at >= COALESCE(r.reading_at, (r.reading_date + interval '1 day') AT TIME ZONE $3::text)
+      AND t.ended_at > COALESCE(r.reading_at, (r.reading_date + interval '1 day') AT TIME ZONE $3::text)
       AND t.started_at < now()
       AND (t.user_id = $1 OR EXISTS (
         SELECT 1 FROM vehicle_ownership_periods p
@@ -436,7 +452,7 @@ statisticsRoutes.get("/leasing-live-km", asyncHandler(async (request, response) 
           AND (p.valid_to IS NULL OR t.started_at < p.valid_to)
       ))
     GROUP BY r.reading_date, r.reading_at, r.odometer_meters
-  `, [request.auth.userId, vehicleId]);
+  `, [request.auth.userId, vehicleId, await userTimeZone(pool, request.auth.userId)]);
   const row = result.rows[0];
   response.json(row ? {
     readingDate: row.reading_date,

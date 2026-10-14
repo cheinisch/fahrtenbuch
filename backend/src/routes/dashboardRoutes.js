@@ -7,6 +7,7 @@ import {
   dateQuery,
   isUuid,
 } from "../lib/validation.js";
+import { tripLocalStartSql, userTimeZone } from "../lib/timezone.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { TRIP_WITH_TAGS_SELECT } from "../services/tripService.js";
@@ -78,23 +79,25 @@ dashboardRoutes.get(
       throw badRequest("VALIDATION_ERROR", "Der Tag ist ungültig.");
     }
 
-    const parameters = [request.auth.userId];
+    // Datumsfilter und Monatswerte in Ortszeit der Fahrt bzw. Kontozeitzone ($2)
+    const timeZone = await userTimeZone(pool, request.auth.userId);
+    const parameters = [request.auth.userId, timeZone];
+    const localStart = tripLocalStartSql("t", "$2");
     const conditions = [
       "t.user_id = $1",
+      "$2::text IS NOT NULL",
       "t.archived_at IS NULL",
       "COALESCE(t.reconciliation_status, 'canonical') = 'canonical'",
     ];
 
     if (from) {
       parameters.push(from);
-      conditions.push(`t.started_at >= $${parameters.length}::date`);
+      conditions.push(`${localStart}::date >= $${parameters.length}::date`);
     }
 
     if (to) {
       parameters.push(to);
-      conditions.push(
-        `t.started_at < $${parameters.length}::date + interval '1 day'`,
-      );
+      conditions.push(`${localStart}::date <= $${parameters.length}::date`);
     }
 
     if (type) {
@@ -177,12 +180,12 @@ dashboardRoutes.get(
               )::integer AS unclassified_trips,
               count(*) FILTER (
                 WHERE status = 'completed'
-                  AND started_at >= date_trunc('month', now())
+                  AND date_trunc('month', ${tripLocalStartSql("", "$2")}) = date_trunc('month', now() AT TIME ZONE $2::text)
               )::integer AS month_trips,
               coalesce(
                 sum(distance_meters) FILTER (
                   WHERE status = 'completed'
-                    AND started_at >= date_trunc('month', now())
+                    AND date_trunc('month', ${tripLocalStartSql("", "$2")}) = date_trunc('month', now() AT TIME ZONE $2::text)
                 ),
                 0
               ) AS month_distance_meters
@@ -191,14 +194,14 @@ dashboardRoutes.get(
               AND archived_at IS NULL
               AND COALESCE(reconciliation_status, 'canonical') = 'canonical'
           `,
-          [request.auth.userId],
+          [request.auth.userId, timeZone],
         ),
         pool.query(
           `
             WITH months AS (
               SELECT generate_series(
-                date_trunc('month', now()) - interval '5 months',
-                date_trunc('month', now()),
+                date_trunc('month', now() AT TIME ZONE $2::text) - interval '5 months',
+                date_trunc('month', now() AT TIME ZONE $2::text),
                 interval '1 month'
               ) AS month
             )
@@ -208,7 +211,7 @@ dashboardRoutes.get(
               count(t.id)::integer AS trip_count
             FROM months
             LEFT JOIN trips t
-              ON date_trunc('month', t.started_at) = months.month
+              ON date_trunc('month', ${tripLocalStartSql("t", "$2")}) = months.month
               AND t.user_id = $1
               AND t.status = 'completed'
               AND t.archived_at IS NULL
@@ -216,7 +219,7 @@ dashboardRoutes.get(
             GROUP BY months.month
             ORDER BY months.month
           `,
-          [request.auth.userId],
+          [request.auth.userId, timeZone],
         ),
           pool.query(
           `SELECT value FROM app_settings WHERE key = 'map.defaults' LIMIT 1`,

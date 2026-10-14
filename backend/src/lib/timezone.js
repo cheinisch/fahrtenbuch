@@ -74,3 +74,25 @@ export function offsetInTimeZone(value, timeZone) {
   const match = name.match(/GMT([+-]\d{2}):?(\d{2})?/);
   return match ? `${match[1]}:${match[2] || "00"}` : "+00:00";
 }
+
+/** Valid IANA zone of the user's account (falls back to DEFAULT_TIMEZONE). */
+export async function userTimeZone(db, userId) {
+  const result = await db.query("SELECT timezone FROM users WHERE id = $1", [userId]);
+  return resolveTimeZone(result.rows[0]?.timezone);
+}
+
+/**
+ * SQL expression for the local zone of a trip: the zone recorded at trip start,
+ * else the account zone passed as a query parameter (e.g. "$2").
+ * Use it for every day/month grouping or date bound so DST and travel are respected.
+ */
+export function tripZoneSql(alias, zoneParameter) {
+  const prefix = alias ? `${alias}.` : "";
+  return `COALESCE(${prefix}start_timezone, ${zoneParameter}::text)`;
+}
+
+/** Local timestamp (without zone) of a trip start, for date_trunc / ::date / to_char. */
+export function tripLocalStartSql(alias, zoneParameter) {
+  const prefix = alias ? `${alias}.` : "";
+  return `(${prefix}started_at AT TIME ZONE ${tripZoneSql(alias, zoneParameter)})`;
+}

@@ -18,6 +18,7 @@ import {
   objectBody,
   stringField,
 } from "../lib/validation.js";
+import { timeZoneField } from "../lib/timezone.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { hashPassword, verifyPassword } from "../security/password.js";
@@ -101,11 +102,8 @@ async function updateProfile(request, response) {
       maximum: 16,
     }) ?? current.locale;
 
-  const timezone =
-    stringField(body, "timezone", {
-      minimum: 1,
-      maximum: 64,
-    }) ?? current.timezone;
+  // Nur gültige IANA-Zonen, sonst schlagen AT TIME ZONE-Abfragen der Statistik fehl
+  const timezone = timeZoneField(body, "timezone") ?? current.timezone;
 
   const themeMode =
     enumField(body, "themeMode", ["light", "dark", "system"], {
