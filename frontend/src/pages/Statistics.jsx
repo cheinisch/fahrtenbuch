@@ -4,6 +4,7 @@ import { classifyTrip, getLeasingLiveKm, getMonthlyCategoryTrips, getMonthlyOdom
 import { useAuth } from "../auth/AuthProvider.jsx";
 import { useI18n } from "../i18n/I18nProvider.jsx";
 import OdometerReadingLogModal from "../components/OdometerReadingLogModal.jsx";
+import PageHeader from "../components/PageHeader.jsx";
 
 const PART_COLORS = {
   businessKm: "bg-sky-600",
@@ -97,7 +98,18 @@ function StackedMonthChart({ months, monthlyLimitKm = null, selectedMonth, onSel
   })();
 
   return (
-    <div className="relative mt-5">
+    <div className="relative mt-4">
+      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-fb-text/80">
+        {STACK_SEGMENTS.map((segment) => (
+          <span key={segment.key} className="flex items-center gap-2">
+            {segment.key === "unexplainedKm"
+              ? <svg aria-hidden="true" className="size-3 rounded-sm"><rect width="12" height="12" fill="url(#unexplained-hatch)" /></svg>
+              : <span aria-hidden="true" className={`size-3 rounded-sm ${segment.swatch}`} />}
+            {labelFor(segment.key)}
+          </span>
+        ))}
+        {monthlyLimitKm != null && <span className="flex items-center gap-2"><span className="w-5 border-t-2 border-dashed border-amber-500" />Vertragliches Monatslimit: {km(monthlyLimitKm)}</span>}
+      </div>
       <div className="overflow-x-auto">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[640px]" role="img" aria-label="Kilometer pro Monat nach Kategorie">
           <defs>
@@ -185,17 +197,6 @@ function StackedMonthChart({ months, monthlyLimitKm = null, selectedMonth, onSel
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-fb-muted">
-        {STACK_SEGMENTS.map((segment) => (
-          <span key={segment.key} className="flex items-center gap-2">
-            {segment.key === "unexplainedKm"
-              ? <svg aria-hidden="true" className="size-3 rounded-sm"><rect width="12" height="12" fill="url(#unexplained-hatch)" /></svg>
-              : <span aria-hidden="true" className={`size-3 rounded-sm ${segment.swatch}`} />}
-            {labelFor(segment.key)}
-          </span>
-        ))}
-        {monthlyLimitKm != null && <span className="flex items-center gap-2"><span className="w-5 border-t-2 border-dashed border-amber-500" />Vertragliches Monatslimit: {km(monthlyLimitKm)}</span>}
-      </div>
     </div>
   );
 }
@@ -545,38 +546,33 @@ export default function Statistics() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-fb-accent">{t("nav.statistics")}</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">{t("statistics.heading")}</h1>
-          <p className="mt-2 text-fb-muted">{t("statistics.subtitle")}</p>
-        </div>
-        <label className="text-sm font-medium text-fb-muted">
+      <PageHeader eyebrow={t("nav.statistics")} title={t("statistics.heading")} subtitle={t("statistics.subtitle")}>
+        <label className="text-[13px] font-medium text-fb-muted">
           {t("statistics.vehicle")}
-          <select value={vehicleId} onChange={(e) => changeVehicle(e.target.value)} className="mt-1 block h-11 min-w-56 rounded-lg border border-fb-border bg-fb-main px-3 text-fb-text">
+          <select value={vehicleId} onChange={(e) => changeVehicle(e.target.value)} className="mt-1 block h-11 min-w-[220px] rounded-lg border border-fb-border bg-fb-main px-3 text-sm text-fb-text">
             {vehicles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
         </label>
-      </header>
+      </PageHeader>
       {yearSummary && (
         <section aria-label={t("statistics.yearSummary", { year: chartYear })} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-fb-border bg-fb-main p-5">
-            <div className="text-sm text-fb-muted">{t("statistics.drivenYear", { year: chartYear })}</div>
-            <div className="mt-1.5 text-3xl font-bold">{km(yearSummary.actualKm)}</div>
+          <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
+            <div className="text-[13px] text-fb-muted">{t("statistics.drivenYear", { year: chartYear })}</div>
+            <div className="mt-1.5 text-[28px] font-bold leading-tight">{km(yearSummary.actualKm)}</div>
             <div className="mt-1 text-xs text-fb-muted">{t("statistics.byReadings")}</div>
           </div>
-          <div className="rounded-xl border border-fb-border bg-fb-main p-5">
-            <div className="text-sm text-fb-muted">{t("statistics.tracked")}</div>
-            <div className="mt-1.5 text-3xl font-bold">{km(yearSummary.trackedKm)}</div>
+          <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
+            <div className="text-[13px] text-fb-muted">{t("statistics.tracked")}</div>
+            <div className="mt-1.5 text-[28px] font-bold leading-tight">{km(yearSummary.trackedKm)}</div>
             <div className="mt-1 text-xs text-fb-muted">{yearSummary.coverage != null ? t("statistics.coverage", { value: percent(yearSummary.coverage) }) : "–"}</div>
           </div>
-          <div className="rounded-xl border border-fb-border bg-fb-main p-5">
-            <div className="text-sm text-fb-muted">{t("statistics.businessShare")}</div>
-            <div className="mt-1.5 text-3xl font-bold">{yearSummary.businessShare != null ? percent(yearSummary.businessShare) : "–"}</div>
+          <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
+            <div className="text-[13px] text-fb-muted">{t("statistics.businessShare")}</div>
+            <div className="mt-1.5 text-[28px] font-bold leading-tight">{yearSummary.businessShare != null ? percent(yearSummary.businessShare) : "–"}</div>
             <div className="mt-1 text-xs text-fb-muted">{km(yearSummary.businessKm)}</div>
           </div>
-          <div className={`rounded-xl border bg-fb-main p-5 ${yearSummary.unexplainedKm > 0 ? "border-fb-danger/50" : "border-fb-border"}`}>
-            <div className="text-sm text-fb-muted">{t("statistics.unexplained")}</div>
+          <div className={`rounded-xl border bg-fb-main p-[18px] ${yearSummary.unexplainedKm > 0 ? "border-fb-danger/40" : "border-fb-border"}`}>
+            <div className="text-[13px] text-fb-muted">{t("statistics.unexplained")}</div>
             <div className={`mt-1.5 text-3xl font-bold ${yearSummary.unexplainedKm > 0 ? "text-fb-danger" : ""}`}>{km(yearSummary.unexplainedKm)}</div>
             <div className="mt-1 text-xs text-fb-muted">{t("statistics.unexplainedHint")}</div>
           </div>
@@ -584,19 +580,21 @@ export default function Statistics() {
       )}
       {error && <div className="rounded-lg border border-fb-danger p-4 text-sm text-fb-danger">{error}</div>}
       {message && <div className="rounded-lg border border-fb-accent bg-fb-accent-soft p-4 text-sm text-fb-accent">{message}</div>}
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <h2 className="text-lg font-bold">Kilometerstand nachtragen</h2>
         <p className="mt-1 text-sm text-fb-muted">Kilometerstände können für beliebige Tage nachgetragen werden. Mehrere Zwischenablesungen pro Monat sind möglich; die Reihenfolge zu vorherigen und folgenden Messwerten wird geprüft.</p>
-        <form onSubmit={saveReading} className="mt-4 grid gap-3 sm:grid-cols-[170px_150px_minmax(0,1fr)_auto] sm:items-end">
-          <label className="text-sm"><span className="mb-1 block text-fb-muted">Ablesedatum</span><input type="date" value={entryDate} max={isoDate(new Date())} onChange={(e) => setEntryDate(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
-          <label className="text-sm"><span className="mb-1 block text-fb-muted">Ablesezeit</span><input type="time" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} className="w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /></label>
-          <label className="text-sm"><span className="mb-1 block text-fb-muted">Kilometerstand</span><div className="flex items-center gap-2"><input inputMode="decimal" value={entryKm} onChange={(e) => setEntryKm(e.target.value)} placeholder="z. B. 82450" className="min-w-0 w-full rounded-lg border border-fb-border bg-fb-main px-3 py-2" /><span className="text-fb-muted">km</span></div></label>
-          <button type="submit" disabled={savingReading || !vehicleId || !entryDate || !entryKm} className="rounded-lg bg-fb-accent px-4 py-2 font-semibold text-fb-accent-text disabled:opacity-50">{savingReading ? "Speichert …" : "Speichern"}</button>
+        <form onSubmit={saveReading} className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="flex flex-[1_1_160px] flex-col gap-1 text-[13px] font-medium text-fb-muted">Ablesedatum<input type="date" value={entryDate} max={isoDate(new Date())} onChange={(e) => setEntryDate(e.target.value)} className="h-11 rounded-lg border border-fb-border bg-fb-surface px-3 text-sm font-normal text-fb-text" /></label>
+          <label className="flex flex-[1_1_120px] flex-col gap-1 text-[13px] font-medium text-fb-muted">Ablesezeit<input type="time" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} className="h-11 rounded-lg border border-fb-border bg-fb-surface px-3 text-sm font-normal text-fb-text" /></label>
+          <label className="flex flex-[2_1_200px] flex-col gap-1 text-[13px] font-medium text-fb-muted">Kilometerstand<span className="flex items-center gap-2"><input inputMode="decimal" value={entryKm} onChange={(e) => setEntryKm(e.target.value)} placeholder="z. B. 82450" className="h-11 min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-surface px-3 text-sm font-normal text-fb-text" /><span className="text-sm text-fb-muted">km</span></span></label>
+          <button type="submit" disabled={savingReading || !vehicleId || !entryDate || !entryKm} className="h-11 rounded-lg bg-fb-accent px-[18px] text-sm font-semibold text-fb-accent-text disabled:opacity-50">{savingReading ? "Speichert …" : t("statistics.saveReading")}</button>
+          {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <button type="button" onClick={() => setReadingLogOpen(true)} className="h-11 rounded-lg border border-fb-border bg-fb-main px-4 text-sm font-semibold text-fb-text hover:border-fb-accent">{t("statistics.readingLog", { count: readings.filter((r) => r.vehicleId === vehicleId).length })}</button>}
         </form>
-        {readings.filter((r) => r.vehicleId === vehicleId).length > 0 && <button type="button" onClick={() => setReadingLogOpen(true)} className="mt-4 rounded-lg border border-fb-border px-4 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent">{t("statistics.readingLog", { count: readings.filter((r) => r.vehicleId === vehicleId).length })}</button>}
       </section>
-      {leasing && <section className={`rounded-xl border p-5 ${leasing.deviationKm > 0 ? "border-fb-danger bg-fb-main" : "border-fb-border bg-fb-main"}`}>
-        <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-bold">{leasing.vehicle.acquisitionType === "leasing" ? "Leasing-Kilometer" : "Vertragskilometer"}</h2><p className="mt-1 text-sm text-fb-muted">{new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseStartDate.slice(0,10)}T00:00:00`))} – {new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseEndDate.slice(0,10)}T00:00:00`))} · {km(leasing.vehicle.leaseIncludedKm)} Kilometerlimit</p></div>{leasing.deviationKm > 0 && <span className="rounded-full border border-fb-danger px-3 py-1 text-sm font-semibold text-fb-danger">{leasing.vehicle.acquisitionType === "leasing" ? "Mehrkilometer erwartet" : "Kilometerlimit voraussichtlich überschritten"}</span>}</div>
+      {leasing && <section className={`rounded-xl border bg-fb-main p-[22px] ${leasing.deviationKm > 0 ? "border-fb-danger/50" : "border-fb-border"}`}>
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-bold">{leasing.vehicle.acquisitionType === "leasing" ? "Leasing-Kilometer" : "Vertragskilometer"}</h2><p className="mt-1 text-sm text-fb-muted">{new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseStartDate.slice(0,10)}T00:00:00`))} – {new Intl.DateTimeFormat("de-DE").format(new Date(`${leasing.vehicle.leaseEndDate.slice(0,10)}T00:00:00`))} · {km(leasing.vehicle.leaseIncludedKm)} Kilometerlimit</p></div>{leasing.deviationKm > 0
+          ? <span className="self-start rounded-full bg-fb-danger/10 px-3 py-1.5 text-xs font-semibold text-fb-danger">{leasing.vehicle.acquisitionType === "leasing" ? "Mehrkilometer erwartet" : "Kilometerlimit voraussichtlich überschritten"}</span>
+          : leasing.deviationKm != null && <span className="self-start rounded-full bg-emerald-600/10 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">{t("statistics.onTrack")}</span>}</div>
         <p className="mt-3 text-xs text-fb-muted">Basis: {km(leasing.baselineKm)} am {new Intl.DateTimeFormat("de-DE").format(leasing.baselineDate)} → aktueller Stand {km(leasing.currentOdometerKm)}{!leasing.baselineIsExact ? " · Keine Ablesung am Vertragsbeginn; die Fahrleistung wird anhand des verfügbaren Ablesezeitraums hochgerechnet." : ""}</p>
         <p className="mt-1 text-xs text-fb-muted">Letzte Ablesung: {km(leasing.lastReadingKm)} am {new Intl.DateTimeFormat("de-DE").format(leasing.lastReadingDate)} · danach erfasste Fahrten: {km(leasing.gpsSinceReadingKm)}. Zwischenablesungen ersetzen die zuvor geschätzten Fahrtkilometer.</p>
         <div className={`mt-5 grid gap-4 sm:grid-cols-2 ${(leasing.vehicle.acquisitionType === "leasing" || leasing.vehicle.leaseExcessRateEur != null || leasing.vehicle.leaseShortfallRateEur != null) ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}><div><div className="text-xs text-fb-muted">Bisher gefahren</div><div className="mt-1 text-xl font-bold">{km(leasing.drivenKm)}</div></div><div><div className="text-xs text-fb-muted">Zeitanteilig vorgesehen</div><div className="mt-1 text-xl font-bold">{km(leasing.allowedKm)}</div></div><div><div className="text-xs text-fb-muted">Prognose Vertragsende</div><div className="mt-1 text-xl font-bold">{km(leasing.projectedKm)}</div></div><div><div className="text-xs text-fb-muted">Prognose Abweichung</div><div className={`mt-1 text-xl font-bold ${leasing.deviationKm > 0 ? "text-fb-danger" : "text-fb-accent"}`}>{leasing.deviationKm > 0 ? "+" : ""}{km(leasing.deviationKm)}</div></div>{(leasing.vehicle.acquisitionType === "leasing" || leasing.vehicle.leaseExcessRateEur != null || leasing.vehicle.leaseShortfallRateEur != null) && <div><div className="text-xs text-fb-muted">Nachzahlung / Erstattung (Prognose)</div><div className={`mt-1 text-xl font-bold ${leasing.settlementEur > 0 ? "text-fb-danger" : "text-fb-accent"}`}>{leasing.settlementConfigured ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Math.abs(leasing.settlementEur)) : "–"}</div><div className="mt-1 text-xs text-fb-muted">{!leasing.settlementConfigured ? "Kilometersatz nicht hinterlegt" : leasing.settlementEur > 0 ? "Voraussichtliche Nachzahlung" : leasing.settlementEur < 0 ? "Voraussichtliche Erstattung" : "Keine Zahlung erwartet"}</div></div>}</div>
@@ -612,12 +610,12 @@ export default function Statistics() {
           <p className="mt-1.5 text-xs text-fb-muted">{t("statistics.targetMarker", { value: percent(leasing.elapsedPercent) })}</p>
         </div>
       </section>}
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div><h2 className="text-lg font-bold">Kilometerentwicklung</h2><p className="mt-1 text-sm text-fb-muted">{t("statistics.chartHint")}</p></div>
           <div className="flex flex-wrap items-center gap-4">
-            {monthlyContractLimit != null && <label className="flex cursor-pointer items-center gap-2 text-xs text-fb-muted"><input type="checkbox" checked={showMonthlyLimit} onChange={(event) => setShowMonthlyLimit(event.target.checked)} className="accent-[var(--color-accent)]" />Monatliches Kilometerlimit anzeigen</label>}
-            <label className="text-xs text-fb-muted"><span className="mb-1 block">Jahr</span><select value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="rounded-lg border border-fb-border bg-fb-main px-3 py-2 text-sm">{chartYears.length === 0 && <option value={chartYear}>{chartYear}</option>}{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+            {monthlyContractLimit != null && <label className="flex cursor-pointer items-center gap-2 text-xs text-fb-muted"><input type="checkbox" checked={showMonthlyLimit} onChange={(event) => setShowMonthlyLimit(event.target.checked)} className="accent-[var(--color-accent)]" />Monatslimit zeigen</label>}
+            <label className="sr-only" htmlFor="chart-year">Jahr</label><select id="chart-year" value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="h-10 rounded-lg border border-fb-border bg-fb-main px-3 text-sm">{chartYears.length === 0 && <option value={chartYear}>{chartYear}</option>}{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select>
           </div>
         </div>
         {stackedMonths.length > 0 ? (
@@ -633,14 +631,6 @@ export default function Statistics() {
           />
         ) : chartData.length > 0 ? <StatisticsChart data={chartData} monthlyLimitKm={showMonthlyLimit ? monthlyContractLimit : null} /> : <div className="mt-5 rounded-lg bg-fb-surface p-6 text-center text-sm text-fb-muted">Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor.</div>}
       </section>
-      {intervals.length > 0 && (
-        <section className="rounded-xl border border-fb-border bg-fb-main p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-lg font-bold">Genauigkeit nach Ableseintervall</h2><p className="mt-1 text-sm text-fb-muted">Abweichungen zwischen Kilometerständen und erfassten Fahrten.</p></div>
-            <button type="button" onClick={() => setIntervalModalOpen(true)} className="rounded-lg border border-fb-border px-4 py-2 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent">Details anzeigen</button>
-          </div>
-        </section>
-      )}
       {intervalModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIntervalModalOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="interval-modal-title" className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main shadow-2xl">
@@ -675,11 +665,15 @@ export default function Statistics() {
           </section>
         </div>
       )}
-      <section id="statistics-month-details" className="scroll-mt-6 rounded-xl border border-fb-border bg-fb-main p-5">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+      <section id="statistics-month-details" className="scroll-mt-6 rounded-xl border border-fb-border bg-fb-main p-[22px]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold">{selected ? monthLabel(selected.month) : t("statistics.monthTitle")}</h2>
-            <p className="mt-1 text-sm text-fb-muted">{t("statistics.monthHint")}</p>
+            <p className="mt-1 text-sm text-fb-muted">
+              {selected
+                ? (selected.actualKm != null ? `Tacho ${km(selected.actualKm)} · erfasst ${km(selected.trackedKm)}` : `Erfasst ${km(selected.trackedKm)} · Monatsgrenzen nicht vollständig abgelesen`)
+                : t("statistics.monthHint")}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <select
@@ -706,48 +700,34 @@ export default function Statistics() {
               {monthsForYear.length === 0 && <option value="">Kein Monat</option>}
               {monthsForYear.map((value) => <option key={value} value={value}>{monthLabel(value).replace(/\s+\d{4}$/, "")}</option>)}
             </select>
+            {intervals.length > 0 && (
+              <button type="button" onClick={() => setIntervalModalOpen(true)} className="h-10 rounded-lg border border-fb-border bg-fb-main px-3.5 text-[13px] font-semibold text-fb-text hover:border-fb-accent">Genauigkeit nach Ableseintervall</button>
+            )}
           </div>
         </div>
-      {selected && (
-        <>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
-            <div className="rounded-lg bg-fb-surface p-4">
-              <div className="text-sm text-fb-muted">Gefahren laut Kilometerstand</div>
-              <div className="mt-1 text-2xl font-bold">{km(selected.actualKm)}</div>
-              {selected.actualKm == null && <div className="mt-2 text-xs text-fb-muted">Für diesen Monat fehlen geeignete Ablesungen an den Monatsgrenzen.</div>}
-            </div>
-            <div className="rounded-lg bg-fb-surface p-4">
-              <div className="text-sm text-fb-muted">Aufgezeichnet</div>
-              <div className="mt-1 text-2xl font-bold">{km(selected.trackedKm)}</div>
-            </div>
-            <div className="rounded-lg bg-fb-surface p-4">
-              <div className="text-sm text-fb-muted">Unbekannt / nicht erfasst</div>
-              <div className="mt-1 text-2xl font-bold">{km(selected.unknownKm)}</div>
-            </div>
+        {selected && (
+          <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
+            {parts.map(([key, value]) => {
+              const unknown = key === "unknownKm";
+              const share = total > 0 && value != null ? Math.min(100, Math.max(0, Number(value) / total * 100)) : 0;
+              return (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => openCategory(key)}
+                  className={`rounded-lg border p-3.5 text-left transition hover:border-fb-accent ${unknown ? "border-fb-danger/40 bg-fb-danger/5" : "border-fb-border bg-fb-surface"}`}
+                >
+                  <span className="flex items-center gap-1.5 text-xs text-fb-muted"><span aria-hidden="true" className={`size-2 rounded-full ${PART_COLORS[key]}`} />{labels[key]}</span>
+                  <span className={`mt-0.5 block text-xl font-bold ${unknown ? "text-fb-danger" : ""}`}>{km(value)}</span>
+                  <span className="mt-0.5 block text-xs text-fb-muted">{percent(share)}</span>
+                </button>
+              );
+            })}
           </div>
-          <div>
-            <div className="mt-5 space-y-4">
-              {parts.map(([key, value]) => {
-                const share = total > 0 && value != null ? Math.min(100, Math.max(0, Number(value) / total * 100)) : 0;
-                return (
-                  <button type="button" key={key} onClick={() => openCategory(key)} className="block w-full rounded-lg p-1 text-left transition hover:bg-fb-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-fb-accent" aria-label={`${labels[key]} anzeigen`}>
-                    <div className="flex justify-between gap-4 text-sm">
-                      <span>{labels[key]}</span>
-                      <span className="font-semibold">{km(value)} · {percent(share)}</span>
-                    </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-fb-surface">
-                      <div className={`h-full rounded-full transition-[width] duration-500 ${PART_COLORS[key]}`} style={{ width: `${share}%` }} />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-6 border-t border-fb-border pt-4 text-sm text-fb-muted">
-              Kilometerstand: {selected.actualKm != null ? `${km(selected.startOdometerKm)} → ${km(selected.endOdometerKm)}` : `Letzte Ablesung: ${km(selected.endOdometerKm ?? selected.startOdometerKm)} · Monatsgrenzen nicht vollständig abgelesen`}
-            </div>
-          </div>
-        </>
-      )}
+        )}
+        {selected && selected.actualKm != null && (
+          <p className="mt-4 border-t border-fb-border pt-3 text-xs text-fb-muted">Kilometerstand: {km(selected.startOdometerKm)} → {km(selected.endOdometerKm)}</p>
+        )}
       </section>
       {categoryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCategoryModal(null); }}>

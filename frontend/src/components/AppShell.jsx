@@ -11,8 +11,6 @@ import {
   Bars3Icon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import md5 from "blueimp-md5";
-import { useMemo } from "react";
 import {
   NavLink,
   Outlet,
@@ -24,31 +22,43 @@ import { useAuth } from "../auth/AuthProvider.jsx";
 import { useI18n } from "../i18n/I18nProvider.jsx";
 import MonthlyOdometerPrompt from "./MonthlyOdometerPrompt.jsx";
 
-function desktopNavigationClass({ isActive }) {
+const NAV_ITEMS = [
+  { to: "/", key: "nav.dashboard", end: true },
+  { to: "/vehicles", key: "nav.vehicles" },
+  { to: "/statistics", key: "nav.statistics" },
+  { to: "/export", key: "nav.export" },
+  { to: "/compliance", key: "nav.compliance" },
+];
+
+function navClass({ isActive }) {
   return [
-    "inline-flex items-center rounded-lg px-3.5 py-2 text-sm transition",
+    "inline-flex min-h-10 items-center rounded-lg px-3.5 text-sm transition",
     isActive
-      ? "bg-fb-accent-soft font-semibold text-fb-accent"
+      ? "bg-fb-accent-soft font-semibold text-fb-accent-strong"
       : "font-medium text-fb-muted hover:bg-fb-surface hover:text-fb-text",
   ].join(" ");
 }
 
-function mobileNavigationClass({ isActive }) {
+function mobileNavClass({ isActive }) {
   return [
-    "mx-2 block rounded-lg px-3 py-2.5 text-base transition",
+    "block rounded-lg px-3 py-3 text-base transition",
     isActive
-      ? "bg-fb-accent-soft font-semibold text-fb-accent"
+      ? "bg-fb-accent-soft font-semibold text-fb-accent-strong"
       : "font-medium text-fb-muted hover:bg-fb-surface hover:text-fb-text",
   ].join(" ");
 }
 
 function menuLinkClass({ focus }) {
   return [
-    "block w-full px-4 py-2 text-left text-sm transition",
-    focus
-      ? "bg-fb-surface text-fb-text outline-none"
-      : "text-fb-muted",
+    "block w-full px-4 py-2.5 text-left text-sm transition",
+    focus ? "bg-fb-surface text-fb-text outline-none" : "text-fb-muted",
   ].join(" ");
+}
+
+function initialsOf(name) {
+  const parts = String(name || "").trim().split(/[\s._@-]+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return (parts[0][0] + (parts.length > 1 ? parts[1][0] : "")).toUpperCase();
 }
 
 export default function AppShell() {
@@ -57,18 +67,8 @@ export default function AppShell() {
   const { user, signOut } = useAuth();
   const { t } = useI18n();
 
-  const dashboardIsOpen =
-    location.pathname === "/";
-
-  const gravatarUrl = useMemo(() => {
-    const normalizedEmail = String(user?.email || "")
-      .trim()
-      .toLowerCase();
-
-    return `https://www.gravatar.com/avatar/${md5(
-      normalizedEmail,
-    )}?s=128&d=identicon&r=g`;
-  }, [user?.email]);
+  const dashboardIsOpen = location.pathname === "/";
+  const displayName = user?.displayName || user?.username || t("shell.user");
 
   async function handleLogout() {
     await signOut();
@@ -77,233 +77,81 @@ export default function AppShell() {
 
   return (
     <div className="min-h-screen bg-fb-surface text-fb-text">
-      <Disclosure
-        as="nav"
-        className="relative bg-fb-main after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-fb-border"
-      >
-        <div className="w-full px-2 sm:px-6 lg:px-8">
-          <div className="relative flex h-16 justify-between">
-            <div className="absolute inset-y-0 left-0 flex items-center sm:hidden">
-              <DisclosureButton className="group relative inline-flex items-center justify-center rounded-md p-2 text-fb-muted hover:bg-fb-surface hover:text-fb-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent">
-                <span className="absolute -inset-0.5" />
-                <span className="sr-only">
-                  {t("shell.openMenu")}
-                </span>
+      <Disclosure as="header" className="relative z-40 border-b border-fb-border bg-fb-main">
+        <div className="flex h-[4.5rem] items-center gap-7 px-4 sm:px-6">
+          <NavLink to="/" className="flex shrink-0 items-center gap-2.5 text-[17px] font-bold text-fb-text" aria-label={`Fahrtenbuch ${t("nav.dashboard")}`}>
+            <img src="/fahrtenbuch-logo.svg" alt="" className="size-[34px] rounded-[9px] object-cover" />
+            Fahrtenbuch
+          </NavLink>
 
-                <Bars3Icon
-                  aria-hidden="true"
-                  className="block size-6 group-data-open:hidden"
-                />
-
-                <XMarkIcon
-                  aria-hidden="true"
-                  className="hidden size-6 group-data-open:block"
-                />
-              </DisclosureButton>
-            </div>
-
-            <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
-              <NavLink
-                to="/"
-                className="flex shrink-0 items-center gap-3"
-                aria-label={`Fahrtenbuch ${t("nav.dashboard")}`}
-              >
-                <img src="/fahrtenbuch-logo.svg" alt="" className="size-9 rounded-lg object-cover" />
-
-                <span className="hidden text-lg font-bold tracking-tight text-fb-text lg:block">
-                  Fahrtenbuch
-                </span>
+          <nav aria-label={t("shell.mainNavigation")} className="hidden flex-1 items-center gap-1 md:flex">
+            {NAV_ITEMS.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
+                {t(item.key)}
               </NavLink>
+            ))}
+          </nav>
 
-              <div className="hidden sm:ml-8 sm:flex sm:items-center sm:gap-1">
-                <NavLink
-                  to="/"
-                  end
-                  className={desktopNavigationClass}
-                >
-                  {t("nav.dashboard")}
-                </NavLink>
+          <div className="ml-auto flex items-center gap-2 md:ml-0">
+            <Menu as="div" className="relative">
+              <MenuButton className="flex items-center gap-2.5 rounded-full p-1 text-sm font-medium text-fb-text hover:bg-fb-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent sm:pr-3">
+                <span className="sr-only">{t("shell.openUserMenu")}</span>
+                <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full bg-[#0c4a6e] text-[13px] font-semibold text-white">
+                  {initialsOf(displayName)}
+                </span>
+                <span className="hidden max-w-40 truncate sm:block">{displayName}</span>
+              </MenuButton>
 
-                <NavLink
-                  to="/vehicles"
-                  className={desktopNavigationClass}
-                >
-                  {t("nav.vehicles")}
-                </NavLink>
-
-                <NavLink
-                  to="/statistics"
-                  className={desktopNavigationClass}
-                >
-                  {t("nav.statistics")}
-                </NavLink>
-
-                <NavLink
-                  to="/export"
-                  className={desktopNavigationClass}
-                >
-                  {t("nav.export")}
-                </NavLink>
-
-                <NavLink
-                  to="/compliance"
-                  className={desktopNavigationClass}
-                >
-                  {t("nav.compliance")}
-                </NavLink>
-              </div>
-            </div>
-
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-              <Menu as="div" className="relative ml-3">
-                <MenuButton className="relative flex items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-fb-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent">
-                  <span className="absolute -inset-1.5" />
-                  <span className="sr-only">
-                    {t("shell.openUserMenu")}
-                  </span>
-
-                  <img
-                    alt=""
-                    src={gravatarUrl}
-                    className="size-9 rounded-full bg-fb-surface object-cover outline -outline-offset-1 outline-fb-border"
-                    referrerPolicy="no-referrer"
-                  />
-
-                  <span className="hidden min-w-0 sm:block">
-                    <span className="block max-w-48 truncate text-sm font-semibold text-fb-text">
-                      {user?.username ||
-                        user?.displayName ||
-                        t("shell.user")}
-                    </span>
-
-                    <span className="block max-w-48 truncate text-xs text-fb-muted">
-                      {user?.email}
-                    </span>
-                  </span>
-                </MenuButton>
-
-                <MenuItems
-                  transition
-                  anchor="bottom end"
-                  className="z-50 mt-2 w-64 origin-top-right rounded-md border border-fb-border bg-fb-main py-1 shadow-xl transition duration-100 ease-out [--anchor-gap:0.5rem] focus:outline-none data-closed:scale-95 data-closed:opacity-0"
-                >
-                  <div className="border-b border-fb-border px-4 py-3 sm:hidden">
-                    <div className="truncate text-sm font-semibold text-fb-text">
-                      {user?.username ||
-                        user?.displayName ||
-                        t("shell.user")}
-                    </div>
-
-                    <div className="mt-0.5 truncate text-xs text-fb-muted">
-                      {user?.email}
-                    </div>
-                  </div>
-
+              <MenuItems
+                transition
+                anchor="bottom end"
+                className="z-50 mt-2 w-64 origin-top-right rounded-xl border border-fb-border bg-fb-main py-1 shadow-xl transition duration-100 ease-out [--anchor-gap:0.5rem] focus:outline-none data-closed:scale-95 data-closed:opacity-0"
+              >
+                <div className="border-b border-fb-border px-4 py-3">
+                  <div className="truncate text-sm font-semibold text-fb-text">{displayName}</div>
+                  <div className="mt-0.5 truncate text-xs text-fb-muted">{user?.email}</div>
+                </div>
+                <MenuItem>
+                  {({ focus }) => <NavLink to="/profilesettings" className={menuLinkClass({ focus })}>{t("nav.profile")}</NavLink>}
+                </MenuItem>
+                {user?.role === "admin" && (
                   <MenuItem>
-                    {({ focus }) => (
-                      <NavLink
-                        to="/profilesettings"
-                        className={menuLinkClass({ focus })}
-                      >
-                        {t("nav.profile")}
-                      </NavLink>
-                    )}
+                    {({ focus }) => <NavLink to="/settings" className={menuLinkClass({ focus })}>{t("nav.settings")}</NavLink>}
                   </MenuItem>
-
-                  {user?.role === "admin" && (
-                    <MenuItem>
-                      {({ focus }) => (
-                        <NavLink
-                          to="/settings"
-                          className={menuLinkClass({
-                            focus,
-                          })}
-                        >
-                          {t("nav.settings")}
-                        </NavLink>
-                      )}
-                    </MenuItem>
+                )}
+                <div className="my-1 border-t border-fb-border" />
+                <MenuItem>
+                  {({ focus }) => (
+                    <button type="button" onClick={handleLogout} className={`block w-full px-4 py-2.5 text-left text-sm text-fb-danger transition ${focus ? "bg-fb-surface outline-none" : ""}`}>
+                      {t("nav.logout")}
+                    </button>
                   )}
+                </MenuItem>
+              </MenuItems>
+            </Menu>
 
-                  <div className="my-1 border-t border-fb-border" />
-
-                  <MenuItem>
-                    {({ focus }) => (
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className={[
-                          "block w-full px-4 py-2 text-left text-sm text-fb-danger transition",
-                          focus
-                            ? "bg-fb-surface outline-none"
-                            : "",
-                        ].join(" ")}
-                      >
-                        {t("nav.logout")}
-                      </button>
-                    )}
-                  </MenuItem>
-                </MenuItems>
-              </Menu>
-            </div>
+            <DisclosureButton className="group inline-flex size-11 items-center justify-center rounded-lg text-fb-text hover:bg-fb-surface focus-visible:outline-2 focus-visible:outline-fb-accent md:hidden">
+              <span className="sr-only">{t("shell.openMenu")}</span>
+              <Bars3Icon aria-hidden="true" className="block size-6 group-data-open:hidden" />
+              <XMarkIcon aria-hidden="true" className="hidden size-6 group-data-open:block" />
+            </DisclosureButton>
           </div>
         </div>
 
-        <DisclosurePanel className="sm:hidden">
-          <div className="space-y-1 pt-2 pb-4">
-            <DisclosureButton
-              as={NavLink}
-              to="/"
-              end
-              className={mobileNavigationClass}
-            >
-              {t("nav.dashboard")}
-            </DisclosureButton>
-
-            <DisclosureButton
-              as={NavLink}
-              to="/vehicles"
-              className={mobileNavigationClass}
-            >
-              {t("nav.vehicles")}
-            </DisclosureButton>
-
-            <DisclosureButton
-              as={NavLink}
-              to="/statistics"
-              className={mobileNavigationClass}
-            >
-              {t("nav.statistics")}
-            </DisclosureButton>
-
-            <DisclosureButton
-              as={NavLink}
-              to="/export"
-              className={mobileNavigationClass}
-            >
-              {t("nav.export")}
-            </DisclosureButton>
-
-            <DisclosureButton
-              as={NavLink}
-              to="/compliance"
-              className={mobileNavigationClass}
-            >
-              {t("nav.compliance")}
-            </DisclosureButton>
-          </div>
+        <DisclosurePanel className="border-t border-fb-border md:hidden">
+          <nav aria-label={t("shell.mainNavigation")} className="space-y-1 p-3">
+            {NAV_ITEMS.map((item) => (
+              <DisclosureButton key={item.to} as={NavLink} to={item.to} end={item.end} className={mobileNavClass}>
+                {t(item.key)}
+              </DisclosureButton>
+            ))}
+          </nav>
         </DisclosurePanel>
       </Disclosure>
       <MonthlyOdometerPrompt />
 
       <main>
-        <div
-          className={
-            dashboardIsOpen
-              ? "w-full"
-              : "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"
-          }
-        >
+        <div className={dashboardIsOpen ? "w-full" : "mx-auto max-w-[1248px] px-6 pb-14 pt-9"}>
           <Outlet />
         </div>
       </main>

@@ -5,7 +5,10 @@ import {
   getComplianceChecks,
   getMonthlyOdometerStatistics,
 } from "../api/app.js";
+import { Link } from "react-router-dom";
+
 import { useAuth } from "../auth/AuthProvider.jsx";
+import PageHeader from "../components/PageHeader.jsx";
 
 // Lokaler Kalendertag; toISOString() würde kurz nach Mitternacht den Vortag liefern.
 function dateValue(date) {
@@ -100,13 +103,11 @@ export default function Compliance() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-sm font-semibold text-fb-accent">Prüfung</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">Prüfung und Abschluss</h1>
-        <p className="mt-2 text-fb-muted">
-          Prüfe Fahrten auf Unstimmigkeiten, kontrolliere die Integrität der Revisionen und schließe fertige Zeiträume.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Prüfung"
+        title="Prüfung und Abschluss"
+        subtitle="Fahrten auf Unstimmigkeiten prüfen, die Revisionskette kontrollieren und fertige Zeiträume abschließen."
+      />
 
       {error && <div role="alert" className="rounded-lg border border-fb-danger p-4 text-sm text-fb-danger">{error}</div>}
       {message && <div role="status" className="rounded-lg border border-fb-accent bg-fb-accent-soft p-4 text-sm text-fb-accent">{message}</div>}
@@ -133,7 +134,7 @@ export default function Compliance() {
         />
       </div>
 
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold">Auffälligkeiten</h2>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Auffälligkeiten filtern">
@@ -158,7 +159,8 @@ export default function Compliance() {
           {visibleIssues.length === 0 ? (
             <li className="py-4 text-sm text-fb-muted">Keine Auffälligkeiten gefunden.</li>
           ) : visibleIssues.map((issue, index) => (
-            <li key={`${issue.tripId}-${issue.code}-${index}`} className="flex items-start gap-3 py-3">
+            <li key={`${issue.tripId}-${issue.code}-${index}`} className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+              <div className="flex min-w-0 flex-[1_1_420px] items-start gap-3">
               <span className={`mt-0.5 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${issue.severity === "error" ? "bg-fb-danger/10 text-fb-danger" : "bg-amber-500/15 text-amber-800 dark:text-amber-300"}`}>
                 {issue.severity === "error" ? "Fehler" : "Warnung"}
               </span>
@@ -166,12 +168,14 @@ export default function Compliance() {
                 <p className="text-sm font-medium">{issue.message}</p>
                 <p className="mt-0.5 text-xs text-fb-muted">{issue.startedAt ? new Date(issue.startedAt).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–"}</p>
               </div>
+              </div>
+              {issue.tripId && <Link to={`/?trip=${encodeURIComponent(issue.tripId)}`} className="py-2.5 text-[13px] font-semibold text-fb-accent-strong hover:underline">Fahrt öffnen</Link>}
             </li>
           ))}
         </ul>
       </section>
 
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <h2 className="text-lg font-bold">Monatskontrolle</h2>
         <p className="mt-1 text-sm text-fb-muted">Anteil der laut Tacho gefahrenen Kilometer, der durch erfasste Fahrten belegt ist.</p>
         {monthlyRows.length === 0 ? (
@@ -204,7 +208,7 @@ export default function Compliance() {
         )}
       </section>
 
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5">
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <h2 className="text-lg font-bold">Zeitraum abschließen</h2>
         <p className="mt-1 text-sm text-fb-muted">
           Ein Abschluss ist dauerhaft. Fahrten und Tags im Zeitraum werden anschließend auf Datenbankebene gegen Änderungen gesperrt.

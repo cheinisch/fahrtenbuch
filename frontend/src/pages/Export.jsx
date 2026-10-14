@@ -22,9 +22,10 @@ import {
 import {
   useAuth,
 } from "../auth/AuthProvider.jsx";
+import PageHeader from "../components/PageHeader.jsx";
 
 const fieldClass =
-  "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
+  "mt-1.5 block h-11 w-full rounded-lg border border-fb-border bg-fb-surface px-3 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
 
 function saveBlob({
   blob,
@@ -249,21 +250,11 @@ export default function ExportPage() {
 
   return (
     <div className="space-y-7">
-      <header>
-        <p className="text-sm font-semibold text-fb-accent">
-          Export
-        </p>
-
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">
-          Statistik und Fahrtenbuch
-          exportieren
-        </h1>
-
-        <p className="mt-2 text-fb-muted">
-          Der PDF-Aufbau wird automatisch
-          anhand deines Heimatlands gewählt.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Export"
+        title="Statistik und Fahrtenbuch exportieren"
+        subtitle="Der PDF-Aufbau wird automatisch anhand deines Heimatlands gewählt."
+      />
 
       {error && (
         <div className="rounded-xl border border-fb-danger px-4 py-3 text-sm text-fb-danger">
@@ -274,15 +265,17 @@ export default function ExportPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         <div className="min-w-0 space-y-6">
       {country && (
-        <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
+        <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3.5">
+            <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-fb-accent-soft text-[15px] font-bold text-fb-accent-strong">{country.code}</span>
             <div>
-              <div className="text-sm font-semibold text-fb-accent">
+              <div className="text-[13px] font-semibold text-fb-accent-strong">
                 Länderprofil{" "}
                 {country.code}
               </div>
 
-              <h2 className="mt-1 text-xl font-bold">
+              <h2 className="mt-0.5 text-xl font-bold">
                 {country.reportTitle}
               </h2>
 
@@ -300,10 +293,11 @@ export default function ExportPage() {
                 {country.distanceUnit}
               </p>
             </div>
+            </div>
 
             <Link
               to="/profilesettings"
-              className="text-sm font-semibold text-fb-accent hover:text-fb-accent-secondary"
+              className="text-sm font-semibold text-fb-accent-strong hover:underline"
             >
               Heimatland ändern
             </Link>
@@ -311,7 +305,7 @@ export default function ExportPage() {
         </section>
       )}
 
-      <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
+      <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <h2 className="text-lg font-bold">
           Zeitraum und Filter
         </h2>
@@ -435,18 +429,18 @@ export default function ExportPage() {
         </div>
       ) : (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <section className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
             {summaryItems.map(
               (item) => (
                 <div
                   key={item.label}
-                  className="rounded-xl border border-fb-border bg-fb-main p-5"
+                  className="rounded-xl border border-fb-border bg-fb-main p-4"
                 >
-                  <div className="text-sm text-fb-muted">
+                  <div className="text-[13px] text-fb-muted">
                     {item.label}
                   </div>
 
-                  <div className="mt-2 text-2xl font-bold">
+                  <div className="mt-1 text-2xl font-bold">
                     {item.value}
                   </div>
                 </div>
@@ -482,7 +476,7 @@ export default function ExportPage() {
         </div>
 
         <aside className="space-y-6 lg:sticky lg:top-6">
-          <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
+          <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
             <div className="flex items-start gap-3">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-fb-accent-soft text-fb-accent">
                 <DocumentChartBarIcon className="size-6" />
@@ -522,7 +516,7 @@ export default function ExportPage() {
           </section>
 
           {country?.requirements?.length > 0 && (
-            <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
+            <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
               <h2 className="text-base font-bold">Angaben für dieses Länderprofil</h2>
               <ul className="mt-3 space-y-2 text-sm text-fb-muted">
                 {country.requirements.map((requirement) => (

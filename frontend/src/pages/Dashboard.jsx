@@ -29,7 +29,10 @@ import {
 
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import { useSearchParams } from "react-router-dom";
+
 import { useI18n } from "../i18n/I18nProvider.jsx";
+import { routeColor } from "../lib/routeColors.js";
 
 const OSM_MAP_STYLE = {
   version: 8,
@@ -384,11 +387,6 @@ export default function Dashboard() {
     }).catch(() => {});
     return () => { active = false; };
   }, [accessToken]);
-  // Fallback-Farbe für Kategorien ohne eigene Routenfarbe (wie auf der Karte).
-  const accentColor = useMemo(
-    () => getComputedStyle(document.documentElement).getPropertyValue("--color-accent").trim() || "#0284c7",
-    [],
-  );
   const [selectedForMerge, setSelectedForMerge] = useState([]);
   const [mobilePanel, setMobilePanel] = useState("map");
   const [mobileDetailsExpanded, setMobileDetailsExpanded] = useState(false);
@@ -615,14 +613,13 @@ export default function Dashboard() {
         : [],
     });
 
-    const fallbackColor = getComputedStyle(document.documentElement).getPropertyValue("--color-accent").trim() || "#0ea5e9";
     map.setPaintProperty("trip-routes", "line-color", [
       "match", ["get", "type"],
-      "private", routeColors.private || fallbackColor,
-      "business", routeColors.business || fallbackColor,
-      "commute", routeColors.commute || fallbackColor,
-      "unclassified", routeColors.unclassified || fallbackColor,
-      fallbackColor,
+      "private", routeColor("private", routeColors),
+      "business", routeColor("business", routeColors),
+      "commute", routeColor("commute", routeColors),
+      "unclassified", routeColor("unclassified", routeColors),
+      routeColor("unclassified", routeColors),
     ]);
 
     map.setPaintProperty(
@@ -1068,6 +1065,17 @@ export default function Dashboard() {
     };
   }, [accessToken, selectedTripId, detailsTab]);
 
+  // Deep-Link aus anderen Seiten (z. B. „Fahrt öffnen“ in der Prüfung): /?trip=<id>
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const requestedTripId = searchParams.get("trip");
+    if (!requestedTripId || status.loading) return;
+    const trip = data.trips.find((item) => String(item.id) === requestedTripId);
+    if (trip) selectTrip(trip);
+    setSearchParams((params) => { params.delete("trip"); return params; }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, status.loading, data.trips]);
+
   function selectTrip(trip) {
     setSelectedTripId(trip.id);
     setMobilePanel("map");
@@ -1287,8 +1295,7 @@ export default function Dashboard() {
 
   const fmtDate = (value, timeZone) => formatDate(value, locale, timeZone);
   const fmtKm = (meters) => formatDistance(meters, locale);
-  const typeColor = (type) => routeColors[type] || accentColor;
-  const hasCustomRouteColors = TRIP_TYPES.some((type) => routeColors[type]);
+  const typeColor = (type) => routeColor(type, routeColors);
   const fieldClass = "mt-1 block h-10 w-full rounded-lg border border-fb-border bg-fb-surface px-3 text-sm text-fb-text outline-none focus:border-fb-accent";
   const secondaryButton = "inline-flex min-h-10 items-center justify-center rounded-lg border border-fb-border bg-fb-main px-3 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-50";
   const primaryButton = "inline-flex min-h-10 items-center justify-center rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-50";
@@ -1310,13 +1317,13 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative h-[calc(100dvh-4rem)] min-h-[320px] overflow-hidden">
+    <div className="relative h-[calc(100dvh-4.5rem-1px)] min-h-[320px] overflow-hidden">
       <nav aria-label={t("dashboard.mobileViewLabel")} className="absolute inset-x-3 top-3 z-30 flex gap-2 rounded-xl border border-fb-border bg-fb-main/95 p-1 shadow-lg backdrop-blur md:hidden">
         <button type="button" aria-pressed={mobilePanel === "map"} onClick={() => setMobilePanel("map")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "map" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>{t("dashboard.map")}</button>
         <button type="button" aria-pressed={mobilePanel === "trips"} onClick={() => setMobilePanel("trips")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "trips" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>{t("dashboard.trips")} ({data.trips.length})</button>
       </nav>
 
-      <section aria-label={t("dashboard.trips")} className={`${mobilePanel === "trips" ? "flex" : "hidden"} absolute inset-x-3 bottom-3 top-[4.5rem] z-20 min-h-0 flex-col overflow-hidden rounded-2xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:bottom-4 md:left-4 md:right-auto md:top-4 md:flex md:w-[410px]`}>
+      <section aria-label={t("dashboard.trips")} className={`${mobilePanel === "trips" ? "flex" : "hidden"} absolute inset-x-3 bottom-3 top-[4.5rem] z-20 min-h-0 flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:bottom-4 md:left-4 md:right-auto md:top-4 md:flex md:w-[410px]`}>
         <header className="max-h-[55%] shrink-0 overflow-y-auto border-b border-fb-border p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
@@ -1374,15 +1381,10 @@ export default function Dashboard() {
 
         {selectedForMerge.length > 0 && (
           <div className="flex items-center justify-between gap-3 border-b border-fb-border bg-fb-accent-soft px-4 py-2.5">
-            <span className="text-xs font-medium text-fb-accent">{t("dashboard.merge.selected", { count: selectedForMerge.length })}</span>
-            <div className="flex gap-1.5">
-              <button type="button" onClick={() => setSelectedForMerge([])} className="min-h-9 rounded-lg px-2 text-xs font-semibold text-fb-muted hover:text-fb-accent">
-                {t("common.cancel")}
-              </button>
-              <button type="button" disabled={selectedForMerge.length < 2 || tripAction.busy} onClick={performMerge} className="min-h-9 rounded-lg bg-fb-accent px-3 text-xs font-semibold text-fb-accent-text disabled:opacity-50">
-                {t("dashboard.merge.action")}
-              </button>
-            </div>
+            <span className="text-[13px] font-medium text-fb-accent-strong">{t("dashboard.merge.selected", { count: selectedForMerge.length })}</span>
+            <button type="button" disabled={selectedForMerge.length < 2 || tripAction.busy} onClick={performMerge} className="min-h-[34px] rounded-lg bg-fb-accent px-3 text-xs font-semibold text-fb-accent-text disabled:opacity-50">
+              {t("dashboard.merge.action")}
+            </button>
           </div>
         )}
 
@@ -1462,11 +1464,11 @@ export default function Dashboard() {
           </div>
         )}
 
-        {hasCustomRouteColors && !selectedTripId && (
-          <div className="absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 flex-wrap gap-3 rounded-lg border border-fb-border bg-fb-main/95 px-3 py-2 text-xs text-fb-muted shadow-sm backdrop-blur md:flex">
+        {!selectedTripId && data.trips.length > 0 && (
+          <div className="absolute bottom-4 left-[444px] z-10 hidden flex-wrap gap-3.5 rounded-lg border border-fb-border bg-fb-main/95 px-3.5 py-2.5 text-xs text-fb-text/80 shadow-sm backdrop-blur md:flex">
             {TRIP_TYPES.map((type) => (
               <span key={type} className="flex items-center gap-1.5">
-                <span aria-hidden="true" className="h-1 w-4 rounded-full" style={{ backgroundColor: typeColor(type) }} />
+                <span aria-hidden="true" className="h-1 w-[18px] rounded-sm" style={{ backgroundColor: typeColor(type) }} />
                 {tripTypeLabel(t, type)}
               </span>
             ))}
@@ -1474,7 +1476,7 @@ export default function Dashboard() {
         )}
 
         {archiveOpen && (
-          <div role="dialog" aria-modal="false" aria-labelledby="trip-archive-title" className="absolute inset-3 z-30 overflow-auto rounded-2xl border border-fb-border bg-fb-main p-4 shadow-xl md:inset-4 md:left-[440px] md:p-6">
+          <div role="dialog" aria-modal="false" aria-labelledby="trip-archive-title" className="absolute inset-3 z-30 overflow-auto rounded-xl border border-fb-border bg-fb-main p-4 shadow-xl md:inset-4 md:left-[440px] md:p-6">
             <div className="mb-2 flex items-center justify-between gap-3">
               <h2 id="trip-archive-title" className="text-lg font-semibold">{t("tripArchive.title")}</h2>
               <button type="button" onClick={() => setArchiveOpen(false)} className={secondaryButton}>{t("tripArchive.close")}</button>
@@ -1498,23 +1500,52 @@ export default function Dashboard() {
         )}
 
         {selectedTrip && (
-          <section aria-label={t("tripDetails.title")} className={`${mobilePanel === "map" ? "flex" : "hidden"} absolute bottom-3 left-3 right-3 z-20 max-h-[calc(100%-5.5rem)] flex-col overflow-hidden rounded-2xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:bottom-4 md:left-auto md:right-4 md:top-4 md:flex md:max-h-none md:w-[420px]`}>
-            <header className="shrink-0 border-b border-fb-border px-4 pt-3">
+          <section aria-label={t("tripDetails.title")} className={`${mobilePanel === "map" ? "flex" : "hidden"} absolute bottom-3 left-3 right-3 z-20 max-h-[calc(100%-5.5rem)] flex-col overflow-hidden rounded-xl border border-fb-border bg-fb-main/95 shadow-xl backdrop-blur md:bottom-4 md:left-auto md:right-4 md:top-4 md:flex md:max-h-none md:w-[420px]`}>
+            {/* Mobil eingeklappt: kompakte Zusammenfassung als Bottom-Sheet. */}
+            {!mobileDetailsExpanded && (
+              <div className="md:hidden">
+                <div className="flex justify-center pt-2"><span aria-hidden="true" className="h-1 w-10 rounded-full bg-fb-border" /></div>
+                <div className="space-y-3 px-4 pb-4 pt-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: typeColor(selectedTrip.type) }} />
+                        <span className="font-bold">{tripTypeLabel(t, selectedTrip.type)}</span>
+                        <span className="truncate text-xs text-fb-muted">{selectedTrip.vehicle?.name}</span>
+                      </div>
+                      <div className="mt-1.5 truncate text-[13px]">{selectedTrip.startAddress || t("dashboard.unknownStart")}</div>
+                      <div className="truncate text-[13px] text-fb-muted">→ {selectedTrip.endAddress || t("dashboard.unknownDestination")}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="font-bold text-fb-accent-strong">{fmtKm(selectedTrip.distanceMeters)}</div>
+                      <div className="mt-0.5 text-xs text-fb-muted">{fmtDate(selectedTrip.startedAt, selectedTrip.startTimeZone)}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setMobileDetailsExpanded(true)} className="h-11 flex-1 rounded-lg bg-fb-accent text-sm font-semibold text-fb-accent-text">{t("dashboard.openDetails")}</button>
+                    <button type="button" onClick={closeDetails} aria-label={t("common.close")} className="flex size-11 items-center justify-center rounded-lg border border-fb-border text-fb-muted">
+                      <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <header className={`${mobileDetailsExpanded ? "block" : "hidden"} shrink-0 border-b border-fb-border px-4 pt-3.5 md:block`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-xs text-fb-muted">{t("tripDetails.title")}</div>
-                  <div className="truncate font-bold">{routeTitle(selectedTrip, t)}</div>
+                  <div className="truncate text-base font-bold">{routeTitle(selectedTrip, t)}</div>
                 </div>
                 <div className="flex shrink-0 gap-1.5">
-                  <button type="button" onClick={() => setMobileDetailsExpanded((value) => !value)} aria-expanded={mobileDetailsExpanded} className="min-h-10 rounded-lg border border-fb-border px-3 text-xs font-semibold md:hidden">
-                    {mobileDetailsExpanded ? t("dashboard.collapseDetails") : t("dashboard.openDetails")}
+                  <button type="button" onClick={() => setMobileDetailsExpanded(false)} className="min-h-10 rounded-lg border border-fb-border px-3 text-xs font-semibold md:hidden">
+                    {t("dashboard.collapseDetails")}
                   </button>
                   <button type="button" onClick={closeDetails} aria-label={t("common.close")} className="flex size-10 items-center justify-center rounded-lg border border-fb-border text-fb-muted transition hover:border-fb-accent hover:text-fb-accent">
                     <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
                   </button>
                 </div>
               </div>
-              <div role="tablist" className={`${mobileDetailsClass} mt-2 gap-5 md:flex`}>
+              <div role="tablist" className="mt-2.5 flex gap-5">
                 {["details", "history"].map((tab) => (
                   <button
                     key={tab}
@@ -1522,7 +1553,7 @@ export default function Dashboard() {
                     role="tab"
                     aria-selected={detailsTab === tab}
                     onClick={() => setDetailsTab(tab)}
-                    className={`mr-5 h-10 border-b-2 text-sm md:mr-0 ${detailsTab === tab ? "border-fb-accent font-semibold text-fb-accent" : "border-transparent text-fb-muted hover:text-fb-text"}`}
+                    className={`h-10 border-b-2 text-sm ${detailsTab === tab ? "border-fb-accent font-semibold text-fb-accent-strong" : "border-transparent font-medium text-fb-muted hover:text-fb-text"}`}
                   >
                     {t(`tripDetails.${tab}`)}
                   </button>
@@ -1593,19 +1624,20 @@ export default function Dashboard() {
                   </div>
                 </fieldset>
 
-                {suggestions.length > 0 && (
-                  <div className="rounded-xl border border-fb-accent/40 bg-fb-accent-soft p-3">
-                    <div className="text-xs font-semibold text-fb-accent">{t("dashboard.suggestionTitle")}</div>
-                    {suggestions.slice(0, 3).map((suggestion, index) => (
-                      <div key={index} className="mt-1 flex items-center justify-between gap-2 text-xs">
-                        <span className="text-fb-muted">{suggestion.reason}</span>
-                        <button type="button" onClick={() => setEditCategory(suggestion.type)} className="shrink-0 font-semibold text-fb-accent hover:underline">
-                          {tripTypeLabel(t, suggestion.type)}
-                        </button>
-                      </div>
-                    ))}
+                {suggestions.slice(0, 3).map((suggestion, index) => (
+                  <div key={index} className="flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-fb-accent-soft">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="mt-0.5 size-[18px] shrink-0 text-fb-accent-strong" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8 9.5 8z" /></svg>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-fb-accent-strong">{t("dashboard.suggestionTitle")}: {tripTypeLabel(t, suggestion.type)}</div>
+                      <div className="mt-0.5 text-fb-muted">{suggestion.reason}</div>
+                    </div>
+                    {editCategory !== suggestion.type && (
+                      <button type="button" onClick={() => setEditCategory(suggestion.type)} className="shrink-0 text-xs font-semibold text-fb-accent-strong hover:underline">
+                        {t("dashboard.applySuggestion")}
+                      </button>
+                    )}
                   </div>
-                )}
+                ))}
 
                 {editError && <p role="alert" className="text-fb-danger">{editError}</p>}
                 <button type="button" disabled={editBusy} onClick={saveTripDetails} className={`${primaryButton} w-full`}>
@@ -1680,6 +1712,20 @@ export default function Dashboard() {
 
                   {driverAssignment.drivers.length > 0 && (() => {
                     const returnOnly = driverAssignment.drivers.every((driver) => driver.returnOnly);
+                    if (!returnOnly) {
+                      return (
+                        <label className="block font-semibold">
+                          {t("dashboard.driver.assignTitle")}
+                          <span className="mt-1 flex gap-2">
+                            <select value={driverAssignment.selected} onChange={(event) => setDriverAssignment((state) => ({ ...state, selected: event.target.value }))} className="h-10 min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-surface px-2 text-sm font-normal">
+                              <option value="">{t("dashboard.driver.selectUser")}</option>
+                              {driverAssignment.drivers.map((driver) => <option key={driver.userId} value={driver.userId}>{driver.displayName || driver.username}{driver.isOwner ? ` (${t("dashboard.driver.owner")})` : ""}</option>)}
+                            </select>
+                            <button type="button" disabled={!driverAssignment.selected || tripAction.busy} onClick={performDriverAssignment} className={secondaryButton}>{t("dashboard.driver.assignAction")}</button>
+                          </span>
+                        </label>
+                      );
+                    }
                     return (
                       <div className="rounded-lg border border-fb-border bg-fb-surface p-3">
                         <div className="text-xs font-semibold">{returnOnly ? t("dashboard.driver.returnTitle") : t("dashboard.driver.assignTitle")}</div>
@@ -1690,15 +1736,7 @@ export default function Dashboard() {
                             <textarea value={driverAssignment.reason} onChange={(event) => setDriverAssignment((state) => ({ ...state, reason: event.target.value, selected: state.selected || state.drivers[0]?.userId || "" }))} placeholder={t("dashboard.driver.reasonPlaceholder")} aria-label={t("dashboard.driver.reasonPlaceholder")} maxLength={500} className="mt-2 min-h-16 w-full rounded-lg border border-fb-border bg-fb-main px-2 py-1.5 text-sm" />
                             <button type="button" disabled={!driverAssignment.reason.trim() || tripAction.busy} onClick={performDriverAssignment} className="mt-2 min-h-9 rounded-lg bg-fb-accent px-3 text-xs font-semibold text-fb-accent-text disabled:opacity-50">{t("dashboard.driver.returnAction")}</button>
                           </>
-                        ) : (
-                          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                            <select value={driverAssignment.selected} onChange={(event) => setDriverAssignment((state) => ({ ...state, selected: event.target.value }))} aria-label={t("dashboard.driver.assignTitle")} className="min-h-9 min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-main px-2 text-sm">
-                              <option value="">{t("dashboard.driver.selectUser")}</option>
-                              {driverAssignment.drivers.map((driver) => <option key={driver.userId} value={driver.userId}>{driver.displayName || driver.username}{driver.isOwner ? ` (${t("dashboard.driver.owner")})` : ""}</option>)}
-                            </select>
-                            <button type="button" disabled={!driverAssignment.selected || tripAction.busy} onClick={performDriverAssignment} className="min-h-9 rounded-lg bg-fb-accent px-3 text-xs font-semibold text-fb-accent-text disabled:opacity-50">{t("dashboard.driver.assignAction")}</button>
-                          </div>
-                        )}
+                        ) : null}
                       </div>
                     );
                   })()}

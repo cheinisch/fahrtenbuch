@@ -113,8 +113,8 @@ export default function ShareInvitation() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 py-6">
-      <p className="text-center text-sm font-semibold text-fb-accent">{t("shareInvitation.section")}</p>
+    <div className="mx-auto max-w-[512px] space-y-4 py-9">
+      <p className="text-center text-sm font-semibold text-fb-accent-strong">{t("shareInvitation.section")}</p>
       {content}
     </div>
   );

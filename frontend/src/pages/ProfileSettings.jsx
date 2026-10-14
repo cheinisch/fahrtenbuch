@@ -38,6 +38,7 @@ import { useAuth } from "../auth/AuthProvider.jsx";
 import { createPasskey } from "../lib/webauthn.js";
 import AddNewDeviceModal from "../components/addNewDeviceModal.jsx";
 import UserDataTransfer from "../components/UserDataTransfer.jsx";
+import { DEFAULT_ROUTE_COLORS } from "../lib/routeColors.js";
 
 // Reihenfolge entspricht der Darstellung; dient der Abschnittsnavigation.
 const SETTINGS_SECTIONS = [
@@ -1382,11 +1383,11 @@ export default function ProfileSettings() {
                     <label key={key} className="flex items-center gap-3 rounded-lg border border-fb-border p-3 text-sm">
                       <input type="checkbox" checked={Boolean(tracking.mapRouteColors?.[key])}
                         onChange={(event) => setTracking((current) => ({
-                          ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.checked ? "#0ea5e9" : null },
+                          ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.checked ? DEFAULT_ROUTE_COLORS[key] : null },
                         }))} />
                       <span className="flex-1">{label}</span>
                       <input type="color" aria-label={`Farbe für ${label}`} disabled={!tracking.mapRouteColors?.[key]}
-                        value={tracking.mapRouteColors?.[key] || "#0ea5e9"}
+                        value={tracking.mapRouteColors?.[key] || DEFAULT_ROUTE_COLORS[key]}
                         onChange={(event) => setTracking((current) => ({
                           ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.value },
                         }))} className="h-9 w-12 cursor-pointer rounded border border-fb-border" />
