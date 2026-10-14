@@ -141,7 +141,7 @@ function buildExportFilter(request, { allowTripId = false } = {}) {
       throw badRequest("VALIDATION_ERROR", "Die Sonderkategorie ist ungültig.");
     }
     parameters.push(specialCategory);
-    conditions.push(`t.special_category = ${parameters.length}`);
+    conditions.push(`t.special_category = $${parameters.length}`);
   }
 
   if (allowTripId && request.query.tripId) {
