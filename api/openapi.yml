@@ -272,19 +272,55 @@ paths:
     post:
       tags: [Linked Accounts]
       summary: Start sign-in with an external provider
-      description: >-
-        Liefert die Autorisierungs-URL des Anbieters und setzt einen kurzlebigen
-        HttpOnly-Cookie, der den Callback an diesen Browser bindet. Der Client
-        leitet danach im selben Browser auf `authorizationUrl` weiter.
+      description: |-
+        Liefert die Autorisierungs-URL des Anbieters.
+
+        **Web:** ohne Request-Body. Der Server setzt einen kurzlebigen
+        HttpOnly-Cookie, der den Callback an diesen Browser bindet; der Client
+        leitet im selben Browser auf `authorizationUrl` weiter.
+
+        **Mobile App:** mit `appRedirectUri` und `appCodeChallenge`. Die App
+        erzeugt einen zufälligen Verifier (43–128 Zeichen, PKCE nach RFC 7636),
+        sendet `appCodeChallenge = BASE64URL(SHA256(verifier))` und öffnet
+        `authorizationUrl` in einem Custom Tab. Nach der Anmeldung leitet der
+        Server auf `appRedirectUri?ticket=…` weiter (bei Fehlern
+        `appRedirectUri?error=<CODE>`). Die App löst das Ticket zusammen mit
+        dem Verifier über `POST /auth/oauth/exchange` ein. Die Serveradresse
+        muss die App vorher kennen.
+
+        `appRedirectUri` muss auf dem Server freigegeben sein
+        (`OAUTH_APP_REDIRECT_URIS`, Standard `fahrtenbuch://oauth/callback`).
       security: []
       parameters:
         - $ref: '#/components/parameters/OAuthProvider'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                appRedirectUri:
+                  type: string
+                  maxLength: 300
+                  example: fahrtenbuch://oauth/callback
+                appCodeChallenge:
+                  type: string
+                  pattern: '^[A-Za-z0-9_-]{43}$'
+                  description: S256-Challenge des App-Verifiers (Base64url ohne Padding).
       responses:
         '200':
           description: Autorisierungs-URL
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OAuthAuthorizationResponse' }
+        '400':
+          description: >-
+            Rücksprungadresse nicht freigegeben (`OAUTH_APP_REDIRECT_NOT_ALLOWED`)
+            oder ungültiger Challenge (`VALIDATION_ERROR`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
         '404': { $ref: '#/components/responses/NotFound' }
   /auth/oauth/{provider}/link:
     post:
@@ -310,6 +346,8 @@ paths:
         Verknüpfung nach `/profilesettings?oauthLinked=<provider>`, Fehler mit
         `?oauthError=<CODE>` (z. B. OAUTH_NOT_LINKED, OAUTH_CANCELLED,
         OAUTH_STATE_INVALID, OAUTH_IDENTITY_IN_USE, OAUTH_PROVIDER_ALREADY_LINKED).
+        Wurde die Anmeldung aus der App gestartet, geht die Weiterleitung an
+        `appRedirectUri?ticket=…` bzw. `appRedirectUri?error=<CODE>`.
       security: []
       parameters:
         - $ref: '#/components/parameters/OAuthProvider'
@@ -325,7 +363,10 @@ paths:
       description: >-
         Tauscht das Einmal-Ticket aus dem Callback gegen Tokens. Ist TOTP aktiv,
         antwortet der Server zuerst mit `MFA_REQUIRED`; das Ticket bleibt dann
-        bis zu seinem Ablauf (5 Minuten) gültig.
+        bis zu seinem Ablauf (5 Minuten) gültig. Tickets aus einer
+        App-Anmeldung lassen sich nur mit dem passenden `appCodeVerifier`
+        einlösen (sonst `OAUTH_APP_VERIFIER_INVALID`); das Gerät wird dann als
+        `mobile` registriert.
       security: []
       requestBody:
         required: true
@@ -337,6 +378,10 @@ paths:
               properties:
                 ticket: { type: string, minLength: 20, maxLength: 200 }
                 totpCode: { type: [string, 'null'], pattern: '^\\d{6}$' }
+                appCodeVerifier:
+                  type: [string, 'null']
+                  pattern: '^[A-Za-z0-9._~-]{43,128}$'
+                  description: Pflicht für Tickets aus einer App-Anmeldung.
                 deviceId: { type: [string, 'null'], maxLength: 200 }
                 deviceName: { type: [string, 'null'], maxLength: 120 }
                 platform: { type: [string, 'null'], maxLength: 64 }

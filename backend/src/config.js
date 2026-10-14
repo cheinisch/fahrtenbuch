@@ -284,6 +284,16 @@ export const config = Object.freeze({
       // common | organizations | consumers | <Tenant-ID>
       tenant: stringValue("MICROSOFT_OAUTH_TENANT", "common"),
     },
+
+    // Erlaubte Rücksprungadressen der mobilen App (kommagetrennt). Nur an
+    // diese Adressen leitet der Server nach der App-Anmeldung weiter.
+    appRedirectUris: stringValue(
+      "OAUTH_APP_REDIRECT_URIS",
+      "fahrtenbuch://oauth/callback",
+    )
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
   },
 
   passwordReset: {

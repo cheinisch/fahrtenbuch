@@ -73,6 +73,8 @@ A provider is enabled as soon as its client ID and secret are set in `.env`. Reg
 - **Google:** Google Cloud Console → *APIs & Services → Credentials → Create OAuth client ID* (type *Web application*). Scopes: `openid`, `email`, `profile`. Set `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`.
 - **Microsoft:** Microsoft Entra admin center → *App registrations → New registration*, platform *Web*, then create a client secret under *Certificates & secrets*. Set `MICROSOFT_OAUTH_CLIENT_ID`, `MICROSOFT_OAUTH_CLIENT_SECRET` and, optionally, `MICROSOFT_OAUTH_TENANT` (`common` = work and personal accounts, `organizations`, `consumers`, or a tenant ID to allow only your organization).
 
+The Android app can use the same providers: after entering the server address it starts the sign-in in a browser tab and the server redirects back to the app (`fahrtenbuch://oauth/callback`; configurable via `OAUTH_APP_REDIRECT_URIS`). No extra setup at Google or Microsoft is needed for this.
+
 Restart the containers after changing these values.
 
 ## Updating

@@ -2,7 +2,10 @@ import { Router } from "express";
 
 import { config } from "../config.js";
 import { pool } from "../database/pool.js";
+import { createHash, timingSafeEqual } from "node:crypto";
+
 import {
+  badRequest,
   conflict,
   notFound,
   unauthorized,
@@ -104,6 +107,64 @@ function frontendUrl(pathname, { query = {}, hash = "" } = {}) {
   return url.toString();
 }
 
+// Rücksprung in die mobile App; nur exakt freigegebene Adressen
+function appRedirectUrl(redirectUri, parameters) {
+  const url = new URL(redirectUri);
+
+  for (const [key, value] of Object.entries(parameters)) {
+    url.searchParams.set(key, value);
+  }
+
+  return url.toString();
+}
+
+function readAppLoginOptions(body) {
+  const redirectUri = stringField(body, "appRedirectUri", {
+    nullable: true,
+    maximum: 300,
+  });
+  const challenge = stringField(body, "appCodeChallenge", {
+    nullable: true,
+    maximum: 128,
+  });
+
+  if (!redirectUri && !challenge) {
+    return null;
+  }
+
+  if (!redirectUri || !config.oauth.appRedirectUris.includes(redirectUri)) {
+    throw badRequest(
+      "OAUTH_APP_REDIRECT_NOT_ALLOWED",
+      "Diese Rücksprungadresse ist auf dem Server nicht freigegeben.",
+    );
+  }
+
+  // S256-Challenge: Base64url eines SHA-256-Hashes (43 Zeichen)
+  if (!challenge || !/^[A-Za-z0-9_-]{43}$/.test(challenge)) {
+    throw badRequest(
+      "VALIDATION_ERROR",
+      "„appCodeChallenge“ muss ein S256-Code-Challenge (43 Zeichen Base64url) sein.",
+    );
+  }
+
+  return { redirectUri, challenge };
+}
+
+function verifyAppCodeVerifier(verifier, challenge) {
+  if (
+    typeof verifier !== "string" ||
+    !/^[A-Za-z0-9._~-]{43,128}$/.test(verifier)
+  ) {
+    return false;
+  }
+
+  const computed = Buffer.from(
+    createHash("sha256").update(verifier).digest("base64url"),
+  );
+  const expected = Buffer.from(challenge);
+  return computed.length === expected.length && timingSafeEqual(computed, expected);
+}
+
 function mapIdentity(row) {
   return {
     id: row.id,
@@ -115,11 +176,19 @@ function mapIdentity(row) {
   };
 }
 
-async function startAuthorization(request, response, provider, purpose, userId) {
+async function startAuthorization(
+  request,
+  response,
+  provider,
+  purpose,
+  userId,
+  appLogin = null,
+) {
   const state = randomToken();
   const codeVerifier = randomToken(48);
   const nonce = randomToken();
-  const browserBinding = randomToken();
+  // App-Anmeldungen binden über den Challenge der App statt über einen Cookie
+  const browserBinding = appLogin ? null : randomToken();
 
   // Alte Einträge nebenbei aufräumen
   await pool.query(
@@ -139,23 +208,30 @@ async function startAuthorization(request, response, provider, purpose, userId) 
         user_id,
         code_verifier_encrypted,
         nonce_encrypted,
+        app_challenge,
+        app_redirect_uri,
         expires_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(mins => $8))
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + make_interval(mins => $10))
     `,
     [
       hashToken(state),
-      hashToken(browserBinding),
+      browserBinding ? hashToken(browserBinding) : null,
       provider.id,
       purpose,
       userId,
       encryptSecret(codeVerifier),
       encryptSecret(nonce),
+      appLogin?.challenge || null,
+      appLogin?.redirectUri || null,
       STATE_LIFETIME_MINUTES,
     ],
   );
 
-  setBindingCookie(response, browserBinding);
+  if (browserBinding) {
+    setBindingCookie(response, browserBinding);
+  }
+
   response.json({
     authorizationUrl: buildAuthorizationUrl(provider, {
       state,
@@ -176,7 +252,8 @@ oauthRoutes.post(
   "/:provider/login",
   asyncHandler(async (request, response) => {
     const provider = requireProvider(request.params.provider);
-    await startAuthorization(request, response, provider, "login", null);
+    const appLogin = readAppLoginOptions(objectBody(request.body ?? {}));
+    await startAuthorization(request, response, provider, "login", null, appLogin);
   }),
 );
 
@@ -195,7 +272,7 @@ oauthRoutes.post(
   }),
 );
 
-async function handleLoginCallback(provider, identity) {
+async function handleLoginCallback(provider, identity, pending) {
   const result = await pool.query(
     `
       SELECT i.id AS identity_id, u.id AS user_id
@@ -234,11 +311,23 @@ async function handleLoginCallback(provider, identity) {
 
   await pool.query(
     `
-      INSERT INTO oauth_login_tickets (ticket_hash, user_id, identity_id, expires_at)
-      VALUES ($1, $2, $3, now() + make_interval(mins => $4))
+      INSERT INTO oauth_login_tickets (
+        ticket_hash, user_id, identity_id, app_challenge, expires_at
+      )
+      VALUES ($1, $2, $3, $4, now() + make_interval(mins => $5))
     `,
-    [hashToken(ticket), row.user_id, row.identity_id, TICKET_LIFETIME_MINUTES],
+    [
+      hashToken(ticket),
+      row.user_id,
+      row.identity_id,
+      pending.app_challenge || null,
+      TICKET_LIFETIME_MINUTES,
+    ],
   );
+
+  if (pending.app_redirect_uri) {
+    return appRedirectUrl(pending.app_redirect_uri, { ticket });
+  }
 
   // Ticket im Fragment: landet nicht in Server- oder Proxy-Logs
   return frontendUrl("/login", { hash: { oauthTicket: ticket } });
@@ -366,7 +455,8 @@ oauthRoutes.get(
               AND used_at IS NULL
               AND expires_at > now()
             RETURNING purpose, user_id, browser_binding_hash,
-                      code_verifier_encrypted, nonce_encrypted
+                      code_verifier_encrypted, nonce_encrypted,
+                      app_challenge, app_redirect_uri
           `,
           [hashToken(state), request.params.provider],
         )
@@ -377,19 +467,27 @@ oauthRoutes.get(
     const redirectWithError = (errorCode) =>
       response.redirect(
         303,
-        frontendUrl(errorTarget, {
-          query: { oauthError: errorCode },
-          ...(errorTarget === "/profilesettings"
-            ? { hash: "section-security" }
-            : {}),
-        }),
+        pending?.app_redirect_uri
+          ? appRedirectUrl(pending.app_redirect_uri, { error: errorCode })
+          : frontendUrl(errorTarget, {
+              query: { oauthError: errorCode },
+              ...(errorTarget === "/profilesettings"
+                ? { hash: "section-security" }
+                : {}),
+            }),
       );
 
-    if (
-      !pending ||
-      !browserBinding ||
-      hashToken(browserBinding) !== pending.browser_binding_hash
-    ) {
+    // Web: Cookie muss passen. App: der Challenge schützt erst beim Einlösen,
+    // ein fremdes Ticket ist ohne den Verifier der App wertlos.
+    const bound = pending?.app_challenge
+      ? true
+      : Boolean(
+          pending &&
+          browserBinding &&
+          hashToken(browserBinding) === pending.browser_binding_hash,
+        );
+
+    if (!pending || !bound) {
       return redirectWithError("OAUTH_STATE_INVALID");
     }
 
@@ -415,7 +513,7 @@ oauthRoutes.get(
       const target =
         pending.purpose === "link"
           ? await handleLinkCallback(provider, identity, pending.user_id, request)
-          : await handleLoginCallback(provider, identity);
+          : await handleLoginCallback(provider, identity, pending);
 
       return response.redirect(303, target);
     } catch (error) {
@@ -454,6 +552,7 @@ oauthRoutes.post(
             ${USER_PUBLIC_COLUMNS},
             u.totp_secret_encrypted,
             t.id AS ticket_id,
+            t.app_challenge,
             i.id AS identity_id,
             i.provider
           FROM oauth_login_tickets t
@@ -476,6 +575,18 @@ oauthRoutes.post(
         throw unauthorized(
           "OAUTH_TICKET_INVALID",
           "Die Anmeldung ist abgelaufen. Bitte versuche es erneut.",
+        );
+      }
+
+      // App-Ticket: nur die App, die die Anmeldung gestartet hat, kennt den
+      // Verifier. Prüfung vor TOTP, damit Fremde nichts über das Konto erfahren.
+      if (
+        user.app_challenge &&
+        !verifyAppCodeVerifier(body.appCodeVerifier, user.app_challenge)
+      ) {
+        throw unauthorized(
+          "OAUTH_APP_VERIFIER_INVALID",
+          "Die Anmeldung wurde nicht von dieser App gestartet.",
         );
       }
 
@@ -508,10 +619,11 @@ oauthRoutes.post(
           stringField(body, "deviceId", { nullable: true, maximum: 200 }) || null,
         deviceName:
           stringField(body, "deviceName", { nullable: true, maximum: 120 }) ||
-          "Webbrowser",
-        deviceType: "web",
+          (user.app_challenge ? "Mobilgerät" : "Webbrowser"),
+        deviceType: user.app_challenge ? "mobile" : "web",
         platform:
-          stringField(body, "platform", { nullable: true, maximum: 64 }) || "web",
+          stringField(body, "platform", { nullable: true, maximum: 64 }) ||
+          (user.app_challenge ? "android" : "web"),
         appVersion: stringField(body, "appVersion", { nullable: true, maximum: 64 }),
       });
 
@@ -536,7 +648,11 @@ oauthRoutes.post(
           request.requestId,
           request.ip || null,
           request.get("user-agent") || null,
-          JSON.stringify({ method: "oauth", provider: user.provider }),
+          JSON.stringify({
+            method: "oauth",
+            provider: user.provider,
+            client: user.app_challenge ? "app" : "web",
+          }),
         ],
       );
 
