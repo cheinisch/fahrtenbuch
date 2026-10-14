@@ -6,6 +6,7 @@ export const TRIP_SELECT = `
   t.user_id,
   t.vehicle_id,
   t.type,
+  t.special_category,
   t.status,
   t.started_at,
   t.ended_at,
