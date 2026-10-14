@@ -98,6 +98,10 @@ function tripTypeLabel(t, type) {
   return t(`dashboard.tripTypes.${type}`) || type;
 }
 
+function specialCategoryLabel(t, category) {
+  return category ? (t(`dashboard.specialCategories.${category}`) || category) : "";
+}
+
 function historyEventLabel(t, eventType) {
   return t(`dashboard.historyEvents.${eventType}`) || eventType;
 }
@@ -287,6 +291,7 @@ export default function Dashboard() {
     from: "",
     to: "",
     type: "",
+    specialCategory: "",
     tagId: "",
   });
 
@@ -331,6 +336,7 @@ export default function Dashboard() {
   const [gpsPoints, setGpsPoints] = useState([]);
   const [gpsError, setGpsError] = useState("");
   const [editCategory, setEditCategory] = useState("unclassified");
+  const [editSpecialCategory, setEditSpecialCategory] = useState("");
   const [editTags, setEditTags] = useState([]);
   const [editError, setEditError] = useState("");
   const [editBusy, setEditBusy] = useState(false);
@@ -930,6 +936,7 @@ export default function Dashboard() {
     filters.from,
     filters.to,
     filters.type,
+    filters.specialCategory,
     filters.tagId,
     reloadKey,
   ]);
@@ -990,6 +997,7 @@ export default function Dashboard() {
     setGpsError("");
     setDetailsTab('details');
     setEditCategory(trip.type);
+    setEditSpecialCategory(trip.specialCategory || "");
     setEditTags((trip.tags || []).map((tag) => tag.id));
     setEditError('');
     setDriverAssignment({ loading: true, drivers: [], selected: "", reason: "" });
@@ -1163,9 +1171,17 @@ export default function Dashboard() {
     setEditBusy(true);
     setEditError('');
     try {
-      if (editCategory !== selectedTrip.type) {
+      if (
+        editCategory !== selectedTrip.type ||
+        editSpecialCategory !== (selectedTrip.specialCategory || "")
+      ) {
         if (editCategory === 'unclassified') throw new Error(t('tripDetails.categoryRequired'));
-        await classifyTrip(accessToken, selectedTrip.id, editCategory, selectedTrip.purpose, selectedTrip.contact);
+        await classifyTrip(
+          accessToken,
+          selectedTrip.id,
+          editCategory,
+          editSpecialCategory || null,
+        );
       }
       const oldTags = (selectedTrip.tags || []).map((tag) => tag.id).sort();
       if (JSON.stringify([...editTags].sort()) !== JSON.stringify(oldTags)) {
@@ -1184,6 +1200,7 @@ export default function Dashboard() {
       from: "",
       to: "",
       type: "",
+      specialCategory: "",
       tagId: "",
     });
   }
@@ -1271,6 +1288,27 @@ export default function Dashboard() {
                 <option value="unclassified">
                   {t("dashboard.tripTypes.unclassified")}
                 </option>
+              </select>
+            </label>
+
+            <label className="text-xs font-medium text-fb-muted">
+              {t("dashboard.filters.specialCategory")}
+              <select
+                value={filters.specialCategory}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    specialCategory: event.target.value,
+                  }))
+                }
+                className="mt-1 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm text-fb-text outline-none focus:border-fb-accent"
+              >
+                <option value="">{t("dashboard.specialCategories.all")}</option>
+                {["medical","volunteer","education","application","moving","other"].map((category) => (
+                  <option key={category} value={category}>
+                    {specialCategoryLabel(t, category)}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -1390,6 +1428,11 @@ export default function Dashboard() {
                         <span className="text-xs text-fb-muted">
                           {trip.vehicle.name}
                         </span>
+                        {trip.specialCategory && (
+                          <span className="rounded-full border border-fb-border px-2 py-0.5 text-[11px] text-fb-muted">
+                            {specialCategoryLabel(t, trip.specialCategory)}
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-2 truncate text-sm">
@@ -1520,6 +1563,23 @@ export default function Dashboard() {
                   <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="mt-1 w-full rounded border border-fb-border bg-fb-surface p-2">
                     {['unclassified','private','business','commute'].map((type) => <option key={type} value={type}>{tripTypeLabel(t, type)}</option>)}
                   </select>
+                </label>
+                <label className="mt-3 block font-medium">{t("tripDetails.specialCategory")}
+                  <select
+                    value={editSpecialCategory}
+                    onChange={(e) => setEditSpecialCategory(e.target.value)}
+                    className="mt-1 w-full rounded border border-fb-border bg-fb-surface p-2"
+                  >
+                    <option value="">{t("dashboard.specialCategories.none")}</option>
+                    {["medical","volunteer","education","application","moving","other"].map((category) => (
+                      <option key={category} value={category}>
+                        {specialCategoryLabel(t, category)}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-xs font-normal text-fb-muted">
+                    {t("tripDetails.specialCategoryHint")}
+                  </span>
                 </label>
                 <div className="mt-3 font-medium">{t('tripDetails.tags')}</div>
                 <div className="mt-2 flex flex-wrap gap-2">
