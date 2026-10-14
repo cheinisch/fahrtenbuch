@@ -8,6 +8,17 @@ components:
         - commute
         - unclassified
 
+    TripSpecialCategory:
+      type: [string, "null"]
+      enum:
+        - medical
+        - volunteer
+        - education
+        - application
+        - moving
+        - other
+        - null
+
     TripTag:
       type: object
       required: [id, name]
@@ -60,6 +71,8 @@ components:
         type:
           description: Kompatibilitätsalias für category.
           $ref: "#/components/schemas/TripCategory"
+        specialCategory:
+          $ref: "#/components/schemas/TripSpecialCategory"
         tags:
           type: array
           maxItems: 100
