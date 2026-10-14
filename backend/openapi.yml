@@ -562,6 +562,10 @@ paths:
               required: [type]
               properties:
                 type: { type: string, enum: [business, private, commute] }
+                specialCategory:
+                  type: [string, 'null']
+                  enum: [medical, volunteer, education, application, moving, other, null]
+                  description: Optional secondary purpose category; null removes it.
                 purpose: { type: [string, 'null'] }
                 contact: { type: [string, 'null'] }
       responses:
@@ -2022,6 +2026,10 @@ components:
         id: { type: string, format: uuid }
         vehicleId: { type: string, format: uuid }
         type: { type: string, enum: [business, private, commute, unclassified] }
+        specialCategory:
+          type: [string, 'null']
+          enum: [medical, volunteer, education, application, moving, other, null]
+          description: Optional secondary purpose category independent of the primary trip type.
         status: { type: string, enum: [recording, completed, cancelled] }
         startedAt: { type: string, format: date-time }
         endedAt: { type: [string, 'null'], format: date-time }
@@ -2063,6 +2071,10 @@ components:
       properties:
         vehicleId: { type: string, format: uuid }
         type: { type: string, enum: [business, private, commute, unclassified], default: unclassified }
+        specialCategory:
+          type: [string, 'null']
+          enum: [medical, volunteer, education, application, moving, other, null]
+          description: Optional secondary purpose category independent of the primary trip type.
         startedAt: { type: string, format: date-time }
         endedAt: { type: [string, 'null'], format: date-time }
         startAddress: { type: [string, 'null'] }
