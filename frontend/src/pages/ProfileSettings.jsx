@@ -34,6 +34,12 @@ import {
   renamePasskey,
   verifyPasskeyRegistration,
 } from "../api/passkeys.js";
+import { getOAuthProviders } from "../api/auth.js";
+import {
+  getLinkedAccounts,
+  startAccountLink,
+  unlinkAccount,
+} from "../api/oauth.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import { createPasskey } from "../lib/webauthn.js";
 import AddNewDeviceModal from "../components/addNewDeviceModal.jsx";
@@ -215,6 +221,8 @@ export default function ProfileSettings() {
   const [devices, setDevices] = useState([]);
   const [passkeys, setPasskeys] = useState([]);
   const [newPasskeyName, setNewPasskeyName] = useState("");
+  const [oauthProviders, setOAuthProviders] = useState([]);
+  const [linkedAccounts, setLinkedAccounts] = useState([]);
 
   const [addDeviceModalOpen, setAddDeviceModalOpen] =
     useState(false);
@@ -280,6 +288,8 @@ export default function ProfileSettings() {
         countryResult,
         passkeysResult,
         placesResult,
+        oauthProvidersResult,
+        linkedAccountsResult,
       ] = await Promise.all([
         getPersonalSettings(accessToken),
         getDevices(accessToken).catch(() => []),
@@ -289,7 +299,11 @@ export default function ProfileSettings() {
         })),
         getPasskeys(accessToken).catch(() => []),
         getSavedPlaces(accessToken).catch(() => []),
+        getOAuthProviders().catch(() => []),
+        getLinkedAccounts(accessToken).catch(() => []),
       ]);
+      setOAuthProviders(oauthProvidersResult);
+      setLinkedAccounts(linkedAccountsResult);
       setSavedPlaces(placesResult);
 
       setProfile({
@@ -390,6 +404,33 @@ export default function ProfileSettings() {
   useEffect(() => {
     loadData();
   }, [accessToken]);
+
+  // Rückkehr von der Kontoverknüpfung beim Anbieter
+  const oauthLinkedParam = searchParams.get("oauthLinked");
+  const oauthErrorParam = searchParams.get("oauthError");
+  useEffect(() => {
+    if (!oauthLinkedParam && !oauthErrorParam) return;
+
+    if (oauthErrorParam) {
+      setMessage("");
+      setError(t(`oauth.errors.${oauthErrorParam}`, t("oauth.errors.default")));
+    } else {
+      const name = { google: "Google", microsoft: "Microsoft" }[oauthLinkedParam] || oauthLinkedParam;
+      setError("");
+      setMessage(t("oauth.linkedSuccess", { provider: name }));
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("oauthLinked");
+    next.delete("oauthError");
+    setSearchParams(next, { replace: true });
+  }, [oauthLinkedParam, oauthErrorParam]);
+
+  // Anker erst anspringen, wenn die Abschnitte gerendert sind
+  useEffect(() => {
+    if (loading || window.location.hash !== "#section-security") return;
+    document.getElementById("section-security")?.scrollIntoView({ block: "start" });
+  }, [loading]);
 
   function showSuccess(text) {
     setMessage(text);
@@ -958,6 +999,48 @@ export default function ProfileSettings() {
       showSuccess(t("profileTranslations.72"));
     } catch (passkeyError) {
       showError(passkeyError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function linkAccount(provider) {
+    setSaving(`oauth-link:${provider.id}`);
+    setError("");
+
+    try {
+      const { authorizationUrl } = await startAccountLink(accessToken, provider.id);
+      window.location.assign(authorizationUrl);
+    } catch (linkError) {
+      setMessage("");
+      setError(
+        linkError?.code
+          ? t(`oauth.errors.${linkError.code}`, linkError.message || t("oauth.errors.default"))
+          : t("oauth.errors.default"),
+      );
+      setSaving("");
+    }
+  }
+
+  async function removeLinkedAccount(account, providerName) {
+    if (!window.confirm(t("oauth.unlinkConfirm", {
+      provider: providerName,
+      account: account.email || account.displayName || "–",
+    }))) return;
+
+    setSaving(`oauth-unlink:${account.id}`);
+
+    try {
+      await unlinkAccount(accessToken, account.id);
+      setLinkedAccounts((current) => current.filter((item) => item.id !== account.id));
+      showSuccess(t("oauth.unlinkedSuccess"));
+    } catch (unlinkError) {
+      setMessage("");
+      setError(
+        unlinkError?.code
+          ? t(`oauth.errors.${unlinkError.code}`, unlinkError.message || t("oauth.errors.default"))
+          : t("oauth.errors.default"),
+      );
     } finally {
       setSaving("");
     }
@@ -2069,6 +2152,65 @@ export default function ProfileSettings() {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="rounded-lg border border-fb-border bg-fb-surface p-4 sm:col-span-2">
+            <div className="font-semibold">{t("oauth.linkedTitle")}</div>
+            <p className="mt-1 text-sm text-fb-muted">{t("oauth.linkedHint")}</p>
+
+            {oauthProviders.some((provider) => provider.enabled) || linkedAccounts.length > 0 ? (
+              <div className="mt-4 divide-y divide-fb-border rounded-lg border border-fb-border">
+                {oauthProviders
+                  .filter((provider) =>
+                    provider.enabled || linkedAccounts.some((account) => account.provider === provider.id))
+                  .map((provider) => {
+                    const account = linkedAccounts.find((item) => item.provider === provider.id);
+
+                    return (
+                      <div key={provider.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="font-semibold">{provider.name}</div>
+                          <div className="mt-1 text-xs text-fb-muted">
+                            {account ? (
+                              <>
+                                {account.email || account.displayName}
+                                {" · "}
+                                {t("oauth.linkedSince", { date: formatSafeDate(account.createdAt) })}
+                                {account.lastUsedAt
+                                  ? ` · ${t("oauth.lastUsed", { date: formatSafeDate(account.lastUsedAt) })}`
+                                  : ""}
+                              </>
+                            ) : t("oauth.notLinked")}
+                          </div>
+                        </div>
+                        {account ? (
+                          <button
+                            type="button"
+                            onClick={() => removeLinkedAccount(account, provider.name)}
+                            disabled={saving === `oauth-unlink:${account.id}`}
+                            className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-danger hover:border-fb-danger disabled:opacity-60"
+                          >
+                            {t("oauth.unlink")}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => linkAccount(provider)}
+                            disabled={Boolean(saving)}
+                            className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60"
+                          >
+                            {saving === `oauth-link:${provider.id}`
+                              ? t("oauth.linking")
+                              : t("oauth.link", { provider: provider.name })}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-fb-muted">{t("oauth.notConfigured")}</p>
+            )}
           </div>
         </div>
       </Section>

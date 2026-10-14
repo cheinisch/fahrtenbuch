@@ -20,6 +20,10 @@ tags:
   - name: Auth
   - name: MFA
   - name: Passkeys
+  - name: Linked Accounts
+    description: >-
+      Anmeldung mit verknüpftem Google- oder Microsoft-Konto (OpenID Connect).
+      Nur bestehende Benutzer können ein Konto verknüpfen; eine Selbstregistrierung gibt es nicht.
   - name: App Pairing
   - name: Devices
   - name: Users
@@ -243,6 +247,138 @@ paths:
         - $ref: '#/components/parameters/Id'
       responses:
         '204': { description: Passkey gelöscht }
+
+  /auth/oauth/providers:
+    get:
+      tags: [Linked Accounts]
+      summary: List external sign-in providers
+      description: Ein Anbieter ist aktiv, wenn auf dem Server Client-ID und Secret gesetzt sind.
+      security: []
+      responses:
+        '200':
+          description: Anbieterliste
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, name, enabled]
+                  properties:
+                    id: { type: string, enum: [google, microsoft] }
+                    name: { type: string }
+                    enabled: { type: boolean }
+  /auth/oauth/{provider}/login:
+    post:
+      tags: [Linked Accounts]
+      summary: Start sign-in with an external provider
+      description: >-
+        Liefert die Autorisierungs-URL des Anbieters und setzt einen kurzlebigen
+        HttpOnly-Cookie, der den Callback an diesen Browser bindet. Der Client
+        leitet danach im selben Browser auf `authorizationUrl` weiter.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+      responses:
+        '200':
+          description: Autorisierungs-URL
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OAuthAuthorizationResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /auth/oauth/{provider}/link:
+    post:
+      tags: [Linked Accounts]
+      summary: Start linking an external account
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+      responses:
+        '200':
+          description: Autorisierungs-URL
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OAuthAuthorizationResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /auth/oauth/{provider}/callback:
+    get:
+      tags: [Linked Accounts]
+      summary: Redirect target of the provider
+      description: >-
+        Wird vom Browser nach der Anmeldung beim Anbieter aufgerufen und leitet
+        zurück zur Web-App: Anmeldung nach `/login#oauthTicket=…`,
+        Verknüpfung nach `/profilesettings?oauthLinked=<provider>`, Fehler mit
+        `?oauthError=<CODE>` (z. B. OAUTH_NOT_LINKED, OAUTH_CANCELLED,
+        OAUTH_STATE_INVALID, OAUTH_IDENTITY_IN_USE, OAUTH_PROVIDER_ALREADY_LINKED).
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+        - { name: error, in: query, schema: { type: string } }
+      responses:
+        '303': { description: Weiterleitung zur Web-App }
+  /auth/oauth/exchange:
+    post:
+      tags: [Linked Accounts]
+      summary: Exchange a sign-in ticket for tokens
+      description: >-
+        Tauscht das Einmal-Ticket aus dem Callback gegen Tokens. Ist TOTP aktiv,
+        antwortet der Server zuerst mit `MFA_REQUIRED`; das Ticket bleibt dann
+        bis zu seinem Ablauf (5 Minuten) gültig.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ticket]
+              properties:
+                ticket: { type: string, minLength: 20, maxLength: 200 }
+                totpCode: { type: [string, 'null'], pattern: '^\\d{6}$' }
+                deviceId: { type: [string, 'null'], maxLength: 200 }
+                deviceName: { type: [string, 'null'], maxLength: 120 }
+                platform: { type: [string, 'null'], maxLength: 64 }
+                appVersion: { type: [string, 'null'], maxLength: 64 }
+      responses:
+        '200':
+          description: Erfolgreich angemeldet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/oauth/identities:
+    get:
+      tags: [Linked Accounts]
+      summary: List own linked accounts
+      responses:
+        '200':
+          description: Verknüpfte Konten
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LinkedAccount' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/oauth/identities/{id}:
+    delete:
+      tags: [Linked Accounts]
+      summary: Unlink an external account
+      description: >-
+        Schlägt mit `LAST_LOGIN_METHOD` (409) fehl, wenn das Konto weder ein
+        Passwort noch einen Passkey oder ein weiteres verknüpftes Konto hat.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204': { description: Verknüpfung getrennt }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Letzte Anmeldemöglichkeit
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /auth/pair/options:
     post:
@@ -1859,6 +1995,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    OAuthProvider:
+      name: provider
+      in: path
+      required: true
+      schema: { type: string, enum: [google, microsoft] }
     Id:
       name: id
       in: path
@@ -1881,6 +2022,21 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
   schemas:
+    OAuthAuthorizationResponse:
+      type: object
+      required: [authorizationUrl]
+      properties:
+        authorizationUrl: { type: string, format: uri }
+    LinkedAccount:
+      type: object
+      required: [id, provider, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        provider: { type: string, enum: [google, microsoft] }
+        email: { type: [string, 'null'] }
+        displayName: { type: [string, 'null'] }
+        lastUsedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
     ErrorResponse:
       type: object
       required: [error, message]

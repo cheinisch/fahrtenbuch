@@ -22,14 +22,39 @@ async function request(path, options = {}) {
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
+    // Server liefert { error: "CODE", message }; ältere Form { error: { code, message } } weiter unterstützen
+    const code = typeof body?.error === "string" ? body.error : body?.error?.code;
     throw new ApiError(
-      body?.error?.message || "Die Anfrage ist fehlgeschlagen.",
+      body?.message || body?.error?.message || "Die Anfrage ist fehlgeschlagen.",
       response.status,
-      body?.error?.code || "REQUEST_FAILED",
+      code || "REQUEST_FAILED",
     );
   }
 
   return body;
+}
+
+export function getOAuthProviders() {
+  return request("/api/v1/auth/oauth/providers");
+}
+
+export function startOAuthLogin(provider) {
+  return request(`/api/v1/auth/oauth/${encodeURIComponent(provider)}/login`, {
+    method: "POST",
+    credentials: "same-origin",
+  });
+}
+
+export function exchangeOAuthTicket(ticket, totpCode) {
+  return request("/api/v1/auth/oauth/exchange", {
+    method: "POST",
+    body: JSON.stringify({
+      ticket,
+      totpCode: totpCode || null,
+      deviceName: "Webbrowser",
+      platform: navigator.userAgentData?.platform || navigator.platform || "web",
+    }),
+  });
 }
 
 export function login(credentials) {

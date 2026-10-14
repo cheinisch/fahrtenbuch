@@ -1,16 +1,39 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   ApiError,
+  exchangeOAuthTicket,
+  getOAuthProviders,
   getPasskeyLoginOptions,
   requestPasswordReset,
+  startOAuthLogin,
   verifyPasskeyLogin,
 } from "../api/auth.js";
 import { authenticateWithPasskey } from "../lib/webauthn.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import AuthLayout, { authInputClass, authPrimaryButtonClass } from "../components/AuthLayout.jsx";
 import { useI18n } from "../i18n/I18nProvider.jsx";
+
+// Überlebt die Weiterleitung zum Anbieter und zurück
+const OAUTH_PENDING_KEY = "fahrtenbuch.oauthPending";
+
+function readOAuthPending() {
+  try {
+    return JSON.parse(sessionStorage.getItem(OAUTH_PENDING_KEY) || "null") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeOAuthPending(value) {
+  try {
+    if (value) sessionStorage.setItem(OAUTH_PENDING_KEY, JSON.stringify(value));
+    else sessionStorage.removeItem(OAUTH_PENDING_KEY);
+  } catch {
+    // Ohne sessionStorage gelten die Standardwerte
+  }
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -30,6 +53,112 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [resetRequested, setResetRequested] = useState(false);
+  const [oauthProviders, setOAuthProviders] = useState([]);
+  // Ticket aus dem Callback, solange noch der TOTP-Code fehlt
+  const [oauthTicket, setOAuthTicket] = useState("");
+  const [oauthCompleting, setOAuthCompleting] = useState(false);
+  const oauthHandled = useRef(false);
+
+  function oauthErrorMessage(code) {
+    return t(`oauth.errors.${code}`, t("oauth.errors.default"));
+  }
+
+  async function finishOAuth(ticket, code) {
+    const pending = readOAuthPending();
+    const result = await exchangeOAuthTicket(ticket, code);
+    writeOAuthPending(null);
+    completeSignIn(result, Boolean(pending.remember));
+    const target = typeof pending.returnTo === "string" && pending.returnTo.startsWith("/")
+      ? pending.returnTo
+      : "/";
+    navigate(target, { replace: true });
+  }
+
+  useEffect(() => {
+    let active = true;
+    getOAuthProviders()
+      .then((providers) => {
+        if (active) setOAuthProviders(providers.filter((provider) => provider.enabled));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Rückkehr vom Anbieter: Ticket im Fragment oder Fehlercode in der Query
+  useEffect(() => {
+    if (oauthHandled.current) return;
+    oauthHandled.current = true;
+
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const ticket = hashParams.get("oauthTicket");
+    const queryParams = new URLSearchParams(window.location.search);
+    const oauthError = queryParams.get("oauthError");
+
+    if (!ticket && !oauthError) return;
+
+    // Ticket und Fehler sofort aus der Adresszeile entfernen
+    window.history.replaceState(window.history.state, "", window.location.pathname);
+
+    if (oauthError) {
+      writeOAuthPending(null);
+      setErrorMessage(oauthErrorMessage(oauthError));
+      return;
+    }
+
+    setRememberMe(Boolean(readOAuthPending().remember));
+    setOAuthCompleting(true);
+    finishOAuth(ticket)
+      .catch((error) => {
+        if (error instanceof ApiError && error.code === "MFA_REQUIRED") {
+          setOAuthTicket(ticket);
+        } else {
+          writeOAuthPending(null);
+          setErrorMessage(
+            error instanceof ApiError ? oauthErrorMessage(error.code) : t("login.failed"),
+          );
+        }
+      })
+      .finally(() => setOAuthCompleting(false));
+  }, []);
+
+  async function handleOAuthStart(provider) {
+    setSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      writeOAuthPending({ remember: rememberMe, returnTo });
+      const { authorizationUrl } = await startOAuthLogin(provider.id);
+      window.location.assign(authorizationUrl);
+    } catch (error) {
+      writeOAuthPending(null);
+      setErrorMessage(
+        error instanceof ApiError ? oauthErrorMessage(error.code) : t("login.failed"),
+      );
+      setSubmitting(false);
+    }
+  }
+
+  async function handleOAuthTotp(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      await finishOAuth(oauthTicket, totpCode);
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "OAUTH_TICKET_INVALID") {
+        setOAuthTicket("");
+        setTotpCode("");
+        setErrorMessage(oauthErrorMessage(error.code));
+      } else {
+        setErrorMessage(error instanceof Error ? error.message : t("login.failed"));
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function switchMode(next) {
     setMode(next);
@@ -103,6 +232,59 @@ export default function LoginPage() {
       {errorMessage}
     </div>
   );
+
+  if (oauthCompleting) {
+    return (
+      <AuthLayout>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("login.title")}</h1>
+        <p role="status" className="mt-4 text-fb-muted">{t("oauth.completing")}</p>
+      </AuthLayout>
+    );
+  }
+
+  if (oauthTicket) {
+    return (
+      <AuthLayout>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("login.totp")}</h1>
+        <p className="mt-2 text-fb-muted">{t("oauth.mfaHint")}</p>
+
+        <form onSubmit={handleOAuthTotp} className="mt-8 space-y-5">
+          <label className="block text-sm font-medium">
+            {t("login.totp")}
+            <input
+              type="text"
+              required
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              autoFocus
+              value={totpCode}
+              onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              disabled={submitting}
+              className={`${authInputClass} tracking-[0.3em]`}
+            />
+          </label>
+          {errorBox}
+          <button type="submit" disabled={submitting || totpCode.length !== 6} className={authPrimaryButtonClass}>
+            {submitting ? t("login.submitting") : t("login.submit")}
+          </button>
+        </form>
+
+        <button
+          type="button"
+          onClick={() => {
+            setOAuthTicket("");
+            setTotpCode("");
+            setErrorMessage("");
+            writeOAuthPending(null);
+          }}
+          className="mt-6 min-h-11 text-sm font-semibold text-fb-accent hover:text-fb-accent-secondary"
+        >
+          {t("oauth.cancel")}
+        </button>
+      </AuthLayout>
+    );
+  }
 
   if (mode === "forgot") {
     return (
@@ -207,6 +389,22 @@ export default function LoginPage() {
         </svg>
         {t("login.passkey")}
       </button>
+
+      {oauthProviders.map((provider) => (
+        <button
+          key={provider.id}
+          type="button"
+          onClick={() => handleOAuthStart(provider)}
+          disabled={submitting}
+          className="mt-3 flex h-12 w-full items-center justify-center gap-2.5 rounded-lg border border-fb-border bg-fb-main px-4 text-sm font-semibold text-fb-text transition hover:border-fb-accent disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-5">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21a8 8 0 0 1 16 0" />
+          </svg>
+          {t("oauth.signInWith", { provider: provider.name })}
+        </button>
+      ))}
     </AuthLayout>
   );
 }

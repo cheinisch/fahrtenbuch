@@ -269,6 +269,23 @@ export const config = Object.freeze({
     ),
   },
 
+  // Anmeldung mit verknüpftem Google-/Microsoft-Konto. Ein Anbieter ist
+  // aktiv, sobald Client-ID und Secret gesetzt sind. Redirect-URI beim
+  // Anbieter: <PUBLIC_BASE_URL>/api/v1/auth/oauth/<provider>/callback
+  oauth: {
+    google: {
+      clientId: stringValue("GOOGLE_OAUTH_CLIENT_ID", null),
+      clientSecret: stringValue("GOOGLE_OAUTH_CLIENT_SECRET", null),
+    },
+
+    microsoft: {
+      clientId: stringValue("MICROSOFT_OAUTH_CLIENT_ID", null),
+      clientSecret: stringValue("MICROSOFT_OAUTH_CLIENT_SECRET", null),
+      // common | organizations | consumers | <Tenant-ID>
+      tenant: stringValue("MICROSOFT_OAUTH_TENANT", "common"),
+    },
+  },
+
   passwordReset: {
     expiresMinutes: integerValue(
       "PASSWORD_RESET_EXPIRES_MINUTES",

@@ -15,7 +15,7 @@ The application combines a **React** frontend, a **Node.js** backend, **PostgreS
 - **Personal map colors:** Configure optional route colors for private, business, commuting, and unclassified trips.
 - **Responsive dashboard:** Switch between the map and trip list on smaller screens.
 - **Data protection and history:** Support trip audit history and controlled vehicle sharing.
-- **Authentication:** Account-based access with support for additional authentication mechanisms.
+- **Authentication:** Account-based access with passwords, TOTP two-factor authentication, passkeys, and optional sign-in with a linked Google or Microsoft account.
 
 Some capabilities depend on the configured deployment and connected clients.
 
@@ -58,6 +58,22 @@ docker compose ps
 The application listens on port **3000** by default. Open `http://localhost:3000` for local access, or use your configured HTTPS hostname when deployed behind a reverse proxy.
 
 > **Security:** Change all example secrets and administrator credentials before exposing the service to the internet. Use HTTPS and restrict access to administrative services such as Redis Insight.
+
+### Optional: sign-in with Google or Microsoft
+
+Users can link a Google and/or Microsoft account in their profile settings (*Security → Linked accounts*) and then use it to sign in. Only existing users can link an account — nobody can create an account this way. If two-factor authentication is enabled for a user, the TOTP code is still required.
+
+A provider is enabled as soon as its client ID and secret are set in `.env`. Register an OAuth/OpenID Connect web application with each provider and use this redirect URI:
+
+```
+<PUBLIC_BASE_URL>/api/v1/auth/oauth/google/callback
+<PUBLIC_BASE_URL>/api/v1/auth/oauth/microsoft/callback
+```
+
+- **Google:** Google Cloud Console → *APIs & Services → Credentials → Create OAuth client ID* (type *Web application*). Scopes: `openid`, `email`, `profile`. Set `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`.
+- **Microsoft:** Microsoft Entra admin center → *App registrations → New registration*, platform *Web*, then create a client secret under *Certificates & secrets*. Set `MICROSOFT_OAUTH_CLIENT_ID`, `MICROSOFT_OAUTH_CLIENT_SECRET` and, optionally, `MICROSOFT_OAUTH_TENANT` (`common` = work and personal accounts, `organizations`, `consumers`, or a tenant ID to allow only your organization).
+
+Restart the containers after changing these values.
 
 ## Updating
 

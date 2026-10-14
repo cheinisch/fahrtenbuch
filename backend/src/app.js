@@ -11,6 +11,7 @@ import { config } from "./config.js";
 import { pool } from "./database/pool.js";
 import { adminRoutes } from "./routes/adminRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
+import { oauthRoutes } from "./routes/oauthRoutes.js";
 import { dashboardRoutes } from "./routes/dashboardRoutes.js";
 import { complianceRoutes } from "./routes/complianceRoutes.js";
 import {
@@ -150,6 +151,7 @@ app.get("/api/v1/language", async (_request,response,next) => {
 });
 app.use("/api/v1/health", healthRoutes);
 app.use("/api/v1/map", mapRoutes);
+app.use("/api/v1/auth/oauth", authLimiter, oauthRoutes);
 app.use("/api/v1/auth", authLimiter, authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/vehicles", vehicleRoutes);
