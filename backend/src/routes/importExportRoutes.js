@@ -73,6 +73,24 @@ const TYPE_LABELS = {
   unclassified: "Nicht zugeordnet",
 };
 
+const SPECIAL_CATEGORIES = [
+  "medical",
+  "volunteer",
+  "education",
+  "application",
+  "moving",
+  "other",
+];
+
+const SPECIAL_CATEGORY_LABELS = {
+  medical: "Medizinisch",
+  volunteer: "Ehrenamt",
+  education: "Ausbildung / Studium",
+  application: "Bewerbung",
+  moving: "Umzug",
+  other: "Sonstiges",
+};
+
 function buildExportFilter(request, { allowTripId = false } = {}) {
   const parameters = [request.auth.userId];
   const conditions = [
@@ -115,6 +133,15 @@ function buildExportFilter(request, { allowTripId = false } = {}) {
 
     parameters.push(type);
     conditions.push(`t.type = $${parameters.length}::trip_type`);
+  }
+
+  if (request.query.specialCategory) {
+    const specialCategory = String(request.query.specialCategory);
+    if (!SPECIAL_CATEGORIES.includes(specialCategory)) {
+      throw badRequest("VALIDATION_ERROR", "Die Sonderkategorie ist ungültig.");
+    }
+    parameters.push(specialCategory);
+    conditions.push(`t.special_category = ${parameters.length}`);
   }
 
   if (allowTripId && request.query.tripId) {
@@ -375,6 +402,7 @@ exportRoutes.get(
       "vehicleName",
       "licensePlate",
       "type",
+      "specialCategory",
       "startedAt",
       "endedAt",
       "startAddress",
@@ -398,6 +426,7 @@ exportRoutes.get(
           trip.vehicle_name,
           trip.license_plate,
           trip.type,
+          trip.special_category,
           trip.started_at?.toISOString?.() || trip.started_at,
           trip.ended_at?.toISOString?.() || trip.ended_at,
           trip.start_address,
@@ -595,7 +624,12 @@ function drawTableHeader(document, y) {
 
 function drawTripRow(document, trip, y, rowIndex) {
   const route = `${trip.start_address || "Unbekannter Start"} -> ${trip.end_address || "Unbekanntes Ziel"}`;
-  const purpose = [TYPE_LABELS[trip.type] || trip.type, trip.purpose, trip.contact]
+  const purpose = [
+    TYPE_LABELS[trip.type] || trip.type,
+    SPECIAL_CATEGORY_LABELS[trip.special_category] || trip.special_category,
+    trip.purpose,
+    trip.contact,
+  ]
     .filter(Boolean)
     .join(" - ");
   const height = 38;
@@ -828,6 +862,9 @@ importRoutes.post(
         )
           ? row.type
           : "unclassified";
+        const specialCategory = SPECIAL_CATEGORIES.includes(row.specialCategory)
+          ? row.specialCategory
+          : null;
 
         if (!vehicleId) {
           errors.push({ line, message: "Kein Fahrzeug gefunden." });
@@ -847,6 +884,7 @@ importRoutes.post(
         prepared.push({
           vehicleId,
           type,
+          specialCategory,
           startedAt,
           endedAt,
           startAddress: row.startAddress || null,
@@ -869,6 +907,7 @@ importRoutes.post(
                 user_id,
                 vehicle_id,
                 type,
+                special_category,
                 status,
                 started_at,
                 ended_at,
@@ -883,21 +922,22 @@ importRoutes.post(
                 completed_at
               )
               VALUES (
-                $1, $2, $3,
-                CASE WHEN $5 IS NULL THEN 'recording' ELSE 'completed' END,
-                $4, $5, $6, $7, $8, $9, $10, $11,
+                $1, $2, $3, $4,
+                CASE WHEN $6 IS NULL THEN 'recording' ELSE 'completed' END,
+                $5, $6, $7, $8, $9, $10, $11, $12,
                 CASE
-                  WHEN $5 IS NULL THEN NULL
-                  ELSE GREATEST(0, extract(epoch FROM ($5 - $4))::integer)
+                  WHEN $6 IS NULL THEN NULL
+                  ELSE GREATEST(0, extract(epoch FROM ($6 - $5))::integer)
                 END,
                 'import',
-                CASE WHEN $5 IS NULL THEN NULL ELSE now() END
+                CASE WHEN $6 IS NULL THEN NULL ELSE now() END
               )
             `,
             [
               request.auth.userId,
               trip.vehicleId,
               trip.type,
+              trip.specialCategory,
               trip.startedAt,
               trip.endedAt,
               trip.startAddress,
