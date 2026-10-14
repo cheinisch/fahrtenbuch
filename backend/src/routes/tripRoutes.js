@@ -925,6 +925,10 @@ tripRoutes.put(
       body.specialCategory === null
         ? null
         : enumField(body, "specialCategory", SPECIAL_CATEGORIES, { nullable: true });
+    // Fahrtzweck, Kontakt und Notiz: nur übernehmen, wenn sie mitgeschickt werden; "" löscht
+    const textFields = [["purpose", 1000], ["contact", 1000], ["notes", 20_000]]
+      .filter(([name]) => body[name] !== undefined)
+      .map(([name, maximum]) => [name, stringField(body, name, { nullable: true, maximum }) || null]);
 
     const client = await pool.connect();
     try {
@@ -938,29 +942,28 @@ tripRoutes.put(
         ? requestedSpecialCategory ?? null
         : existing.special_category ?? null;
 
-      if (
-        existing.type !== category ||
-        (existing.special_category ?? null) !== specialCategory
-      ) {
+      const next = { type: category, special_category: specialCategory };
+      for (const [name, value] of textFields) next[name] = value;
+
+      const changedFields = {};
+      const oldValues = {};
+      const newValues = {};
+      for (const [name, value] of Object.entries(next)) {
+        const old = existing[name] ?? null;
+        oldValues[name] = old;
+        newValues[name] = value;
+        if (old !== value) changedFields[name] = { old, new: value };
+      }
+
+      if (Object.keys(changedFields).length > 0) {
+        const columns = Object.keys(next);
         await client.query(
           `UPDATE trips
-           SET type = $3,
-               special_category = $4,
+           SET ${columns.map((name, index) => `${name} = $${index + 3}`).join(", ")},
                version = version + 1
            WHERE id = $1 AND user_id = $2 AND archived_at IS NULL`,
-          [tripId, request.auth.userId, category, specialCategory],
+          [tripId, request.auth.userId, ...columns.map((name) => next[name])],
         );
-
-        const changedFields = {};
-        if (existing.type !== category) {
-          changedFields.type = { old: existing.type, new: category };
-        }
-        if ((existing.special_category ?? null) !== specialCategory) {
-          changedFields.special_category = {
-            old: existing.special_category ?? null,
-            new: specialCategory,
-          };
-        }
 
         await appendTripHistory(client, {
           tripId,
@@ -968,14 +971,8 @@ tripRoutes.put(
           actorUserId: request.auth.userId,
           eventType: "CLASSIFIED",
           changedFields,
-          oldValues: {
-            type: existing.type,
-            special_category: existing.special_category ?? null,
-          },
-          newValues: {
-            type: category,
-            special_category: specialCategory,
-          },
+          oldValues,
+          newValues,
           metadata: { source: "trip_classification" },
         });
       }

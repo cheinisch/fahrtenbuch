@@ -566,8 +566,18 @@ paths:
                   type: [string, 'null']
                   enum: [medical, volunteer, education, application, moving, other, null]
                   description: Optional secondary purpose category; null removes it.
-                purpose: { type: [string, 'null'] }
-                contact: { type: [string, 'null'] }
+                purpose:
+                  type: [string, 'null']
+                  maxLength: 1000
+                  description: Trip purpose. Only changed when present; null or "" removes it.
+                contact:
+                  type: [string, 'null']
+                  maxLength: 1000
+                  description: Business contact / visited person. Only changed when present; null or "" removes it.
+                notes:
+                  type: [string, 'null']
+                  maxLength: 20000
+                  description: Free-text note. Only changed when present; null or "" removes it.
       responses:
         '200': { description: Fahrt klassifiziert }
   /trips/{id}/tags:
