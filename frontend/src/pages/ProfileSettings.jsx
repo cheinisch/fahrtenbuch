@@ -39,13 +39,29 @@ import { createPasskey } from "../lib/webauthn.js";
 import AddNewDeviceModal from "../components/addNewDeviceModal.jsx";
 import UserDataTransfer from "../components/UserDataTransfer.jsx";
 
+// Reihenfolge entspricht der Darstellung; dient der Abschnittsnavigation.
+const SETTINGS_SECTIONS = [
+  ["places", "Gespeicherte Orte"],
+  ["language", "Sprache"],
+  ["profile", "Profil"],
+  ["country", "Heimatland und Steuerexport"],
+  ["tracking", "Tracking"],
+  ["home", "Heimatort"],
+  ["work", "Arbeitsort (optional)"],
+  ["recognition", "Ortserkennung"],
+  ["password", "Passwort"],
+  ["security", "Sicherheit"],
+  ["devices", "Geräte und Sitzungen"],
+];
+
 function Section({
+  id,
   title,
   description,
   children,
 }) {
   return (
-    <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
+    <section id={id ? `section-${id}` : undefined} className="scroll-mt-6 rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
       <div className="mb-6">
         <h2 className="text-lg font-bold">{title}</h2>
         <p className="mt-1 text-sm text-fb-muted">
@@ -973,7 +989,21 @@ export default function ProfileSettings() {
         </div>
       )}
 
+      <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start lg:gap-8">
+        <nav aria-label="Abschnitte" className="mb-6 hidden lg:sticky lg:top-6 lg:mb-0 lg:block">
+          <ul className="space-y-0.5 text-sm">
+            {SETTINGS_SECTIONS.map(([id, title]) => (
+              <li key={id}>
+                <a href={`#section-${id}`} className="block rounded-lg px-3 py-2 text-fb-muted transition hover:bg-fb-main hover:text-fb-text">
+                  {title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="min-w-0 space-y-8">
       <Section
+        id="places"
         title="Gespeicherte Orte"
         description="Kunden, Niederlassungen und häufige Ziele für automatische Klassifizierungsvorschläge."
       >
@@ -998,7 +1028,7 @@ export default function ProfileSettings() {
       </Section>
 
       <form onSubmit={saveLanguage}>
-        <Section title="Sprache" description="Überschreibt die globale Standardsprache nur für dein Benutzerkonto.">
+        <Section id="language" title="Sprache" description="Überschreibt die globale Standardsprache nur für dein Benutzerkonto.">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className={labelClass}>{t("profileTranslations.11")}
               <select value={personalLanguage} onChange={(e)=>setPersonalLanguage(e.target.value)} className={fieldClass}>
@@ -1012,6 +1042,7 @@ export default function ProfileSettings() {
 
       <form onSubmit={saveProfile}>
         <Section
+          id="profile"
           title="Profil"
           description="Persönliche Angaben und Darstellung der Weboberfläche."
         >
@@ -1137,6 +1168,7 @@ export default function ProfileSettings() {
 
       <form onSubmit={saveHomeCountry}>
         <Section
+          id="country"
           title="Heimatland und Steuerexport"
           description="Das gewählte Land bestimmt Aufbau, Sprache, Einheit und Hinweise des PDF-Exports."
         >
@@ -1236,6 +1268,7 @@ export default function ProfileSettings() {
 
       <form onSubmit={saveTracking}>
         <Section
+          id="tracking"
           title="Tracking"
           description="Vorgaben für die Android-App und die automatische Fahrterkennung."
         >
@@ -1398,6 +1431,7 @@ export default function ProfileSettings() {
 
 
       <Section
+        id="home"
         title="Heimatort"
         description="Wird auf dem Dashboard als Kartenmittelpunkt verwendet, wenn noch keine Fahrt vorhanden ist."
       >
@@ -1648,6 +1682,7 @@ export default function ProfileSettings() {
       </Section>
 
       <Section
+        id="work"
         title="Arbeitsort (optional)"
         description="Optionaler Arbeitsort für die Erkennung von Arbeitswegen. Die Adresse wird wie der Heimatort als Koordinate gespeichert."
       >
@@ -1814,6 +1849,7 @@ export default function ProfileSettings() {
       </Section>
 
       <Section
+        id="recognition"
         title="Ortserkennung"
         description="Legt fest, wie nah Start oder Ziel an Heimat- bzw. Arbeitsort liegen müssen, damit der Ort als Treffer erkannt wird."
       >
@@ -1852,6 +1888,7 @@ export default function ProfileSettings() {
 
       <form onSubmit={savePassword}>
         <Section
+          id="password"
           title="Passwort"
           description="Nach einer Änderung werden alle anderen Sitzungen beendet."
         >
@@ -1925,6 +1962,7 @@ export default function ProfileSettings() {
       </form>
 
       <Section
+        id="security"
         title="Sicherheit"
         description="Status der zusätzlichen Anmeldeverfahren."
       >
@@ -2000,6 +2038,7 @@ export default function ProfileSettings() {
       </Section>
 
       <Section
+        id="devices"
         title="Geräte und Sitzungen"
         description="Geräte, die sich mit deinem Konto angemeldet haben."
       >
@@ -2087,6 +2126,8 @@ export default function ProfileSettings() {
           );
         }}
       />
+        </div>
+      </div>
         </>
       ) : activeTab === "units" ? (
         <>
