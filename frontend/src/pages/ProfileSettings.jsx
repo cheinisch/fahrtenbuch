@@ -34,7 +34,7 @@ import {
   renamePasskey,
   verifyPasskeyRegistration,
 } from "../api/passkeys.js";
-import { getOAuthProviders } from "../api/auth.js";
+import { getAuthMethods, getOAuthProviders } from "../api/auth.js";
 import {
   getLinkedAccounts,
   startAccountLink,
@@ -223,6 +223,8 @@ export default function ProfileSettings() {
   const [newPasskeyName, setNewPasskeyName] = useState("");
   const [oauthProviders, setOAuthProviders] = useState([]);
   const [linkedAccounts, setLinkedAccounts] = useState([]);
+  // Serverweit abschaltbar (TOTP_ENABLED / PASSKEYS_ENABLED)
+  const [authMethods, setAuthMethods] = useState({ totp: true, passkeys: true });
 
   const [addDeviceModalOpen, setAddDeviceModalOpen] =
     useState(false);
@@ -290,6 +292,7 @@ export default function ProfileSettings() {
         placesResult,
         oauthProvidersResult,
         linkedAccountsResult,
+        authMethodsResult,
       ] = await Promise.all([
         getPersonalSettings(accessToken),
         getDevices(accessToken).catch(() => []),
@@ -301,7 +304,12 @@ export default function ProfileSettings() {
         getSavedPlaces(accessToken).catch(() => []),
         getOAuthProviders().catch(() => []),
         getLinkedAccounts(accessToken).catch(() => []),
+        getAuthMethods().catch(() => ({ totp: true, passkeys: true })),
       ]);
+      setAuthMethods({
+        totp: authMethodsResult.totp !== false,
+        passkeys: authMethodsResult.passkeys !== false,
+      });
       setOAuthProviders(oauthProvidersResult);
       setLinkedAccounts(linkedAccountsResult);
       setSavedPlaces(placesResult);
@@ -2091,12 +2099,20 @@ export default function ProfileSettings() {
               {t("profileTranslations.43")}
             </div>
             <div className="mt-1 text-sm text-fb-muted">
-              {user?.totpEnabled
-                ? t("profileTranslations.127")
-                : t("profileTranslations.128")}
+              {!authMethods.totp
+                ? t("authMethods.totpDisabled")
+                : user?.totpEnabled
+                  ? t("profileTranslations.127")
+                  : t("profileTranslations.128")}
             </div>
           </div>
 
+          {!authMethods.passkeys ? (
+          <div className="rounded-lg border border-fb-border bg-fb-surface p-4 sm:col-span-2">
+            <div className="font-semibold">{t("profileTranslations.44")}</div>
+            <p className="mt-1 text-sm text-fb-muted">{t("authMethods.passkeysDisabled")}</p>
+          </div>
+          ) : (
           <div className="rounded-lg border border-fb-border bg-fb-surface p-4 sm:col-span-2">
             <div className="font-semibold">{t("profileTranslations.44")}</div>
             <p className="mt-1 text-sm text-fb-muted">
@@ -2153,6 +2169,7 @@ export default function ProfileSettings() {
               ))}
             </div>
           </div>
+          )}
 
           <div className="rounded-lg border border-fb-border bg-fb-surface p-4 sm:col-span-2">
             <div className="font-semibold">{t("oauth.linkedTitle")}</div>

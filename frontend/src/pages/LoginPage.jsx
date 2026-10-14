@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   ApiError,
   exchangeOAuthTicket,
+  getAuthMethods,
   getOAuthProviders,
   getPasskeyLoginOptions,
   requestPasswordReset,
@@ -54,6 +55,8 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [resetRequested, setResetRequested] = useState(false);
   const [oauthProviders, setOAuthProviders] = useState([]);
+  // Serverweit abschaltbar (PASSKEYS_ENABLED); bis zur Antwort anzeigen
+  const [passkeysAvailable, setPasskeysAvailable] = useState(true);
   // Ticket aus dem Callback, solange noch der TOTP-Code fehlt
   const [oauthTicket, setOAuthTicket] = useState("");
   const [oauthCompleting, setOAuthCompleting] = useState(false);
@@ -79,6 +82,11 @@ export default function LoginPage() {
     getOAuthProviders()
       .then((providers) => {
         if (active) setOAuthProviders(providers.filter((provider) => provider.enabled));
+      })
+      .catch(() => {});
+    getAuthMethods()
+      .then((methods) => {
+        if (active) setPasskeysAvailable(methods.passkeys !== false);
       })
       .catch(() => {});
     return () => {
@@ -369,17 +377,21 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <div className="mt-8 flex items-center gap-3 text-sm text-fb-muted">
-        <span className="h-px flex-1 bg-fb-border" />
-        {t("login.or")}
-        <span className="h-px flex-1 bg-fb-border" />
-      </div>
+      {(passkeysAvailable || oauthProviders.length > 0) && (
+        <div className="mt-8 flex items-center gap-3 text-sm text-fb-muted">
+          <span className="h-px flex-1 bg-fb-border" />
+          {t("login.or")}
+          <span className="h-px flex-1 bg-fb-border" />
+        </div>
+      )}
 
+      <div className="mt-6 space-y-3">
+      {passkeysAvailable && (
       <button
         type="button"
         onClick={handlePasskeyLogin}
         disabled={submitting}
-        className="mt-6 flex h-12 w-full items-center justify-center gap-2.5 rounded-lg border border-fb-border bg-fb-main px-4 text-sm font-semibold text-fb-text transition hover:border-fb-accent disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-12 w-full items-center justify-center gap-2.5 rounded-lg border border-fb-border bg-fb-main px-4 text-sm font-semibold text-fb-text transition hover:border-fb-accent disabled:cursor-not-allowed disabled:opacity-60"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-5">
           <circle cx="8" cy="15" r="4" />
@@ -389,6 +401,7 @@ export default function LoginPage() {
         </svg>
         {t("login.passkey")}
       </button>
+      )}
 
       {oauthProviders.map((provider) => (
         <button
@@ -396,7 +409,7 @@ export default function LoginPage() {
           type="button"
           onClick={() => handleOAuthStart(provider)}
           disabled={submitting}
-          className="mt-3 flex h-12 w-full items-center justify-center gap-2.5 rounded-lg border border-fb-border bg-fb-main px-4 text-sm font-semibold text-fb-text transition hover:border-fb-accent disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-12 w-full items-center justify-center gap-2.5 rounded-lg border border-fb-border bg-fb-main px-4 text-sm font-semibold text-fb-text transition hover:border-fb-accent disabled:cursor-not-allowed disabled:opacity-60"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-5">
             <circle cx="12" cy="8" r="4" />
@@ -405,6 +418,7 @@ export default function LoginPage() {
           {t("oauth.signInWith", { provider: provider.name })}
         </button>
       ))}
+      </div>
     </AuthLayout>
   );
 }

@@ -235,6 +235,14 @@ export const config = Object.freeze({
     ),
   },
 
+  // Anmeldeverfahren serverweit an- oder abschalten. Abgeschaltet heißt:
+  // keine Einrichtung, keine Anmeldung bzw. keine Code-Abfrage. Gespeicherte
+  // Secrets/Passkeys bleiben erhalten und gelten nach dem Einschalten wieder.
+  authMethods: {
+    totp: booleanValue("TOTP_ENABLED", true),
+    passkeys: booleanValue("PASSKEYS_ENABLED", true),
+  },
+
   totp: {
     encryptionKey: stringValue(
       "TOTP_ENCRYPTION_KEY",

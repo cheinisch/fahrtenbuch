@@ -592,7 +592,8 @@ oauthRoutes.post(
 
       // Das Ticket bleibt bis zur erfolgreichen Prüfung gültig, damit der
       // Code nach MFA_REQUIRED nachgereicht werden kann.
-      if (user.totp_enabled) {
+      // Serverweit abgeschaltet: gespeichertes TOTP wird nicht abgefragt
+      if (config.authMethods.totp && user.totp_enabled) {
         if (!totpCode) {
           throw unauthorized("MFA_REQUIRED", "Bitte gib den Zwei-Faktor-Code ein.");
         }
@@ -702,7 +703,8 @@ oauthRoutes.delete(
             i.provider,
             (u.password_hash IS NOT NULL) AS has_password,
             (
-              u.passkey_enabled
+              $3::boolean
+              AND u.passkey_enabled
               AND EXISTS (SELECT 1 FROM passkeys p WHERE p.user_id = u.id)
             ) AS has_passkey,
             (
@@ -715,7 +717,7 @@ oauthRoutes.delete(
           WHERE i.id = $1 AND i.user_id = $2
           FOR UPDATE OF u
         `,
-        [id, request.auth.userId],
+        [id, request.auth.userId, config.authMethods.passkeys],
       );
 
       const identity = result.rows[0];

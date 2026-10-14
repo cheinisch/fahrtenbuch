@@ -7,6 +7,7 @@ import { pool } from "../database/pool.js";
 import {
   badRequest,
   conflict,
+  forbidden,
   notFound,
   unauthorized,
 } from "../lib/errors.js";
@@ -44,8 +45,42 @@ import {
   rotateRefreshToken,
 } from "../services/sessionService.js";
 import { USER_PUBLIC_COLUMNS } from "../users/userMapper.js";
+import { listProviders } from "../security/oauth.js";
 
 export const authRoutes = Router();
+
+function assertTotpAvailable() {
+  if (!config.authMethods.totp) {
+    throw forbidden(
+      "TOTP_DISABLED",
+      "Zwei-Faktor-Authentifizierung ist auf diesem Server deaktiviert.",
+    );
+  }
+}
+
+function assertPasskeysAvailable() {
+  if (!config.authMethods.passkeys) {
+    throw forbidden(
+      "PASSKEYS_DISABLED",
+      "Passkeys sind auf diesem Server deaktiviert.",
+    );
+  }
+}
+
+// Öffentlich: welche Anmeldeverfahren dieser Server anbietet (Login-Seite, App)
+authRoutes.get(
+  "/methods",
+  asyncHandler(async (_request, response) => {
+    response.json({
+      password: true,
+      totp: config.authMethods.totp,
+      passkeys: config.authMethods.passkeys,
+      oauthProviders: listProviders()
+        .filter((provider) => provider.enabled)
+        .map((provider) => provider.id),
+    });
+  }),
+);
 
 async function deliverPasswordReset(email, token, expiresAt) {
   if (!config.passwordReset.webhookUrl) {
@@ -187,7 +222,8 @@ authRoutes.post(
         );
       }
 
-      if (user.totp_enabled) {
+      // Serverweit abgeschaltet: gespeichertes TOTP wird nicht abgefragt
+      if (config.authMethods.totp && user.totp_enabled) {
         if (!totpCode) {
           throw unauthorized(
             "MFA_REQUIRED",
@@ -490,6 +526,7 @@ authRoutes.post(
   "/mfa/totp/setup",
   requireAuth,
   asyncHandler(async (request, response) => {
+    assertTotpAvailable();
     const userResult = await pool.query(
       `SELECT email FROM users WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
       [request.auth.userId],
@@ -522,6 +559,7 @@ authRoutes.post(
   "/mfa/totp/verify",
   requireAuth,
   asyncHandler(async (request, response) => {
+    assertTotpAvailable();
     const body = objectBody(request.body);
     const code = stringField(body, "code", {
       required: true,
@@ -619,6 +657,7 @@ authRoutes.post(
   "/passkeys/register/options",
   requireAuth,
   asyncHandler(async (request, response) => {
+    assertPasskeysAvailable();
     const [userResult, passkeysResult] = await Promise.all([
       pool.query(
         `SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
@@ -671,6 +710,7 @@ authRoutes.post(
   "/passkeys/register/verify",
   requireAuth,
   asyncHandler(async (request, response) => {
+    assertPasskeysAvailable();
     const body = objectBody(request.body);
     const userResult = await pool.query(
       `
@@ -778,6 +818,7 @@ authRoutes.post(
 authRoutes.post(
   "/passkeys/login/options",
   asyncHandler(async (_request, response) => {
+    assertPasskeysAvailable();
     const options = await createAuthenticationOptions();
 
     await pool.query(
@@ -800,6 +841,7 @@ authRoutes.post(
 authRoutes.post(
   "/passkeys/login/verify",
   asyncHandler(async (request, response) => {
+    assertPasskeysAvailable();
     const body = objectBody(request.body);
     const credentialId = stringField(body, "id", {
       required: true,

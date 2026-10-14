@@ -34,6 +34,10 @@ async function request(path, options = {}) {
   return body;
 }
 
+export function getAuthMethods() {
+  return request("/api/v1/auth/methods");
+}
+
 export function getOAuthProviders() {
   return request("/api/v1/auth/oauth/providers");
 }

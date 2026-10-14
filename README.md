@@ -59,6 +59,10 @@ The application listens on port **3000** by default. Open `http://localhost:3000
 
 > **Security:** Change all example secrets and administrator credentials before exposing the service to the internet. Use HTTPS and restrict access to administrative services such as Redis Insight.
 
+### Optional: disable TOTP or passkeys
+
+Set `TOTP_ENABLED=false` and/or `PASSKEYS_ENABLED=false` in `.env` to switch these methods off for the whole instance. They can then neither be set up nor used; the login page hides the passkey button. With TOTP disabled, users who had set it up sign in without a code, so only do this deliberately. Stored secrets and passkeys are kept and work again after re-enabling.
+
 ### Optional: sign-in with Google or Microsoft
 
 Users can link a Google and/or Microsoft account in their profile settings (*Security → Linked accounts*) and then use it to sign in. Only existing users can link an account — nobody can create an account this way. If two-factor authentication is enabled for a user, the TOTP code is still required.

@@ -39,6 +39,31 @@ tags:
   - name: Import Export
   - name: Admin
 paths:
+  /auth/methods:
+    get:
+      tags: [Auth]
+      summary: List sign-in methods offered by this server
+      description: >-
+        TOTP und Passkeys lassen sich serverweit per `TOTP_ENABLED` bzw.
+        `PASSKEYS_ENABLED` abschalten. Abgeschaltet antworten die zugehörigen
+        Endpunkte mit 403 (`TOTP_DISABLED` / `PASSKEYS_DISABLED`), und bei der
+        Anmeldung wird ein eingerichtetes TOTP nicht abgefragt.
+      security: []
+      responses:
+        '200':
+          description: Verfügbare Anmeldeverfahren
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [password, totp, passkeys, oauthProviders]
+                properties:
+                  password: { type: boolean }
+                  totp: { type: boolean }
+                  passkeys: { type: boolean }
+                  oauthProviders:
+                    type: array
+                    items: { type: string, enum: [google, microsoft] }
   /health:
     get:
       tags: [System]
