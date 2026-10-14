@@ -47,7 +47,7 @@ const SETTINGS_GROUPS = [
   ["profile", "Profil"],
   ["home", "Orte"],
   ["tracking", "Tracking & Karte"],
-  ["password", "Sicherheit"],
+  ["credentials", "Sicherheit"],
   ["devices", "Geräte"],
 ];
 
@@ -55,7 +55,7 @@ const SECTION_GROUP = {
   profile: "profile", language: "profile", country: "profile",
   home: "home", work: "home", recognition: "home", places: "home",
   tracking: "tracking",
-  password: "password", security: "password",
+  credentials: "credentials", security: "credentials",
   devices: "devices",
 };
 
@@ -1901,7 +1901,7 @@ export default function ProfileSettings() {
 
       <form onSubmit={savePassword}>
         <Section
-          id="password"
+          id="credentials"
           title="Passwort"
           description="Nach einer Änderung werden alle anderen Sitzungen beendet."
         >
