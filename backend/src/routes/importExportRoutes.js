@@ -386,6 +386,7 @@ exportRoutes.get(
         to: loaded.to || null,
         vehicleId: request.query.vehicleId || null,
         type: request.query.type || null,
+        specialCategory: request.query.specialCategory || null,
       },
       summary: summarizeTrips(trips),
     });
