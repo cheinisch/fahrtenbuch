@@ -137,6 +137,7 @@ export function mapTrip(row) {
       : null,
     category: row.type,
     type: row.type,
+    specialCategory: row.special_category ?? null,
     status: row.status,
     startedAt: row.started_at,
     endedAt: row.ended_at ?? null,
