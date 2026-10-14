@@ -18,8 +18,12 @@
   background: var(--color-surface);
 }
 
+/*
+ * Dunkles Thema: folgt dem System, außer das Konto erzwingt per
+ * data-theme (gesetzt in AuthProvider.applyTheme) hell oder dunkel.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-main: #1d1d1d;
     --color-text: #f7f7f5;
     --color-accent: #0284c7;
@@ -30,6 +34,32 @@
     --color-muted-text: #a8a8a8;
     --color-accent-soft: #082f49;
     --color-danger: #ff7b72;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-main: #1d1d1d;
+  --color-text: #f7f7f5;
+  --color-accent: #0284c7;
+  --color-accent-secondary: #0ea5e9;
+  --color-accent-text: #ffffff;
+  --color-surface: #121212;
+  --color-border: #3a3a3a;
+  --color-muted-text: #a8a8a8;
+  --color-accent-soft: #082f49;
+  --color-danger: #ff7b72;
+  color-scheme: dark;
+}
+
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
   }
 }
 

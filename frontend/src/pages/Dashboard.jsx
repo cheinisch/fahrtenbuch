@@ -57,6 +57,12 @@ function resolveProtomapsFlavor(value) {
     return value;
   }
 
+  // Kontoeinstellung (data-theme) vor der Systemeinstellung berücksichtigen.
+  const forcedTheme = document.documentElement.dataset.theme;
+  if (forcedTheme === "dark" || forcedTheme === "light") {
+    return forcedTheme;
+  }
+
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
