@@ -708,6 +708,16 @@ paths:
     get:
       tags: [Dashboard]
       summary: Get dashboard data
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: type, in: query, schema: { type: string, enum: [business, private, commute, unclassified] } }
+        - name: specialCategory
+          in: query
+          schema:
+            type: string
+            enum: [medical, volunteer, education, application, moving, other]
+        - { name: tagId, in: query, schema: { type: string, format: uuid } }
       responses:
         '200': { description: Dashboarddaten }
   /language:
