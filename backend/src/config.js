@@ -269,6 +269,19 @@ export const config = Object.freeze({
     ),
   },
 
+  // Android-App: Passkeys über den Credential Manager. Die App ist über
+  // /.well-known/assetlinks.json mit der Domain (WEBAUTHN_RP_ID) verknüpft und
+  // meldet sich mit dem Origin android:apk-key-hash:<SHA-256 des Signaturzertifikats>.
+  androidApp: {
+    packageName: stringValue("ANDROID_APP_PACKAGE", "app.fahrtenbuch.mobile"),
+    // Kommagetrennte SHA-256-Fingerabdrücke (Play App Signing, Upload- bzw. Debug-Zertifikat)
+    certFingerprints: (stringValue("ANDROID_APP_CERT_SHA256", "") || "")
+      .split(/[,\s]+/)
+      .map((value) => value.trim().toUpperCase())
+      .filter((value) => /^([0-9A-F]{2}:?){31}[0-9A-F]{2}$/.test(value))
+      .map((value) => value.replace(/:/g, "").match(/.{2}/g).join(":")),
+  },
+
   // Anmeldung mit verknüpftem Google-/Microsoft-Konto. Ein Anbieter ist
   // aktiv, sobald Client-ID und Secret gesetzt sind. Redirect-URI beim
   // Anbieter: <PUBLIC_BASE_URL>/api/v1/auth/oauth/<provider>/callback

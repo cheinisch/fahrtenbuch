@@ -8,6 +8,17 @@ import {
 import { config } from "../config.js";
 import { hashToken } from "./tokens.js";
 
+/** Origin, mit dem Android-Apps signieren: android:apk-key-hash:<Base64url(SHA-256 Zertifikat)>. */
+export function androidOrigin(fingerprint) {
+  const bytes = Buffer.from(fingerprint.replace(/:/g, ""), "hex");
+  return `android:apk-key-hash:${bytes.toString("base64url")}`;
+}
+
+// Web-Dashboard und die Android-App (Passkeys aus beiden funktionieren überall)
+function expectedOrigins() {
+  return [config.webauthn.origin, ...config.androidApp.certFingerprints.map(androidOrigin)];
+}
+
 export async function createRegistrationOptions(user, passkeys) {
   return generateRegistrationOptions({
     rpName: config.webauthn.rpName,
@@ -43,7 +54,7 @@ export async function verifyPasskeyRegistration(response, matchesChallenge) {
     response,
     expectedChallenge: async (challenge) =>
       matchesChallenge(hashToken(challenge)),
-    expectedOrigin: config.webauthn.origin,
+    expectedOrigin: expectedOrigins(),
     expectedRPID: config.webauthn.rpId,
     requireUserVerification: false,
   });
@@ -58,7 +69,7 @@ export async function verifyPasskeyAuthentication(
     response,
     expectedChallenge: async (challenge) =>
       matchesChallenge(hashToken(challenge)),
-    expectedOrigin: config.webauthn.origin,
+    expectedOrigin: expectedOrigins(),
     expectedRPID: config.webauthn.rpId,
     credential: {
       id: passkey.credential_id,
