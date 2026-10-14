@@ -76,6 +76,7 @@ export const OFFICIAL_ANDROID_APP = {
   packageName: "app.fahrtenbuch.mobile",
   certFingerprints: [
     // SHA-256 des App-Signaturschlüssels (Play Console › App-Integrität › App-Signatur)
+    "49:DA:99:6D:9C:33:5E:AA:35:01:72:33:29:EB:F1:0E:FD:8E:CA:85:13:89:AD:92:CD:01:FC:C1:F6:21:DC:E7",
   ],
 };
 
