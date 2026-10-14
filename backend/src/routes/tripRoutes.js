@@ -42,6 +42,15 @@ const TRIP_TYPES = [
   "unclassified",
 ];
 
+const SPECIAL_CATEGORIES = [
+  "medical",
+  "volunteer",
+  "education",
+  "application",
+  "moving",
+  "other",
+];
+
 function parseTagIds(input) {
   const values = arrayField(
     input,
@@ -112,6 +121,15 @@ function parseTripInput(body) {
       true,
     ),
     category,
+    specialCategory:
+      input.specialCategory === null
+        ? null
+        : enumField(
+            input,
+            "specialCategory",
+            SPECIAL_CATEGORIES,
+            { nullable: true },
+          ) ?? null,
     tagIds: parseTagIds(input),
     startedAt,
     endedAt: endedAt ?? null,
@@ -182,6 +200,17 @@ tripRoutes.get(
 
       parameters.push(type);
       conditions.push(`t.type = $${parameters.length}::trip_type`);
+    }
+
+    if (request.query.specialCategory) {
+      const specialCategory = String(request.query.specialCategory);
+
+      if (!SPECIAL_CATEGORIES.includes(specialCategory)) {
+        throw badRequest("VALIDATION_ERROR", "Die Sonderkategorie ist ungültig.");
+      }
+
+      parameters.push(specialCategory);
+      conditions.push(`t.special_category = ${parameters.length}`);
     }
 
     if (request.query.from) {
@@ -294,6 +323,7 @@ tripRoutes.post(
             user_id,
             vehicle_id,
             type,
+            special_category,
             status,
             started_at,
             ended_at,
@@ -307,11 +337,11 @@ tripRoutes.post(
             completed_at
           )
           VALUES (
-            $1, $2, $3, $4, $5, $6,
-            $7, $8, $9, $10, $11, $12,
+            $1, $2, $3, $4, $5, $6, $7,
+            $8, $9, $10, $11, $12, $13,
             'manual',
             CASE
-              WHEN $4 = 'completed'
+              WHEN $5 = 'completed'
                 THEN now()
               ELSE NULL
             END
@@ -322,6 +352,7 @@ tripRoutes.post(
           request.auth.userId,
           input.vehicleId,
           input.category,
+          input.specialCategory,
           status,
           input.startedAt,
           input.endedAt,
@@ -402,14 +433,14 @@ tripRoutes.post(
 
       const created = await client.query(
         `INSERT INTO trips (
-           user_id, vehicle_id, type, status, started_at, ended_at,
+           user_id, vehicle_id, type, special_category, status, started_at, ended_at,
            start_lat, start_lon, end_lat, end_lon, start_address, end_address,
            purpose, contact, notes, source, completed_at
          )
-         VALUES ($1,$2,$3,'completed',$4,$5,$6,$7,$8,$9,NULL,$10,$11,$12,$13,$14,now())
+         VALUES ($1,$2,$3,$4,'completed',$5,$6,$7,$8,$9,$10,NULL,$11,$12,$13,$14,$15,now())
          RETURNING id`,
         [
-          request.auth.userId, trip.vehicle_id, trip.type, splitAt, originalEnd,
+          request.auth.userId, trip.vehicle_id, trip.type, trip.special_category, splitAt, originalEnd,
           Number(points[splitIndex].lat), Number(points[splitIndex].lon),
           trip.end_lat, trip.end_lon, trip.end_address, trip.purpose, trip.contact,
           trip.notes, trip.source,
@@ -585,6 +616,11 @@ tripRoutes.post(
           type=CASE WHEN NOT EXISTS (
             SELECT 1 FROM trips x WHERE x.id=ANY($7::uuid[]) AND x.type<>$8::trip_type
           ) THEN $8::trip_type ELSE 'unclassified'::trip_type END,
+          special_category=CASE WHEN NOT EXISTS (
+            SELECT 1 FROM trips x
+            WHERE x.id=ANY($7::uuid[])
+              AND x.special_category IS DISTINCT FROM $11
+          ) THEN $11 ELSE NULL END,
           purpose=CASE WHEN NOT EXISTS (
             SELECT 1 FROM trips x WHERE x.id=ANY($7::uuid[]) AND x.purpose IS DISTINCT FROM $9
           ) THEN $9 ELSE NULL END,
@@ -594,7 +630,7 @@ tripRoutes.post(
           version=version+1, completed_at=now()
          WHERE id=$1 AND user_id=$2`,
         [target.id, request.auth.userId, last.ended_at, last.end_lat, last.end_lon, last.end_address,
-         tripIds, target.type, target.purpose, target.contact],
+         tripIds, target.type, target.purpose, target.contact, target.special_category],
       );
 
       await client.query(
@@ -874,6 +910,10 @@ tripRoutes.put(
     const category = body.category !== undefined
       ? enumField(body, "category", TRIP_TYPES, { required: true })
       : enumField(body, "type", TRIP_TYPES, { required: true });
+    const specialCategory =
+      body.specialCategory === null
+        ? null
+        : enumField(body, "specialCategory", SPECIAL_CATEGORIES, { nullable: true }) ?? null;
 
     const client = await pool.connect();
     try {
@@ -883,20 +923,44 @@ tripRoutes.put(
         throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
       }
 
-      if (existing.type !== category) {
+      if (
+        existing.type !== category ||
+        (existing.special_category ?? null) !== specialCategory
+      ) {
         await client.query(
-          `UPDATE trips SET type = $3, version = version + 1
+          `UPDATE trips
+           SET type = $3,
+               special_category = $4,
+               version = version + 1
            WHERE id = $1 AND user_id = $2 AND archived_at IS NULL`,
-          [tripId, request.auth.userId, category],
+          [tripId, request.auth.userId, category, specialCategory],
         );
+
+        const changedFields = {};
+        if (existing.type !== category) {
+          changedFields.type = { old: existing.type, new: category };
+        }
+        if ((existing.special_category ?? null) !== specialCategory) {
+          changedFields.special_category = {
+            old: existing.special_category ?? null,
+            new: specialCategory,
+          };
+        }
+
         await appendTripHistory(client, {
           tripId,
           userId: request.auth.userId,
           actorUserId: request.auth.userId,
           eventType: "CLASSIFIED",
-          changedFields: { type: { old: existing.type, new: category } },
-          oldValues: { type: existing.type },
-          newValues: { type: category },
+          changedFields,
+          oldValues: {
+            type: existing.type,
+            special_category: existing.special_category ?? null,
+          },
+          newValues: {
+            type: category,
+            special_category: specialCategory,
+          },
           metadata: { source: "trip_classification" },
         });
       }
@@ -1040,21 +1104,22 @@ tripRoutes.put(
           SET
             vehicle_id = $3,
             type = $4,
-            status = $5,
-            started_at = $6,
-            ended_at = $7,
-            start_address = $8,
-            end_address = $9,
-            purpose = $10,
-            contact = $11,
-            notes = $12,
+            special_category = $5,
+            status = $6,
+            started_at = $7,
+            ended_at = $8,
+            start_address = $9,
+            end_address = $10,
+            purpose = $11,
+            contact = $12,
+            notes = $13,
             duration_seconds =
               COALESCE(
                 duration_seconds,
-                $13
+                $14
               ),
             completed_at = CASE
-              WHEN $5 = 'completed'
+              WHEN $6 = 'completed'
                 THEN COALESCE(
                   completed_at,
                   now()
@@ -1072,6 +1137,7 @@ tripRoutes.put(
           request.auth.userId,
           input.vehicleId,
           input.category,
+          input.specialCategory,
           status,
           input.startedAt,
           input.endedAt,
