@@ -139,6 +139,8 @@ export function mapTrip(row) {
     type: row.type,
     specialCategory: row.special_category ?? null,
     status: row.status,
+    // Fahrt-ID des aufzeichnenden Geräts (nur bei Fahrten aus der App)
+    clientTripId: row.client_trip_id ?? null,
     startedAt: row.started_at,
     endedAt: row.ended_at ?? null,
     // IANA zone of the trip (DST-aware); falls back to the user's time zone

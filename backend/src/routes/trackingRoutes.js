@@ -43,6 +43,8 @@ trackingRoutes.post(
       "vehicleId",
       true,
     );
+    // Vom Gerät beim Start erzeugte Fahrt-ID: macht den Start wiederholbar (idempotent)
+    const clientTripId = uuidField(body, "clientTripId");
     const startedAt =
       dateTimeField(
         body,
@@ -113,20 +115,46 @@ trackingRoutes.post(
         );
       }
 
-      // same_start: dieselbe Fahrt (Fahrzeug + Startzeit) wurde schon angelegt, die Antwort kam
-      // aber nicht beim Gerät an (Abbruch, Funkloch). Die App wiederholt dann den Start.
+      // Wiederholter Start derselben Geräte-Fahrt (Antwort ging verloren): bestehende Fahrt liefern
+      if (clientTripId) {
+        const known = await client.query(
+          `
+            SELECT id
+            FROM trips
+            WHERE user_id = $1
+              AND client_trip_id = $2
+              AND archived_at IS NULL
+            LIMIT 1
+          `,
+          [request.auth.userId, clientTripId],
+        );
+        if (known.rowCount > 0) {
+          const trip = await getOwnedTrip(client, request.auth.userId, known.rows[0].id);
+          await client.query("COMMIT");
+          response.status(200).json(mapTrip(trip));
+          return;
+        }
+      }
+
+      // same_start: Fallback für Apps ohne clientTripId – gleiche Fahrt an Fahrzeug + Startzeit erkennen
       const existing = await client.query(
         `
           SELECT
             id,
-            vehicle_id = $2 AND abs(extract(epoch FROM started_at - $3::timestamptz)) < 0.001 AS same_start
+            client_trip_id,
+            started_at,
+            vehicle_id,
+            device_id IS NOT NULL AND device_id = $4::uuid AS same_device,
+            $5::uuid IS NULL
+              AND vehicle_id = $2
+              AND abs(extract(epoch FROM started_at - $3::timestamptz)) < 0.001 AS same_start
           FROM trips
           WHERE user_id = $1
             AND status = 'recording'
             AND archived_at IS NULL
           LIMIT 1
         `,
-        [request.auth.userId, vehicleId, startedAt],
+        [request.auth.userId, vehicleId, startedAt, request.auth.deviceId ?? null, clientTripId ?? null],
       );
 
       // Wiederholter Start derselben Fahrt: idempotent die bestehende Aufzeichnung liefern
@@ -148,6 +176,11 @@ trackingRoutes.post(
           {
             tripId:
               existing.rows[0].id,
+            // Damit die App eigene, auf dem Gerät schon beendete oder verworfene Fahrten erkennt
+            clientTripId: existing.rows[0].client_trip_id ?? null,
+            sameDevice: existing.rows[0].same_device === true,
+            vehicleId: existing.rows[0].vehicle_id,
+            startedAt: existing.rows[0].started_at,
           },
         );
       }
@@ -161,7 +194,9 @@ trackingRoutes.post(
             status,
             started_at,
             source,
-            start_timezone
+            start_timezone,
+            client_trip_id,
+            device_id
           )
           VALUES (
             $1,
@@ -170,7 +205,9 @@ trackingRoutes.post(
             'recording',
             $4,
             'android',
-            $5
+            $5,
+            $6,
+            $7
           )
           RETURNING id
         `,
@@ -180,6 +217,8 @@ trackingRoutes.post(
           category,
           startedAt,
           startTimeZone,
+          clientTripId ?? null,
+          request.auth.deviceId ?? null,
         ],
       );
 

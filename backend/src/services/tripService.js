@@ -33,6 +33,7 @@ export const TRIP_SELECT = `
   t.updated_at,
   t.start_timezone,
   t.end_timezone,
+  t.client_trip_id,
   (SELECT u.timezone FROM users u WHERE u.id = t.user_id) AS user_timezone
 `;
 
