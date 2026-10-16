@@ -13,6 +13,7 @@ import { adminRoutes } from "./routes/adminRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { oauthRoutes } from "./routes/oauthRoutes.js";
 import { dashboardRoutes } from "./routes/dashboardRoutes.js";
+import { expenseRoutes } from "./routes/expenseRoutes.js";
 import { complianceRoutes } from "./routes/complianceRoutes.js";
 import {
   adminDataRoutes,
@@ -179,6 +180,7 @@ app.use("/api/v1/auth", authLimiter, authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/vehicles", vehicleRoutes);
 app.use("/api/v1/odometer", odometerRoutes);
+app.use("/api/v1/expenses", expenseRoutes);
 app.use("/api/v1/places", placeRoutes);
 app.use("/api/v1/trips", tripRoutes);
 app.use("/api/v1/tracking", trackingRoutes);

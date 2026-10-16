@@ -29,6 +29,7 @@ import MonthlyOdometerPrompt from "./MonthlyOdometerPrompt.jsx";
 const NAV_ITEMS = [
   { to: "/", key: "nav.dashboard", end: true },
   { to: "/vehicles", key: "nav.vehicles" },
+  { to: "/costs", key: "nav.costs" },
   { to: "/statistics", key: "nav.statistics" },
   { to: "/export", key: "nav.export" },
   { to: "/compliance", key: "nav.compliance" },

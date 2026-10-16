@@ -11,6 +11,7 @@ import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import AppShell from "./components/AppShell.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Compliance from "./pages/Compliance.jsx";
+import Costs from "./pages/Costs.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import PasswordResetPage from "./pages/PasswordResetPage.jsx";
 import ExportPage from "./pages/Export.jsx";
@@ -61,6 +62,10 @@ export default function App() {
           <Route
             path="/vehicles"
             element={<Vehicles />}
+          />
+          <Route
+            path="/costs"
+            element={<Costs />}
           />
           <Route
             path="/share-invitation"

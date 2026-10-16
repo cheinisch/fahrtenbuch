@@ -775,3 +775,31 @@ export const getMonthlyCategoryTrips = (token, vehicleId, month, type) =>
 export function getLeasingLiveKm(accessToken, vehicleId) {
   return apiRequest(accessToken, `/api/v1/statistics/leasing-live-km?vehicleId=${encodeURIComponent(vehicleId)}`);
 }
+
+// Fahrzeugkosten (Tanken/Laden und sonstige Kosten)
+export function getExpenses(accessToken, filters = {}) {
+  const query = new URLSearchParams();
+  for (const key of ["vehicleId", "from", "to", "category"]) {
+    if (filters[key]) query.set(key, filters[key]);
+  }
+  return apiRequest(accessToken, `/api/v1/expenses${query.size ? `?${query}` : ""}`);
+}
+
+export function getExpenseSummary(accessToken, { vehicleId, from, to }) {
+  const query = new URLSearchParams({ vehicleId });
+  if (from) query.set("from", from);
+  if (to) query.set("to", to);
+  return apiRequest(accessToken, `/api/v1/expenses/summary?${query}`);
+}
+
+export function createExpense(accessToken, expense) {
+  return apiRequest(accessToken, "/api/v1/expenses", { method: "POST", body: JSON.stringify(expense) });
+}
+
+export function updateExpense(accessToken, id, expense) {
+  return apiRequest(accessToken, `/api/v1/expenses/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(expense) });
+}
+
+export function deleteExpense(accessToken, id) {
+  return apiRequest(accessToken, `/api/v1/expenses/${encodeURIComponent(id)}`, { method: "DELETE" });
+}

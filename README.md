@@ -10,6 +10,7 @@ The application combines a **React** frontend, a **Node.js** backend, **PostgreS
 - **GPS routes:** Display recorded routes using OpenStreetMap-based maps, with optional Protomaps support.
 - **Odometer readings:** Record mileage readings with dates and optional exact reading times; review the reading history.
 - **Mileage statistics:** Compare odometer changes with recorded trips and examine monthly mileage trends.
+- **Vehicle costs:** Record fuel and charging stops and other costs (insurance, tax, maintenance, parking …); see average consumption, cost per km and the cost share per trip type for the logbook method.
 - **Leasing and financing:** Track contractual mileage allowances, estimate end-of-contract mileage, and optionally calculate excess-mileage charges or under-mileage reimbursements.
 - **Multiple vehicles and users:** Manage vehicles, access permissions, and user-specific settings.
 - **Personal map colors:** Configure optional route colors for private, business, commuting, and unclassified trips.
