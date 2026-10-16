@@ -21,6 +21,25 @@ function normalizedBaseUrl(value) {
   return String(value || "").replace(/\/+$/, "");
 }
 
+// Netzwerkfehler (DNS, Verbindung abgelehnt, Timeout) in verständliche 503-Fehler übersetzen
+function upstreamError(error) {
+  if (error?.name === "AbortError") {
+    return serviceUnavailable(
+      "UPSTREAM_TIMEOUT",
+      "Der externe Dienst hat nicht rechtzeitig geantwortet.",
+    );
+  }
+
+  if (error instanceof TypeError) {
+    return serviceUnavailable(
+      "UPSTREAM_UNREACHABLE",
+      "Der externe Dienst ist nicht erreichbar. Bitte Adresse und Port prüfen.",
+    );
+  }
+
+  return error;
+}
+
 async function fetchJson(url, options = {}, timeoutMs = 10_000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -49,14 +68,7 @@ async function fetchJson(url, options = {}, timeoutMs = 10_000) {
       responseTimeMs: Date.now() - started,
     };
   } catch (error) {
-    if (error?.name === "AbortError") {
-      throw serviceUnavailable(
-        "UPSTREAM_TIMEOUT",
-        "Der externe Dienst hat nicht rechtzeitig geantwortet.",
-      );
-    }
-
-    throw error;
+    throw upstreamError(error);
   } finally {
     clearTimeout(timeout);
   }
@@ -256,6 +268,52 @@ export async function testService(category, candidateConfig) {
       },
       Number(candidateConfig.timeoutMs || 30_000),
     );
+  } else if (category === "valhalla") {
+    // /status liefert Version und geladene Kacheln, ohne Routing-Last zu erzeugen
+    const baseUrl = normalizedBaseUrl(candidateConfig.valhallaUrl);
+
+    if (!baseUrl) {
+      throw serviceUnavailable("VALHALLA_URL_REQUIRED", "Valhalla-Serveradresse fehlt.");
+    }
+
+    const result = await fetchJson(`${baseUrl}/status`, {}, 10_000);
+
+    return {
+      success: true,
+      responseTimeMs: Date.now() - started,
+      message: result.data?.version
+        ? `Verbindung erfolgreich (Valhalla ${result.data.version}).`
+        : "Verbindung erfolgreich.",
+    };
+  } else if (category === "osrm") {
+    const baseUrl = normalizedBaseUrl(candidateConfig.osrmUrl);
+
+    if (!baseUrl) {
+      throw serviceUnavailable("OSRM_URL_REQUIRED", "OSRM-Serveradresse fehlt.");
+    }
+
+    // Beliebiger Punkt; OSRM antwortet auch außerhalb des Extrakts mit JSON
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+
+    try {
+      const response = await fetch(
+        `${baseUrl}/nearest/v1/driving/8.6821,50.1109`,
+        { signal: controller.signal },
+      );
+      const data = await response.json().catch(() => null);
+
+      if (!data?.code) {
+        throw serviceUnavailable(
+          "OSRM_TEST_FAILED",
+          `OSRM antwortete mit HTTP ${response.status}.`,
+        );
+      }
+    } catch (error) {
+      throw upstreamError(error);
+    } finally {
+      clearTimeout(timeout);
+    }
   } else if (category === "map") {
     const urlText = candidateConfig.styleUrl || candidateConfig.tileUrl;
 

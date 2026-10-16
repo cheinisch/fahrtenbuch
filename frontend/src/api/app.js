@@ -812,3 +812,19 @@ export function previewExpenseImport(accessToken, payload) {
 export function importExpenses(accessToken, payload) {
   return apiRequest(accessToken, "/api/v1/expenses/import", { method: "POST", body: JSON.stringify(payload) });
 }
+
+// Geocoding (Photon) und Routing (Valhalla/OSRM) – Reiter „Geocoding“ in den Systemeinstellungen
+export const getAdminServiceSettings = (token) =>
+  apiRequest(token, "/api/v1/admin/settings/services");
+
+export const updateAdminPhotonSettings = (token, photon) =>
+  apiRequest(token, "/api/v1/admin/settings/services/photon", {
+    method: "PUT",
+    body: JSON.stringify(photon),
+  });
+
+export const testAdminService = (token, category, config) =>
+  apiRequest(token, "/api/v1/admin/settings/services/test", {
+    method: "POST",
+    body: JSON.stringify({ category, config }),
+  });

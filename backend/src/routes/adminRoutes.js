@@ -1300,7 +1300,7 @@ adminRoutes.post(
   "/settings/services/test",
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
-    const category = enumField(body, "category", ["map", "photon", "overpass"], {
+    const category = enumField(body, "category", ["map", "photon", "overpass", "valhalla", "osrm"], {
       required: true,
     });
     const candidateConfig = objectBody(body.config);

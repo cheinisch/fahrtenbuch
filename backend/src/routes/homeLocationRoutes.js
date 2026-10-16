@@ -2,13 +2,14 @@ import { Router } from "express";
 
 import { pool } from "../database/pool.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { getAdminServiceSettings } from "../services/serviceSettingsService.js";
 
 export const homeLocationRoutes = Router();
 
 homeLocationRoutes.use(requireAuth);
 
 const DEFAULT_PHOTON_URL = "https://photon.komoot.io";
-const PHOTON_TIMEOUT_MS = 10_000;
+const DEFAULT_PHOTON_TIMEOUT_MS = 10_000;
 
 function sendError(response, status, code, message) {
   return response.status(status).json({
@@ -30,15 +31,20 @@ function isValidCoordinate(latitude, longitude) {
   );
 }
 
-function getPhotonBaseUrl() {
-  return String(
-    process.env.PHOTON_URL || DEFAULT_PHOTON_URL,
-  ).replace(/\/+$/, "");
+// Photon-Server aus den Admin-Einstellungen (Reiter „Geocoding“), damit
+// auch die Heimadresse-Suche den eigenen Server nutzt.
+async function getPhotonSettings() {
+  const { photon } = await getAdminServiceSettings();
+
+  return {
+    baseUrl: String(photon?.baseUrl || DEFAULT_PHOTON_URL).replace(/\/+$/, ""),
+    timeoutMs: Number(photon?.timeoutMs || DEFAULT_PHOTON_TIMEOUT_MS),
+  };
 }
 
-function createPhotonUrl(endpoint, parameters) {
+function createPhotonUrl(baseUrl, endpoint, parameters) {
   const url = new URL(
-    `${getPhotonBaseUrl()}${endpoint}`,
+    `${baseUrl}${endpoint}`,
   );
 
   for (const [key, value] of Object.entries(parameters)) {
@@ -54,11 +60,11 @@ function createPhotonUrl(endpoint, parameters) {
   return url;
 }
 
-async function requestPhoton(url) {
+async function requestPhoton(url, timeoutMs = DEFAULT_PHOTON_TIMEOUT_MS) {
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
-    PHOTON_TIMEOUT_MS,
+    timeoutMs,
   );
 
   try {
@@ -180,13 +186,14 @@ homeLocationRoutes.post(
         );
       }
 
-      const url = createPhotonUrl("/api/", {
+      const photon = await getPhotonSettings();
+      const url = createPhotonUrl(photon.baseUrl, "/api/", {
         q: query,
         limit: 6,
         lang: request.body?.language || "de",
       });
 
-      const result = await requestPhoton(url);
+      const result = await requestPhoton(url, photon.timeoutMs);
 
       const candidates = (result.features || [])
         .map(mapFeature)
@@ -228,13 +235,14 @@ homeLocationRoutes.post(
         );
       }
 
-      const url = createPhotonUrl("/reverse", {
+      const photon = await getPhotonSettings();
+      const url = createPhotonUrl(photon.baseUrl, "/reverse", {
         lat: latitude,
         lon: longitude,
         lang: request.body?.language || "de",
       });
 
-      const result = await requestPhoton(url);
+      const result = await requestPhoton(url, photon.timeoutMs);
       const candidate = (result.features || [])
         .map(mapFeature)
         .find(Boolean);
