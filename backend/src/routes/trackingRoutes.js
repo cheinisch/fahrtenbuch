@@ -113,17 +113,33 @@ trackingRoutes.post(
         );
       }
 
+      // same_start: dieselbe Fahrt (Fahrzeug + Startzeit) wurde schon angelegt, die Antwort kam
+      // aber nicht beim Gerät an (Abbruch, Funkloch). Die App wiederholt dann den Start.
       const existing = await client.query(
         `
-          SELECT id
+          SELECT
+            id,
+            vehicle_id = $2 AND abs(extract(epoch FROM started_at - $3::timestamptz)) < 0.001 AS same_start
           FROM trips
           WHERE user_id = $1
             AND status = 'recording'
             AND archived_at IS NULL
           LIMIT 1
         `,
-        [request.auth.userId],
+        [request.auth.userId, vehicleId, startedAt],
       );
+
+      // Wiederholter Start derselben Fahrt: idempotent die bestehende Aufzeichnung liefern
+      if (existing.rowCount > 0 && existing.rows[0].same_start) {
+        const trip = await getOwnedTrip(
+          client,
+          request.auth.userId,
+          existing.rows[0].id,
+        );
+        await client.query("COMMIT");
+        response.status(200).json(mapTrip(trip));
+        return;
+      }
 
       if (existing.rowCount > 0) {
         throw conflict(

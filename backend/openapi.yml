@@ -827,11 +827,21 @@ paths:
                   example: Europe/Berlin
                   description: IANA time zone of the device at trip start. Stored as zone id, so daylight saving time is applied per timestamp.
       responses:
+        '200':
+          description: Diese Fahrt (gleiches Fahrzeug und gleiches startedAt) wird bereits aufgezeichnet, z. B. weil die Antwort auf einen früheren Start verloren ging. Liefert die bestehende Aufzeichnung.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trip' }
         '201':
           description: Aufzeichnung gestartet
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Trip' }
+        '409':
+          description: Es läuft bereits eine andere Aufzeichnung (TRACKING_ALREADY_ACTIVE, details.tripId).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /tracking/points:
     post:
       tags: [Tracking]
