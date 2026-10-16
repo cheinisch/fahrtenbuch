@@ -1174,6 +1174,53 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ExpenseSummary' }
+  /expenses/import/preview:
+    post:
+      tags: [Expenses]
+      summary: Preview CSV import of vehicle expenses
+      description: >-
+        Liest eine CSV-Datei (z. B. Spritmonitor-Export von Tankungen oder Kosten, deutsch oder englisch)
+        und liefert erkannte Spaltenzuordnung, Formate, Zählwerte, Fehler/Hinweise und eine Vorschau.
+        Es wird nichts gespeichert. Bereits vorhandene Einträge werden als Duplikate erkannt.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExpenseImportRequest' }
+      responses:
+        '200':
+          description: Importvorschau
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExpenseImportPreview' }
+        '400': { description: Ungültige oder leere CSV-Datei }
+        '404': { description: Fahrzeug nicht gefunden }
+  /expenses/import:
+    post:
+      tags: [Expenses]
+      summary: Import vehicle expenses from CSV
+      description: >-
+        Importiert alle gültigen, noch nicht vorhandenen Zeilen in einer Transaktion (Quelle csv_import).
+        Fehlerhafte Zeilen werden übersprungen und gemeldet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExpenseImportRequest' }
+      responses:
+        '201':
+          description: Import abgeschlossen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported: { type: integer }
+                  duplicates: { type: integer }
+                  errors: { type: array, items: { $ref: '#/components/schemas/ExpenseImportMessage' } }
+                  warnings: { type: array, items: { $ref: '#/components/schemas/ExpenseImportMessage' } }
+        '400': { description: Ungültige CSV-Datei oder Spalten für Datum/Betrag fehlen (MAPPING_INCOMPLETE) }
+        '404': { description: Fahrzeug nicht gefunden }
   /expenses/{id}:
     get:
       tags: [Expenses]
@@ -3127,8 +3174,65 @@ components:
         tripId: { type: [string, 'null'], format: uuid }
         vendor: { type: [string, 'null'] }
         notes: { type: [string, 'null'] }
+        source: { type: string, enum: [manual, csv_import] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    ExpenseImportRequest:
+      type: object
+      required: [vehicleId, content]
+      properties:
+        vehicleId: { type: string, format: uuid }
+        content: { type: string, format: byte, description: CSV-Datei Base64-kodiert (max. 3 MB). UTF-8 oder Windows-1252. }
+        mapping:
+          type: object
+          description: Optionale Spaltenzuordnung Feld → Spaltenindex (0-basiert). Ohne Angabe wird sie aus der Kopfzeile erkannt.
+          properties:
+            date: { type: integer }
+            odometer: { type: integer }
+            quantity: { type: integer }
+            amount: { type: integer }
+            currency: { type: integer }
+            tankType: { type: integer }
+            costType: { type: integer }
+            title: { type: integer }
+            note: { type: integer }
+            vendor: { type: integer }
+            fuel: { type: integer }
+        kind: { type: string, enum: [fuel, costs], description: Tankungen oder sonstige Kosten }
+        energy: { type: string, enum: [fuel_l, fuel_kg, charging_kwh], default: fuel_l }
+        dateFormat: { type: string, enum: [DD.MM.YYYY, YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY] }
+        decimalSeparator: { type: string, enum: [',', '.'] }
+        currency: { type: string, pattern: '^[A-Z]{3}$', description: Währung, falls die Datei keine enthält }
+    ExpenseImportMessage:
+      type: object
+      properties:
+        line: { type: [integer, 'null'] }
+        message: { type: string }
+    ExpenseImportPreview:
+      type: object
+      properties:
+        source: { type: string, enum: [spritmonitor, generic] }
+        encoding: { type: string }
+        delimiter: { type: string }
+        headers: { type: array, items: { type: string } }
+        sampleRows: { type: array, items: { type: array, items: { type: string } } }
+        mapping: { type: object, additionalProperties: { type: integer } }
+        options: { type: object }
+        missingRequired: { type: array, items: { type: string } }
+        counts:
+          type: object
+          properties:
+            rows: { type: integer }
+            valid: { type: integer }
+            new: { type: integer }
+            duplicates: { type: integer }
+            errors: { type: integer }
+            warnings: { type: integer }
+            fullTanks: { type: integer }
+        dateRange: { type: [object, 'null'] }
+        errors: { type: array, items: { $ref: '#/components/schemas/ExpenseImportMessage' } }
+        warnings: { type: array, items: { $ref: '#/components/schemas/ExpenseImportMessage' } }
+        preview: { type: array, items: { type: object } }
     ExpenseSummary:
       type: object
       properties:

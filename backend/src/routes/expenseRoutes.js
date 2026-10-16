@@ -13,6 +13,7 @@ import {
   uuidValue,
 } from "../lib/validation.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { analyzeCsv, IMPORT_FIELDS } from "../services/expenseCsvImport.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
 // Fahrzeugkosten: Tanken/Laden und sonstige Kosten.
@@ -36,7 +37,7 @@ const EXPENSE_SELECT = `
          e.fuel_type, e.full_tank,
          to_char(e.period_start, 'YYYY-MM-DD') AS period_start,
          to_char(e.period_end, 'YYYY-MM-DD') AS period_end,
-         e.trip_id, e.vendor, e.notes, e.created_at, e.updated_at
+         e.trip_id, e.vendor, e.notes, e.source, e.created_at, e.updated_at
     FROM vehicle_expenses e
     JOIN vehicles v ON v.id = e.vehicle_id
 `;
@@ -68,6 +69,7 @@ function mapExpense(row) {
     tripId: row.trip_id,
     vendor: row.vendor,
     notes: row.notes,
+    source: row.source,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -476,6 +478,217 @@ expenseRoutes.get(
         averagePricePerUnit: total.quantity > 0 ? Math.round((total.cents / 100 / total.quantity) * 1000) / 1000 : null,
       })),
       consumption: computeConsumption(energyEntries, from, to),
+    });
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// CSV-Import (z. B. Spritmonitor). Zustandslos: Vorschau und Import bekommen
+// dieselbe Datei; der Client schickt sie Base64-kodiert im JSON-Body.
+// ---------------------------------------------------------------------------
+
+const IMPORT_KINDS = ["fuel", "costs"];
+const IMPORT_ENERGY = ["fuel_l", "fuel_kg", "charging_kwh"];
+const IMPORT_DATE_FORMATS = ["DD.MM.YYYY", "YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY"];
+const MAX_IMPORT_BYTES = 3 * 1024 * 1024;
+
+function parseImportRequest(body) {
+  const input = objectBody(body);
+  const vehicleId = uuidValue(input.vehicleId, "vehicleId");
+  const content = stringField(input, "content", { required: true, maximum: 5 * 1024 * 1024, trim: false });
+  const buffer = Buffer.from(content, "base64");
+  if (buffer.length === 0) {
+    throw badRequest("FILE_REQUIRED", "Die CSV-Datei ist leer.");
+  }
+  if (buffer.length > MAX_IMPORT_BYTES) {
+    throw badRequest("FILE_TOO_LARGE", "Die CSV-Datei ist zu groß (max. 3 MB).");
+  }
+
+  let mapping;
+  if (input.mapping !== undefined && input.mapping !== null) {
+    if (typeof input.mapping !== "object" || Array.isArray(input.mapping)) {
+      throw badRequest("VALIDATION_ERROR", "„mapping“ muss ein Objekt sein.");
+    }
+    mapping = Object.fromEntries(
+      Object.entries(input.mapping).filter(([field]) => IMPORT_FIELDS.includes(field)),
+    );
+  }
+
+  return {
+    vehicleId,
+    buffer,
+    overrides: {
+      mapping,
+      kind: enumField(input, "kind", IMPORT_KINDS, { nullable: true }) || undefined,
+      energy: enumField(input, "energy", IMPORT_ENERGY, { nullable: true }) || undefined,
+      dateFormat: enumField(input, "dateFormat", IMPORT_DATE_FORMATS, { nullable: true }) || undefined,
+      decimalSeparator: enumField(input, "decimalSeparator", [",", "."], { nullable: true }) || undefined,
+      currency: currencyField(input) || undefined,
+    },
+  };
+}
+
+function duplicateKey(entry) {
+  return [
+    entry.date, entry.category, entry.amountCents,
+    entry.quantity == null ? "" : Number(entry.quantity).toFixed(3),
+    entry.odometerMeters ?? "",
+  ].join("|");
+}
+
+// Bereits vorhandene Einträge (auch manuell erfasste) und Doppelungen in der Datei erkennen,
+// damit ein erneuter Import desselben Exports nichts verdoppelt.
+async function splitDuplicates(db, userId, vehicleId, entries) {
+  if (entries.length === 0) return { fresh: [], duplicates: [] };
+  const dates = entries.map((entry) => entry.date).sort();
+  const existing = await db.query(
+    `SELECT to_char(expense_date, 'YYYY-MM-DD') AS date, category, amount_cents, quantity, odometer_meters
+       FROM vehicle_expenses
+      WHERE user_id = $1 AND vehicle_id = $2 AND expense_date BETWEEN $3::date AND $4::date`,
+    [userId, vehicleId, dates[0], dates[dates.length - 1]],
+  );
+  const known = new Set(existing.rows.map((row) => duplicateKey({
+    date: row.date,
+    category: row.category,
+    amountCents: Number(row.amount_cents),
+    quantity: row.quantity == null ? null : Number(row.quantity),
+    odometerMeters: row.odometer_meters == null ? null : Number(row.odometer_meters),
+  })));
+  const fresh = [];
+  const duplicates = [];
+  for (const entry of entries) {
+    const key = duplicateKey(entry);
+    if (known.has(key)) {
+      duplicates.push(entry);
+    } else {
+      known.add(key);
+      fresh.push(entry);
+    }
+  }
+  return { fresh, duplicates };
+}
+
+function mapImportEntry(entry) {
+  return {
+    line: entry.line,
+    category: entry.category,
+    date: entry.date,
+    amount: entry.amountCents / 100,
+    currency: entry.currency,
+    odometerKm: entry.odometerMeters == null ? null : entry.odometerMeters / 1000,
+    quantity: entry.quantity,
+    quantityUnit: entry.quantityUnit,
+    fullTank: entry.fullTank,
+    vendor: entry.vendor,
+    notes: entry.notes,
+  };
+}
+
+async function runImportAnalysis(db, userId, body) {
+  const { vehicleId, buffer, overrides } = parseImportRequest(body);
+  await assertOwnVehicle(db, userId, vehicleId);
+  let analysis;
+  try {
+    analysis = analyzeCsv(buffer, overrides);
+  } catch (error) {
+    throw badRequest("INVALID_CSV", "Die CSV-Datei konnte nicht gelesen werden.", { parserMessage: error.message });
+  }
+  if (analysis.headers.length === 0) {
+    throw badRequest("INVALID_CSV", "Die CSV-Datei enthält keine Kopfzeile.");
+  }
+  if (analysis.mapping.date == null || analysis.mapping.amount == null) {
+    // Ohne Datum/Betrag geht nichts – Vorschau trotzdem liefern, damit der Nutzer zuordnen kann
+    analysis.missingRequired = ["date", "amount"].filter((field) => analysis.mapping[field] == null);
+  }
+  const { fresh, duplicates } = await splitDuplicates(db, userId, vehicleId, analysis.result.entries);
+  return { vehicleId, analysis, fresh, duplicates };
+}
+
+function importSummary({ analysis, fresh, duplicates }) {
+  const dates = analysis.result.entries.map((entry) => entry.date).sort();
+  return {
+    source: analysis.suggestion.source,
+    encoding: analysis.encoding,
+    delimiter: analysis.delimiter,
+    headers: analysis.headers,
+    sampleRows: analysis.rows.slice(0, 5),
+    mapping: analysis.mapping,
+    options: analysis.options,
+    missingRequired: analysis.missingRequired || [],
+    counts: {
+      rows: analysis.rows.length,
+      valid: analysis.result.entries.length,
+      new: fresh.length,
+      duplicates: duplicates.length,
+      errors: analysis.result.errors.length,
+      warnings: analysis.result.warnings.length,
+      fullTanks: fresh.filter((entry) => entry.fullTank).length,
+    },
+    dateRange: dates.length ? { from: dates[0], to: dates[dates.length - 1] } : null,
+    errors: analysis.result.errors.slice(0, 50),
+    warnings: analysis.result.warnings.slice(0, 50),
+    preview: fresh.slice(0, 10).map(mapImportEntry),
+  };
+}
+
+expenseRoutes.post(
+  "/import/preview",
+  asyncHandler(async (request, response) => {
+    const result = await runImportAnalysis(pool, request.auth.userId, request.body);
+    response.json(importSummary(result));
+  }),
+);
+
+expenseRoutes.post(
+  "/import",
+  asyncHandler(async (request, response) => {
+    const userId = request.auth.userId;
+    const result = await runImportAnalysis(pool, userId, request.body);
+    if (result.analysis.missingRequired?.length) {
+      throw badRequest("MAPPING_INCOMPLETE", "Bitte ordne mindestens die Spalten für Datum und Betrag zu.");
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      // In Blöcken einfügen – ein Spritmonitor-Export kann mehrere tausend Zeilen haben
+      for (let offset = 0; offset < result.fresh.length; offset += 500) {
+        const chunk = result.fresh.slice(offset, offset + 500);
+        const values = [];
+        const params = [];
+        chunk.forEach((entry) => {
+          const base = params.length;
+          params.push(
+            userId, result.vehicleId, entry.category, entry.date, entry.amountCents, entry.currency,
+            entry.odometerMeters, entry.quantity, entry.quantityUnit, entry.fuelType, entry.fullTank,
+            entry.vendor, entry.notes,
+          );
+          values.push(`(${Array.from({ length: 13 }, (_, index) => `$${base + index + 1}`).join(", ")}, 'csv_import')`);
+        });
+        await client.query(
+          `INSERT INTO vehicle_expenses
+             (user_id, vehicle_id, category, expense_date, amount_cents, currency, odometer_meters,
+              quantity, quantity_unit, fuel_type, full_tank, vendor, notes, source)
+           VALUES ${values.join(", ")}`,
+          params,
+        );
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    const summary = importSummary(result);
+    response.status(201).json({
+      imported: result.fresh.length,
+      duplicates: result.duplicates.length,
+      errors: summary.errors,
+      warnings: summary.warnings,
+      counts: summary.counts,
+      dateRange: summary.dateRange,
     });
   }),
 );

@@ -1,4 +1,5 @@
 import {
+  ArrowUpTrayIcon,
   BanknotesIcon,
   PencilSquareIcon,
   PlusIcon,
@@ -17,6 +18,7 @@ import {
 import { useAuth } from "../auth/AuthProvider.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import ExpenseEditorModal, { ENERGY_CATEGORIES } from "../components/expenses/ExpenseEditorModal.jsx";
+import ExpenseImportModal from "../components/expenses/ExpenseImportModal.jsx";
 import { useI18n } from "../i18n/I18nProvider.jsx";
 
 const TRIP_TYPES = ["business", "commute", "private", "unclassified"];
@@ -38,6 +40,7 @@ export default function Costs() {
   const [message, setMessage] = useState("");
   const [editor, setEditor] = useState({ open: false, expense: null, mode: "energy" });
   const [saving, setSaving] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const from = `${year}-01-01`;
   const to = `${year}-12-31`;
@@ -129,6 +132,7 @@ export default function Costs() {
     if (expense.fullTank) parts.push(expense.category === "charging" ? t("expenses.fullCharge") : t("expenses.fullTank"));
     if (expense.periodStart) parts.push(`${formatDate(expense.periodStart)} – ${formatDate(expense.periodEnd)}`);
     if (expense.vendor) parts.push(expense.vendor);
+    if (expense.source === "csv_import") parts.push(t("expenses.imported"));
     return parts.join(" · ");
   }
 
@@ -150,6 +154,7 @@ export default function Costs() {
         </label>
         <button type="button" disabled={!vehicleId} onClick={() => setEditor({ open: true, expense: null, mode: "energy" })} className={primaryButton}><PlusIcon className="size-[18px]" />{t("expenses.addEnergy")}</button>
         <button type="button" disabled={!vehicleId} onClick={() => setEditor({ open: true, expense: null, mode: "other" })} className={secondaryButton}><PlusIcon className="size-[18px]" />{t("expenses.addOther")}</button>
+        <button type="button" disabled={!vehicleId} onClick={() => setImportOpen(true)} className={secondaryButton}><ArrowUpTrayIcon className="size-[18px]" />{t("expenses.import.open")}</button>
       </PageHeader>
 
       {message && <div role="status" className="rounded-xl border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent-strong">{message}</div>}
@@ -259,6 +264,21 @@ export default function Costs() {
         saving={saving}
         onClose={() => setEditor((current) => ({ ...current, open: false }))}
         onSubmit={save}
+      />
+
+      <ExpenseImportModal
+        open={importOpen}
+        vehicles={vehicles}
+        defaultVehicleId={vehicleId}
+        onClose={() => setImportOpen(false)}
+        onImported={async (result) => {
+          setImportOpen(false);
+          setMessage(t("expenses.import.done", { imported: result.imported, duplicates: result.duplicates }));
+          // Auf das Jahr des jüngsten importierten Eintrags springen, damit das Ergebnis sichtbar ist
+          const lastYear = result.dateRange?.to?.slice(0, 4);
+          if (lastYear && lastYear !== year && years.includes(lastYear)) setYear(lastYear);
+          else await load();
+        }}
       />
     </div>
   );

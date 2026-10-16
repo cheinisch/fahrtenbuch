@@ -803,3 +803,12 @@ export function updateExpense(accessToken, id, expense) {
 export function deleteExpense(accessToken, id) {
   return apiRequest(accessToken, `/api/v1/expenses/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
+
+// CSV-Import (z. B. Spritmonitor). Datei als Base64 im JSON-Body – vermeidet Multipart-Sonderfälle.
+export function previewExpenseImport(accessToken, payload) {
+  return apiRequest(accessToken, "/api/v1/expenses/import/preview", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function importExpenses(accessToken, payload) {
+  return apiRequest(accessToken, "/api/v1/expenses/import", { method: "POST", body: JSON.stringify(payload) });
+}
