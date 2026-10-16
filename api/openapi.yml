@@ -1686,6 +1686,34 @@ paths:
             schema: { $ref: '#/components/schemas/OverpassServiceSettings' }
       responses:
         '200': { description: Overpass-Konfiguration gespeichert }
+  /admin/settings/services/atlas:
+    put:
+      tags: [Admin]
+      summary: Configure Dawarich Atlas
+      description: Interne Server-URLs bleiben ausschließlich im Backend gespeichert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AtlasServiceSettings' }
+      responses:
+        '200': { description: Atlas-Konfiguration gespeichert }
+  /admin/settings/services/check:
+    get:
+      tags: [Admin]
+      summary: System check for geocoding and routing modules
+      description: Prüft mit den gespeicherten Einstellungen, welche Funktionen (Atlas, Photon, Map-Matching) verfügbar sind.
+      parameters:
+        - name: module
+          in: query
+          required: false
+          schema: { type: string, enum: [atlas, geocoding, mapMatching] }
+      responses:
+        '200':
+          description: Status je Modul
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceCheckResult' }
   /admin/settings/services/test:
     post:
       tags: [Admin]
@@ -1698,7 +1726,7 @@ paths:
               type: object
               required: [category, config]
               properties:
-                category: { type: string, enum: [map, photon, overpass, valhalla, osrm] }
+                category: { type: string, enum: [map, photon, overpass, valhalla, osrm, atlas, geocoding, mapMatching] }
                 config: { type: object, additionalProperties: true }
       responses:
         '200':
@@ -2545,6 +2573,7 @@ components:
           type: object
           required: [searchEndpoint, reverseEndpoint]
           properties:
+            enabled: { type: boolean, description: "false, wenn die Adresssuche serverseitig deaktiviert ist" }
             searchEndpoint: { type: string, example: /api/v1/geocoding/search }
             reverseEndpoint: { type: string, example: /api/v1/geocoding/reverse }
         overpass:
@@ -2608,7 +2637,10 @@ components:
       type: object
       required: [provider, timeoutMs]
       properties:
-        provider: { type: string, enum: [public, custom] }
+        provider:
+          type: string
+          enum: [disabled, public, custom, atlas]
+          description: "disabled schaltet die Adresssuche ab; atlas nutzt den Photon-Passthrough von Dawarich Atlas."
         baseUrl: { type: [string, 'null'] }
         timeoutMs: { type: integer, minimum: 1000, default: 10000 }
     OverpassServiceSettings:
@@ -2627,6 +2659,41 @@ components:
         map: { $ref: '#/components/schemas/MapServiceSettings' }
         photon: { $ref: '#/components/schemas/PhotonServiceSettings' }
         overpass: { $ref: '#/components/schemas/OverpassServiceSettings' }
+        atlas: { $ref: '#/components/schemas/AtlasServiceSettings' }
+        mapMatching: { $ref: '#/components/schemas/MapMatchingSettings' }
+    AtlasServiceSettings:
+      type: object
+      description: Dawarich Atlas – bündelt Photon (Geocoding) und Valhalla (Routing/Map-Matching).
+      required: [enabled, timeoutMs]
+      properties:
+        enabled: { type: boolean, default: false }
+        baseUrl: { type: string, example: "http://192.168.1.20:8484" }
+        timeoutMs: { type: integer, minimum: 1000, maximum: 120000, default: 10000 }
+    MapMatchingSettings:
+      type: object
+      required: [provider]
+      properties:
+        provider: { type: string, enum: [disabled, valhalla, osrm, atlas] }
+        osrmUrl: { type: string }
+        valhallaUrl: { type: string }
+    ServiceCheckResult:
+      type: object
+      required: [checkedAt, modules]
+      properties:
+        checkedAt: { type: string, format: date-time }
+        modules:
+          type: array
+          items:
+            type: object
+            required: [module, label, provider, state, message]
+            properties:
+              module: { type: string, enum: [atlas, geocoding, mapMatching] }
+              label: { type: string }
+              provider: { type: string, example: atlas }
+              providerLabel: { type: string }
+              state: { type: string, enum: [available, unavailable, inactive, misconfigured] }
+              message: { type: string }
+              responseTimeMs: { type: [integer, 'null'] }
  }
       responses:
         '200': { description: Kilometerstand gespeichert }
@@ -3080,6 +3147,34 @@ components:
             schema: { $ref: '#/components/schemas/OverpassServiceSettings' }
       responses:
         '200': { description: Overpass-Konfiguration gespeichert }
+  /admin/settings/services/atlas:
+    put:
+      tags: [Admin]
+      summary: Configure Dawarich Atlas
+      description: Interne Server-URLs bleiben ausschließlich im Backend gespeichert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AtlasServiceSettings' }
+      responses:
+        '200': { description: Atlas-Konfiguration gespeichert }
+  /admin/settings/services/check:
+    get:
+      tags: [Admin]
+      summary: System check for geocoding and routing modules
+      description: Prüft mit den gespeicherten Einstellungen, welche Funktionen (Atlas, Photon, Map-Matching) verfügbar sind.
+      parameters:
+        - name: module
+          in: query
+          required: false
+          schema: { type: string, enum: [atlas, geocoding, mapMatching] }
+      responses:
+        '200':
+          description: Status je Modul
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceCheckResult' }
   /admin/settings/services/test:
     post:
       tags: [Admin]
@@ -3092,7 +3187,7 @@ components:
               type: object
               required: [category, config]
               properties:
-                category: { type: string, enum: [map, photon, overpass, valhalla, osrm] }
+                category: { type: string, enum: [map, photon, overpass, valhalla, osrm, atlas, geocoding, mapMatching] }
                 config: { type: object, additionalProperties: true }
       responses:
         '200':
@@ -3576,6 +3671,7 @@ components:
           type: object
           required: [searchEndpoint, reverseEndpoint]
           properties:
+            enabled: { type: boolean, description: "false, wenn die Adresssuche serverseitig deaktiviert ist" }
             searchEndpoint: { type: string, example: /api/v1/geocoding/search }
             reverseEndpoint: { type: string, example: /api/v1/geocoding/reverse }
         overpass:
@@ -3605,7 +3701,10 @@ components:
       type: object
       required: [provider, timeoutMs]
       properties:
-        provider: { type: string, enum: [public, custom] }
+        provider:
+          type: string
+          enum: [disabled, public, custom, atlas]
+          description: "disabled schaltet die Adresssuche ab; atlas nutzt den Photon-Passthrough von Dawarich Atlas."
         baseUrl: { type: [string, 'null'] }
         timeoutMs: { type: integer, minimum: 1000, default: 10000 }
     OverpassServiceSettings:
@@ -3624,3 +3723,38 @@ components:
         map: { $ref: '#/components/schemas/MapServiceSettings' }
         photon: { $ref: '#/components/schemas/PhotonServiceSettings' }
         overpass: { $ref: '#/components/schemas/OverpassServiceSettings' }
+        atlas: { $ref: '#/components/schemas/AtlasServiceSettings' }
+        mapMatching: { $ref: '#/components/schemas/MapMatchingSettings' }
+    AtlasServiceSettings:
+      type: object
+      description: Dawarich Atlas – bündelt Photon (Geocoding) und Valhalla (Routing/Map-Matching).
+      required: [enabled, timeoutMs]
+      properties:
+        enabled: { type: boolean, default: false }
+        baseUrl: { type: string, example: "http://192.168.1.20:8484" }
+        timeoutMs: { type: integer, minimum: 1000, maximum: 120000, default: 10000 }
+    MapMatchingSettings:
+      type: object
+      required: [provider]
+      properties:
+        provider: { type: string, enum: [disabled, valhalla, osrm, atlas] }
+        osrmUrl: { type: string }
+        valhallaUrl: { type: string }
+    ServiceCheckResult:
+      type: object
+      required: [checkedAt, modules]
+      properties:
+        checkedAt: { type: string, format: date-time }
+        modules:
+          type: array
+          items:
+            type: object
+            required: [module, label, provider, state, message]
+            properties:
+              module: { type: string, enum: [atlas, geocoding, mapMatching] }
+              label: { type: string }
+              provider: { type: string, example: atlas }
+              providerLabel: { type: string }
+              state: { type: string, enum: [available, unavailable, inactive, misconfigured] }
+              message: { type: string }
+              responseTimeMs: { type: [integer, 'null'] }

@@ -2,13 +2,15 @@ import { Router } from "express";
 
 import { pool } from "../database/pool.js";
 import { requireAuth } from "../middleware/requireAuth.js";
-import { getAdminServiceSettings } from "../services/serviceSettingsService.js";
+import {
+  getAdminServiceSettings,
+  resolvePhoton,
+} from "../services/serviceSettingsService.js";
 
 export const homeLocationRoutes = Router();
 
 homeLocationRoutes.use(requireAuth);
 
-const DEFAULT_PHOTON_URL = "https://photon.komoot.io";
 const DEFAULT_PHOTON_TIMEOUT_MS = 10_000;
 
 function sendError(response, status, code, message) {
@@ -31,21 +33,14 @@ function isValidCoordinate(latitude, longitude) {
   );
 }
 
-// Photon-Server aus den Admin-Einstellungen (Reiter „Geocoding“), damit
-// auch die Heimadresse-Suche den eigenen Server nutzt.
+// Photon-Server aus dem Reiter „Geocoding“ (eigener Server, öffentlich oder
+// über Atlas), damit auch die Heimadresse-Suche dieselbe Quelle nutzt.
 async function getPhotonSettings() {
-  const { photon } = await getAdminServiceSettings();
-
-  return {
-    baseUrl: String(photon?.baseUrl || DEFAULT_PHOTON_URL).replace(/\/+$/, ""),
-    timeoutMs: Number(photon?.timeoutMs || DEFAULT_PHOTON_TIMEOUT_MS),
-  };
+  return resolvePhoton(await getAdminServiceSettings());
 }
 
-function createPhotonUrl(baseUrl, endpoint, parameters) {
-  const url = new URL(
-    `${baseUrl}${endpoint}`,
-  );
+function createPhotonUrl(endpointUrl, parameters) {
+  const url = new URL(endpointUrl);
 
   for (const [key, value] of Object.entries(parameters)) {
     if (
@@ -187,7 +182,10 @@ homeLocationRoutes.post(
       }
 
       const photon = await getPhotonSettings();
-      const url = createPhotonUrl(photon.baseUrl, "/api/", {
+      if (!photon.enabled) {
+        return sendError(response, 503, "GEOCODING_DISABLED", photon.reason);
+      }
+      const url = createPhotonUrl(photon.searchUrl, {
         q: query,
         limit: 6,
         lang: request.body?.language || "de",
@@ -236,7 +234,18 @@ homeLocationRoutes.post(
       }
 
       const photon = await getPhotonSettings();
-      const url = createPhotonUrl(photon.baseUrl, "/reverse", {
+      if (!photon.enabled) {
+        // Ohne Geocoding bleibt die Heimadresse als Koordinate nutzbar
+        return response.json({
+          candidate: {
+            address: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+            latitude,
+            longitude,
+            source: "gps",
+          },
+        });
+      }
+      const url = createPhotonUrl(photon.reverseUrl, {
         lat: latitude,
         lon: longitude,
         lang: request.body?.language || "de",

@@ -28,7 +28,11 @@ import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { hashPassword } from "../security/password.js";
-import { testService } from "../services/geocodingService.js";
+import {
+  runSystemCheck,
+  SERVICE_MODULES,
+  testService,
+} from "../services/geocodingService.js";
 import {
   getAdminServiceSettings,
   writeSetting,
@@ -211,9 +215,49 @@ function parseMapDefaultsSettings(body) {
   };
 }
 
+function assertHttpUrl(label, value) {
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw badRequest(
+      "VALIDATION_ERROR",
+      `${label} muss eine gültige URL inklusive http:// oder https:// sein.`,
+    );
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw badRequest("VALIDATION_ERROR", `${label} muss http:// oder https:// verwenden.`);
+  }
+}
+
+function parseAtlasSettings(body) {
+  const input = objectBody(body);
+  const enabled = input.enabled === true;
+  const baseUrl = (stringField(input, "baseUrl", { nullable: true, maximum: 2000 }) || "").trim();
+
+  if (enabled && !baseUrl) {
+    throw badRequest("VALIDATION_ERROR", "Für Dawarich Atlas ist eine Serveradresse erforderlich.");
+  }
+
+  if (baseUrl) {
+    assertHttpUrl("Die Atlas-Serveradresse", baseUrl);
+  }
+
+  return {
+    enabled,
+    baseUrl: baseUrl.replace(/\/+$/, ""),
+    timeoutMs: integerField(input, "timeoutMs", {
+      required: true,
+      minimum: 1000,
+      maximum: 120_000,
+    }),
+  };
+}
+
 function parsePhotonSettings(body) {
   const input = objectBody(body);
-  const provider = enumField(input, "provider", ["public", "custom"], {
+  const provider = enumField(input, "provider", ["disabled", "public", "custom", "atlas"], {
     required: true,
   });
   const baseUrl = stringField(input, "baseUrl", {
@@ -228,8 +272,13 @@ function parsePhotonSettings(body) {
     );
   }
 
+  if (provider === "custom") {
+    assertHttpUrl("Die Photon-Serveradresse", baseUrl);
+  }
+
   return {
     provider,
+    // Bei Atlas/deaktiviert bleibt eine eigene Adresse für späteres Umschalten erhalten
     baseUrl:
       baseUrl ||
       (provider === "public" ? "https://photon.komoot.io" : null),
@@ -246,7 +295,7 @@ function parseMapMatchingSettings(body) {
   const provider = enumField(
     input,
     "provider",
-    ["disabled", "osrm", "valhalla"],
+    ["disabled", "osrm", "valhalla", "atlas"],
     { required: true },
   );
   const osrmUrl = stringField(input, "osrmUrl", {
@@ -1252,7 +1301,36 @@ adminRoutes.get(
       map: settings.map,
       photon: settings.photon,
       overpass: settings.overpass,
+      atlas: settings.atlas,
+      mapMatching: settings.mapMatching,
     });
+  }),
+);
+
+adminRoutes.put(
+  "/settings/services/atlas",
+  asyncHandler(async (request, response) => {
+    const value = parseAtlasSettings(request.body);
+    const result = await writeSetting(
+      "services.atlas",
+      value,
+      request.auth.userId,
+    );
+    response.json(result.value);
+  }),
+);
+
+// Systemcheck: welche Geocoding-/Routing-Funktion ist verfügbar?
+adminRoutes.get(
+  "/settings/services/check",
+  asyncHandler(async (request, response) => {
+    const requested = String(request.query.module || "").trim();
+
+    if (requested && !SERVICE_MODULES.includes(requested)) {
+      throw badRequest("VALIDATION_ERROR", "Das Modul ist ungültig.", { allowed: SERVICE_MODULES });
+    }
+
+    response.json(await runSystemCheck(requested ? [requested] : SERVICE_MODULES));
   }),
 );
 
@@ -1300,7 +1378,7 @@ adminRoutes.post(
   "/settings/services/test",
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
-    const category = enumField(body, "category", ["map", "photon", "overpass", "valhalla", "osrm"], {
+    const category = enumField(body, "category", ["map", "photon", "overpass", "valhalla", "osrm", "atlas", "geocoding", "mapMatching"], {
       required: true,
     });
     const candidateConfig = objectBody(body.config);

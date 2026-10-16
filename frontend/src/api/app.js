@@ -828,3 +828,16 @@ export const testAdminService = (token, category, config) =>
     method: "POST",
     body: JSON.stringify({ category, config }),
   });
+
+export const updateAdminAtlasSettings = (token, atlas) =>
+  apiRequest(token, "/api/v1/admin/settings/services/atlas", {
+    method: "PUT",
+    body: JSON.stringify(atlas),
+  });
+
+export const runAdminServiceCheck = (token, module) =>
+  apiRequest(
+    token,
+    "/api/v1/admin/settings/services/check" +
+      (module ? "?module=" + encodeURIComponent(module) : ""),
+  );

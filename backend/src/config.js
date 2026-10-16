@@ -458,6 +458,28 @@ export const config = Object.freeze({
       ),
     },
 
+    // Dawarich Atlas (Photon + Valhalla gebündelt), standardmäßig aus
+    atlas: {
+      enabled: booleanValue(
+        "ATLAS_ENABLED",
+        Boolean(stringValue("ATLAS_URL")),
+      ),
+
+      baseUrl: normalizedUrl(
+        stringValue(
+          "ATLAS_URL",
+          "",
+        ),
+      ),
+
+      timeoutMs: integerValue(
+        "ATLAS_TIMEOUT_MS",
+        10_000,
+        1000,
+        120_000,
+      ),
+    },
+
     overpass: {
       provider: stringValue(
         "OVERPASS_PROVIDER",

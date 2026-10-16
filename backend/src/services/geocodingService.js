@@ -1,5 +1,10 @@
 import { serviceUnavailable } from "../lib/errors.js";
-import { getAdminServiceSettings } from "./serviceSettingsService.js";
+import {
+  getAdminServiceSettings,
+  resolveAtlas,
+  resolveMapMatching,
+  resolvePhoton,
+} from "./serviceSettingsService.js";
 
 const CATEGORY_FILTERS = {
   sight: [
@@ -16,10 +21,6 @@ const CATEGORY_FILTERS = {
   hospital: ['[amenity="hospital"]'],
   pharmacy: ['[amenity="pharmacy"]'],
 };
-
-function normalizedBaseUrl(value) {
-  return String(value || "").replace(/\/+$/, "");
-}
 
 // Netzwerkfehler (DNS, Verbindung abgelehnt, Timeout) in verständliche 503-Fehler übersetzen
 function upstreamError(error) {
@@ -129,16 +130,24 @@ function mapPhotonFeature(feature) {
   };
 }
 
+async function activePhoton() {
+  const photon = resolvePhoton(await getAdminServiceSettings());
+
+  if (!photon.enabled) {
+    throw serviceUnavailable("GEOCODING_DISABLED", photon.reason);
+  }
+
+  return photon;
+}
+
 export async function photonSearch(query, language = "de", limit = 10) {
-  const settings = await getAdminServiceSettings();
-  const photon = settings.photon;
-  const baseUrl = normalizedBaseUrl(photon.baseUrl || "https://photon.komoot.io");
-  const url = new URL(`${baseUrl}/api/`);
+  const photon = await activePhoton();
+  const url = new URL(photon.searchUrl);
   url.searchParams.set("q", query);
   url.searchParams.set("lang", language);
   url.searchParams.set("limit", String(limit));
 
-  const result = await fetchJson(url, {}, Number(photon.timeoutMs || 10_000));
+  const result = await fetchJson(url, {}, photon.timeoutMs);
 
   return {
     results: (result.data.features || []).map(mapPhotonFeature).filter(Boolean),
@@ -147,15 +156,13 @@ export async function photonSearch(query, language = "de", limit = 10) {
 }
 
 export async function photonReverse(latitude, longitude, language = "de") {
-  const settings = await getAdminServiceSettings();
-  const photon = settings.photon;
-  const baseUrl = normalizedBaseUrl(photon.baseUrl || "https://photon.komoot.io");
-  const url = new URL(`${baseUrl}/reverse`);
+  const photon = await activePhoton();
+  const url = new URL(photon.reverseUrl);
   url.searchParams.set("lat", String(latitude));
   url.searchParams.set("lon", String(longitude));
   url.searchParams.set("lang", language);
 
-  const result = await fetchJson(url, {}, Number(photon.timeoutMs || 10_000));
+  const result = await fetchJson(url, {}, photon.timeoutMs);
 
   return {
     result: (result.data.features || []).map(mapPhotonFeature).find(Boolean) || null,
@@ -246,17 +253,210 @@ export async function overpassNearby(latitude, longitude, category) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Systemcheck: jedes Modul einzeln prüfen. Gemeinsam genutzt vom Systemcheck
+// (gespeicherte Einstellungen) und den Test-Buttons (noch ungespeicherte Werte).
+
+const PROVIDER_LABELS = {
+  public: "öffentlicher Server",
+  custom: "eigener Server",
+  atlas: "Dawarich Atlas",
+  valhalla: "eigener Valhalla-Server",
+  osrm: "eigener OSRM-Server",
+  disabled: "deaktiviert",
+};
+
+async function timed(fn) {
+  const started = Date.now();
+  const message = await fn();
+  return { message, responseTimeMs: Date.now() - started };
+}
+
+async function checkAtlas(atlas) {
+  return timed(async () => {
+    const [health, version] = await Promise.all([
+      fetchJson(`${atlas.baseUrl}/api/v1/health`, {}, atlas.timeoutMs),
+      fetchJson(`${atlas.baseUrl}/api/v1/version`, {}, atlas.timeoutMs).catch(() => null),
+    ]);
+    const capabilities = health.data?.data?.capabilities || {};
+    const names = { geocoding: "Geocoding", routing: "Routing", pois: "POIs", transit: "ÖPNV" };
+    const parts = Object.entries(names)
+      .filter(([key]) => capabilities[key])
+      .map(([key, label]) => `${label}: ${capabilities[key]}`);
+    const versionText = version?.data?.data?.version ? `Atlas ${version.data.data.version}` : "Atlas erreichbar";
+
+    return parts.length ? `${versionText} · ${parts.join(", ")}` : versionText;
+  });
+}
+
+async function checkPhoton(photon) {
+  return timed(async () => {
+    const url = new URL(photon.searchUrl);
+    url.searchParams.set("q", "Berlin");
+    url.searchParams.set("limit", "1");
+    const result = await fetchJson(url, {}, photon.timeoutMs);
+
+    if (!Array.isArray(result.data?.features)) {
+      throw serviceUnavailable("PHOTON_INVALID_RESPONSE", "Der Server antwortet, aber nicht wie ein Photon-Server.");
+    }
+
+    return "Adresssuche und Rückwärts-Geocoding verfügbar.";
+  });
+}
+
+async function checkOsrm(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+
+  try {
+    // Beliebiger Punkt; OSRM antwortet auch außerhalb des Extrakts mit JSON
+    const response = await fetch(`${url}/nearest/v1/driving/8.6821,50.1109`, {
+      signal: controller.signal,
+    });
+    const data = await response.json().catch(() => null);
+
+    if (!data?.code) {
+      throw serviceUnavailable("OSRM_TEST_FAILED", `OSRM antwortete mit HTTP ${response.status}.`);
+    }
+  } catch (error) {
+    throw upstreamError(error);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function checkMapMatching(matching, settings) {
+  return timed(async () => {
+    if (matching.provider === "valhalla") {
+      // /status liefert die Version, ohne Routing-Last zu erzeugen
+      const result = await fetchJson(`${matching.url}/status`, {}, 10_000);
+      return result.data?.version
+        ? `Valhalla ${result.data.version} erreichbar.`
+        : "Valhalla erreichbar.";
+    }
+
+    if (matching.provider === "osrm") {
+      await checkOsrm(matching.url);
+      return "OSRM erreichbar.";
+    }
+
+    // Atlas: Routing-Fähigkeit aus dem Health-Endpunkt
+    const atlas = resolveAtlas(settings);
+    const health = await fetchJson(`${atlas.baseUrl}/api/v1/health`, {}, atlas.timeoutMs);
+    const routing = health.data?.data?.capabilities?.routing;
+
+    if (routing !== "up") {
+      throw serviceUnavailable(
+        "ATLAS_ROUTING_DOWN",
+        routing === "starting"
+          ? "Atlas startet das Routing noch (Valhalla baut ggf. Kacheln)."
+          : "Atlas ist erreichbar, aber das Routing (Valhalla) ist nicht aktiv.",
+      );
+    }
+
+    return "Map-Matching über Atlas verfügbar.";
+  });
+}
+
+function inactiveResult(module, label, provider, reason, state = "inactive") {
+  return { module, label, provider, providerLabel: PROVIDER_LABELS[provider] || provider, state, message: reason, responseTimeMs: null };
+}
+
+async function runCheck(module, label, provider, fn) {
+  try {
+    const result = await fn();
+    return { module, label, provider, providerLabel: PROVIDER_LABELS[provider] || provider, state: "available", ...result };
+  } catch (error) {
+    return {
+      module,
+      label,
+      provider,
+      providerLabel: PROVIDER_LABELS[provider] || provider,
+      state: "unavailable",
+      message: error?.message || "Prüfung fehlgeschlagen.",
+      responseTimeMs: null,
+    };
+  }
+}
+
+const MODULE_LABELS = {
+  atlas: "Dawarich Atlas",
+  geocoding: "Adresssuche (Photon)",
+  mapMatching: "Map-Matching (Valhalla)",
+};
+
+export const SERVICE_MODULES = Object.keys(MODULE_LABELS);
+
+/** Prüft ein Modul anhand eines Einstellungs-Objekts (gespeichert oder Kandidat). */
+export async function checkModule(module, settings) {
+  const label = MODULE_LABELS[module];
+
+  if (module === "atlas") {
+    const atlas = resolveAtlas(settings);
+    if (!atlas.enabled) {
+      return inactiveResult(module, label, "disabled", settings.atlas?.enabled ? "Für Atlas fehlt die Adresse." : "Atlas ist nicht aktiviert.", settings.atlas?.enabled ? "misconfigured" : "inactive");
+    }
+    return runCheck(module, label, "atlas", () => checkAtlas(atlas));
+  }
+
+  if (module === "geocoding") {
+    const photon = resolvePhoton(settings);
+    if (!photon.enabled) {
+      return inactiveResult(module, label, photon.provider, photon.reason, photon.provider === "disabled" ? "inactive" : "misconfigured");
+    }
+    return runCheck(module, label, photon.provider, () => checkPhoton(photon));
+  }
+
+  if (module === "mapMatching") {
+    const matching = resolveMapMatching(settings);
+    if (!matching.enabled) {
+      return inactiveResult(module, label, matching.provider, matching.reason, matching.provider === "disabled" ? "inactive" : "misconfigured");
+    }
+    return runCheck(module, label, matching.provider, () => checkMapMatching(matching, settings));
+  }
+
+  throw serviceUnavailable("UNKNOWN_MODULE", "Unbekanntes Modul.");
+}
+
+/** Systemcheck über alle Module mit den gespeicherten Einstellungen. */
+export async function runSystemCheck(modules = SERVICE_MODULES) {
+  const settings = await getAdminServiceSettings();
+  const results = await Promise.all(modules.map((module) => checkModule(module, settings)));
+  return { checkedAt: new Date().toISOString(), modules: results };
+}
+
 export async function testService(category, candidateConfig) {
   const started = Date.now();
 
+  // Neue Modul-Tests mit ungespeicherten Werten; Atlas-Werte kommen ggf. mit
+  if (["atlas", "geocoding", "mapMatching"].includes(category)) {
+    const saved = await getAdminServiceSettings();
+    const candidate = {
+      ...saved,
+      atlas: candidateConfig.atlas || saved.atlas,
+      ...(category === "atlas" ? { atlas: candidateConfig } : {}),
+      ...(category === "geocoding" ? { photon: candidateConfig } : {}),
+      ...(category === "mapMatching" ? { mapMatching: candidateConfig } : {}),
+    };
+    const result = await checkModule(category, candidate);
+
+    if (result.state !== "available") {
+      throw serviceUnavailable("SERVICE_TEST_FAILED", result.message);
+    }
+
+    return { success: true, responseTimeMs: result.responseTimeMs, message: result.message };
+  }
+
   if (category === "photon") {
-    const baseUrl = normalizedBaseUrl(
-      candidateConfig.baseUrl || "https://photon.komoot.io",
-    );
-    const url = new URL(`${baseUrl}/api/`);
-    url.searchParams.set("q", "Berlin");
-    url.searchParams.set("limit", "1");
-    await fetchJson(url, {}, Number(candidateConfig.timeoutMs || 10_000));
+    const photon = resolvePhoton({ photon: { provider: "custom", ...candidateConfig, baseUrl: candidateConfig.baseUrl || "https://photon.komoot.io" } });
+    await checkPhoton(photon);
+  } else if (category === "valhalla" || category === "osrm") {
+    const matching = resolveMapMatching({ mapMatching: { provider: category, ...candidateConfig } });
+    if (!matching.enabled) {
+      throw serviceUnavailable("ROUTING_URL_REQUIRED", matching.reason);
+    }
+    const result = await checkMapMatching(matching, {});
+    return { success: true, responseTimeMs: Date.now() - started, message: result.message };
   } else if (category === "overpass") {
     const query = "[out:json][timeout:10];node(around:10,52.5200,13.4050)[amenity];out 1;";
     await fetchJson(
@@ -268,52 +468,6 @@ export async function testService(category, candidateConfig) {
       },
       Number(candidateConfig.timeoutMs || 30_000),
     );
-  } else if (category === "valhalla") {
-    // /status liefert Version und geladene Kacheln, ohne Routing-Last zu erzeugen
-    const baseUrl = normalizedBaseUrl(candidateConfig.valhallaUrl);
-
-    if (!baseUrl) {
-      throw serviceUnavailable("VALHALLA_URL_REQUIRED", "Valhalla-Serveradresse fehlt.");
-    }
-
-    const result = await fetchJson(`${baseUrl}/status`, {}, 10_000);
-
-    return {
-      success: true,
-      responseTimeMs: Date.now() - started,
-      message: result.data?.version
-        ? `Verbindung erfolgreich (Valhalla ${result.data.version}).`
-        : "Verbindung erfolgreich.",
-    };
-  } else if (category === "osrm") {
-    const baseUrl = normalizedBaseUrl(candidateConfig.osrmUrl);
-
-    if (!baseUrl) {
-      throw serviceUnavailable("OSRM_URL_REQUIRED", "OSRM-Serveradresse fehlt.");
-    }
-
-    // Beliebiger Punkt; OSRM antwortet auch außerhalb des Extrakts mit JSON
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-
-    try {
-      const response = await fetch(
-        `${baseUrl}/nearest/v1/driving/8.6821,50.1109`,
-        { signal: controller.signal },
-      );
-      const data = await response.json().catch(() => null);
-
-      if (!data?.code) {
-        throw serviceUnavailable(
-          "OSRM_TEST_FAILED",
-          `OSRM antwortete mit HTTP ${response.status}.`,
-        );
-      }
-    } catch (error) {
-      throw upstreamError(error);
-    } finally {
-      clearTimeout(timeout);
-    }
   } else if (category === "map") {
     const urlText = candidateConfig.styleUrl || candidateConfig.tileUrl;
 
@@ -341,6 +495,8 @@ export async function testService(category, candidateConfig) {
           `Kartenquelle antwortete mit HTTP ${response.status}.`,
         );
       }
+    } catch (error) {
+      throw upstreamError(error);
     } finally {
       clearTimeout(timeout);
     }
