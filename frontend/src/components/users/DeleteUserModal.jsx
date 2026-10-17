@@ -13,6 +13,8 @@ import {
   useState,
 } from "react";
 
+import { useI18n } from "../../i18n/I18nProvider.jsx";
+
 export default function DeleteUserModal({
   open,
   user,
@@ -20,6 +22,7 @@ export default function DeleteUserModal({
   onClose,
   onConfirm,
 }) {
+  const { t } = useI18n();
   const [confirmation, setConfirmation] =
     useState("");
 
@@ -40,7 +43,7 @@ export default function DeleteUserModal({
         .toLowerCase()
     ) {
       setError(
-        "Die eingegebene E-Mail-Adresse stimmt nicht überein.",
+        t("users.delete.mismatch"),
       );
       return;
     }
@@ -53,7 +56,7 @@ export default function DeleteUserModal({
       setError(
         deleteError instanceof Error
           ? deleteError.message
-          : "Der Benutzer konnte nicht gelöscht werden.",
+          : t("users.delete.failed"),
       );
     }
   }
@@ -83,13 +86,11 @@ export default function DeleteUserModal({
 
                 <div>
                   <DialogTitle className="text-xl font-bold text-fb-text">
-                    Benutzer löschen
+                    {t("users.delete.title")}
                   </DialogTitle>
 
                   <p className="mt-1 text-sm text-fb-muted">
-                    Dieser Vorgang kann über die
-                    Oberfläche nicht rückgängig gemacht
-                    werden.
+                    {t("users.delete.irreversible")}
                   </p>
                 </div>
               </div>
@@ -101,7 +102,7 @@ export default function DeleteUserModal({
                 className="rounded-lg p-2 text-fb-muted transition hover:bg-fb-surface hover:text-fb-text disabled:opacity-50"
               >
                 <span className="sr-only">
-                  Dialog schließen
+                  {t("users.closeDialog")}
                 </span>
                 <XMarkIcon className="size-5" />
               </button>
@@ -122,7 +123,7 @@ export default function DeleteUserModal({
                   {user?.displayName ||
                     user?.loginName ||
                     user?.username ||
-                    "Benutzer"}
+                    t("users.fallbackName")}
                 </div>
 
                 <div className="mt-1 text-sm text-fb-muted">
@@ -130,15 +131,12 @@ export default function DeleteUserModal({
                 </div>
 
                 <div className="mt-3 text-sm text-fb-muted">
-                  Das Konto wird deaktiviert und aus
-                  der Benutzerverwaltung ausgeblendet.
-                  Alle Sitzungen werden beendet.
+                  {t("users.delete.effect")}
                 </div>
               </div>
 
               <label className="block text-sm font-medium text-fb-text">
-                Zur Bestätigung E-Mail-Adresse
-                eingeben
+                {t("users.delete.confirmLabel")}
                 <input
                   type="email"
                   value={confirmation}
@@ -161,7 +159,7 @@ export default function DeleteUserModal({
                 disabled={deleting}
                 className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
               >
-                Abbrechen
+                {t("common.cancel")}
               </button>
 
               <button
@@ -174,8 +172,8 @@ export default function DeleteUserModal({
                 className="rounded-lg bg-fb-danger px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deleting
-                  ? "Löschen …"
-                  : "Benutzer endgültig löschen"}
+                  ? t("users.delete.deleting")
+                  : t("users.delete.confirm")}
               </button>
             </footer>
           </DialogPanel>

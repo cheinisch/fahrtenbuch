@@ -17,6 +17,9 @@ import {
   useState,
 } from "react";
 
+import { useI18n } from "../../i18n/I18nProvider.jsx";
+import { translate } from "../../i18n/translate.js";
+
 const fieldClass =
   "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft disabled:cursor-not-allowed disabled:opacity-60";
 
@@ -54,10 +57,10 @@ function createInitialState(user) {
 
 function formatDate(value) {
   if (!value) {
-    return "Noch nie";
+    return translate("users.never");
   }
 
-  return new Intl.DateTimeFormat("de-DE", {
+  return new Intl.DateTimeFormat(document.documentElement.lang || "de", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -99,6 +102,7 @@ export default function UserEditorModal({
   onDeleteAllPasskeys,
   onLogoutSessions,
 }) {
+  const { t } = useI18n();
   const editing = Boolean(user?.id);
   const editingOwnAccount =
     editing && user.id === currentUserId;
@@ -134,7 +138,7 @@ export default function UserEditorModal({
       setError(
         actionError instanceof Error
           ? actionError.message
-          : "Die Sicherheitsänderung konnte nicht ausgeführt werden.",
+          : t("users.editor.securityFailed"),
       );
     }
   }
@@ -145,7 +149,7 @@ export default function UserEditorModal({
 
     if (!form.email.trim()) {
       setError(
-        "Bitte gib eine E-Mail-Adresse ein.",
+        t("users.editor.emailRequired"),
       );
       return;
     }
@@ -155,21 +159,21 @@ export default function UserEditorModal({
       form.loginName.trim().length < 3
     ) {
       setError(
-        "Der Anmeldename muss mindestens drei Zeichen lang sein.",
+        t("users.editor.loginNameShort"),
       );
       return;
     }
 
     if (!form.displayName.trim()) {
       setError(
-        "Bitte gib einen Anzeigenamen ein.",
+        t("users.editor.displayNameRequired"),
       );
       return;
     }
 
     if (!editing && form.password.length < 8) {
       setError(
-        "Das Startpasswort muss mindestens acht Zeichen lang sein.",
+        t("users.editor.initialPasswordShort"),
       );
       return;
     }
@@ -180,7 +184,7 @@ export default function UserEditorModal({
       form.password.length < 8
     ) {
       setError(
-        "Das neue Passwort muss mindestens acht Zeichen lang sein.",
+        t("users.editor.newPasswordShort"),
       );
       return;
     }
@@ -190,7 +194,7 @@ export default function UserEditorModal({
       form.passwordConfirmation
     ) {
       setError(
-        "Die eingegebenen Passwörter stimmen nicht überein.",
+        t("users.editor.passwordMismatch"),
       );
       return;
     }
@@ -225,7 +229,7 @@ export default function UserEditorModal({
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Der Benutzer konnte nicht gespeichert werden.",
+          : t("users.editor.saveFailed"),
       );
     }
   }
@@ -253,13 +257,12 @@ export default function UserEditorModal({
               <div>
                 <DialogTitle className="text-xl font-bold text-fb-text">
                   {editing
-                    ? "Benutzer bearbeiten"
-                    : "Benutzer anlegen"}
+                    ? t("users.editor.titleEdit")
+                    : t("users.editor.titleCreate")}
                 </DialogTitle>
 
                 <p className="mt-1 text-sm text-fb-muted">
-                  Alle Kontodaten außer dem Heimatort
-                  werden hier verwaltet.
+                  {t("users.editor.subtitle")}
                 </p>
               </div>
 
@@ -270,7 +273,7 @@ export default function UserEditorModal({
                 className="rounded-lg p-2 text-fb-muted transition hover:bg-fb-surface hover:text-fb-text disabled:opacity-50"
               >
                 <span className="sr-only">
-                  Dialog schließen
+                  {t("users.closeDialog")}
                 </span>
                 <XMarkIcon className="size-5" />
               </button>
@@ -289,12 +292,12 @@ export default function UserEditorModal({
 
                 <section>
                   <h3 className="text-sm font-bold text-fb-text">
-                    Person und Konto
+                    {t("users.editor.sectionAccount")}
                   </h3>
 
                   <div className="mt-4 grid gap-5 sm:grid-cols-2">
                     <label className={labelClass}>
-                      Vorname
+                      {t("users.editor.firstName")}
                       <input
                         type="text"
                         value={form.firstName}
@@ -310,7 +313,7 @@ export default function UserEditorModal({
                     </label>
 
                     <label className={labelClass}>
-                      Nachname
+                      {t("users.editor.lastName")}
                       <input
                         type="text"
                         value={form.lastName}
@@ -326,7 +329,7 @@ export default function UserEditorModal({
                     </label>
 
                     <label className={labelClass}>
-                      Anzeigename
+                      {t("users.editor.displayName")}
                       <input
                         type="text"
                         value={form.displayName}
@@ -343,7 +346,7 @@ export default function UserEditorModal({
                     </label>
 
                     <label className={labelClass}>
-                      Anmeldename
+                      {t("users.editor.loginName")}
                       <input
                         type="text"
                         value={form.loginName}
@@ -360,7 +363,7 @@ export default function UserEditorModal({
                     </label>
 
                     <label className={`${labelClass} sm:col-span-2`}>
-                      E-Mail-Adresse
+                      {t("users.editor.email")}
                       <input
                         type="email"
                         value={form.email}
@@ -376,7 +379,7 @@ export default function UserEditorModal({
                     </label>
 
                     <label className={labelClass}>
-                      Rolle
+                      {t("users.colRole")}
                       <select
                         value={form.role}
                         onChange={(event) =>
@@ -389,23 +392,22 @@ export default function UserEditorModal({
                         className={fieldClass}
                       >
                         <option value="user">
-                          Benutzer
+                          {t("users.roleUser")}
                         </option>
                         <option value="admin">
-                          Administrator
+                          {t("users.roleAdmin")}
                         </option>
                       </select>
 
                       {editingOwnAccount && (
                         <span className="mt-1 block text-xs text-fb-muted">
-                          Die eigene Administratorrolle
-                          kann nicht entfernt werden.
+                          {t("users.editor.ownRole")}
                         </span>
                       )}
                     </label>
 
                     <label className={labelClass}>
-                      Status
+                      {t("users.colStatus")}
                       <select
                         value={form.status}
                         onChange={(event) =>
@@ -418,10 +420,10 @@ export default function UserEditorModal({
                         className={fieldClass}
                       >
                         <option value="active">
-                          Aktiv
+                          {t("users.statusActive")}
                         </option>
                         <option value="disabled">
-                          Deaktiviert
+                          {t("users.statusDisabled")}
                         </option>
                       </select>
                     </label>
@@ -430,12 +432,12 @@ export default function UserEditorModal({
 
                 <section className="border-t border-fb-border pt-6">
                   <h3 className="text-sm font-bold text-fb-text">
-                    Sprache und Darstellung
+                    {t("users.editor.sectionDisplay")}
                   </h3>
 
                   <div className="mt-4 grid gap-5 sm:grid-cols-3">
                     <label className={labelClass}>
-                      Sprache
+                      {t("common.language")}
                       <select
                         value={form.locale}
                         onChange={(event) =>
@@ -456,7 +458,7 @@ export default function UserEditorModal({
                     </label>
 
                     <label className={labelClass}>
-                      Zeitzone
+                      {t("users.editor.timezone")}
                       <input
                         type="text"
                         value={form.timezone}
@@ -472,7 +474,7 @@ export default function UserEditorModal({
                     </label>
 
                     <label className={labelClass}>
-                      Darstellung
+                      {t("users.editor.theme")}
                       <select
                         value={form.themeMode}
                         onChange={(event) =>
@@ -484,13 +486,13 @@ export default function UserEditorModal({
                         className={fieldClass}
                       >
                         <option value="system">
-                          Systemeinstellung
+                          {t("users.editor.themeSystem")}
                         </option>
                         <option value="light">
-                          Hell
+                          {t("users.editor.themeLight")}
                         </option>
                         <option value="dark">
-                          Dunkel
+                          {t("users.editor.themeDark")}
                         </option>
                       </select>
                     </label>
@@ -499,20 +501,20 @@ export default function UserEditorModal({
 
                 <section className="border-t border-fb-border pt-6">
                   <h3 className="text-sm font-bold text-fb-text">
-                    Passwort
+                    {t("users.editor.sectionPassword")}
                   </h3>
 
                   <p className="mt-1 text-sm text-fb-muted">
                     {editing
-                      ? "Leer lassen, um das bisherige Passwort beizubehalten. Bei einer Änderung werden andere Sitzungen abgemeldet."
-                      : "Das Startpasswort wird nur als sicherer Hash gespeichert."}
+                      ? t("users.editor.passwordHintEdit")
+                      : t("users.editor.passwordHintCreate")}
                   </p>
 
                   <div className="mt-4 grid gap-5 sm:grid-cols-2">
                     <label className={labelClass}>
                       {editing
-                        ? "Neues Passwort"
-                        : "Startpasswort"}
+                        ? t("users.editor.newPassword")
+                        : t("users.editor.initialPassword")}
 
                       <div className="relative">
                         <input
@@ -553,7 +555,7 @@ export default function UserEditorModal({
                     </label>
 
                     <label className={labelClass}>
-                      Passwort bestätigen
+                      {t("users.editor.confirmPassword")}
                       <input
                         type={
                           showPassword
@@ -596,12 +598,10 @@ export default function UserEditorModal({
 
                     <span>
                       <span className="block text-sm font-semibold text-fb-text">
-                        Passwortwechsel beim nächsten
-                        Login erzwingen
+                        {t("users.editor.forceChange")}
                       </span>
                       <span className="mt-1 block text-xs text-fb-muted">
-                        Sinnvoll bei Start- oder
-                        administrativ gesetzten Passwörtern.
+                        {t("users.editor.forceChangeHint")}
                       </span>
                     </span>
                   </label>
@@ -611,7 +611,7 @@ export default function UserEditorModal({
                   <div className="flex items-center gap-2">
                     <ShieldCheckIcon className="size-5 text-fb-accent" />
                     <h3 className="text-sm font-bold text-fb-text">
-                      Zwei-Faktor-Authentifizierung
+                      {t("users.editor.sectionTotp")}
                     </h3>
                   </div>
 
@@ -628,18 +628,13 @@ export default function UserEditorModal({
                             )}
                           >
                             {user?.totpEnabled
-                              ? "Aktiv"
-                              : "Nicht eingerichtet"}
+                              ? t("users.statusActive")
+                              : t("users.editor.totpNotSetUp")}
                           </SecurityStatus>
                         </div>
 
                         <p className="mt-2 max-w-2xl text-sm text-fb-muted">
-                          Der Administrator kann TOTP
-                          verlangen oder eine bestehende
-                          Einrichtung entfernen. Das Secret
-                          wird aus Sicherheitsgründen vom
-                          Benutzer selbst eingerichtet und
-                          bestätigt.
+                          {t("users.editor.totpHint")}
                         </p>
                       </div>
 
@@ -655,8 +650,8 @@ export default function UserEditorModal({
                           className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-danger transition hover:border-fb-danger disabled:opacity-50"
                         >
                           {securityAction === "totp"
-                            ? "Deaktivieren …"
-                            : "TOTP deaktivieren"}
+                            ? t("users.editor.disabling")
+                            : t("users.editor.disableTotp")}
                         </button>
                       )}
                     </div>
@@ -676,11 +671,10 @@ export default function UserEditorModal({
 
                       <span>
                         <span className="block text-sm font-semibold text-fb-text">
-                          TOTP-Einrichtung verlangen
+                          {t("users.editor.requireTotp")}
                         </span>
                         <span className="mt-1 block text-xs text-fb-muted">
-                          Der Benutzer soll TOTP in seinen
-                          Profileinstellungen einrichten.
+                          {t("users.editor.requireTotpHint")}
                         </span>
                       </span>
                     </label>
@@ -711,13 +705,10 @@ export default function UserEditorModal({
 
                       <span>
                         <span className="block text-sm font-semibold text-fb-text">
-                          Passkey-Anmeldung und
-                          Registrierung erlauben
+                          {t("users.editor.allowPasskeys")}
                         </span>
                         <span className="mt-1 block text-xs text-fb-muted">
-                          Beim Deaktivieren bleiben vorhandene
-                          Passkeys gespeichert, können aber
-                          nicht zur Anmeldung verwendet werden.
+                          {t("users.editor.allowPasskeysHint")}
                         </span>
                       </span>
                     </label>
@@ -726,8 +717,7 @@ export default function UserEditorModal({
                       <div className="mt-4 border-t border-fb-border pt-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div className="text-sm font-semibold text-fb-text">
-                            Registrierte Passkeys: {" "}
-                            {user?.passkeyCount || 0}
+                            {t("users.editor.registeredPasskeys", { count: user?.passkeyCount || 0 })}
                           </div>
 
                           {Number(user?.passkeyCount || 0) > 0 && (
@@ -742,8 +732,8 @@ export default function UserEditorModal({
                               className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-danger transition hover:border-fb-danger disabled:opacity-50"
                             >
                               {securityAction === "all-passkeys"
-                                ? "Löschen …"
-                                : "Alle Passkeys löschen"}
+                                ? t("users.delete.deleting")
+                                : t("users.editor.deleteAllPasskeys")}
                             </button>
                           )}
                         </div>
@@ -757,12 +747,12 @@ export default function UserEditorModal({
                               >
                                 <div className="min-w-0">
                                   <div className="truncate text-sm font-semibold text-fb-text">
-                                    {passkey.name || "Passkey"}
+                                    {passkey.name || t("profileTranslations.passkeyDefaultName")}
                                   </div>
                                   <div className="mt-1 text-xs text-fb-muted">
-                                    Erstellt: {formatDate(passkey.createdAt)}
+                                    {t("users.editor.passkeyCreated", { date: formatDate(passkey.createdAt) })}
                                     {passkey.lastUsedAt
-                                      ? ` · Zuletzt verwendet: ${formatDate(passkey.lastUsedAt)}`
+                                      ? ` · ${t("users.editor.passkeyLastUsed", { date: formatDate(passkey.lastUsedAt) })}`
                                       : ""}
                                   </div>
                                 </div>
@@ -781,7 +771,7 @@ export default function UserEditorModal({
                                   className="rounded-lg border border-fb-border p-2 text-fb-muted transition hover:border-fb-danger hover:text-fb-danger disabled:opacity-50"
                                 >
                                   <span className="sr-only">
-                                    Passkey löschen
+                                    {t("users.editor.deletePasskey")}
                                   </span>
                                   <TrashIcon className="size-5" />
                                 </button>
@@ -790,8 +780,7 @@ export default function UserEditorModal({
                           </div>
                         ) : (
                           <p className="mt-3 text-sm text-fb-muted">
-                            Es ist noch kein Passkey
-                            registriert.
+                            {t("profileTranslations.45")}
                           </p>
                         )}
                       </div>
@@ -802,13 +791,13 @@ export default function UserEditorModal({
                 {editing && (
                   <section className="border-t border-fb-border pt-6">
                     <h3 className="text-sm font-bold text-fb-text">
-                      Sitzungen und Kontoinformationen
+                      {t("users.editor.sectionSessions")}
                     </h3>
 
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
                       <div className="rounded-lg border border-fb-border bg-fb-surface p-4">
                         <div className="text-xs font-medium uppercase tracking-wide text-fb-muted">
-                          Erstellt
+                          {t("users.editor.created")}
                         </div>
                         <div className="mt-1 text-sm text-fb-text">
                           {formatDate(user?.createdAt)}
@@ -817,7 +806,7 @@ export default function UserEditorModal({
 
                       <div className="rounded-lg border border-fb-border bg-fb-surface p-4">
                         <div className="text-xs font-medium uppercase tracking-wide text-fb-muted">
-                          Letzter Login
+                          {t("users.colLastLogin")}
                         </div>
                         <div className="mt-1 text-sm text-fb-text">
                           {formatDate(user?.lastLoginAt)}
@@ -828,13 +817,10 @@ export default function UserEditorModal({
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-fb-border bg-fb-surface p-4">
                       <div>
                         <div className="text-sm font-semibold text-fb-text">
-                          Aktive Geräte: {" "}
-                          {user?.activeDeviceCount || 0}
+                          {t("users.editor.activeDevices", { count: user?.activeDeviceCount || 0 })}
                         </div>
                         <div className="mt-1 text-xs text-fb-muted">
-                          Alle Refresh-Sitzungen des Kontos
-                          werden widerrufen. Beim eigenen Konto
-                          bleibt die aktuelle Sitzung bestehen.
+                          {t("users.editor.revokeHint")}
                         </div>
                       </div>
 
@@ -849,8 +835,8 @@ export default function UserEditorModal({
                         className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
                       >
                         {securityAction === "sessions"
-                          ? "Abmelden …"
-                          : "Alle Sitzungen abmelden"}
+                          ? t("profileTranslations.signingOut")
+                          : t("users.editor.revokeAll")}
                       </button>
                     </div>
                   </section>
@@ -864,7 +850,7 @@ export default function UserEditorModal({
                   disabled={busy}
                   className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
                 >
-                  Abbrechen
+                  {t("common.cancel")}
                 </button>
 
                 <button
@@ -873,10 +859,10 @@ export default function UserEditorModal({
                   className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {saving
-                    ? "Speichern …"
+                    ? t("common.saving")
                     : editing
-                      ? "Änderungen speichern"
-                      : "Benutzer anlegen"}
+                      ? t("users.editor.saveChanges")
+                      : t("users.editor.titleCreate")}
                 </button>
               </footer>
             </form>

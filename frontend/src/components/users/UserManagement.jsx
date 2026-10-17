@@ -23,6 +23,8 @@ import {
   updateAdminUser,
 } from "../../api/app.js";
 import { useAuth } from "../../auth/AuthProvider.jsx";
+import { useI18n } from "../../i18n/I18nProvider.jsx";
+import { translate } from "../../i18n/translate.js";
 import DeleteUserModal from "./DeleteUserModal.jsx";
 import UserEditorModal from "./UserEditorModal.jsx";
 
@@ -31,10 +33,10 @@ const fieldClass =
 
 function formatDate(value) {
   if (!value) {
-    return "Noch nie";
+    return translate("users.never");
   }
 
-  return new Intl.DateTimeFormat("de-DE", {
+  return new Intl.DateTimeFormat(document.documentElement.lang || "de", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -64,14 +66,14 @@ function initialsFor(user) {
 
 function roleLabel(role) {
   return role === "admin"
-    ? "Administrator"
-    : "Benutzer";
+    ? translate("users.roleAdmin")
+    : translate("users.roleUser");
 }
 
 function statusLabel(status) {
   return status === "disabled"
-    ? "Deaktiviert"
-    : "Aktiv";
+    ? translate("users.statusDisabled")
+    : translate("users.statusActive");
 }
 
 export default function UserManagement({
@@ -79,6 +81,7 @@ export default function UserManagement({
 }) {
   const { accessToken, user: currentUser } =
     useAuth();
+  const { t } = useI18n();
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] =
@@ -126,7 +129,7 @@ export default function UserManagement({
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Die Benutzer konnten nicht geladen werden.",
+          : t("users.loadFailed"),
       );
     } finally {
       setLoading(false);
@@ -222,7 +225,7 @@ export default function UserManagement({
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Die Benutzerdetails konnten nicht geladen werden.",
+          : t("users.detailsFailed"),
       );
     }
   }
@@ -253,11 +256,12 @@ export default function UserManagement({
         );
 
         setMessage(
-          `Benutzer ${
-            updated.displayName ||
-            updated.loginName ||
-            updated.email
-          } wurde gespeichert.`,
+          t("users.saved", {
+            name:
+              updated.displayName ||
+              updated.loginName ||
+              updated.email,
+          }),
         );
       } else {
         const created =
@@ -276,11 +280,12 @@ export default function UserManagement({
         ]);
 
         setMessage(
-          `Benutzer ${
-            created.displayName ||
-            created.loginName ||
-            created.email
-          } wurde angelegt.`,
+          t("users.created", {
+            name:
+              created.displayName ||
+              created.loginName ||
+              created.email,
+          }),
         );
       }
 
@@ -325,7 +330,7 @@ export default function UserManagement({
       );
 
       applyDetailedUser(updated);
-      setMessage("TOTP wurde deaktiviert und das gespeicherte Secret entfernt.");
+      setMessage(t("users.totpDisabled"));
     } finally {
       setSecurityAction("");
     }
@@ -346,7 +351,7 @@ export default function UserManagement({
       );
 
       applyDetailedUser(updated);
-      setMessage("Der Passkey wurde gelöscht.");
+      setMessage(t("users.passkeyDeleted"));
     } finally {
       setSecurityAction("");
     }
@@ -366,7 +371,7 @@ export default function UserManagement({
       );
 
       applyDetailedUser(updated);
-      setMessage("Alle Passkeys des Benutzers wurden gelöscht.");
+      setMessage(t("users.passkeysDeleted"));
     } finally {
       setSecurityAction("");
     }
@@ -386,7 +391,7 @@ export default function UserManagement({
       );
 
       setMessage(
-        `${result.revokedSessions} Sitzung(en) wurden abgemeldet.`,
+        t("users.sessionsRevoked", { count: result.revokedSessions }),
       );
     } finally {
       setSecurityAction("");
@@ -416,11 +421,12 @@ export default function UserManagement({
       );
 
       setMessage(
-        `Benutzer ${
-          deleteTarget.displayName ||
-          deleteTarget.loginName ||
-          deleteTarget.email
-        } wurde gelöscht.`,
+        t("users.deleted", {
+          name:
+            deleteTarget.displayName ||
+            deleteTarget.loginName ||
+            deleteTarget.email,
+        }),
       );
 
       setDeleteTarget(null);
@@ -452,7 +458,7 @@ export default function UserManagement({
       <section className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm">
           <div className="text-sm text-fb-muted">
-            Benutzer
+            {t("users.countUsers")}
           </div>
           <div className="mt-2 text-3xl font-bold">
             {userCounts.total}
@@ -461,7 +467,7 @@ export default function UserManagement({
 
         <div className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm">
           <div className="text-sm text-fb-muted">
-            Aktive Konten
+            {t("users.countActive")}
           </div>
           <div className="mt-2 text-3xl font-bold">
             {userCounts.active}
@@ -470,7 +476,7 @@ export default function UserManagement({
 
         <div className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm">
           <div className="text-sm text-fb-muted">
-            Administratoren
+            {t("users.countAdmins")}
           </div>
           <div className="mt-2 text-3xl font-bold">
             {userCounts.admins}
@@ -483,12 +489,11 @@ export default function UserManagement({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-lg font-bold">
-                Benutzerverwaltung
+                {t("users.title")}
               </h2>
 
               <p className="mt-1 text-sm text-fb-muted">
-                Konten anlegen, bearbeiten,
-                deaktivieren oder löschen.
+                {t("users.subtitle")}
               </p>
             </div>
 
@@ -498,14 +503,14 @@ export default function UserManagement({
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary"
             >
               <PlusIcon className="size-5" />
-              Neuer Benutzer
+              {t("users.new")}
             </button>
           </div>
 
           <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
             <label className="relative block">
               <span className="sr-only">
-                Benutzer suchen
+                {t("users.searchLabel")}
               </span>
 
               <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-fb-muted" />
@@ -516,14 +521,14 @@ export default function UserManagement({
                 onChange={(event) =>
                   setSearch(event.target.value)
                 }
-                placeholder="Name, Anmeldename oder E-Mail suchen"
+                placeholder={t("users.searchPlaceholder")}
                 className={`${fieldClass} pl-10`}
               />
             </label>
 
             <label>
               <span className="sr-only">
-                Nach Rolle filtern
+                {t("users.filterRole")}
               </span>
               <select
                 value={roleFilter}
@@ -535,20 +540,20 @@ export default function UserManagement({
                 className={fieldClass}
               >
                 <option value="">
-                  Alle Rollen
+                  {t("users.allRoles")}
                 </option>
                 <option value="user">
-                  Benutzer
+                  {t("users.countUsers")}
                 </option>
                 <option value="admin">
-                  Administratoren
+                  {t("users.countAdmins")}
                 </option>
               </select>
             </label>
 
             <label>
               <span className="sr-only">
-                Nach Status filtern
+                {t("users.filterStatus")}
               </span>
               <select
                 value={statusFilter}
@@ -560,13 +565,13 @@ export default function UserManagement({
                 className={fieldClass}
               >
                 <option value="">
-                  Alle Status
+                  {t("users.allStatuses")}
                 </option>
                 <option value="active">
-                  Aktiv
+                  {t("users.statusActive")}
                 </option>
                 <option value="disabled">
-                  Deaktiviert
+                  {t("users.statusDisabled")}
                 </option>
               </select>
             </label>
@@ -581,24 +586,23 @@ export default function UserManagement({
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-fb-border px-3 py-2.5 text-sm font-semibold text-fb-muted transition hover:border-fb-accent hover:text-fb-accent"
             >
               <FunnelIcon className="size-5" />
-              Zurücksetzen
+              {t("users.reset")}
             </button>
           </div>
         </header>
 
         {loading ? (
           <div className="p-10 text-center text-sm text-fb-muted">
-            Benutzer werden geladen …
+            {t("users.loading")}
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="p-10 text-center">
             <div className="font-semibold">
-              Keine Benutzer gefunden
+              {t("users.emptyTitle")}
             </div>
 
             <p className="mt-2 text-sm text-fb-muted">
-              Passe die Filter an oder lege ein
-              neues Konto an.
+              {t("users.emptyHint")}
             </p>
           </div>
         ) : (
@@ -607,25 +611,25 @@ export default function UserManagement({
               <thead className="bg-fb-surface">
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-fb-muted">
                   <th className="px-5 py-3 sm:px-6">
-                    Benutzer
+                    {t("users.colUser")}
                   </th>
                   <th className="px-5 py-3">
-                    Rolle
+                    {t("users.colRole")}
                   </th>
                   <th className="px-5 py-3">
-                    Status
+                    {t("users.colStatus")}
                   </th>
                   <th className="px-5 py-3">
-                    Sicherheit
+                    {t("users.colSecurity")}
                   </th>
                   <th className="px-5 py-3">
-                    Nutzung
+                    {t("users.colUsage")}
                   </th>
                   <th className="px-5 py-3">
-                    Letzter Login
+                    {t("users.colLastLogin")}
                   </th>
                   <th className="px-5 py-3 text-right sm:px-6">
-                    Aktionen
+                    {t("users.colActions")}
                   </th>
                 </tr>
               </thead>
@@ -658,13 +662,13 @@ export default function UserManagement({
 
                               {isCurrentUser && (
                                 <span className="rounded-full bg-fb-accent-soft px-2 py-0.5 text-xs font-medium text-fb-accent">
-                                  Du
+                                  {t("users.you")}
                                 </span>
                               )}
 
                               {entry.forcePasswordChange && (
                                 <span className="rounded-full border border-fb-border px-2 py-0.5 text-xs text-fb-muted">
-                                  Passwortwechsel
+                                  {t("users.passwordChange")}
                                 </span>
                               )}
                             </div>
@@ -720,31 +724,25 @@ export default function UserManagement({
 
                       <td className="px-5 py-4 text-sm text-fb-muted">
                         <div>
-                          TOTP: {entry.totpEnabled
-                            ? "aktiv"
+                          {t("users.totpLabel")}: {entry.totpEnabled
+                            ? t("users.totpActive")
                             : entry.totpRequired
-                              ? "erforderlich"
-                              : "aus"}
+                              ? t("users.totpRequired")
+                              : t("users.totpOff")}
                         </div>
                         <div className="mt-1">
-                          Passkeys: {entry.passkeyEnabled
+                          {t("users.passkeysLabel")}: {entry.passkeyEnabled
                             ? Number(entry.passkeyCount || 0)
-                            : "deaktiviert"}
+                            : t("users.passkeysDisabled")}
                         </div>
                       </td>
 
                       <td className="px-5 py-4 text-sm text-fb-muted">
                         <div>
-                          {Number(
-                            entry.vehicleCount || 0,
-                          )}{" "}
-                          Fahrzeuge
+                          {t("users.vehicleCount", { count: Number(entry.vehicleCount || 0) })}
                         </div>
                         <div className="mt-1">
-                          {Number(
-                            entry.tripCount || 0,
-                          )}{" "}
-                          Fahrten
+                          {t("users.tripCount", { count: Number(entry.tripCount || 0) })}
                         </div>
                       </td>
 
@@ -764,7 +762,7 @@ export default function UserManagement({
                             className="inline-flex items-center gap-2 rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent"
                           >
                             <PencilSquareIcon className="size-4" />
-                            Bearbeiten
+                            {t("users.edit")}
                           </button>
 
                           <button
@@ -777,13 +775,13 @@ export default function UserManagement({
                             disabled={isCurrentUser}
                             title={
                               isCurrentUser
-                                ? "Das eigene Konto kann nicht gelöscht werden."
-                                : "Benutzer löschen"
+                                ? t("users.cannotDeleteSelf")
+                                : t("users.delete.title")
                             }
                             className="inline-flex items-center justify-center rounded-lg border border-fb-border p-2 text-fb-muted transition hover:border-fb-danger hover:text-fb-danger disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             <span className="sr-only">
-                              Benutzer löschen
+                              {t("users.delete.title")}
                             </span>
                             <TrashIcon className="size-5" />
                           </button>
@@ -798,8 +796,7 @@ export default function UserManagement({
         )}
 
         <footer className="border-t border-fb-border bg-fb-surface px-5 py-3 text-sm text-fb-muted sm:px-6">
-          {filteredUsers.length} von{" "}
-          {users.length} Benutzern angezeigt
+          {t("users.shown", { shown: filteredUsers.length, total: users.length })}
         </footer>
       </section>
 
