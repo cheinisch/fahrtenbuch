@@ -1,5 +1,6 @@
 import { pool } from "../database/pool.js";
 import { routeDistance } from "../lib/geo.js";
+import { decodePolyline6, dropOutliers, samplePoints, splitIntoChunks } from "../lib/trace.js";
 import {
   getAdminServiceSettings,
   resolveMapMatching,
@@ -18,39 +19,6 @@ const MIN_CONFIDENCE = 0.5;
 
 /** Fehler, bei dem ein erneuter Versuch nichts ändert (Spur nicht matchbar). */
 class PermanentMatchError extends Error {}
-
-export function decodePolyline6(encoded) {
-  const coordinates = [];
-  let index = 0;
-  let lat = 0;
-  let lon = 0;
-
-  while (index < encoded.length) {
-    for (const axis of [0, 1]) {
-      let result = 0;
-      let shift = 0;
-      let byte;
-      do {
-        byte = encoded.charCodeAt(index++) - 63;
-        result |= (byte & 0x1f) << shift;
-        shift += 5;
-      } while (byte >= 0x20);
-      const delta = result & 1 ? ~(result >> 1) : result >> 1;
-      if (axis === 0) lat += delta;
-      else lon += delta;
-    }
-    coordinates.push([lat / 1e6, lon / 1e6]);
-  }
-
-  return coordinates;
-}
-
-/** Gleichmäßig ausdünnen, erster und letzter Punkt bleiben erhalten. */
-export function samplePoints(points, maximum) {
-  if (points.length <= maximum) return points;
-  const step = (points.length - 1) / (maximum - 1);
-  return Array.from({ length: maximum }, (_, i) => points[Math.round(i * step)]);
-}
 
 async function postJson(url, body, timeoutMs, method = "POST") {
   const controller = new AbortController();
@@ -71,7 +39,11 @@ async function postJson(url, body, timeoutMs, method = "POST") {
 
     // 4xx außer 429: die Spur selbst ist das Problem → nicht wiederholen
     if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-      const detail = data?.error?.message || data?.error || data?.message || `HTTP ${response.status}`;
+      // Bekannte Fehlerformate (Valhalla, OSRM, Phoenix/Atlas), sonst Rohantwort gekürzt
+      const known = data?.error?.message || data?.errors?.detail || data?.error || data?.message;
+      const detail = typeof known === "string" && known
+        ? known
+        : data ? `HTTP ${response.status}: ${JSON.stringify(data).slice(0, 300)}` : `HTTP ${response.status}`;
       throw new PermanentMatchError(`Die Spur konnte nicht gematcht werden: ${detail}`);
     }
 
@@ -236,17 +208,36 @@ export async function matchTrip(tripId, userId) {
 
   if (points.length < 2) return { status: "skipped" };
 
-  const rawDistanceMeters = routeDistance(points);
-  const sampled = samplePoints(points, MAX_POINTS[matching.provider]);
+  // Ohne GPS-Ausreißer matchen und vergleichen: ein einzelner Sprung würde
+  // sonst die GPS-Distanz aufblähen und jedes Ergebnis als unplausibel ablehnen.
+  const cleaned = dropOutliers(points);
+  const rawDistanceMeters = routeDistance(cleaned);
+  const chunks = splitIntoChunks(cleaned);
   const base = { pointCount: points.length, rawDistanceMeters };
 
-  let result;
-  try {
-    result = await MATCHERS[matching.provider](matching, sampled);
-  } catch (error) {
-    if (!(error instanceof PermanentMatchError)) throw error;
-    await saveResult(pool, tripId, userId, matching.provider, { ...base, status: "failed", message: error.message });
-    return { status: "failed" };
+  // Abschnitte nacheinander matchen und zu einer Route zusammensetzen
+  const result = { distanceMeters: 0, route: [], confidence: null };
+  let sentPointCount = 0;
+
+  for (let index = 0; index < chunks.length; index += 1) {
+    const sampled = samplePoints(chunks[index], MAX_POINTS[matching.provider]);
+    sentPointCount += sampled.length;
+    let part;
+
+    try {
+      part = await MATCHERS[matching.provider](matching, sampled);
+    } catch (error) {
+      if (!(error instanceof PermanentMatchError)) throw error;
+      const where = chunks.length > 1 ? `Abschnitt ${index + 1} von ${chunks.length}: ` : "";
+      await saveResult(pool, tripId, userId, matching.provider, { ...base, status: "failed", message: where + error.message });
+      return { status: "failed" };
+    }
+
+    result.distanceMeters += part.distanceMeters;
+    result.route.push(...(result.route.length ? part.route.slice(1) : part.route));
+    if (part.confidence !== null) {
+      result.confidence = result.confidence === null ? part.confidence : Math.min(result.confidence, part.confidence);
+    }
   }
 
   const ratio = rawDistanceMeters > 0 ? result.distanceMeters / rawDistanceMeters : 1;
@@ -284,7 +275,9 @@ export async function matchTrip(tripId, userId) {
         metadata: {
           provider: matching.provider,
           pointCount: points.length,
-          sentPointCount: sampled.length,
+          sentPointCount,
+          chunkCount: chunks.length,
+          droppedOutliers: points.length - cleaned.length,
           rawDistanceMeters,
           confidence: result.confidence,
         },
@@ -344,4 +337,40 @@ export async function mapMatchingSummary() {
   );
   const row = result.rows[0] || {};
   return Object.fromEntries(["missing", "applied", "rejected", "failed"].map((key) => [key, Number(row[key] || 0)]));
+}
+
+/** Abgelehnte und fehlgeschlagene Fahrten mit Grund, für die Admin-Oberfläche. */
+export async function listMatchingIssues(statuses = ["rejected", "failed"], limit = 100) {
+  const result = await pool.query(
+    `SELECT t.id, t.started_at, t.start_address, t.end_address, t.distance_meters,
+            t.start_timezone, u.timezone AS user_timezone,
+            u.username, u.display_name,
+            m.status, m.provider, m.message, m.point_count,
+            m.raw_distance_meters, m.matched_distance_meters, m.matched_at
+     FROM trip_map_matches m
+     JOIN trips t ON t.id = m.trip_id
+     JOIN users u ON u.id = t.user_id
+     WHERE m.status = ANY($1::text[]) AND t.archived_at IS NULL
+     ORDER BY m.matched_at DESC
+     LIMIT $2`,
+    [statuses, limit],
+  );
+
+  const meters = (value) => (value == null ? null : Number(value));
+  return result.rows.map((row) => ({
+    tripId: row.id,
+    startedAt: row.started_at,
+    timeZone: row.start_timezone || row.user_timezone || null,
+    startAddress: row.start_address,
+    endAddress: row.end_address,
+    distanceMeters: meters(row.distance_meters),
+    user: { username: row.username, displayName: row.display_name },
+    status: row.status,
+    provider: row.provider,
+    message: row.message,
+    pointCount: Number(row.point_count),
+    rawDistanceMeters: meters(row.raw_distance_meters),
+    matchedDistanceMeters: meters(row.matched_distance_meters),
+    matchedAt: row.matched_at,
+  }));
 }

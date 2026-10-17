@@ -2056,6 +2056,48 @@ paths:
                   mode: { type: string }
                   provider: { type: string }
         '400': { description: Map-Matching ist nicht konfiguriert (MAP_MATCHING_DISABLED) }
+  /admin/jobs/map-matching/issues:
+    get:
+      tags: [Admin]
+      summary: List trips whose map matching was rejected or failed
+      description: Die letzten 100 abgelehnten bzw. fehlgeschlagenen Fahrten mit Grund, über alle Benutzer.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [rejected, failed] }
+      responses:
+        '200':
+          description: Problemfahrten
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [trips]
+                properties:
+                  trips:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tripId: { type: string, format: uuid }
+                        startedAt: { type: string, format: date-time }
+                        timeZone: { type: [string, 'null'] }
+                        startAddress: { type: [string, 'null'] }
+                        endAddress: { type: [string, 'null'] }
+                        distanceMeters: { type: [integer, 'null'] }
+                        user:
+                          type: object
+                          properties:
+                            username: { type: [string, 'null'] }
+                            displayName: { type: [string, 'null'] }
+                        status: { type: string, enum: [rejected, failed] }
+                        provider: { type: string, enum: [valhalla, osrm, atlas] }
+                        message: { type: [string, 'null'] }
+                        pointCount: { type: integer }
+                        rawDistanceMeters: { type: [integer, 'null'] }
+                        matchedDistanceMeters: { type: [integer, 'null'] }
+                        matchedAt: { type: string, format: date-time }
   /admin/jobs/reverse-geocode:
     post:
       tags: [Admin]

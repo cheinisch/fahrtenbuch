@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../auth/AuthProvider.jsx";
-import { getJobStatus, getAdminJobs, retryAdminJob, deleteAdminJob, startReverseGeocodeJobs, getMapMatchingStatus, startMapMatchingJobs } from "../../api/app.js";
+import { getJobStatus, getAdminJobs, retryAdminJob, deleteAdminJob, startReverseGeocodeJobs, getMapMatchingStatus, startMapMatchingJobs, getMapMatchingIssues } from "../../api/app.js";
 import { useI18n } from "../../i18n/I18nProvider.jsx";
 
 const states = ["pending", "processing", "delayed", "failed"];
 
 export default function JobManagement() {
   const { accessToken } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [state, setState] = useState("failed");
   const [status, setStatus] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -18,6 +18,9 @@ export default function JobManagement() {
   const [matchMode, setMatchMode] = useState("missing");
   const [matchInfo, setMatchInfo] = useState(null);
   const [matchNotice, setMatchNotice] = useState("");
+  const [issueFilter, setIssueFilter] = useState(null);
+  const [issues, setIssues] = useState([]);
+  const [issuesLoading, setIssuesLoading] = useState(false);
   const refresh = useCallback(async () => {
     try {
       const [info, result, matching] = await Promise.all([
@@ -59,6 +62,26 @@ export default function JobManagement() {
       await refresh();
     } catch (err) { setError(err.message); }
     finally { setBusy(null); }
+  };
+
+  // Abgelehnte/fehlgeschlagene Fahrten mit Grund anzeigen
+  const toggleIssues = async (status) => {
+    if (issueFilter === status) { setIssueFilter(null); return; }
+    setIssueFilter(status);
+    setIssuesLoading(true);
+    try {
+      const result = await getMapMatchingIssues(accessToken, status);
+      setIssues(result.trips || []);
+    } catch (err) { setError(err.message); setIssues([]); }
+    finally { setIssuesLoading(false); }
+  };
+
+  const fmtKm = (meters) => meters == null ? "–"
+    : `${(meters / 1000).toLocaleString(locale, { maximumFractionDigits: 1 })} km`;
+  const fmtDate = (value, timeZone) => {
+    try {
+      return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", ...(timeZone ? { timeZone } : {}) }).format(new Date(value));
+    } catch { return new Date(value).toLocaleString(locale); }
   };
 
   const startMatching = async () => {
@@ -112,11 +135,50 @@ export default function JobManagement() {
         {matchInfo?.enabled && <span className="text-xs text-fb-muted">{t("jobs.matchVia")}: {providerName[matchInfo.provider] || matchInfo.provider}</span>}
       </div>
       <p className="mt-1 text-sm text-fb-muted">{t("jobs.matchDescription")}</p>
-      {matchInfo && <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-        {matchCounts.map(([key, label]) => <div key={key} className="flex gap-1.5">
-          <dt className="text-fb-muted">{label}:</dt><dd className="font-semibold">{matchInfo.trips?.[key] ?? 0}</dd>
-        </div>)}
+      {matchInfo && <dl className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+        {matchCounts.map(([key, label]) => {
+          const count = matchInfo.trips?.[key] ?? 0;
+          const clickable = (key === "rejected" || key === "failed") && count > 0;
+          return <div key={key} className="flex items-center gap-1.5">
+            <dt className="text-fb-muted">{label}:</dt>
+            <dd className="font-semibold">
+              {clickable
+                ? <button type="button" onClick={() => toggleIssues(key)} aria-expanded={issueFilter === key}
+                    className="rounded px-1 text-fb-accent-strong underline underline-offset-2 hover:bg-fb-accent-soft">
+                    {count} · {issueFilter === key ? t("jobs.issuesHide") : t("jobs.issuesShow")}
+                  </button>
+                : count}
+            </dd>
+          </div>;
+        })}
       </dl>}
+      {issueFilter && <div className="mt-3 overflow-x-auto rounded-lg border border-fb-border">
+        {issuesLoading
+          ? <p className="p-4 text-sm text-fb-muted">{t("jobs.issuesLoading")}</p>
+          : !issues.length
+            ? <p className="p-4 text-sm text-fb-muted">{t("jobs.issuesEmpty")}</p>
+            : <table className="w-full min-w-[720px] text-left text-sm">
+              <thead><tr className="border-b border-fb-border text-xs text-fb-muted">
+                <th className="p-2.5">{t("jobs.issueTrip")}</th>
+                <th className="p-2.5">{t("jobs.issueUser")}</th>
+                <th className="p-2.5">{t("jobs.issueDistance")}</th>
+                <th className="p-2.5">{t("jobs.issueReason")}</th>
+              </tr></thead>
+              <tbody>{issues.map((issue) => <tr key={issue.tripId} className="border-b border-fb-border align-top last:border-0">
+                <td className="p-2.5">
+                  <div className="font-medium">{fmtDate(issue.startedAt, issue.timeZone)}</div>
+                  <div className="text-xs text-fb-muted">{issue.startAddress || "–"} → {issue.endAddress || "–"}</div>
+                </td>
+                <td className="p-2.5">{issue.user?.displayName || issue.user?.username || "–"}</td>
+                <td className="whitespace-nowrap p-2.5">
+                  <div>{t("jobs.issueGps")}: {fmtKm(issue.rawDistanceMeters)}</div>
+                  {issue.matchedDistanceMeters != null && <div className="text-xs text-fb-muted">{t("jobs.issueMatched")}: {fmtKm(issue.matchedDistanceMeters)}</div>}
+                  <div className="text-xs text-fb-muted">{issue.pointCount} {t("jobs.issuePoints")}</div>
+                </td>
+                <td className="p-2.5">{issue.message || "–"}</td>
+              </tr>)}</tbody>
+            </table>}
+      </div>}
       {matchInfo && !matchInfo.enabled
         ? <p className="mt-3 rounded-lg border border-fb-border bg-fb-surface p-3 text-sm text-fb-muted">{t("jobs.matchDisabled")}</p>
         : <div className="mt-3 flex flex-wrap items-center gap-3">

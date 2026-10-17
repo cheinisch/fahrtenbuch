@@ -778,6 +778,9 @@ export const startMapMatchingJobs = (token, mode = "missing", limit = 500) =>
     body: JSON.stringify({ mode, limit }),
   });
 
+export const getMapMatchingIssues = (token, status) =>
+  apiRequest(token, "/api/v1/admin/jobs/map-matching/issues" + (status ? "?status=" + encodeURIComponent(status) : ""));
+
 export const getTripMatchedRoute = (token, tripId) =>
   apiRequest(token, `/api/v1/trips/${encodeURIComponent(tripId)}/matched-route`);
 

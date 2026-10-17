@@ -34,6 +34,7 @@ import {
   testService,
 } from "../services/geocodingService.js";
 import {
+  listMatchingIssues,
   mapMatchingSummary,
   selectTripsForMatching,
 } from "../services/mapMatchingService.js";
@@ -1761,6 +1762,16 @@ adminRoutes.get("/jobs/map-matching", asyncHandler(async (_request, response) =>
     reason: matching.enabled ? null : matching.reason,
     trips: await mapMatchingSummary(),
   });
+}));
+
+// Warum wurde eine Fahrt nicht gematcht? Abgelehnte/fehlgeschlagene mit Grund
+adminRoutes.get("/jobs/map-matching/issues", asyncHandler(async (request, response) => {
+  const requested = String(request.query.status || "").trim();
+  if (requested && !["rejected", "failed"].includes(requested)) {
+    throw badRequest("VALIDATION_ERROR", "Der Status ist ungültig.", { allowed: ["rejected", "failed"] });
+  }
+  const statuses = requested ? [requested] : ["rejected", "failed"];
+  response.json({ trips: await listMatchingIssues(statuses) });
 }));
 
 adminRoutes.post("/jobs/map-matching", asyncHandler(async (request, response) => {
