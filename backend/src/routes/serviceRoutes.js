@@ -1,5 +1,7 @@
 import { Router } from "express";
 
+import { config } from "../config.js";
+
 import {
   badRequest,
 } from "../lib/errors.js";
@@ -25,7 +27,12 @@ geocodingRoutes.use(requireAuth);
 configRoutes.get(
   "/services",
   asyncHandler(async (_request, response) => {
-    response.json(await getPublicServiceConfiguration());
+    response.json({
+      ...(await getPublicServiceConfiguration()),
+      // Clients blenden Funktionen aus, die auf diesem Server (noch) nicht aktiv sind
+      features: { ...config.features },
+      channel: config.channel,
+    });
   }),
 );
 

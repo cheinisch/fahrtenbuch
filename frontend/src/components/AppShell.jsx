@@ -23,13 +23,14 @@ import { useEffect, useState } from "react";
 import { getPersonalSettings } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import { useI18n } from "../i18n/I18nProvider.jsx";
+import { useFeatures } from "../lib/features.jsx";
 import { GRAVATAR_SETTING_EVENT, gravatarUrl } from "../lib/gravatar.js";
 import MonthlyOdometerPrompt from "./MonthlyOdometerPrompt.jsx";
 
 const NAV_ITEMS = [
   { to: "/", key: "nav.dashboard", end: true },
   { to: "/vehicles", key: "nav.vehicles" },
-  { to: "/costs", key: "nav.costs" },
+  { to: "/costs", key: "nav.costs", feature: "expenses" },
   { to: "/statistics", key: "nav.statistics" },
   { to: "/export", key: "nav.export" },
   { to: "/compliance", key: "nav.compliance" },
@@ -101,6 +102,8 @@ function useGravatar(accessToken, email) {
 }
 
 export default function AppShell() {
+  const { features } = useFeatures();
+  const navItems = NAV_ITEMS.filter((item) => !item.feature || features[item.feature]);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, accessToken } = useAuth();
@@ -126,7 +129,7 @@ export default function AppShell() {
           </NavLink>
 
           <nav aria-label={t("shell.mainNavigation")} className="hidden flex-1 items-center gap-1 md:flex">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
                 {t(item.key)}
               </NavLink>
@@ -191,7 +194,7 @@ export default function AppShell() {
 
         <DisclosurePanel className="border-t border-fb-border md:hidden">
           <nav aria-label={t("shell.mainNavigation")} className="space-y-1 p-3">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <DisclosureButton key={item.to} as={NavLink} to={item.to} end={item.end} className={mobileNavClass}>
                 {t(item.key)}
               </DisclosureButton>

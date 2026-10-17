@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import { AuthProvider } from "./auth/AuthProvider.jsx";
 import { I18nProvider } from "./i18n/I18nProvider.jsx";
+import { FeaturesProvider } from "./lib/features.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(
@@ -13,7 +14,7 @@ ReactDOM.createRoot(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <I18nProvider><App /></I18nProvider>
+        <I18nProvider><FeaturesProvider><App /></FeaturesProvider></I18nProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,

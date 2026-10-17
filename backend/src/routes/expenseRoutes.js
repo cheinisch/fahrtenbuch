@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import { config } from "../config.js";
 import { pool } from "../database/pool.js";
 import { badRequest, notFound } from "../lib/errors.js";
 import { tripLocalStartSql, userTimeZone } from "../lib/timezone.js";
@@ -20,6 +21,10 @@ import { requireAuth } from "../middleware/requireAuth.js";
 // Zunächst nur für den Fahrzeughalter – Kosten geteilter Fahrzeuge bleiben privat.
 
 export const expenseRoutes = Router();
+// Vorerst nur im dev-Kanal (oder mit FEATURE_EXPENSES=true) verfügbar
+expenseRoutes.use((_request, _response, next) => {
+  next(config.features.expenses ? undefined : notFound("FEATURE_DISABLED", "Die Kostenerfassung ist auf diesem Server nicht aktiviert."));
+});
 expenseRoutes.use(requireAuth);
 
 export const EXPENSE_CATEGORIES = Object.freeze([

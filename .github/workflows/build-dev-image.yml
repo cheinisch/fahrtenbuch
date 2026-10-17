@@ -82,5 +82,6 @@ jobs:
             APP_BUILD=${{ steps.metadata.outputs.build }}
             BUILD_DATE=${{ steps.metadata.outputs.date }}
             VCS_REF=${{ github.sha }}
+            APP_CHANNEL=dev
           cache-from: type=gha
           cache-to: type=gha,mode=max

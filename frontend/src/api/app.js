@@ -97,6 +97,10 @@ async function apiRequest(
   return body;
 }
 
+export function apiGet(accessToken, path) {
+  return apiRequest(accessToken, path);
+}
+
 export function getDashboard(
   accessToken,
   filters = {},

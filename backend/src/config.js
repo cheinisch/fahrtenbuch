@@ -161,6 +161,8 @@ const publicBaseUrl = normalizedUrl(
   ),
 );
 
+const appChannel = String(process.env.APP_CHANNEL || "dev").trim().toLowerCase() === "release" ? "release" : "dev";
+
 export const config = Object.freeze({
   env: stringValue(
     ["APP_ENV", "NODE_ENV"],
@@ -194,6 +196,14 @@ export const config = Object.freeze({
     "VCS_REF",
     "unknown",
   ),
+
+  // Build-Kanal: "dev" im :dev-Image und bei lokaler Entwicklung, "release" im :latest-Image
+  channel: appChannel,
+
+  // Neue Funktionen erscheinen zuerst nur im dev-Kanal; per Umgebungsvariable übersteuerbar
+  features: {
+    expenses: booleanValue("FEATURE_EXPENSES", appChannel === "dev"),
+  },
 
   publicBaseUrl,
 

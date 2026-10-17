@@ -12,6 +12,7 @@ import AppShell from "./components/AppShell.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Compliance from "./pages/Compliance.jsx";
 import Costs from "./pages/Costs.jsx";
+import { useFeatures } from "./lib/features.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import PasswordResetPage from "./pages/PasswordResetPage.jsx";
 import ExportPage from "./pages/Export.jsx";
@@ -37,6 +38,13 @@ function LoginRoute() {
   }
 
   return <LoginPage />;
+}
+
+// Seiten deaktivierter Funktionen: warten, bis die Flags geladen sind, dann ggf. zum Dashboard
+function FeatureRoute({ feature, children }) {
+  const { loaded, features } = useFeatures();
+  if (!loaded) return null;
+  return features[feature] ? children : <Navigate to="/" replace />;
 }
 
 export default function App() {
@@ -65,7 +73,7 @@ export default function App() {
           />
           <Route
             path="/costs"
-            element={<Costs />}
+            element={<FeatureRoute feature="expenses"><Costs /></FeatureRoute>}
           />
           <Route
             path="/share-invitation"

@@ -38,12 +38,15 @@ ARG APP_VERSION=dev
 ARG APP_BUILD=0
 ARG BUILD_DATE=unknown
 ARG VCS_REF=unknown
+# dev = Entwicklungs-Image (:dev), release = Release-Image (:latest, :vX.Y.Z)
+ARG APP_CHANNEL=release
 
 ENV NODE_ENV=production \
     APP_VERSION=${APP_VERSION} \
     APP_BUILD=${APP_BUILD} \
     BUILD_DATE=${BUILD_DATE} \
-    VCS_REF=${VCS_REF}
+    VCS_REF=${VCS_REF} \
+    APP_CHANNEL=${APP_CHANNEL}
 
 # Dateien übernehmen
 COPY --from=builder /app .
