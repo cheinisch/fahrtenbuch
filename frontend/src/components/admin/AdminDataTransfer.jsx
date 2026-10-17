@@ -17,6 +17,10 @@ import {
 import {
   useAuth,
 } from "../../auth/AuthProvider.jsx";
+import { useI18n } from "../../i18n/I18nProvider.jsx";
+
+// Fester Bestätigungstext, bewusst unübersetzt.
+const CONFIRM_PHRASE = "SYSTEM IMPORTIEREN";
 
 function saveDownload({
   blob,
@@ -57,6 +61,7 @@ function SummaryValue({
 
 export default function AdminDataTransfer() {
   const { accessToken } = useAuth();
+  const { t, locale } = useI18n();
 
   const [file, setFile] =
     useState(null);
@@ -100,14 +105,14 @@ export default function AdminDataTransfer() {
 
       setMessage(
         download.checksum
-          ? `Der systemweite Export wurde erstellt. SHA-256: ${download.checksum}`
-          : "Der systemweite Export wurde erstellt.",
+          ? t("adminDataTransfer.exportedChecksum", { checksum: download.checksum })
+          : t("adminDataTransfer.exported"),
       );
     } catch (exportError) {
       setError(
         exportError instanceof Error
           ? exportError.message
-          : "Das System-Backup ist fehlgeschlagen.",
+          : t("adminDataTransfer.exportFailed"),
       );
     } finally {
       setBusy("");
@@ -127,7 +132,7 @@ export default function AdminDataTransfer() {
   async function validateFile() {
     if (!file) {
       setError(
-        "Bitte wähle zuerst einen systemweiten JSON-Export aus.",
+        t("adminDataTransfer.selectFile"),
       );
       return;
     }
@@ -151,14 +156,14 @@ export default function AdminDataTransfer() {
       );
 
       setMessage(
-        "Die Datei wurde innerhalb einer zurückgerollten Datenbanktransaktion geprüft. Es wurden noch keine Daten übernommen.",
+        t("adminDataTransfer.validated"),
       );
     } catch (validationError) {
       setValidationResult(null);
       setError(
         validationError instanceof Error
           ? validationError.message
-          : "Das System-Backup ist ungültig.",
+          : t("adminDataTransfer.invalid"),
       );
     } finally {
       setBusy("");
@@ -169,7 +174,7 @@ export default function AdminDataTransfer() {
     if (
       !file ||
       confirmation !==
-        "SYSTEM IMPORTIEREN"
+        CONFIRM_PHRASE
     ) {
       return;
     }
@@ -193,7 +198,7 @@ export default function AdminDataTransfer() {
       );
 
       setMessage(
-        "Die Systemdaten wurden zusammengeführt. Neu angelegte Benutzerkonten sind deaktiviert und benötigen ein neues Passwort.",
+        t("adminDataTransfer.imported"),
       );
 
       setConfirmation("");
@@ -201,7 +206,7 @@ export default function AdminDataTransfer() {
       setError(
         importError instanceof Error
           ? importError.message
-          : "Der System-Wiederherstellung ist fehlgeschlagen.",
+          : t("adminDataTransfer.importFailed"),
       );
     } finally {
       setBusy("");
@@ -233,17 +238,11 @@ export default function AdminDataTransfer() {
 
           <div>
             <h2 className="text-lg font-bold">
-              Systemweites Backup
+              {t("adminDataTransfer.title")}
             </h2>
 
             <p className="mt-1 text-sm text-fb-muted">
-              Sichert alle Benutzerprofile,
-              Benutzereinstellungen, Fahrzeuge,
-              Fahrten, sämtliche GPS-Datenpunkte,
-              GPS-Upload-Batches, Tags,
-              Zuordnungen, Änderungsnachweise,
-              archivierte Daten und die zentralen
-              Systemeinstellungen.
+              {t("adminDataTransfer.hint")}
             </p>
           </div>
         </div>
@@ -254,16 +253,11 @@ export default function AdminDataTransfer() {
 
             <div className="text-sm">
               <div className="font-semibold">
-                Sicherheitsdaten werden bewusst
-                ausgeschlossen
+                {t("adminDataTransfer.excludedTitle")}
               </div>
 
               <p className="mt-1 text-fb-muted">
-                Passwort-Hashes, TOTP-Secrets,
-                Passkeys, Refresh-Sitzungen,
-                Reset-Tokens, Pairing-Tokens und
-                Push-Tokens sind nicht Bestandteil
-                des Exports.
+                {t("adminDataTransfer.excludedHint")}
               </p>
             </div>
           </div>
@@ -277,25 +271,18 @@ export default function AdminDataTransfer() {
         >
           <ArrowDownTrayIcon className="size-5" />
           {busy === "export"
-            ? "System-Backup wird erstellt …"
-            : "Komplettes System-Backup herunterladen"}
+            ? t("adminDataTransfer.exporting")
+            : t("adminDataTransfer.download")}
         </button>
       </section>
 
       <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
         <h2 className="text-lg font-bold">
-          System-Backup wiederherstellen
+          {t("adminDataTransfer.restoreTitle")}
         </h2>
 
         <p className="mt-2 text-sm text-fb-muted">
-          Der Import arbeitet im
-          Zusammenführen-Modus. Bestehende
-          Benutzer werden über ID oder
-          E-Mail-Adresse zugeordnet. Das
-          Heimatland und andere Einstellungen
-          können wiederhergestellt werden; die
-          bestehende Heimatadresse vorhandener
-          Benutzer wird nicht verändert.
+          {t("adminDataTransfer.restoreHint")}
         </p>
 
         <input
@@ -318,7 +305,7 @@ export default function AdminDataTransfer() {
               1024 /
               1024
             ).toLocaleString(
-              "de-DE",
+              locale,
               {
                 maximumFractionDigits: 2,
               },
@@ -344,15 +331,11 @@ export default function AdminDataTransfer() {
 
           <span>
             <span className="block text-sm font-semibold">
-              Zentrale Systemeinstellungen
-              wiederherstellen
+              {t("adminDataTransfer.restoreSettings")}
             </span>
 
             <span className="mt-1 block text-xs text-fb-muted">
-              Überschreibt unter anderem
-              Karten-, Tracking- und
-              Pairing-Standardwerte aus
-              `app_settings`.
+              {t("adminDataTransfer.restoreSettingsHint")}
             </span>
           </span>
         </label>
@@ -369,8 +352,8 @@ export default function AdminDataTransfer() {
           >
             <CheckCircleIcon className="size-5" />
             {busy === "validate"
-              ? "Prüfung läuft …"
-              : "System-Wiederherstellung prüfen"}
+              ? t("adminDataTransfer.validating")
+              : t("adminDataTransfer.validate")}
           </button>
         </div>
 
@@ -378,57 +361,57 @@ export default function AdminDataTransfer() {
           <div className="mt-6">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <SummaryValue
-                label="Neue Benutzer"
+                label={t("adminDataTransfer.newUsers")}
                 value={
                   result.users?.created
                 }
               />
 
               <SummaryValue
-                label="Aktualisierte Benutzer"
+                label={t("adminDataTransfer.updatedUsers")}
                 value={
                   result.users?.updated
                 }
               />
 
               <SummaryValue
-                label="Fahrzeuge"
+                label={t("adminDataTransfer.vehicles")}
                 value={result.vehicles}
               />
 
               <SummaryValue
-                label="Fahrten"
+                label={t("adminDataTransfer.trips")}
                 value={result.trips}
               />
 
               <SummaryValue
-                label="GPS-Punkte"
+                label={t("adminDataTransfer.trackPoints")}
                 value={
                   result.trackPoints
                 }
               />
 
               <SummaryValue
-                label="GPS-Upload-Batches"
+                label={t("adminDataTransfer.batches")}
                 value={
                   result.trackPointBatches
                 }
               />
 
               <SummaryValue
-                label="Tags"
+                label={t("adminDataTransfer.tags")}
                 value={result.tags}
               />
 
               <SummaryValue
-                label="Änderungsnachweise"
+                label={t("adminDataTransfer.changeLog")}
                 value={
                   result.tripChangeLog
                 }
               />
 
               <SummaryValue
-                label="Systemeinstellungen"
+                label={t("adminDataTransfer.settings")}
                 value={
                   result.appSettings
                 }
@@ -439,7 +422,7 @@ export default function AdminDataTransfer() {
               0 && (
               <div className="mt-4 rounded-lg border border-fb-accent bg-fb-accent-soft p-4">
                 <div className="font-semibold">
-                  Importhinweise
+                  {t("adminDataTransfer.warnings")}
                 </div>
 
                 <ul className="mt-2 space-y-1 text-sm text-fb-muted">
@@ -456,8 +439,7 @@ export default function AdminDataTransfer() {
 
             <div className="mt-5 rounded-lg border border-fb-danger p-4">
               <label className="block text-sm font-medium">
-                Zur Bestätigung exakt
-                `SYSTEM IMPORTIEREN` eingeben
+                {t("adminDataTransfer.confirmLabel", { phrase: CONFIRM_PHRASE })}
                 <input
                   type="text"
                   value={confirmation}
@@ -477,14 +459,14 @@ export default function AdminDataTransfer() {
                 disabled={
                   Boolean(busy) ||
                   confirmation !==
-                    "SYSTEM IMPORTIEREN"
+                    CONFIRM_PHRASE
                 }
                 className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-fb-danger px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
               >
                 <ArrowUpTrayIcon className="size-5" />
                 {busy === "import"
-                  ? "System-Wiederherstellung läuft …"
-                  : "Geprüftes System-Backup wiederherstellen"}
+                  ? t("adminDataTransfer.importing")
+                  : t("adminDataTransfer.import")}
               </button>
             </div>
           </div>

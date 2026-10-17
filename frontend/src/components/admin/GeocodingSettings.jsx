@@ -9,6 +9,7 @@ import {
   updateAdminSettings,
 } from "../../api/app.js";
 import { useAuth } from "../../auth/AuthProvider.jsx";
+import { useI18n } from "../../i18n/I18nProvider.jsx";
 
 const fieldClass =
   "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft disabled:opacity-60";
@@ -21,10 +22,11 @@ const secondaryButton =
 
 const MODULE_ORDER = ["atlas", "geocoding", "mapMatching"];
 
+// Werte sind Übersetzungs-Keys (geocoding.*)
 const MODULE_LABELS = {
-  atlas: "Dawarich Atlas",
-  geocoding: "Adresssuche (Photon)",
-  mapMatching: "Map-Matching (Valhalla)",
+  atlas: "geocoding.modules.atlas",
+  geocoding: "geocoding.modules.geocoding",
+  mapMatching: "geocoding.modules.mapMatching",
 };
 
 // Icon-Pfade (24er Raster, Strich) je Modul
@@ -35,43 +37,43 @@ const MODULE_ICONS = {
 };
 
 const STATE_STYLES = {
-  available: { label: "Verfügbar", className: "border-transparent bg-fb-accent-soft text-fb-accent-strong" },
-  starting: { label: "Startet", className: "border-transparent bg-fb-warn-soft text-fb-warn" },
-  unavailable: { label: "Nicht erreichbar", className: "border-fb-danger text-fb-danger" },
-  misconfigured: { label: "Unvollständig", className: "border-fb-danger text-fb-danger" },
-  inactive: { label: "Inaktiv", className: "border-fb-border bg-fb-surface text-fb-muted" },
-  checking: { label: "Prüfe …", className: "border-fb-border text-fb-muted" },
+  available: { label: "geocoding.state.available", className: "border-transparent bg-fb-accent-soft text-fb-accent-strong" },
+  starting: { label: "geocoding.state.starting", className: "border-transparent bg-fb-warn-soft text-fb-warn" },
+  unavailable: { label: "geocoding.state.unavailable", className: "border-fb-danger text-fb-danger" },
+  misconfigured: { label: "geocoding.state.misconfigured", className: "border-fb-danger text-fb-danger" },
+  inactive: { label: "geocoding.state.inactive", className: "border-fb-border bg-fb-surface text-fb-muted" },
+  checking: { label: "geocoding.state.checking", className: "border-fb-border text-fb-muted" },
 };
 
-const CAPABILITY_LABELS = { geocoding: "Geocoding", routing: "Routing", pois: "POIs", transit: "ÖPNV" };
+const CAPABILITY_LABELS = { geocoding: "geocoding.capabilities.geocoding", routing: "geocoding.capabilities.routing", pois: "geocoding.capabilities.pois", transit: "geocoding.capabilities.transit" };
 
 const CAPABILITY_STYLES = {
-  up: { text: "aktiv", className: "bg-fb-accent-soft font-semibold text-fb-accent-strong" },
-  starting: { text: "startet", className: "bg-fb-warn-soft font-semibold text-fb-warn" },
-  down: { text: "aus", className: "border border-fb-border bg-fb-surface text-fb-muted" },
+  up: { text: "geocoding.capabilityState.up", className: "bg-fb-accent-soft font-semibold text-fb-accent-strong" },
+  starting: { text: "geocoding.capabilityState.starting", className: "bg-fb-warn-soft font-semibold text-fb-warn" },
+  down: { text: "geocoding.capabilityState.down", className: "border border-fb-border bg-fb-surface text-fb-muted" },
 };
 
 const PHOTON_OPTIONS = [
-  { value: "disabled", title: "Deaktiviert", hint: "Keine automatischen Adressen, Suche ausgeblendet" },
-  { value: "public", title: "Öffentlicher Server", hint: "photon.komoot.io – ohne eigene Infrastruktur" },
-  { value: "custom", title: "Eigener Photon-Server", hint: "Eigene Adresse, z. B. http://192.168.1.12:2322" },
-  { value: "atlas", title: "Über Dawarich Atlas", hint: "Nutzt den Photon-Passthrough von Atlas", needsAtlas: true },
+  { value: "disabled", title: "geocoding.photon.disabled", hint: "geocoding.photon.disabledHint" },
+  { value: "public", title: "geocoding.photon.public", hint: "geocoding.photon.publicHint" },
+  { value: "custom", title: "geocoding.photon.custom", hint: "geocoding.photon.customHint" },
+  { value: "atlas", title: "geocoding.viaAtlas", hint: "geocoding.photon.atlasHint", needsAtlas: true },
 ];
 
 const ROUTING_OPTIONS = [
-  { value: "disabled", title: "Deaktiviert", hint: "Distanz aus den GPS-Punkten, Lücken als Luftlinie" },
-  { value: "valhalla", title: "Eigener Valhalla-Server", hint: "Eigene Adresse, Standardport 8002" },
-  { value: "osrm", title: "Eigener OSRM-Server", hint: "Eigene Adresse, z. B. http://192.168.1.10:5000" },
-  { value: "atlas", title: "Über Dawarich Atlas", hint: "Nutzt das Valhalla-Map-Matching von Atlas", needsAtlas: true },
+  { value: "disabled", title: "geocoding.routing.disabled", hint: "geocoding.routing.disabledHint" },
+  { value: "valhalla", title: "geocoding.routing.valhalla", hint: "geocoding.routing.valhallaHint" },
+  { value: "osrm", title: "geocoding.routing.osrm", hint: "geocoding.routing.osrmHint" },
+  { value: "atlas", title: "geocoding.viaAtlas", hint: "geocoding.routing.atlasHint", needsAtlas: true },
 ];
 
 function errorText(error, fallback) {
   return error instanceof Error ? error.message : fallback;
 }
 
-function formatCheckedAt(value) {
+function formatCheckedAt(value, locale) {
   if (!value) return null;
-  return new Date(value).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date(value).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function StatusLine({ status }) {
@@ -91,12 +93,13 @@ function StatusLine({ status }) {
 }
 
 function StateBadge({ state }) {
+  const { t } = useI18n();
   const style = STATE_STYLES[state] || STATE_STYLES.inactive;
 
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style.className}`}>
       <span aria-hidden="true" className="h-[7px] w-[7px] rounded-full bg-current" />
-      {style.label}
+      {t(style.label)}
     </span>
   );
 }
@@ -113,20 +116,21 @@ function ModuleIcon({ module }) {
 
 /** Systemcheck: welche Funktion ist mit den gespeicherten Einstellungen verfügbar? */
 function SystemCheck({ results, checking, checkedAt, onCheck }) {
+  const { t, locale } = useI18n();
   const anyChecking = Object.values(checking).some(Boolean);
 
   return (
     <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold">Systemcheck</h2>
+          <h2 className="text-lg font-bold">{t("geocoding.checkTitle")}</h2>
           <p className="mt-1 text-sm text-fb-muted">
-            Prüft mit den gespeicherten Einstellungen, welche Funktionen verfügbar sind.
-            {checkedAt && <> Zuletzt geprüft um {formatCheckedAt(checkedAt)} Uhr.</>}
+            {t("geocoding.checkHint")}
+            {checkedAt && <> {t("geocoding.lastChecked", { time: formatCheckedAt(checkedAt, locale) })}</>}
           </p>
         </div>
         <button type="button" onClick={() => onCheck()} disabled={anyChecking} className={secondaryButton}>
-          Alle prüfen
+          {t("geocoding.checkAll")}
         </button>
       </div>
 
@@ -140,7 +144,7 @@ function SystemCheck({ results, checking, checkedAt, onCheck }) {
               <ModuleIcon module={module} />
               <div className="min-w-0 flex-[1_1_320px]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold">{MODULE_LABELS[module]}</span>
+                  <span className="text-sm font-semibold">{t(MODULE_LABELS[module])}</span>
                   {state && <StateBadge state={state} />}
                 </div>
                 {result && (
@@ -157,10 +161,10 @@ function SystemCheck({ results, checking, checkedAt, onCheck }) {
                 type="button"
                 onClick={() => onCheck(module)}
                 disabled={checking[module]}
-                aria-label={`${MODULE_LABELS[module]} testen`}
+                aria-label={t("geocoding.testModule", { module: t(MODULE_LABELS[module]) })}
                 className="min-h-9 rounded-lg border border-fb-border px-3.5 text-[13px] font-semibold text-fb-text transition hover:border-fb-accent disabled:opacity-60"
               >
-                Testen
+                {t("geocoding.test")}
               </button>
             </li>
           );
@@ -172,9 +176,10 @@ function SystemCheck({ results, checking, checkedAt, onCheck }) {
 
 /** Auswahlkarten statt Dropdown: jede Quelle erklärt sich selbst. */
 function SourcePicker({ name, options, value, atlasReady, onChange, children }) {
+  const { t } = useI18n();
   return (
     <fieldset className="mt-5">
-      <legend className="text-sm font-medium">Quelle</legend>
+      <legend className="text-sm font-medium">{t("geocoding.source")}</legend>
       <div className="mt-2 flex flex-col gap-2">
         {options.map((option) => {
           const selected = value === option.value;
@@ -199,9 +204,9 @@ function SourcePicker({ name, options, value, atlasReady, onChange, children }) 
                   className="mt-1 h-4 w-4 flex-none accent-fb-accent"
                 />
                 <span className="flex-1">
-                  <span className="block text-sm font-semibold">{option.title}</span>
+                  <span className="block text-sm font-semibold">{t(option.title)}</span>
                   <span className="block text-xs text-fb-muted">
-                    {disabled ? "Erst Dawarich Atlas oben aktivieren und speichern" : option.hint}
+                    {disabled ? t("geocoding.atlasRequired") : t(option.hint)}
                   </span>
                 </span>
               </label>
@@ -215,6 +220,7 @@ function SourcePicker({ name, options, value, atlasReady, onChange, children }) 
 }
 
 function CapabilityChips({ details }) {
+  const { t } = useI18n();
   if (!details) return null;
   const capabilities = details.capabilities || {};
 
@@ -231,7 +237,7 @@ function CapabilityChips({ details }) {
           const style = CAPABILITY_STYLES[capabilities[key]] || CAPABILITY_STYLES.down;
           return (
             <span key={key} className={`rounded-lg px-2.5 py-1 text-xs ${style.className}`}>
-              {label}: {style.text}
+              {t(label)}: {t(style.text)}
             </span>
           );
         })}
@@ -241,6 +247,7 @@ function CapabilityChips({ details }) {
 
 export default function GeocodingSettings() {
   const { accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -279,7 +286,7 @@ export default function GeocodingSettings() {
         const atlasResult = result.modules.find((entry) => entry.module === "atlas");
         if (atlasResult) setAtlasDetails(atlasResult.details);
       } catch (error) {
-        const message = errorText(error, "Der Systemcheck ist fehlgeschlagen.");
+        const message = errorText(error, t("geocoding.checkFailed"));
         setCheckResults((current) => ({
           ...current,
           ...Object.fromEntries(modules.map((key) => [key, { ...current[key], module: key, state: "unavailable", message }])),
@@ -288,7 +295,7 @@ export default function GeocodingSettings() {
         setChecking((current) => ({ ...current, ...flag(false) }));
       }
     },
-    [accessToken],
+    [accessToken, t],
   );
 
   useEffect(() => {
@@ -319,7 +326,7 @@ export default function GeocodingSettings() {
           valhallaUrl: services.mapMatching?.valhallaUrl || "",
         });
       } catch (error) {
-        if (!cancelled) setLoadError(errorText(error, "Die Geocoding-Einstellungen konnten nicht geladen werden."));
+        if (!cancelled) setLoadError(errorText(error, t("geocoding.loadFailed")));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -377,7 +384,7 @@ export default function GeocodingSettings() {
   if (loading) {
     return (
       <div className="rounded-xl border border-fb-border bg-fb-main p-8 text-fb-muted">
-        Geocoding-Einstellungen werden geladen …
+        {t("geocoding.loading")}
       </div>
     );
   }
@@ -396,7 +403,7 @@ export default function GeocodingSettings() {
 
   const timeoutField = (value, onChange) => (
     <label className="block text-sm font-medium">
-      Zeitlimit in Millisekunden
+      {t("geocoding.timeout")}
       <input type="number" min="1000" max="120000" step="500" value={value} onChange={onChange} className={fieldClass} />
     </label>
   );
@@ -413,18 +420,16 @@ export default function GeocodingSettings() {
             const saved = await updateAdminAtlasSettings(accessToken, atlasPayload());
             setAtlas({ enabled: saved.enabled, baseUrl: saved.baseUrl || "", timeoutMs: saved.timeoutMs });
             setAtlasSaved(Boolean(saved.enabled && saved.baseUrl));
-            return "Die Atlas-Einstellungen wurden gespeichert.";
-          }, "Die Atlas-Einstellungen konnten nicht gespeichert werden.", true);
+            return t("geocoding.atlas.saved");
+          }, t("geocoding.atlas.saveFailed"), true);
         }}
         className="rounded-xl border border-fb-border bg-fb-main p-[22px]"
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-[720px]">
-            <h2 className="text-lg font-bold">Dawarich Atlas</h2>
+            <h2 className="text-lg font-bold">{t("geocoding.modules.atlas")}</h2>
             <p className="mt-1 text-sm text-fb-muted">
-              Atlas bündelt Photon (Adresssuche) und Valhalla (Routing) in einer selbst gehosteten
-              Installation. Ist Atlas aktiv, lassen sich Adresssuche und Map-Matching unten einzeln
-              auf „Über Atlas“ stellen.
+              {t("geocoding.atlas.hint")}
             </p>
           </div>
           <label className="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-sm font-semibold">
@@ -439,13 +444,13 @@ export default function GeocodingSettings() {
               aria-hidden="true"
               className="relative inline-block h-6 w-11 rounded-full bg-fb-border transition peer-checked:bg-fb-accent peer-focus-visible:ring-2 peer-focus-visible:ring-fb-accent-soft after:absolute after:left-[3px] after:top-[3px] after:h-[18px] after:w-[18px] after:rounded-full after:bg-white after:transition peer-checked:after:left-[23px]"
             />
-            {atlas.enabled ? "Aktiv" : "Inaktiv"}
+            {atlas.enabled ? t("geocoding.active") : t("geocoding.state.inactive")}
           </label>
         </div>
 
         <div className="mt-[22px] grid gap-5 sm:grid-cols-2">
           <label className="block text-sm font-medium">
-            Atlas-Serveradresse
+            {t("geocoding.atlas.url")}
             <input
               type="url"
               required={atlas.enabled}
@@ -455,7 +460,7 @@ export default function GeocodingSettings() {
               className={fieldClass}
             />
             <span className="mt-1 block text-xs font-normal text-fb-muted">
-              Basis-URL ohne /api/v1. Muss nur vom Backend erreichbar sein.
+              {t("geocoding.atlas.urlHint")}
             </span>
           </label>
           {timeoutField(atlas.timeoutMs, (event) => setAtlas((current) => ({ ...current, timeoutMs: Number(event.target.value) })))}
@@ -472,14 +477,14 @@ export default function GeocodingSettings() {
               onClick={() =>
                 runAction(setAtlasBusy, setAtlasStatus, () =>
                   testCandidate("atlas", { ...atlasPayload(), enabled: true }),
-                "Atlas ist nicht erreichbar.")
+                t("geocoding.atlas.unreachable"))
               }
               className={secondaryButton}
             >
-              Verbindung testen
+              {t("geocoding.testConnection")}
             </button>
             <button type="submit" disabled={atlasBusy} className={primaryButton}>
-              {atlasBusy ? "Bitte warten …" : "Atlas speichern"}
+              {atlasBusy ? t("geocoding.pleaseWait") : t("geocoding.atlas.save")}
             </button>
           </div>
         </div>
@@ -492,14 +497,14 @@ export default function GeocodingSettings() {
             event.preventDefault();
             runAction(setPhotonBusy, setPhotonStatus, async () => {
               await updateAdminPhotonSettings(accessToken, photonPayload());
-              return "Die Einstellungen zur Adresssuche wurden gespeichert.";
-            }, "Die Einstellungen zur Adresssuche konnten nicht gespeichert werden.", true);
+              return t("geocoding.photon.saved");
+            }, t("geocoding.photon.saveFailed"), true);
           }}
           className="rounded-xl border border-fb-border bg-fb-main p-[22px]"
         >
-          <h2 className="text-lg font-bold">Adresssuche (Photon)</h2>
+          <h2 className="text-lg font-bold">{t("geocoding.modules.geocoding")}</h2>
           <p className="mt-1 text-sm text-fb-muted">
-            Wandelt Adressen in Koordinaten um und ermittelt Start- und Zieladressen von Fahrten.
+            {t("geocoding.photon.hint")}
           </p>
 
           <SourcePicker
@@ -514,7 +519,7 @@ export default function GeocodingSettings() {
                 <div className="mt-3 grid gap-4 rounded-lg border border-fb-border p-3.5">
                   {selected === "custom" && (
                     <label className="block text-sm font-medium">
-                      Photon-Serveradresse
+                      {t("geocoding.photon.url")}
                       <input
                         type="url"
                         required
@@ -524,7 +529,7 @@ export default function GeocodingSettings() {
                         className={fieldClass}
                       />
                       <span className="mt-1 block text-xs font-normal text-fb-muted">
-                        Basis-URL inklusive Protokoll und Port, ohne /api.
+                        {t("geocoding.photon.urlHint")}
                       </span>
                     </label>
                   )}
@@ -544,15 +549,15 @@ export default function GeocodingSettings() {
                   onClick={() =>
                     runAction(setPhotonBusy, setPhotonStatus, () =>
                       testCandidate("geocoding", photonPayload()),
-                    "Der Photon-Server ist nicht erreichbar.")
+                    t("geocoding.photon.unreachable"))
                   }
                   className={secondaryButton}
                 >
-                  Verbindung testen
+                  {t("geocoding.testConnection")}
                 </button>
               )}
               <button type="submit" disabled={photonBusy} className={primaryButton}>
-                {photonBusy ? "Bitte warten …" : "Adresssuche speichern"}
+                {photonBusy ? t("geocoding.pleaseWait") : t("geocoding.photon.save")}
               </button>
             </div>
           </div>
@@ -566,15 +571,14 @@ export default function GeocodingSettings() {
               // Nur mapMatching senden, damit die übrigen Systemeinstellungen unberührt bleiben
               const result = await updateAdminSettings(accessToken, { mapMatching: routingPayload() });
               if (result?.mapMatching) setRouting(result.mapMatching);
-              return "Die Map-Matching-Einstellungen wurden gespeichert.";
-            }, "Die Map-Matching-Einstellungen konnten nicht gespeichert werden.", true);
+              return t("geocoding.routing.saved");
+            }, t("geocoding.routing.saveFailed"), true);
           }}
           className="rounded-xl border border-fb-border bg-fb-main p-[22px]"
         >
-          <h2 className="text-lg font-bold">Map-Matching (Valhalla)</h2>
+          <h2 className="text-lg font-bold">{t("geocoding.modules.mapMatching")}</h2>
           <p className="mt-1 text-sm text-fb-muted">
-            Legt GPS-Punkte auf das Straßennetz, damit Lücken entlang der Straße statt als Luftlinie
-            geschlossen werden. Gestartet wird es unter „Hintergrundaufgaben“.
+            {t("geocoding.routing.hint")}
           </p>
 
           <SourcePicker
@@ -588,7 +592,7 @@ export default function GeocodingSettings() {
               (selected === "valhalla" || selected === "osrm") && (
                 <div className="mt-3 rounded-lg border border-fb-border p-3.5">
                   <label className="block text-sm font-medium">
-                    {selected === "valhalla" ? "Valhalla-Serveradresse" : "OSRM-Serveradresse"}
+                    {selected === "valhalla" ? t("geocoding.routing.valhallaUrl") : t("geocoding.routing.osrmUrl")}
                     <input
                       type="url"
                       required
@@ -603,7 +607,7 @@ export default function GeocodingSettings() {
                       className={fieldClass}
                     />
                     <span className="mt-1 block text-xs font-normal text-fb-muted">
-                      IP/Hostname inklusive Protokoll und Port.
+                      {t("geocoding.routing.urlHint")}
                     </span>
                   </label>
                 </div>
@@ -621,15 +625,15 @@ export default function GeocodingSettings() {
                   onClick={() =>
                     runAction(setRoutingBusy, setRoutingStatus, () =>
                       testCandidate("mapMatching", routingPayload()),
-                    "Der Routing-Server ist nicht erreichbar.")
+                    t("geocoding.routing.unreachable"))
                   }
                   className={secondaryButton}
                 >
-                  Verbindung testen
+                  {t("geocoding.testConnection")}
                 </button>
               )}
               <button type="submit" disabled={routingBusy} className={primaryButton}>
-                {routingBusy ? "Bitte warten …" : "Map-Matching speichern"}
+                {routingBusy ? t("geocoding.pleaseWait") : t("geocoding.routing.save")}
               </button>
             </div>
           </div>

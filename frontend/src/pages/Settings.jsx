@@ -11,6 +11,7 @@ import {
   updateAdminSettings,
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import { useI18n } from "../i18n/I18nProvider.jsx";
 import AdminDataTransfer from "../components/admin/AdminDataTransfer.jsx";
 import UserManagement from "../components/users/UserManagement.jsx";
 import JobManagement from "../components/admin/JobManagement.jsx";
@@ -19,7 +20,7 @@ import GeocodingSettings from "../components/admin/GeocodingSettings.jsx";
 const fieldClass =
   "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
 
-function formatBytes(bytes) {
+function formatBytes(bytes, locale) {
   const value = Number(bytes || 0);
 
   if (value < 1024) {
@@ -38,15 +39,15 @@ function formatBytes(bytes) {
     unit < units.length - 1
   );
 
-  return `${converted.toLocaleString("de-DE", {
+  return `${converted.toLocaleString(locale, {
     maximumFractionDigits: 1,
   })} ${units[unit]}`;
 }
 
-function formatDistance(meters) {
+function formatDistance(meters, locale) {
   return `${(
     Number(meters || 0) / 1000
-  ).toLocaleString("de-DE", {
+  ).toLocaleString(locale, {
     maximumFractionDigits: 0,
   })} km`;
 }
@@ -55,6 +56,7 @@ function OverviewCard({
   label,
   value,
   hint,
+  locale,
 }) {
   return (
     <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
@@ -63,7 +65,7 @@ function OverviewCard({
       </div>
 
       <div className="mt-1 text-[28px] font-bold leading-tight">
-        {typeof value === "number" ? value.toLocaleString("de-DE") : value}
+        {typeof value === "number" ? value.toLocaleString(locale) : value}
       </div>
 
       {hint && (
@@ -98,6 +100,7 @@ function TabButton({
 
 export default function Settings() {
   const { accessToken } = useAuth();
+  const { t, locale } = useI18n();
 
   const [activeTab, setActiveTab] =
     useState("system");
@@ -150,7 +153,7 @@ export default function Settings() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "Die Administration konnte nicht geladen werden.",
+            : t("admin.loadFailed"),
         );
       } finally {
         setLoading(false);
@@ -181,13 +184,13 @@ export default function Settings() {
 
       setSettings(result);
       setMessage(
-        "Die Systemeinstellungen wurden gespeichert.",
+        t("admin.saved"),
       );
     } catch (saveError) {
       setError(
         saveError instanceof Error
           ? saveError.message
-          : "Die Einstellungen konnten nicht gespeichert werden.",
+          : t("admin.saveFailed"),
       );
     } finally {
       setSaving(false);
@@ -197,7 +200,7 @@ export default function Settings() {
   if (loading) {
     return (
       <div className="rounded-xl border border-fb-border bg-fb-main p-8 text-fb-muted">
-        Administration wird geladen …
+        {t("admin.loading")}
       </div>
     );
   }
@@ -205,9 +208,9 @@ export default function Settings() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Administration"
-        title="Systemeinstellungen"
-        subtitle="Zentrale Vorgaben, Benutzerkonten, Geocoding, Hintergrundaufgaben und das vollständige System-Backup."
+        eyebrow={t("admin.eyebrow")}
+        title={t("admin.title")}
+        subtitle={t("admin.subtitle")}
       />
 
       <nav className="flex gap-7 overflow-x-auto border-b border-fb-border">
@@ -217,7 +220,7 @@ export default function Settings() {
             setActiveTab("system")
           }
         >
-          Übersicht und System
+          {t("admin.tabSystem")}
         </TabButton>
 
         <TabButton
@@ -226,15 +229,15 @@ export default function Settings() {
             setActiveTab("users")
           }
         >
-          Benutzerverwaltung
+          {t("admin.tabUsers")}
         </TabButton>
 
         <TabButton active={activeTab === "geocoding"} onClick={() => setActiveTab("geocoding")}>
-          Geocoding
+          {t("admin.tabGeocoding")}
         </TabButton>
 
         <TabButton active={activeTab === "jobs"} onClick={() => setActiveTab("jobs")}>
-          Hintergrundaufgaben
+          {t("admin.tabJobs")}
         </TabButton>
 
         <TabButton
@@ -243,7 +246,7 @@ export default function Settings() {
             setActiveTab("backup")
           }
         >
-          Backup & Restore
+          {t("admin.tabBackup")}
         </TabButton>
       </nav>
 
@@ -264,31 +267,37 @@ export default function Settings() {
           {overview && (
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <OverviewCard
-                label="Benutzer"
+                locale={locale}
+                label={t("admin.users")}
                 value={overview.totalUsers}
-                hint={`${overview.activeUsers} aktiv · ${overview.adminUsers} Administratoren`}
+                hint={t("admin.usersHint", { active: overview.activeUsers, admins: overview.adminUsers })}
               />
 
               <OverviewCard
-                label="Fahrzeuge"
+                locale={locale}
+                label={t("admin.vehicles")}
                 value={overview.totalVehicles}
-                hint="Nicht archiviert"
+                hint={t("admin.vehiclesHint")}
               />
 
               <OverviewCard
-                label="Fahrten"
+                locale={locale}
+                label={t("admin.trips")}
                 value={overview.totalTrips}
                 hint={formatDistance(
                   overview.totalDistanceMeters,
+                  locale,
                 )}
               />
 
               <OverviewCard
-                label="Datenbank"
+                locale={locale}
+                label={t("admin.database")}
                 value={formatBytes(
                   overview.databaseSizeBytes,
+                  locale,
                 )}
-                hint={`Version ${overview.version}`}
+                hint={t("admin.version", { version: overview.version })}
               />
             </section>
           )}
@@ -300,27 +309,25 @@ export default function Settings() {
             >
               <div>
                 <h2 className="text-lg font-bold">
-                  Zentrale Standardwerte
+                  {t("admin.defaultsTitle")}
                 </h2>
 
                 <p className="mt-1 text-sm text-fb-muted">
-                  Diese Werte gelten als Vorgabe
-                  für neue Geräte und
-                  Pairing-Vorgänge.
+                  {t("admin.defaultsHint")}
                 </p>
               </div>
 
               <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 <label className="block text-sm font-medium">
-                  Standardsprache
+                  {t("language.globalTitle")}
                   <select value={settings.defaultLanguage || "de"} onChange={(event)=>setSettings((current)=>({...current,defaultLanguage:event.target.value}))} className={fieldClass}>
                     <option value="de">Deutsch</option><option value="en">English</option>
                   </select>
-                  <span className="mt-1 block text-xs text-fb-muted">Wird verwendet, wenn ein Benutzer keine eigene Sprache ausgewählt hat.</span>
+                  <span className="mt-1 block text-xs text-fb-muted">{t("language.globalHint")}</span>
                 </label>
 
                 <label className="block text-sm font-medium">
-                  Mindestabstand in Metern
+                  {t("admin.minDistance")}
                   <input
                     type="number"
                     min="0"
@@ -345,7 +352,7 @@ export default function Settings() {
                 </label>
 
                 <label className="block text-sm font-medium">
-                  Mindestintervall in Sekunden
+                  {t("admin.minInterval")}
                   <input
                     type="number"
                     min="0"
@@ -370,7 +377,7 @@ export default function Settings() {
                 </label>
 
                 <label className="block text-sm font-medium">
-                  Pairing-Gültigkeit in Sekunden
+                  {t("admin.pairingExpiry")}
                   <input
                     type="number"
                     min="30"
@@ -392,7 +399,7 @@ export default function Settings() {
                 </label>
 
                 <label className="block text-sm font-medium">
-                  Kartenanbieter
+                  {t("admin.mapProvider")}
                   <select
                     value={settings.mapDefaults?.provider || "osm"}
                     onChange={(event) =>
@@ -414,19 +421,19 @@ export default function Settings() {
                     className={fieldClass}
                   >
                     <option value="osm">
-                      OpenStreetMap (Raster)
+                      {t("admin.providerOsm")}
                     </option>
                     <option value="protomaps">
-                      Protomaps (eigener Tileserver)
+                      {t("admin.providerProtomaps")}
                     </option>
                   </select>
                   <span className="mt-1 block text-xs text-fb-muted">
-                    Die Darstellung erfolgt immer mit MapLibre GL JS.
+                    {t("admin.mapProviderHint")}
                   </span>
                 </label>
 
                 <label className="block text-sm font-medium">
-                  Standard-Breitengrad
+                  {t("admin.defaultLatitude")}
                   <input
                     type="number"
                     step="0.000001"
@@ -453,7 +460,7 @@ export default function Settings() {
                 </label>
 
                 <label className="block text-sm font-medium">
-                  Standard-Längengrad
+                  {t("admin.defaultLongitude")}
                   <input
                     type="number"
                     step="0.000001"
@@ -480,7 +487,7 @@ export default function Settings() {
                 </label>
 
                 <label className="block text-sm font-medium">
-                  Standard-Zoom
+                  {t("admin.defaultZoom")}
                   <input
                     type="number"
                     min="0"
@@ -508,10 +515,10 @@ export default function Settings() {
                 {settings.mapDefaults.provider === "protomaps" && (
                   <>
                     <label className="block text-sm font-medium sm:col-span-2">
-                      Protomaps-Tileserver
+                      {t("admin.tileServer")}
                       <input
                         type="url"
-                        placeholder="http://172.16.2.20:8080 oder http://172.16.2.20:8080/europe.json"
+                        placeholder={t("admin.tileServerPlaceholder")}
                         value={settings.mapDefaults.protomapsTileServerUrl || ""}
                         onChange={(event) =>
                           setSettings((current) => ({
@@ -525,12 +532,12 @@ export default function Settings() {
                         className={fieldClass}
                       />
                       <span className="mt-1 block text-xs text-fb-muted">
-                        Adresse deines eigenen Protomaps-Tileservers. Du kannst die Basis-URL oder direkt den TileJSON-Endpunkt eintragen. Das Fahrtenbuch-Backend proxyt TileJSON und Vector-Tiles, sodass der Browser den Tileserver nicht direkt erreichen muss. Bei einer Basis-URL wird /europe.json verwendet.
+                        {t("admin.tileServerHint")}
                       </span>
                     </label>
 
                     <label className="block text-sm font-medium">
-                      Protomaps-Kartenstil
+                      {t("admin.flavor")}
                       <select
                         value={settings.mapDefaults.protomapsFlavor || "auto"}
                         onChange={(event) =>
@@ -544,17 +551,17 @@ export default function Settings() {
                         }
                         className={fieldClass}
                       >
-                        <option value="auto">Automatisch (App-Theme)</option>
-                        <option value="light">Hell</option>
-                        <option value="dark">Dunkel</option>
-                        <option value="grayscale">Graustufen</option>
-                        <option value="white">Weiß</option>
-                        <option value="black">Schwarz</option>
+                        <option value="auto">{t("admin.flavorAuto")}</option>
+                        <option value="light">{t("admin.flavorLight")}</option>
+                        <option value="dark">{t("admin.flavorDark")}</option>
+                        <option value="grayscale">{t("admin.flavorGrayscale")}</option>
+                        <option value="white">{t("admin.flavorWhite")}</option>
+                        <option value="black">{t("admin.flavorBlack")}</option>
                       </select>
                     </label>
 
                     <label className="block text-sm font-medium sm:col-span-2">
-                      Eigene Protomaps-Assets (optional)
+                      {t("admin.assets")}
                       <input
                         type="url"
                         placeholder="http://172.16.2.20/protomaps-assets"
@@ -571,7 +578,7 @@ export default function Settings() {
                         className={fieldClass}
                       />
                       <span className="mt-1 block text-xs text-fb-muted">
-                        Leer lassen, um die öffentlichen Protomaps-Fonts und -Sprites zu verwenden. Für vollständig selbst gehostete Karten hier die Basis-URL der Assets eintragen.
+                        {t("admin.assetsHint")}
                       </span>
                     </label>
                   </>
@@ -585,8 +592,8 @@ export default function Settings() {
                   className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
                 >
                   {saving
-                    ? "Speichern …"
-                    : "Systemeinstellungen speichern"}
+                    ? t("common.saving")
+                    : t("admin.save")}
                 </button>
               </div>
             </form>
