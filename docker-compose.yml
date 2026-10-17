@@ -88,6 +88,12 @@ services:
     image: redis/redisinsight:latest
     container_name: fahrtenbuch-redis-insight
     restart: unless-stopped
+    environment:
+      # Verbindung zum Fahrtenbuch-Redis vorbelegen. "redis" ist der Dienstname
+      # im Docker-Netz – 127.0.0.1 wäre der Redis-Insight-Container selbst.
+      RI_REDIS_HOST: redis
+      RI_REDIS_PORT: 6379
+      RI_REDIS_ALIAS: Fahrtenbuch
     ports:
       - "${REDIS_INSIGHT_BIND_IP:-127.0.0.1}:${REDIS_INSIGHT_PORT:-5540}:5540"
     volumes:
