@@ -34,6 +34,17 @@ export function mapDevice(row) {
   };
 }
 
+// pg liest `date`-Spalten als Date um lokale Mitternacht des Servers; als ISO-String
+// ausgegeben rutscht der Tag bei Zonen östlich von UTC (z. B. Europe/Berlin) nach vorn.
+// Deshalb als Kalendertag YYYY-MM-DD zurückgeben.
+function calendarDate(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return value.slice(0, 10);
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return null;
+  const pad = (number) => String(number).padStart(2, "0");
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+}
+
 export function mapVehicle(row) {
   return {
     id: row.id,
@@ -52,8 +63,8 @@ export function mapVehicle(row) {
     isDefault: Boolean(row.is_default),
     acquisitionType: row.acquisition_type || (row.is_leased ? "leasing" : "owned"),
     isLeased: (row.acquisition_type || (row.is_leased ? "leasing" : "owned")) === "leasing",
-    leaseStartDate: row.lease_start_date ?? null,
-    leaseEndDate: row.lease_end_date ?? null,
+    leaseStartDate: calendarDate(row.lease_start_date),
+    leaseEndDate: calendarDate(row.lease_end_date),
     leaseIncludedKm: row.lease_included_km == null ? null : Number(row.lease_included_km),
     leaseExcessToleranceKm: row.lease_excess_tolerance_km == null ? null : Number(row.lease_excess_tolerance_km),
     leaseShortfallToleranceKm: row.lease_shortfall_tolerance_km == null ? null : Number(row.lease_shortfall_tolerance_km),

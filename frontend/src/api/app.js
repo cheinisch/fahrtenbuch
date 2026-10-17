@@ -515,6 +515,22 @@ export function shareVehicle(accessToken, vehicleId, email) {
   );
 }
 
+export function getServiceConfig(accessToken) {
+  return apiRequest(accessToken, "/api/v1/config/services");
+}
+
+export function getVehicleShareInvitations(accessToken, vehicleId) {
+  return apiRequest(accessToken, `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/share-invitations`);
+}
+
+export function cancelVehicleShareInvitation(accessToken, vehicleId, invitationId) {
+  return apiRequest(
+    accessToken,
+    `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/share-invitations/${encodeURIComponent(invitationId)}`,
+    { method: "DELETE" },
+  );
+}
+
 export function createVehicleShareLink(accessToken, vehicleId) {
   return apiRequest(accessToken, `/api/v1/vehicles/${encodeURIComponent(vehicleId)}/share-link`, { method: "POST" });
 }

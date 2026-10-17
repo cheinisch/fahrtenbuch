@@ -1017,6 +1017,12 @@ paths:
     post:
       tags: [Vehicles]
       summary: Invite vehicle share by email
+      description: |
+        Nur für registrierte, aktive Benutzer: sendet eine E-Mail mit einem einmal
+        verwendbaren Link (7 Tage gültig), der nur mit diesem Konto angenommen werden
+        kann. Unbekannte Adresse: 404 USER_NOT_FOUND, es wird nichts verschickt. Eine
+        offene Einladung an dieselbe Adresse wird ersetzt. Nur verfügbar, wenn
+        `GET /config/services` `mail.enabled=true` meldet.
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -1029,7 +1035,38 @@ paths:
               properties:
                 email: { type: string, format: email }
       responses:
-        '202': { description: Einladung versendet }
+        '202':
+          description: Einladung versendet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleShareInvitation' }
+        '400': { description: "SMTP nicht konfiguriert (SHARE_MAIL_NOT_CONFIGURED), ungültige Adresse oder Versand fehlgeschlagen" }
+        '404': { description: "Kein Benutzerkonto mit dieser Adresse (USER_NOT_FOUND) – keine Einladung" }
+        '409': { description: Bereits mit diesem Benutzer geteilt }
+  /vehicles/{id}/share-invitations:
+    get:
+      tags: [Vehicles]
+      summary: List pending email invitations of an owned vehicle
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Offene E-Mail-Einladungen
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/VehicleShareInvitation' }
+  /vehicles/{id}/share-invitations/{invitationId}:
+    delete:
+      tags: [Vehicles]
+      summary: Cancel pending email invitation
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Einladung zurückgezogen }
+        '404': { $ref: '#/components/responses/NotFound' }
   /vehicles/{id}/shares/{userId}:
     delete:
       tags: [Vehicles]
@@ -1064,7 +1101,22 @@ paths:
       parameters:
         - { name: token, in: query, required: true, schema: { type: string, minLength: 20 } }
       responses:
-        '200': { description: Status und Metadaten der Einladung }
+        '200':
+          description: Status und Metadaten der Einladung
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [pending, accepted, declined, cancelled, expired] }
+                  expired: { type: boolean }
+                  vehicleName: { type: string }
+                  licensePlate: { type: [string, 'null'], description: Nur wenn die Einladung für den angemeldeten Benutzer gedacht ist }
+                  ownerName: { type: string }
+                  expiresAt: { type: string, format: date-time }
+                  invitationType: { type: string, enum: [email, link] }
+                  isOwnVehicle: { type: boolean, description: Der angemeldete Benutzer hat den Link selbst erstellt }
+                  intendedForCurrentUser: { type: boolean }
         '404': { $ref: '#/components/responses/NotFound' }
   /vehicles/share-invitations/pending:
     get:
@@ -2565,6 +2617,23 @@ components:
         color: { type: [string, 'null'] }
         notes: { type: [string, 'null'] }
         bluetoothMac: { type: [string, 'null'] }
+        isOwner: { type: boolean, description: false = vom Besitzer geteiltes Fahrzeug }
+        accessType: { type: string, enum: [owner, shared] }
+        ownerDisplayName: { type: [string, 'null'], description: Nur bei geteilten Fahrzeugen }
+        ownerUsername: { type: [string, 'null'], description: Nur bei geteilten Fahrzeugen }
+        acquisitionType:
+          type: string
+          enum: [owned, leasing, financing]
+          description: Nur für den Besitzer; bei geteilten Fahrzeugen nicht enthalten.
+        sharedWith:
+          type: array
+          description: Nur für den Besitzer – Benutzer, mit denen das Fahrzeug geteilt ist.
+          items:
+            type: object
+            properties:
+              userId: { type: string, format: uuid }
+              displayName: { type: [string, 'null'] }
+              username: { type: [string, 'null'] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     VehicleInput:
@@ -2738,7 +2807,20 @@ components:
             nearbyEndpoint: { type: string, example: /api/v1/geocoding/nearby }
             searchRadiusMeters: { type: integer, example: 2500 }
             maxResults: { type: integer, example: 50 }
+        mail:
+          type: object
+          description: Mailversand. Bei enabled=false Freigaben per E-Mail ausblenden.
+          properties:
+            enabled: { type: boolean, description: "true, wenn SMTP_HOST und SMTP_FROM konfiguriert sind" }
         updatedAt: { type: string, format: date-time }
+    VehicleShareInvitation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        status: { type: string, enum: [pending] }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
     PublicMapConfig:
       type: object
       required: [provider, type, attribution, minZoom, maxZoom, tileSize]
@@ -3709,6 +3791,23 @@ components:
         color: { type: [string, 'null'] }
         notes: { type: [string, 'null'] }
         bluetoothMac: { type: [string, 'null'] }
+        isOwner: { type: boolean, description: false = vom Besitzer geteiltes Fahrzeug }
+        accessType: { type: string, enum: [owner, shared] }
+        ownerDisplayName: { type: [string, 'null'], description: Nur bei geteilten Fahrzeugen }
+        ownerUsername: { type: [string, 'null'], description: Nur bei geteilten Fahrzeugen }
+        acquisitionType:
+          type: string
+          enum: [owned, leasing, financing]
+          description: Nur für den Besitzer; bei geteilten Fahrzeugen nicht enthalten.
+        sharedWith:
+          type: array
+          description: Nur für den Besitzer – Benutzer, mit denen das Fahrzeug geteilt ist.
+          items:
+            type: object
+            properties:
+              userId: { type: string, format: uuid }
+              displayName: { type: [string, 'null'] }
+              username: { type: [string, 'null'] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     VehicleInput:
@@ -3872,7 +3971,20 @@ components:
             nearbyEndpoint: { type: string, example: /api/v1/geocoding/nearby }
             searchRadiusMeters: { type: integer, example: 2500 }
             maxResults: { type: integer, example: 50 }
+        mail:
+          type: object
+          description: Mailversand. Bei enabled=false Freigaben per E-Mail ausblenden.
+          properties:
+            enabled: { type: boolean, description: "true, wenn SMTP_HOST und SMTP_FROM konfiguriert sind" }
         updatedAt: { type: string, format: date-time }
+    VehicleShareInvitation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        status: { type: string, enum: [pending] }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
     PublicMapConfig:
       type: object
       required: [provider, type, attribution, minZoom, maxZoom, tileSize]

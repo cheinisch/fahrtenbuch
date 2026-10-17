@@ -1,3 +1,4 @@
+import { isMailConfigured } from "./mailService.js";
 import { config } from "../config.js";
 import { pool } from "../database/pool.js";
 
@@ -176,6 +177,8 @@ export async function getPublicServiceConfiguration(client = pool) {
       searchRadiusMeters: Number(settings.overpass.searchRadiusMeters || 2500),
       maxResults: Number(settings.overpass.maxResults || 50),
     },
+    // Additiv: ohne SMTP blenden Clients Einladungen per E-Mail aus
+    mail: { enabled: isMailConfigured() },
     updatedAt: settings.updatedAt,
   };
 }

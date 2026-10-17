@@ -9,6 +9,7 @@ import {
   TruckIcon,
 } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   createVehicle,
@@ -25,6 +26,9 @@ import {
   setDefaultVehicle,
   shareVehicle,
   createVehicleShareLink,
+  getServiceConfig,
+  getVehicleShareInvitations,
+  cancelVehicleShareInvitation,
   updateVehicle,
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
@@ -40,6 +44,8 @@ function label(vehicle, t) {
 export default function Vehicles() {
   const { accessToken } = useAuth();
   const { t, locale } = useI18n();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("active");
@@ -55,7 +61,9 @@ export default function Vehicles() {
   const [shareEmail, setShareAccount] = useState("");
   const [shareSaving, setShareSaving] = useState(false);
   const [shareLink, setShareLink] = useState(null);
-  const [shareMode, setShareMode] = useState("email");
+  const [shareMode, setShareMode] = useState("link");
+  const [mailEnabled, setMailEnabled] = useState(false);
+  const [invitations, setInvitations] = useState([]);
   const [lifecycleVehicle, setLifecycleVehicle] = useState(null);
   const [lifecycleMode, setLifecycleMode] = useState(null);
   const [lifecycleSaving, setLifecycleSaving] = useState(false);
@@ -78,6 +86,21 @@ export default function Vehicles() {
   }
 
   useEffect(() => { load(); }, [accessToken]);
+
+  // E-Mail-Einladungen nur anbieten, wenn der Server SMTP konfiguriert hat
+  useEffect(() => {
+    getServiceConfig(accessToken)
+      .then((config) => setMailEnabled(Boolean(config?.mail?.enabled)))
+      .catch(() => setMailEnabled(false));
+  }, [accessToken]);
+
+  // Rückmeldung z. B. nach angenommenem Freigabelink anzeigen und aus dem Verlauf entfernen
+  useEffect(() => {
+    if (typeof location.state?.message === "string") {
+      setMessage(location.state.message);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state]);
 
   async function save(payload) {
     setSaving(true);
@@ -110,29 +133,64 @@ export default function Vehicles() {
     setSharingVehicle(vehicle);
     setShareAccount("");
     setShareLink(null);
+    setShareMode(mailEnabled ? "email" : "link");
+    setInvitations([]);
     try {
-      const [shareRows, activityRows] = await Promise.all([
+      const [shareRows, activityRows, invitationRows] = await Promise.all([
         getVehicleShares(accessToken, vehicle.id),
         getSharedVehicleActivity(accessToken, vehicle.id),
+        mailEnabled ? getVehicleShareInvitations(accessToken, vehicle.id) : Promise.resolve([]),
       ]);
       setShares(shareRows);
       setSharedActivity(activityRows);
+      setInvitations(invitationRows);
     } catch (actionError) {
       setError(actionError.message);
       setSharingVehicle(null);
     }
   }
 
+  const parsedEmails = [...new Set(shareEmail.split(/[\s,;]+/).map((entry) => entry.trim().toLowerCase()).filter(Boolean))];
+  const invalidEmails = parsedEmails.filter((entry) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(entry));
+
   async function addShare(event) {
     event.preventDefault();
-    if (!sharingVehicle || !shareEmail.trim()) return;
+    if (!sharingVehicle || parsedEmails.length === 0) return;
+    if (invalidEmails.length) { setError(t("vehicles.invalidEmails", { emails: invalidEmails.join(", ") })); return; }
+    setShareSaving(true);
+    setError("");
+    const failed = [];
+    const sent = [];
+    const unknown = [];
+    // Nacheinander senden, damit Fehler je Adresse zugeordnet werden können
+    for (const email of parsedEmails) {
+      try {
+        await shareVehicle(accessToken, sharingVehicle.id, email);
+        sent.push(email);
+      } catch (actionError) {
+        // Ohne Konto wird bewusst nichts verschickt – kein Fehler, nur ein Hinweis
+        if (actionError.code === "USER_NOT_FOUND") unknown.push(email);
+        else failed.push(`${email}: ${actionError.message}`);
+      }
+    }
+    try { setInvitations(await getVehicleShareInvitations(accessToken, sharingVehicle.id)); } catch { /* Liste bleibt */ }
+    setShareAccount(failed.length ? parsedEmails.filter((email) => !sent.includes(email) && !unknown.includes(email)).join(", ") : "");
+    setMessage([
+      sent.length ? t("vehicles.invitationSent", { count: sent.length, emails: sent.join(", ") }) : "",
+      unknown.length ? t("vehicles.noAccount", { emails: unknown.join(", ") }) : "",
+    ].filter(Boolean).join(" "));
+    if (failed.length) setError(failed.join(" · "));
+    setShareSaving(false);
+  }
+
+  async function cancelInvitation(invitation) {
+    if (!sharingVehicle) return;
     setShareSaving(true);
     setError("");
     try {
-      await shareVehicle(accessToken, sharingVehicle.id, shareEmail.trim());
-      setShares(await getVehicleShares(accessToken, sharingVehicle.id));
-      setShareAccount("");
-      setMessage(t("vehicles.invitationSent", { vehicle: sharingVehicle.name }));
+      await cancelVehicleShareInvitation(accessToken, sharingVehicle.id, invitation.id);
+      setInvitations((current) => current.filter((item) => item.id !== invitation.id));
+      setMessage(t("vehicles.invitationCancelled", { email: invitation.email }));
     } catch (actionError) {
       setError(actionError.message);
     } finally {
@@ -285,13 +343,28 @@ export default function Vehicles() {
                   </div>
                   {badge && <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>{badge.text}</span>}
                 </div>
+                {vehicle.isOwner ? (
                 <dl className="grid grid-cols-2 gap-3.5 text-sm">
                   <div><dt className={fieldLabel}>{t("vehicles.plate")}</dt><dd className="mt-1 font-semibold">{vehicle.licensePlate || "–"}</dd></div>
                   <div><dt className={fieldLabel}>{t("vehicles.odometer")}</dt><dd className="mt-1 font-semibold">{vehicle.odometerKm == null ? "–" : `${Number(vehicle.odometerKm).toLocaleString(locale, { maximumFractionDigits: 1 })} km`}</dd></div>
                   <div className="min-w-0"><dt className={fieldLabel}>{t("vehicles.bluetooth")}</dt><dd className={`mt-1 truncate ${vehicle.bluetoothMac ? "font-mono text-xs font-medium" : "font-medium"}`}>{vehicle.bluetoothMac || t("vehicles.notAssigned")}</dd></div>
                   <div><dt className={fieldLabel}>{t("vehicles.financing")}</dt><dd className="mt-1 font-medium">{acquisitionLabel(vehicle)}</dd></div>
                 </dl>
-                {!vehicle.isOwner && <div className="rounded-lg bg-fb-accent-soft px-3 py-2 text-xs font-semibold text-fb-accent-strong">{t("vehicles.sharedBy", { user: vehicle.owner?.displayName || vehicle.owner?.username || t("vehicles.otherUser") })}</div>}
+                ) : (
+                  // Mitbenutzer: keine Finanzierungs-/Leasing- oder Bluetooth-Angaben
+                  <dl className="grid grid-cols-2 gap-3.5 text-sm">
+                    <div><dt className={fieldLabel}>{t("vehicles.plate")}</dt><dd className="mt-1 font-semibold">{vehicle.licensePlate || "–"}</dd></div>
+                    <div className="min-w-0"><dt className={fieldLabel}>{t("vehicles.owner")}</dt><dd className="mt-1 truncate font-semibold">{vehicle.ownerDisplayName || vehicle.ownerUsername || t("vehicles.otherUser")}</dd></div>
+                  </dl>
+                )}
+                {vehicle.isOwner && vehicle.sharedWith?.length > 0 && (
+                  <button type="button" onClick={() => openSharing(vehicle)} className="flex min-w-0 items-center gap-2 rounded-lg bg-orange-50 px-3 py-2 text-left text-xs text-orange-900 hover:bg-orange-100 dark:bg-orange-950/60 dark:text-orange-200 dark:hover:bg-orange-950">
+                    <span className="flex shrink-0 -space-x-1.5">
+                      {vehicle.sharedWith.slice(0, 3).map((entry) => <span key={entry.userId} aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold ring-2 ring-orange-50 dark:bg-orange-900 dark:ring-orange-950">{initials(entry.displayName || entry.username)}</span>)}
+                    </span>
+                    <span className="min-w-0 truncate"><span className="font-semibold">{t("vehicles.sharedWith")}</span> {vehicle.sharedWith.map((entry) => entry.displayName || entry.username).join(", ")}</span>
+                  </button>
+                )}
                 {vehicle.isOwner && (
                   <div className="mt-auto flex flex-wrap gap-2 border-t border-fb-border pt-4">
                     <button type="button" onClick={() => { setEditing(vehicle); setModalOpen(true); }} className={secondaryButton}>{t("vehicles.edit")}</button>
@@ -323,22 +396,23 @@ export default function Vehicles() {
 
             <div className="mt-6 flex flex-wrap gap-7">
               <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
-                <div role="radiogroup" aria-label={t("vehicles.shareTitle")} className="grid grid-cols-2 gap-2.5">
+                {mailEnabled && <div role="radiogroup" aria-label={t("vehicles.shareTitle")} className="grid grid-cols-2 gap-2.5">
                   {[["email", t("vehicles.emailMode"), t("vehicles.emailHint")], ["link", t("vehicles.linkMode"), t("vehicles.linkHint")]].map(([mode, title, hint]) => (
                     <label key={mode} className={`flex cursor-pointer items-start gap-2.5 rounded-lg p-3 text-sm ${shareMode === mode ? "border-2 border-fb-accent bg-fb-accent-soft/50" : "border border-fb-border"}`}>
                       <input type="radio" name="share-mode" checked={shareMode === mode} onChange={() => setShareMode(mode)} className="mt-0.5 accent-[var(--color-accent)]" />
                       <span><span className="block font-semibold">{title}</span><span className="mt-0.5 block text-xs text-fb-muted">{hint}</span></span>
                     </label>
                   ))}
-                </div>
+                </div>}
 
-                {shareMode === "email" ? (
+                {mailEnabled && shareMode === "email" ? (
                   <form onSubmit={addShare} className="flex flex-col gap-1.5 text-sm font-medium">
-                    <label htmlFor="share-email">{t("vehicles.email")}</label>
+                    <label htmlFor="share-email">{t("vehicles.emails")}</label>
                     <div className="flex gap-2">
-                      <input id="share-email" type="email" value={shareEmail} onChange={(event) => setShareAccount(event.target.value)} placeholder="name@example.org" className="h-11 min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-surface px-3 font-normal" />
-                      <button disabled={shareSaving || !shareEmail.trim()} className="h-11 rounded-lg bg-fb-accent px-4 font-semibold text-fb-accent-text disabled:opacity-50">{t("vehicles.share")}</button>
+                      <input id="share-email" type="text" inputMode="email" autoComplete="email" value={shareEmail} onChange={(event) => setShareAccount(event.target.value)} placeholder="name@example.org, …" aria-describedby="share-email-hint" className="h-11 min-w-0 flex-1 rounded-lg border border-fb-border bg-fb-surface px-3 font-normal" />
+                      <button disabled={shareSaving || parsedEmails.length === 0} className="h-11 shrink-0 rounded-lg bg-fb-accent px-4 font-semibold text-fb-accent-text disabled:opacity-50">{parsedEmails.length > 1 ? t("vehicles.sendInvitations", { count: parsedEmails.length }) : t("vehicles.sendInvitation")}</button>
                     </div>
+                    <span id="share-email-hint" className="text-xs font-normal text-fb-muted">{t("vehicles.emailsHint")}</span>
                   </form>
                 ) : (
                   <div className="flex flex-col gap-3">
@@ -361,7 +435,18 @@ export default function Vehicles() {
               </div>
 
               <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-2.5">
-                <h3 className="text-[15px] font-bold">{t("vehicles.activeShares")}</h3>
+                {invitations.length > 0 && (
+                  <>
+                    <h3 className="text-[15px] font-bold">{t("vehicles.pendingInvitations")}</h3>
+                    {invitations.map((invitation) => (
+                      <div key={invitation.id} className="flex items-center justify-between gap-2.5 rounded-lg border border-dashed border-fb-border p-3">
+                        <span className="min-w-0"><span className="block truncate text-sm font-semibold">{invitation.email}</span><span className="block truncate text-xs text-fb-muted">{t("vehicles.validUntil", { date: new Date(invitation.expiresAt).toLocaleString(locale) })}</span></span>
+                        <button type="button" disabled={shareSaving} onClick={() => cancelInvitation(invitation)} className="h-9 shrink-0 rounded-lg border border-fb-border px-3 text-[13px] font-semibold text-fb-muted hover:text-fb-danger disabled:opacity-50">{t("vehicles.cancelInvitation")}</button>
+                      </div>
+                    ))}
+                  </>
+                )}
+                <h3 className={`text-[15px] font-bold ${invitations.length ? "mt-3" : ""}`}>{t("vehicles.activeShares")}</h3>
                 {shares.length === 0 ? <p className="text-sm text-fb-muted">{t("vehicles.noShares")}</p> : shares.map((entry) => (
                   <div key={entry.userId} className="flex items-center justify-between gap-2.5 rounded-lg border border-fb-border p-3">
                     <span className="flex min-w-0 items-center gap-2.5">
