@@ -78,7 +78,9 @@ frontend/src/i18n/locales/
 - Every language file has the **same key structure**. German (`de`) is the reference and fallback language – add new keys there first, then to all other languages in the same commit.
 - Values are plain strings; placeholders use single braces: `"Fahrzeug {vehicle} gespeichert"` → `t("key", { vehicle })`.
 - Reuse generic keys (e.g. `buttons.*`) instead of duplicating identical texts.
-- New languages: add `<code>/translation.json` and register it in `I18nProvider.jsx`.
+- React components use `const { t, locale } = useI18n()`; code outside React (`api/`, `lib/`, module-level helpers) uses `translate()` from `src/i18n/translate.js`.
+- No hardcoded UI texts and no hardcoded `"de-DE"` for numbers/dates – use `locale` (or `document.documentElement.lang` in helpers without the hook). Exception: values that must keep a fixed format (e.g. `<input type="time">`). Server error messages are passed through as they come.
+- New languages: add `<code>/translation.json` and register it in `src/i18n/translate.js`.
 - Files are split into **sections per page/area**, each introduced by a comment `// ===== <Page> =====` (German titles in `de`, English in `en`, same order in every language). Put new keys into the matching section; a new page gets a new section.
 
 ## Git
