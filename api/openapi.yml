@@ -1018,8 +1018,9 @@ paths:
       tags: [Vehicles]
       summary: Invite vehicle share by email
       description: |
-        Sendet dem Empfänger eine E-Mail mit einem einmal verwendbaren Freigabelink
-        (7 Tage gültig). Ein Konto mit genau dieser Adresse ist nicht nötig. Eine
+        Nur für registrierte, aktive Benutzer: sendet eine E-Mail mit einem einmal
+        verwendbaren Link (7 Tage gültig), der nur mit diesem Konto angenommen werden
+        kann. Unbekannte Adresse: 404 USER_NOT_FOUND, es wird nichts verschickt. Eine
         offene Einladung an dieselbe Adresse wird ersetzt. Nur verfügbar, wenn
         `GET /config/services` `mail.enabled=true` meldet.
       parameters:
@@ -1040,6 +1041,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/VehicleShareInvitation' }
         '400': { description: "SMTP nicht konfiguriert (SHARE_MAIL_NOT_CONFIGURED), ungültige Adresse oder Versand fehlgeschlagen" }
+        '404': { description: "Kein Benutzerkonto mit dieser Adresse (USER_NOT_FOUND) – keine Einladung" }
         '409': { description: Bereits mit diesem Benutzer geteilt }
   /vehicles/{id}/share-invitations:
     get:

@@ -315,9 +315,10 @@ function newShareToken() {
   return { token, hash:crypto.createHash("sha256").update(token).digest("hex") };
 }
 
-// Freigabe per E-Mail: Der Empfänger bekommt einen einmal verwendbaren Freigabelink
-// (7 Tage gültig). Er braucht noch kein Konto mit genau dieser Adresse – wer den
-// Link öffnet und sich anmeldet, kann das Fahrzeug hinzufügen.
+// Freigabe per E-Mail: nur an registrierte, aktive Benutzer. Der Link in der Mail
+// (einmal verwendbar, 7 Tage gültig) kann nur mit genau diesem Konto angenommen
+// werden – anders als der Freigabelink, der bewusst weitergegeben werden kann.
+// Unbekannte Adresse: keine Mail, keine Einladung.
 vehicleRoutes.post(
   "/:id/shares",
   asyncHandler(async (request, response) => {
@@ -334,10 +335,9 @@ vehicleRoutes.post(
     if(owner?.email && owner.email.toLowerCase()===email) throw badRequest("CANNOT_SHARE_WITH_SELF","Das eigene Fahrzeug muss nicht geteilt werden.");
     const target=(await pool.query(
       `SELECT id,timezone FROM users WHERE deleted_at IS NULL AND status='active' AND lower(email)=$1 LIMIT 1`,[email])).rows[0] || null;
-    if(target){
-      const existing=await pool.query(`SELECT 1 FROM vehicle_shares WHERE vehicle_id=$1 AND user_id=$2`,[vehicleId,target.id]);
-      if(existing.rowCount) throw conflict("VEHICLE_ALREADY_SHARED","Das Fahrzeug ist bereits mit diesem Benutzer geteilt.");
-    }
+    if(!target) throw notFound("USER_NOT_FOUND","Zu dieser E-Mail-Adresse gibt es kein Benutzerkonto. Es wurde keine Einladung verschickt.");
+    const existing=await pool.query(`SELECT 1 FROM vehicle_shares WHERE vehicle_id=$1 AND user_id=$2`,[vehicleId,target.id]);
+    if(existing.rowCount) throw conflict("VEHICLE_ALREADY_SHARED","Das Fahrzeug ist bereits mit diesem Benutzer geteilt.");
 
     const { token, hash }=newShareToken();
     const expiresAt=new Date(Date.now()+7*24*60*60*1000);
@@ -349,13 +349,13 @@ vehicleRoutes.post(
       await client.query(
         `UPDATE vehicle_share_invitations SET status='cancelled',responded_at=now()
          WHERE vehicle_id=$1 AND invitation_type='email' AND status='pending'
-           AND (lower(invited_email)=$2 OR ($3::uuid IS NOT NULL AND invited_user_id=$3))`,
-        [vehicleId,email,target?.id ?? null]);
+           AND (lower(invited_email)=$2 OR invited_user_id=$3)`,
+        [vehicleId,email,target.id]);
       invitation=(await client.query(
         `INSERT INTO vehicle_share_invitations(vehicle_id,invited_user_id,invited_email,invited_by_user_id,token_hash,expires_at,invitation_type,max_uses)
          VALUES($1,$2,$3,$4,$5,$6,'email',1)
          RETURNING id,invited_email,expires_at,created_at`,
-        [vehicleId,target?.id ?? null,email,request.auth.userId,hash,expiresAt])).rows[0];
+        [vehicleId,target.id,email,request.auth.userId,hash,expiresAt])).rows[0];
       await client.query("COMMIT");
     } catch(error){ await client.query("ROLLBACK"); throw error; } finally { client.release(); }
 
@@ -365,7 +365,7 @@ vehicleRoutes.post(
         vehicleName:vehicle.name, licensePlate:vehicle.license_plate,
         acceptUrl:`${base}/share-invitation?token=${encodeURIComponent(token)}`,
         expiresAt:invitation.expires_at,
-        timeZone:resolveTimeZone(target?.timezone, owner?.timezone),
+        timeZone:resolveTimeZone(target.timezone, owner?.timezone),
       });
     } catch(error) {
       await pool.query(`DELETE FROM vehicle_share_invitations WHERE id=$1`,[invitation.id]);
@@ -425,8 +425,8 @@ vehicleRoutes.get(
     const row=result.rows[0];
     const expired=new Date(row.expires_at).getTime()<=Date.now();
     if(expired&&row.status==="pending") await pool.query(`UPDATE vehicle_share_invitations SET status='expired' WHERE id=$1`,[row.id]);
-    // Link und E-Mail-Einladung funktionieren gleich: wer den Link hat, kann annehmen
-    const intendedForCurrentUser=true;
+    // Freigabelink: jeder angemeldete Benutzer; E-Mail-Einladung: nur das eingeladene Konto
+    const intendedForCurrentUser=row.invitation_type==="link" || row.invited_user_id===request.auth.userId;
     response.json({
       status:expired?"expired":row.status,expired,vehicleName:row.vehicle_name,
       // Kennzeichen nur, wenn die Einladung für den angemeldeten Benutzer gedacht ist
@@ -479,6 +479,8 @@ vehicleRoutes.post(
         return response.status(410).json({error:{code:"SHARE_INVITATION_EXPIRED",message:"Link ist abgelaufen."}});
       }
       if(row.status!=="pending") throw conflict("SHARE_INVITATION_USED","Diese Einladung wurde bereits beantwortet.");
+      if(row.invitation_type==="email" && row.invited_user_id!==request.auth.userId)
+        throw badRequest("SHARE_INVITATION_WRONG_USER","Diese Einladung wurde für einen anderen Benutzer erstellt.");
       if(row.invited_by_user_id===request.auth.userId)
         throw badRequest("CANNOT_SHARE_WITH_SELF","Du kannst dein eigenes Fahrzeug nicht über einen Freigabelink übernehmen.");
       if(action==="decline"){

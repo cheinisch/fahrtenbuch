@@ -161,18 +161,24 @@ export default function Vehicles() {
     setError("");
     const failed = [];
     const sent = [];
+    const unknown = [];
     // Nacheinander senden, damit Fehler je Adresse zugeordnet werden können
     for (const email of parsedEmails) {
       try {
         await shareVehicle(accessToken, sharingVehicle.id, email);
         sent.push(email);
       } catch (actionError) {
-        failed.push(`${email}: ${actionError.message}`);
+        // Ohne Konto wird bewusst nichts verschickt – kein Fehler, nur ein Hinweis
+        if (actionError.code === "USER_NOT_FOUND") unknown.push(email);
+        else failed.push(`${email}: ${actionError.message}`);
       }
     }
     try { setInvitations(await getVehicleShareInvitations(accessToken, sharingVehicle.id)); } catch { /* Liste bleibt */ }
-    setShareAccount(failed.length ? parsedEmails.filter((email) => !sent.includes(email)).join(", ") : "");
-    if (sent.length) setMessage(t("vehicles.invitationSent", { count: sent.length, emails: sent.join(", ") }));
+    setShareAccount(failed.length ? parsedEmails.filter((email) => !sent.includes(email) && !unknown.includes(email)).join(", ") : "");
+    setMessage([
+      sent.length ? t("vehicles.invitationSent", { count: sent.length, emails: sent.join(", ") }) : "",
+      unknown.length ? t("vehicles.noAccount", { emails: unknown.join(", ") }) : "",
+    ].filter(Boolean).join(" "));
     if (failed.length) setError(failed.join(" · "));
     setShareSaving(false);
   }
