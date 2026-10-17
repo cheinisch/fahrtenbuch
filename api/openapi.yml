@@ -741,6 +741,20 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/TripHistoryEntry' }
         '404': { description: Fahrt nicht gefunden }
+  /trips/{id}/matched-route:
+    get:
+      tags: [Trips]
+      summary: Get map-matched route
+      description: Auf das Straßennetz gelegte Route aus dem Map-Matching. Die GPS-Rohpunkte bleiben unter /trips/{id}/points unverändert.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Gematchte Route
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripMatchedRoute' }
+        '404': { description: Fahrt nicht gefunden oder noch nicht gematcht (MAP_MATCH_NOT_FOUND) }
   /trips/{id}/points:
     get:
       tags: [Trips]
@@ -1975,6 +1989,57 @@ paths:
         '401':
           description: Authentication required
 
+  /admin/jobs/map-matching:
+    get:
+      tags: [Admin]
+      summary: Map matching status
+      description: Ob Map-Matching konfiguriert ist und wie viele Fahrten gematcht, abgelehnt, fehlgeschlagen oder offen sind.
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled, provider, trips]
+                properties:
+                  enabled: { type: boolean }
+                  provider: { type: string, enum: [disabled, valhalla, osrm, atlas] }
+                  reason: { type: [string, 'null'] }
+                  trips:
+                    type: object
+                    properties:
+                      missing: { type: integer }
+                      applied: { type: integer }
+                      rejected: { type: integer }
+                      failed: { type: integer }
+    post:
+      tags: [Admin]
+      summary: Start map matching job
+      description: Reiht abgeschlossene Fahrten zum Map-Matching ein. Fahrten in abgeschlossenen Zeiträumen werden übersprungen.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode: { type: string, enum: [missing, failed, all], default: missing }
+                limit: { type: integer, minimum: 1, maximum: 1000, default: 500 }
+      responses:
+        '202':
+          description: Eingereiht
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queued, selected, mode]
+                properties:
+                  queued: { type: integer }
+                  selected: { type: integer }
+                  mode: { type: string }
+                  provider: { type: string }
+        '400': { description: Map-Matching ist nicht konfiguriert (MAP_MATCHING_DISABLED) }
   /admin/jobs/reverse-geocode:
     post:
       tags: [Admin]
@@ -2494,8 +2559,40 @@ components:
         notes: { type: [string, 'null'] }
         distanceKm: { type: [number, 'null'] }
         durationSeconds: { type: [integer, 'null'] }
+        mapMatching:
+          description: Ergebnis des Map-Matchings (null = noch nicht gematcht). Bei status applied ist distanceKm die gematchte Distanz.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/TripMapMatchingSummary'
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    TripMapMatchingSummary:
+      type: object
+      required: [status, provider]
+      properties:
+        status: { type: string, enum: [applied, rejected, failed] }
+        provider: { type: string, enum: [valhalla, osrm, atlas] }
+        matchedAt: { type: string, format: date-time }
+        rawDistanceMeters: { type: [integer, 'null'], description: Distanz aus den GPS-Rohpunkten }
+        matchedDistanceMeters: { type: [integer, 'null'] }
+        message: { type: [string, 'null'], description: Grund bei rejected/failed }
+    TripMatchedRoute:
+      allOf:
+        - $ref: '#/components/schemas/TripMapMatchingSummary'
+        - type: object
+          required: [tripId, coordinates]
+          properties:
+            tripId: { type: string, format: uuid }
+            pointCount: { type: integer }
+            confidence: { type: [number, 'null'] }
+            coordinates:
+              type: array
+              description: Route auf dem Straßennetz als [lat, lon]-Paare
+              items:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: { type: number }
     TripHistoryEntry:
       type: object
       required: [id, tripId, eventType, changedFields, metadata, createdAt]
@@ -3598,8 +3695,40 @@ components:
         notes: { type: [string, 'null'] }
         distanceKm: { type: [number, 'null'] }
         durationSeconds: { type: [integer, 'null'] }
+        mapMatching:
+          description: Ergebnis des Map-Matchings (null = noch nicht gematcht). Bei status applied ist distanceKm die gematchte Distanz.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/TripMapMatchingSummary'
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    TripMapMatchingSummary:
+      type: object
+      required: [status, provider]
+      properties:
+        status: { type: string, enum: [applied, rejected, failed] }
+        provider: { type: string, enum: [valhalla, osrm, atlas] }
+        matchedAt: { type: string, format: date-time }
+        rawDistanceMeters: { type: [integer, 'null'], description: Distanz aus den GPS-Rohpunkten }
+        matchedDistanceMeters: { type: [integer, 'null'] }
+        message: { type: [string, 'null'], description: Grund bei rejected/failed }
+    TripMatchedRoute:
+      allOf:
+        - $ref: '#/components/schemas/TripMapMatchingSummary'
+        - type: object
+          required: [tripId, coordinates]
+          properties:
+            tripId: { type: string, format: uuid }
+            pointCount: { type: integer }
+            confidence: { type: [number, 'null'] }
+            coordinates:
+              type: array
+              description: Route auf dem Straßennetz als [lat, lon]-Paare
+              items:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: { type: number }
     TripHistoryEntry:
       type: object
       required: [id, tripId, eventType, changedFields, metadata, createdAt]

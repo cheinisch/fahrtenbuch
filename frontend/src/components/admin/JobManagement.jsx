@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../auth/AuthProvider.jsx";
-import { getJobStatus, getAdminJobs, retryAdminJob, deleteAdminJob, startReverseGeocodeJobs } from "../../api/app.js";
+import { getJobStatus, getAdminJobs, retryAdminJob, deleteAdminJob, startReverseGeocodeJobs, getMapMatchingStatus, startMapMatchingJobs } from "../../api/app.js";
 import { useI18n } from "../../i18n/I18nProvider.jsx";
 
 const states = ["pending", "processing", "delayed", "failed"];
@@ -15,11 +15,19 @@ export default function JobManagement() {
   const [busy, setBusy] = useState(null);
   const [geocodeMode, setGeocodeMode] = useState("missing");
   const [notice, setNotice] = useState("");
+  const [matchMode, setMatchMode] = useState("missing");
+  const [matchInfo, setMatchInfo] = useState(null);
+  const [matchNotice, setMatchNotice] = useState("");
   const refresh = useCallback(async () => {
     try {
-      const [info, result] = await Promise.all([getJobStatus(accessToken), getAdminJobs(accessToken, state)]);
+      const [info, result, matching] = await Promise.all([
+        getJobStatus(accessToken),
+        getAdminJobs(accessToken, state),
+        getMapMatchingStatus(accessToken).catch(() => null),
+      ]);
       setStatus(info);
       setJobs(result.jobs || []);
+      setMatchInfo(matching);
       setError("");
     } catch (err) { setError(err.message); }
   }, [accessToken, state]);
@@ -53,6 +61,26 @@ export default function JobManagement() {
     finally { setBusy(null); }
   };
 
+  const startMatching = async () => {
+    setBusy("match");
+    setMatchNotice("");
+    try {
+      const result = await startMapMatchingJobs(accessToken, matchMode);
+      setMatchNotice(result.selected ? t("jobs.queuedMessage").replace("{count}", result.queued) : t("jobs.matchNothing"));
+      setState("pending");
+      await refresh();
+    } catch (err) { setError(err.message); }
+    finally { setBusy(null); }
+  };
+
+  const providerName = { atlas: t("jobs.providerAtlas"), valhalla: t("jobs.providerValhalla"), osrm: t("jobs.providerOsrm") };
+  const matchCounts = [
+    ["missing", t("jobs.matchOpen")],
+    ["applied", t("jobs.matchApplied")],
+    ["rejected", t("jobs.matchRejected")],
+    ["failed", t("jobs.matchFailedCount")],
+  ];
+
   return <section className="space-y-5">
     <header className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-xl font-bold">{t("jobs.title")}</h2><p className="text-sm text-fb-muted">{t("jobs.description")}</p></div>
@@ -73,6 +101,33 @@ export default function JobManagement() {
         </button>
       </div>
       {notice && <p role="status" className="mt-3 text-sm text-fb-accent">{notice}</p>}
+    </div>
+    <div className="rounded-xl border border-fb-border bg-fb-main p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-semibold">{t("jobs.matchTitle")}</h3>
+        {matchInfo?.enabled && <span className="text-xs text-fb-muted">{t("jobs.matchVia")}: {providerName[matchInfo.provider] || matchInfo.provider}</span>}
+      </div>
+      <p className="mt-1 text-sm text-fb-muted">{t("jobs.matchDescription")}</p>
+      {matchInfo && <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        {matchCounts.map(([key, label]) => <div key={key} className="flex gap-1.5">
+          <dt className="text-fb-muted">{label}:</dt><dd className="font-semibold">{matchInfo.trips?.[key] ?? 0}</dd>
+        </div>)}
+      </dl>}
+      {matchInfo && !matchInfo.enabled
+        ? <p className="mt-3 rounded-lg border border-fb-border bg-fb-surface p-3 text-sm text-fb-muted">{t("jobs.matchDisabled")}</p>
+        : <div className="mt-3 flex flex-wrap items-center gap-3">
+          <select aria-label={t("jobs.matchMode")} value={matchMode} onChange={(event) => setMatchMode(event.target.value)}
+            className="rounded-lg border border-fb-border bg-fb-surface px-3 py-2 text-sm text-fb-text">
+            <option value="missing">{t("jobs.matchMissing")}</option>
+            <option value="failed">{t("jobs.matchFailed")}</option>
+            <option value="all">{t("jobs.matchAll")}</option>
+          </select>
+          <button type="button" disabled={busy === "match" || !matchInfo} onClick={startMatching}
+            className="rounded-lg bg-fb-accent px-4 py-2 text-sm font-semibold text-fb-accent-text disabled:opacity-50">
+            {busy === "match" ? t("jobs.starting") : t("jobs.startMatch")}
+          </button>
+        </div>}
+      {matchNotice && <p role="status" className="mt-3 text-sm text-fb-accent">{matchNotice}</p>}
     </div>
     <div className="rounded-xl border border-fb-border bg-fb-main p-4 text-sm">
       {t("jobs.redis")}: <strong>{status?.online ? t("jobs.online") : t("jobs.offline")}</strong>

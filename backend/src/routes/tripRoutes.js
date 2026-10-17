@@ -886,6 +886,44 @@ tripRoutes.get(
   }),
 );
 
+// Auf das Straßennetz gelegte Route (Map-Matching), falls vorhanden
+tripRoutes.get(
+  "/:id/matched-route",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    const trip = await getOwnedTrip(pool, request.auth.userId, tripId, { includeTags: false });
+
+    if (!trip) {
+      throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+    }
+
+    const result = await pool.query(
+      `SELECT status, provider, message, point_count, raw_distance_meters,
+              matched_distance_meters, confidence, route, matched_at
+       FROM trip_map_matches WHERE trip_id = $1`,
+      [tripId],
+    );
+
+    if (!result.rowCount) {
+      throw notFound("MAP_MATCH_NOT_FOUND", "Für diese Fahrt gibt es noch kein Map-Matching.");
+    }
+
+    const row = result.rows[0];
+    response.json({
+      tripId,
+      status: row.status,
+      provider: row.provider,
+      message: row.message,
+      pointCount: Number(row.point_count),
+      rawDistanceMeters: row.raw_distance_meters == null ? null : Number(row.raw_distance_meters),
+      matchedDistanceMeters: row.matched_distance_meters == null ? null : Number(row.matched_distance_meters),
+      confidence: row.confidence == null ? null : Number(row.confidence),
+      coordinates: row.route || [],
+      matchedAt: row.matched_at,
+    });
+  }),
+);
+
 tripRoutes.get(
   "/:id/points",
   asyncHandler(async (request, response) => {

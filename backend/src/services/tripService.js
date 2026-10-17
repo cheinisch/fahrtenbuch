@@ -34,7 +34,12 @@ export const TRIP_SELECT = `
   t.start_timezone,
   t.end_timezone,
   t.client_trip_id,
-  (SELECT u.timezone FROM users u WHERE u.id = t.user_id) AS user_timezone
+  (SELECT u.timezone FROM users u WHERE u.id = t.user_id) AS user_timezone,
+  (SELECT json_build_object(
+     'status', m.status, 'provider', m.provider, 'matched_at', m.matched_at,
+     'raw_distance_meters', m.raw_distance_meters,
+     'matched_distance_meters', m.matched_distance_meters, 'message', m.message
+   ) FROM trip_map_matches m WHERE m.trip_id = t.id) AS map_matching
 `;
 
 export const TRIP_WITH_TAGS_SELECT = `
@@ -151,6 +156,10 @@ export async function recalculateTripMetrics(client, tripId) {
       durationSeconds,
     ],
   );
+
+  // Punkte wurden geändert (Korrektur, Teilen, Zusammenführen): altes
+  // Map-Matching passt nicht mehr und wird beim nächsten Lauf neu erzeugt.
+  await client.query(`DELETE FROM trip_map_matches WHERE trip_id = $1`, [tripId]);
 
   return result.rows[0] ? mapTrip(result.rows[0]) : null;
 }

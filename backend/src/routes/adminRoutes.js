@@ -34,7 +34,12 @@ import {
   testService,
 } from "../services/geocodingService.js";
 import {
+  mapMatchingSummary,
+  selectTripsForMatching,
+} from "../services/mapMatchingService.js";
+import {
   getAdminServiceSettings,
+  resolveMapMatching,
   writeSetting,
 } from "../services/serviceSettingsService.js";
 
@@ -1741,6 +1746,43 @@ adminRoutes.delete("/jobs/:id", asyncHandler(async (request, response) => {
   if (!raw) return response.status(404).json({ message: "Job not found" });
   await redisCommand("LREM", JOB_PREFIX + "failed", 1, raw);
   response.status(204).end();
+}));
+
+// Map-Matching: Fahrten manuell einreihen; der Worker legt sie auf das Straßennetz
+adminRoutes.get("/jobs/map-matching", asyncHandler(async (_request, response) => {
+  const matching = resolveMapMatching(await getAdminServiceSettings());
+  response.json({
+    enabled: matching.enabled,
+    provider: matching.provider,
+    reason: matching.enabled ? null : matching.reason,
+    trips: await mapMatchingSummary(),
+  });
+}));
+
+adminRoutes.post("/jobs/map-matching", asyncHandler(async (request, response) => {
+  const body = objectBody(request.body);
+  const mode = ["missing", "failed", "all"].includes(body.mode) ? body.mode : "missing";
+  const limit = Math.min(1000, Math.max(1, Number.parseInt(body.limit, 10) || 500));
+  const matching = resolveMapMatching(await getAdminServiceSettings());
+
+  if (!matching.enabled) {
+    throw badRequest("MAP_MATCHING_DISABLED", matching.reason);
+  }
+
+  const trips = await selectTripsForMatching(mode, limit);
+  let queued = 0;
+  for (const trip of trips) {
+    const lock = "fahrtenbuch:jobs:mapmatch:" + trip.id;
+    if (await redisCommand("SET", lock, "1", "NX", "EX", 6 * 3600) !== "OK") continue;
+    try {
+      await enqueueJob("trip.mapMatch", { tripId: trip.id, userId: trip.user_id });
+      queued++;
+    } catch (error) {
+      await redisCommand("DEL", lock).catch(() => {});
+      throw error;
+    }
+  }
+  response.status(202).json({ queued, selected: trips.length, mode, provider: matching.provider });
 }));
 
 adminRoutes.post("/jobs/reverse-geocode", asyncHandler(async (request, response) => {

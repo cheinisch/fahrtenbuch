@@ -184,6 +184,16 @@ export function mapTrip(row) {
     reconciliationStatus: row.reconciliation_status ?? "canonical",
     canonicalTripId: row.canonical_trip_id ?? null,
     reconciliationMetadata: row.reconciliation_metadata ?? {},
+    mapMatching: row.map_matching
+      ? {
+          status: row.map_matching.status,
+          provider: row.map_matching.provider,
+          matchedAt: row.map_matching.matched_at,
+          rawDistanceMeters: row.map_matching.raw_distance_meters == null ? null : Number(row.map_matching.raw_distance_meters),
+          matchedDistanceMeters: row.map_matching.matched_distance_meters == null ? null : Number(row.map_matching.matched_distance_meters),
+          message: row.map_matching.message ?? null,
+        }
+      : null,
     version: row.version === undefined ? undefined : Number(row.version),
     tags,
     createdAt: row.created_at,

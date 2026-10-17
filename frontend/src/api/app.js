@@ -769,6 +769,18 @@ export const startReverseGeocodeJobs = (token, mode = "missing", limit = 500) =>
     body: JSON.stringify({ mode, limit }),
   });
 
+export const getMapMatchingStatus = (token) =>
+  apiRequest(token, "/api/v1/admin/jobs/map-matching");
+
+export const startMapMatchingJobs = (token, mode = "missing", limit = 500) =>
+  apiRequest(token, "/api/v1/admin/jobs/map-matching", {
+    method: "POST",
+    body: JSON.stringify({ mode, limit }),
+  });
+
+export const getTripMatchedRoute = (token, tripId) =>
+  apiRequest(token, `/api/v1/trips/${encodeURIComponent(tripId)}/matched-route`);
+
 export const getMonthlyCategoryTrips = (token, vehicleId, month, type) =>
   apiRequest(token, "/api/v1/statistics/monthly-trips?" + new URLSearchParams({ vehicleId, month, type }).toString());
 

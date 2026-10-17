@@ -1,5 +1,6 @@
 import { pool } from "../database/pool.js";
 import { resolveTripEndpointAddresses } from "../services/tripAddressService.js";
+import { matchTrip } from "../services/mapMatchingService.js";
 import { enqueueJob, reserveJob, acknowledgeJob, retryJob, failJob, recoverAndPromote, promoteDueJobs } from "./queue.js";
 import { redisCommand } from "./redisClient.js";
 
@@ -7,6 +8,15 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const handlers = {
   "trip.reverseGeocode": async ({ tripId, userId }) => {
     await resolveTripEndpointAddresses(tripId, userId);
+  },
+  "trip.mapMatch": async ({ tripId, userId }) => {
+    try {
+      const result = await matchTrip(tripId, userId);
+      if (result.status !== "skipped") console.info("Map-Matching", tripId, result.status);
+    } finally {
+      // Sperre erst nach dem letzten Versuch freigeben, sonst erneut einreihbar
+      await redisCommand("DEL", "fahrtenbuch:jobs:mapmatch:" + tripId).catch(() => {});
+    }
   },
   "trip.archivePurge": async () => {
     const result = await pool.query("DELETE FROM trips WHERE archived_at IS NOT NULL AND archived_at < now() - interval '90 days'");
