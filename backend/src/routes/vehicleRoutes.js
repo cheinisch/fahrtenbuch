@@ -17,7 +17,8 @@ import {
 } from "../lib/validation.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
-import { sendVehicleShareInvitation } from "../services/mailService.js";
+import { isMailConfigured, sendVehicleShareInvitation } from "../services/mailService.js";
+import { resolveTimeZone } from "../lib/timezone.js";
 
 export const vehicleRoutes = Router();
 
@@ -305,47 +306,103 @@ vehicleRoutes.get(
   }),
 );
 
+function publicBaseUrl() {
+  return (process.env.PUBLIC_BASE_URL || process.env.PUBLIC_APP_URL || "").replace(/\/$/,"");
+}
+
+function newShareToken() {
+  const token=crypto.randomBytes(32).toString("base64url");
+  return { token, hash:crypto.createHash("sha256").update(token).digest("hex") };
+}
+
+// Freigabe per E-Mail: Der Empfänger bekommt einen einmal verwendbaren Freigabelink
+// (7 Tage gültig). Er braucht noch kein Konto mit genau dieser Adresse – wer den
+// Link öffnet und sich anmeldet, kann das Fahrzeug hinzufügen.
 vehicleRoutes.post(
   "/:id/shares",
   asyncHandler(async (request, response) => {
     const vehicleId=uuidValue(request.params.id);
     const vehicle=await loadVehicle(request.auth.userId,vehicleId);
     if(!vehicle) throw notFound("VEHICLE_NOT_FOUND","Das Fahrzeug wurde nicht gefunden.");
+    if(!isMailConfigured()) throw badRequest("SHARE_MAIL_NOT_CONFIGURED","Für Freigaben per E-Mail ist kein SMTP-Server konfiguriert.");
+    const base=publicBaseUrl();
+    if(!base) throw badRequest("SHARE_MAIL_NOT_CONFIGURED","PUBLIC_BASE_URL ist für Freigabeeinladungen nicht konfiguriert.");
     const email=stringField(objectBody(request.body),"email",{required:true,minimum:3,maximum:320}).trim().toLowerCase();
-    const userResult=await pool.query(
-      `SELECT id,email FROM users WHERE deleted_at IS NULL AND status='active' AND lower(email)=lower($1) LIMIT 1`,[email]);
-    if(!userResult.rowCount) throw notFound("USER_NOT_FOUND","Zu dieser E-Mail-Adresse wurde kein aktiver Benutzer gefunden.");
-    const target=userResult.rows[0];
-    if(target.id===request.auth.userId) throw badRequest("CANNOT_SHARE_WITH_SELF","Das eigene Fahrzeug muss nicht geteilt werden.");
-    const existing=await pool.query(`SELECT 1 FROM vehicle_shares WHERE vehicle_id=$1 AND user_id=$2`,[vehicleId,target.id]);
-    if(existing.rowCount) throw conflict("VEHICLE_ALREADY_SHARED","Das Fahrzeug ist bereits mit diesem Benutzer geteilt.");
-    const token=crypto.randomBytes(32).toString("base64url");
-    const hash=crypto.createHash("sha256").update(token).digest("hex");
-    const expiresAt=new Date(Date.now()+7*24*60*60*1000);
-    const owner=await pool.query(`SELECT display_name,username FROM users WHERE id=$1`,[request.auth.userId]);
-    const inserted=await pool.query(
-      `INSERT INTO vehicle_share_invitations(vehicle_id,invited_user_id,invited_email,invited_by_user_id,token_hash,expires_at)
-       VALUES($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (vehicle_id,invited_user_id) WHERE status='pending'
-       DO UPDATE SET token_hash=excluded.token_hash,expires_at=excluded.expires_at,created_at=now()
-       RETURNING id,expires_at`,
-      [vehicleId,target.id,email,request.auth.userId,hash,expiresAt]);
-    const base=(process.env.PUBLIC_BASE_URL || process.env.PUBLIC_APP_URL || "").replace(/\/$/,"");
-    if(!base) {
-      await pool.query(`DELETE FROM vehicle_share_invitations WHERE id=$1`,[inserted.rows[0].id]);
-      throw badRequest("SHARE_MAIL_NOT_CONFIGURED","PUBLIC_BASE_URL ist für Freigabeeinladungen nicht konfiguriert.");
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw badRequest("INVALID_EMAIL","Die E-Mail-Adresse ist ungültig.");
+
+    const owner=(await pool.query(`SELECT display_name,username,email,timezone FROM users WHERE id=$1`,[request.auth.userId])).rows[0];
+    if(owner?.email && owner.email.toLowerCase()===email) throw badRequest("CANNOT_SHARE_WITH_SELF","Das eigene Fahrzeug muss nicht geteilt werden.");
+    const target=(await pool.query(
+      `SELECT id,timezone FROM users WHERE deleted_at IS NULL AND status='active' AND lower(email)=$1 LIMIT 1`,[email])).rows[0] || null;
+    if(target){
+      const existing=await pool.query(`SELECT 1 FROM vehicle_shares WHERE vehicle_id=$1 AND user_id=$2`,[vehicleId,target.id]);
+      if(existing.rowCount) throw conflict("VEHICLE_ALREADY_SHARED","Das Fahrzeug ist bereits mit diesem Benutzer geteilt.");
     }
+
+    const { token, hash }=newShareToken();
+    const expiresAt=new Date(Date.now()+7*24*60*60*1000);
+    const client=await pool.connect();
+    let invitation;
+    try {
+      await client.query("BEGIN");
+      // Eine erneute Einladung an dieselbe Adresse ersetzt die offene alte
+      await client.query(
+        `UPDATE vehicle_share_invitations SET status='cancelled',responded_at=now()
+         WHERE vehicle_id=$1 AND invitation_type='email' AND status='pending'
+           AND (lower(invited_email)=$2 OR ($3::uuid IS NOT NULL AND invited_user_id=$3))`,
+        [vehicleId,email,target?.id ?? null]);
+      invitation=(await client.query(
+        `INSERT INTO vehicle_share_invitations(vehicle_id,invited_user_id,invited_email,invited_by_user_id,token_hash,expires_at,invitation_type,max_uses)
+         VALUES($1,$2,$3,$4,$5,$6,'email',1)
+         RETURNING id,invited_email,expires_at,created_at`,
+        [vehicleId,target?.id ?? null,email,request.auth.userId,hash,expiresAt])).rows[0];
+      await client.query("COMMIT");
+    } catch(error){ await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+
     try {
       await sendVehicleShareInvitation({
-        to:email, ownerName:owner.rows[0]?.display_name || owner.rows[0]?.username || "Ein Benutzer",
-        vehicleName:vehicle.name, acceptUrl:`${base}/share-invitation?token=${encodeURIComponent(token)}`,
-        expiresAt:inserted.rows[0].expires_at,
+        to:email, ownerName:owner?.display_name || owner?.username || "Ein Benutzer",
+        vehicleName:vehicle.name, licensePlate:vehicle.license_plate,
+        acceptUrl:`${base}/share-invitation?token=${encodeURIComponent(token)}`,
+        expiresAt:invitation.expires_at,
+        timeZone:resolveTimeZone(target?.timezone, owner?.timezone),
       });
     } catch(error) {
-      await pool.query(`DELETE FROM vehicle_share_invitations WHERE id=$1`,[inserted.rows[0].id]);
+      await pool.query(`DELETE FROM vehicle_share_invitations WHERE id=$1`,[invitation.id]);
       throw badRequest("SHARE_MAIL_FAILED",`Die Einladung konnte nicht per E-Mail versendet werden: ${error.message}`);
     }
-    response.status(202).json({status:"pending",expiresAt:inserted.rows[0].expires_at});
+    response.status(202).json({id:invitation.id,email:invitation.invited_email,status:"pending",expiresAt:invitation.expires_at,createdAt:invitation.created_at});
+  }),
+);
+
+// Offene E-Mail-Einladungen eines eigenen Fahrzeugs (für den Besitzer)
+vehicleRoutes.get(
+  "/:id/share-invitations",
+  asyncHandler(async (request, response) => {
+    const vehicleId=uuidValue(request.params.id);
+    const vehicle=await loadVehicle(request.auth.userId,vehicleId);
+    if(!vehicle) throw notFound("VEHICLE_NOT_FOUND","Das Fahrzeug wurde nicht gefunden.");
+    const result=await pool.query(
+      `SELECT id,invited_email,expires_at,created_at
+       FROM vehicle_share_invitations
+       WHERE vehicle_id=$1 AND invitation_type='email' AND status='pending' AND expires_at>now()
+       ORDER BY created_at DESC`,[vehicleId]);
+    response.json(result.rows.map((row)=>({id:row.id,email:row.invited_email,status:"pending",expiresAt:row.expires_at,createdAt:row.created_at})));
+  }),
+);
+
+vehicleRoutes.delete(
+  "/:id/share-invitations/:invitationId",
+  asyncHandler(async (request, response) => {
+    const vehicleId=uuidValue(request.params.id);
+    const invitationId=uuidValue(request.params.invitationId,"invitationId");
+    const vehicle=await loadVehicle(request.auth.userId,vehicleId);
+    if(!vehicle) throw notFound("VEHICLE_NOT_FOUND","Das Fahrzeug wurde nicht gefunden.");
+    const result=await pool.query(
+      `UPDATE vehicle_share_invitations SET status='cancelled',responded_at=now()
+       WHERE id=$1 AND vehicle_id=$2 AND status='pending' RETURNING id`,[invitationId,vehicleId]);
+    if(!result.rowCount) throw notFound("SHARE_INVITATION_NOT_FOUND","Die Einladung wurde nicht gefunden.");
+    response.status(204).end();
   }),
 );
 
@@ -368,7 +425,8 @@ vehicleRoutes.get(
     const row=result.rows[0];
     const expired=new Date(row.expires_at).getTime()<=Date.now();
     if(expired&&row.status==="pending") await pool.query(`UPDATE vehicle_share_invitations SET status='expired' WHERE id=$1`,[row.id]);
-    const intendedForCurrentUser=row.invitation_type==="link" || row.invited_user_id===request.auth.userId;
+    // Link und E-Mail-Einladung funktionieren gleich: wer den Link hat, kann annehmen
+    const intendedForCurrentUser=true;
     response.json({
       status:expired?"expired":row.status,expired,vehicleName:row.vehicle_name,
       // Kennzeichen nur, wenn die Einladung für den angemeldeten Benutzer gedacht ist
@@ -421,8 +479,6 @@ vehicleRoutes.post(
         return response.status(410).json({error:{code:"SHARE_INVITATION_EXPIRED",message:"Link ist abgelaufen."}});
       }
       if(row.status!=="pending") throw conflict("SHARE_INVITATION_USED","Diese Einladung wurde bereits beantwortet.");
-      if(row.invitation_type==="email" && row.invited_user_id!==request.auth.userId)
-        throw badRequest("SHARE_INVITATION_WRONG_USER","Diese Einladung wurde für einen anderen Benutzer erstellt.");
       if(row.invited_by_user_id===request.auth.userId)
         throw badRequest("CANNOT_SHARE_WITH_SELF","Du kannst dein eigenes Fahrzeug nicht über einen Freigabelink übernehmen.");
       if(action==="decline"){
@@ -450,7 +506,7 @@ vehicleRoutes.post(
     await pool.query(
       `INSERT INTO vehicle_share_invitations(vehicle_id,invited_by_user_id,token_hash,status,expires_at,invitation_type,max_uses)
        VALUES($1,$2,$3,'pending',$4,'link',1)`,[vehicleId,request.auth.userId,hash,expiresAt]);
-    const base=(process.env.PUBLIC_BASE_URL || process.env.PUBLIC_APP_URL || "").replace(/\/$/,"");
+    const base=publicBaseUrl();
     if(!base) throw badRequest("SHARE_LINK_NOT_CONFIGURED","PUBLIC_BASE_URL ist für Freigabelinks nicht konfiguriert.");
     response.status(201).json({url:`${base}/share-invitation?token=${encodeURIComponent(token)}`,expiresAt});
   })
@@ -613,6 +669,10 @@ vehicleRoutes.post(
     } catch (error) {
       await client.query("ROLLBACK");
 
+      if (error?.constraint === "vehicles_contract_data_valid") {
+        throw badRequest("INVALID_CONTRACT_DATA", "Vertragsbeginn, Vertragsende und Kilometerlimit müssen entweder vollständig oder gar nicht angegeben werden.");
+      }
+
       if (
         error?.constraint === "vehicles_bluetooth_unique_per_user"
       ) {
@@ -732,6 +792,10 @@ vehicleRoutes.put(
       response.json(mapVehicle(result.rows[0]));
     } catch (error) {
       await client.query("ROLLBACK");
+      if (error?.constraint === "vehicles_contract_data_valid") {
+        throw badRequest("INVALID_CONTRACT_DATA", "Vertragsbeginn, Vertragsende und Kilometerlimit müssen entweder vollständig oder gar nicht angegeben werden.");
+      }
+
       if (
         error?.constraint === "vehicles_bluetooth_unique_per_user"
       ) {
@@ -1028,6 +1092,10 @@ vehicleRoutes.put(
       response.json(mapVehicle(result.rows[0]));
     } catch (error) {
       await client.query("ROLLBACK");
+      if (error?.constraint === "vehicles_contract_data_valid") {
+        throw badRequest("INVALID_CONTRACT_DATA", "Vertragsbeginn, Vertragsende und Kilometerlimit müssen entweder vollständig oder gar nicht angegeben werden.");
+      }
+
       if (
         error?.constraint === "vehicles_bluetooth_unique_per_user"
       ) {

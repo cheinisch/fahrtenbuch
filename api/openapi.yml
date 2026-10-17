@@ -1017,6 +1017,11 @@ paths:
     post:
       tags: [Vehicles]
       summary: Invite vehicle share by email
+      description: |
+        Sendet dem Empfänger eine E-Mail mit einem einmal verwendbaren Freigabelink
+        (7 Tage gültig). Ein Konto mit genau dieser Adresse ist nicht nötig. Eine
+        offene Einladung an dieselbe Adresse wird ersetzt. Nur verfügbar, wenn
+        `GET /config/services` `mail.enabled=true` meldet.
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -1029,7 +1034,37 @@ paths:
               properties:
                 email: { type: string, format: email }
       responses:
-        '202': { description: Einladung versendet }
+        '202':
+          description: Einladung versendet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleShareInvitation' }
+        '400': { description: "SMTP nicht konfiguriert (SHARE_MAIL_NOT_CONFIGURED), ungültige Adresse oder Versand fehlgeschlagen" }
+        '409': { description: Bereits mit diesem Benutzer geteilt }
+  /vehicles/{id}/share-invitations:
+    get:
+      tags: [Vehicles]
+      summary: List pending email invitations of an owned vehicle
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Offene E-Mail-Einladungen
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/VehicleShareInvitation' }
+  /vehicles/{id}/share-invitations/{invitationId}:
+    delete:
+      tags: [Vehicles]
+      summary: Cancel pending email invitation
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Einladung zurückgezogen }
+        '404': { $ref: '#/components/responses/NotFound' }
   /vehicles/{id}/shares/{userId}:
     delete:
       tags: [Vehicles]
@@ -2770,7 +2805,20 @@ components:
             nearbyEndpoint: { type: string, example: /api/v1/geocoding/nearby }
             searchRadiusMeters: { type: integer, example: 2500 }
             maxResults: { type: integer, example: 50 }
+        mail:
+          type: object
+          description: Mailversand. Bei enabled=false Freigaben per E-Mail ausblenden.
+          properties:
+            enabled: { type: boolean, description: "true, wenn SMTP_HOST und SMTP_FROM konfiguriert sind" }
         updatedAt: { type: string, format: date-time }
+    VehicleShareInvitation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        status: { type: string, enum: [pending] }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
     PublicMapConfig:
       type: object
       required: [provider, type, attribution, minZoom, maxZoom, tileSize]
@@ -3921,7 +3969,20 @@ components:
             nearbyEndpoint: { type: string, example: /api/v1/geocoding/nearby }
             searchRadiusMeters: { type: integer, example: 2500 }
             maxResults: { type: integer, example: 50 }
+        mail:
+          type: object
+          description: Mailversand. Bei enabled=false Freigaben per E-Mail ausblenden.
+          properties:
+            enabled: { type: boolean, description: "true, wenn SMTP_HOST und SMTP_FROM konfiguriert sind" }
         updatedAt: { type: string, format: date-time }
+    VehicleShareInvitation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        status: { type: string, enum: [pending] }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
     PublicMapConfig:
       type: object
       required: [provider, type, attribution, minZoom, maxZoom, tileSize]
