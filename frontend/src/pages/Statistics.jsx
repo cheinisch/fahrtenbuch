@@ -11,6 +11,7 @@ const PART_COLORS = {
   commuteKm: "bg-violet-700 dark:bg-violet-500",
   privateKm: "bg-orange-600",
   unclassifiedKm: "bg-neutral-400",
+  otherDriversKm: "bg-pink-600",
   unknownKm: "bg-fb-danger",
 };
 
@@ -22,6 +23,8 @@ const STACK_SEGMENTS = [
   { key: "privateKm", fill: "fill-orange-600", swatch: "bg-orange-600" },
   { key: "commuteKm", fill: "fill-violet-700 dark:fill-violet-500", swatch: "bg-violet-700 dark:bg-violet-500" },
   { key: "unclassifiedKm", fill: "fill-neutral-400", swatch: "bg-neutral-400" },
+  // Fahrten freigegebener Fahrer: nur als Summe, ohne deren Kategorien.
+  { key: "otherDriversKm", fill: "fill-pink-600", swatch: "bg-pink-600" },
   { key: "unexplainedKm", fill: "", swatch: "" },
 ];
 
@@ -30,6 +33,7 @@ const labels = {
   privateKm: "Privat",
   commuteKm: "Arbeitsweg",
   unclassifiedKm: "Nicht zugeordnet",
+  otherDriversKm: "Andere Fahrer",
   unknownKm: "Nicht erklärt",
 };
 
@@ -100,7 +104,7 @@ function StackedMonthChart({ months, monthlyLimitKm = null, selectedMonth, onSel
   return (
     <div className="relative mt-4">
       <div className="mb-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-fb-text/80">
-        {STACK_SEGMENTS.map((segment) => (
+        {STACK_SEGMENTS.filter((segment) => segment.key !== "otherDriversKm" || months.some((month) => month.otherDriversKm > 0)).map((segment) => (
           <span key={segment.key} className="flex items-center gap-2">
             {segment.key === "unexplainedKm"
               ? <svg aria-hidden="true" className="size-3 rounded-sm"><rect width="12" height="12" fill="url(#unexplained-hatch)" /></svg>
@@ -412,12 +416,13 @@ export default function Statistics() {
       const privateKm = Number(row.privateKm) || 0;
       const commuteKm = Number(row.commuteKm) || 0;
       const unclassifiedKm = Number(row.unclassifiedKm) || 0;
-      const trackedKm = businessKm + privateKm + commuteKm + unclassifiedKm;
+      const otherDriversKm = Number(row.otherDriversKm) || 0;
+      const trackedKm = businessKm + privateKm + commuteKm + unclassifiedKm + otherDriversKm;
       const unexplainedKm = row.actualKm != null ? Math.max(0, Number(row.actualKm) - trackedKm) : 0;
       return {
         key: row.month,
         label: monthLabel(row.month).replace(/\s+\d{4}$/, ""),
-        businessKm, privateKm, commuteKm, unclassifiedKm, unexplainedKm,
+        businessKm, privateKm, commuteKm, unclassifiedKm, otherDriversKm, unexplainedKm,
         total: trackedKm + unexplainedKm,
       };
     })
@@ -480,7 +485,7 @@ export default function Statistics() {
     setCategoryModal(key);
     setCategoryTrips([]);
     setCategoryError("");
-    if (key === "unknownKm") return;
+    if (key === "unknownKm" || key === "otherDriversKm") return;
     const type = { businessKm: "business", privateKm: "private", commuteKm: "commute", unclassifiedKm: "unclassified" }[key];
     if (!type) return;
     setCategoryLoading(true);
@@ -515,11 +520,11 @@ export default function Statistics() {
     if (!yearRows.length) return null;
     const sum = (key) => yearRows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
     const businessKm = sum("businessKm");
-    const trackedKm = businessKm + sum("privateKm") + sum("commuteKm") + sum("unclassifiedKm");
+    const trackedKm = businessKm + sum("privateKm") + sum("commuteKm") + sum("unclassifiedKm") + sum("otherDriversKm");
     const classifiedKm = businessKm + sum("privateKm") + sum("commuteKm");
     // Für Monate ohne Ablesung zählen die erfassten Kilometer als gefahren.
     const actualKm = yearRows.reduce((total, row) => {
-      const tracked = ["businessKm", "privateKm", "commuteKm", "unclassifiedKm"].reduce((t, key) => t + (Number(row[key]) || 0), 0);
+      const tracked = ["businessKm", "privateKm", "commuteKm", "unclassifiedKm", "otherDriversKm"].reduce((t, key) => t + (Number(row[key]) || 0), 0);
       return total + (row.actualKm != null ? Math.max(Number(row.actualKm), tracked) : tracked);
     }, 0);
     return {
@@ -546,6 +551,7 @@ export default function Statistics() {
     ["privateKm", selected.privateKm],
     ["commuteKm", selected.commuteKm],
     ["unclassifiedKm", selected.unclassifiedKm],
+    ...(Number(selected.otherDriversKm) > 0 ? [["otherDriversKm", selected.otherDriversKm]] : []),
     ["unknownKm", selected.unknownKm],
   ] : [];
 
@@ -741,7 +747,13 @@ export default function Statistics() {
               <div><h2 className="text-xl font-bold">{labels[categoryModal]}</h2><p className="text-sm text-fb-muted">{monthLabel(month)}</p></div>
               <button type="button" onClick={() => setCategoryModal(null)} className="rounded-lg border border-fb-border px-3 py-2">Schließen</button>
             </header>
-            {categoryModal === "unknownKm" ? (
+            {categoryModal === "otherDriversKm" ? (
+              <div className="mt-5 space-y-3 text-sm">
+                <p>Fahrten anderer Benutzer, denen du dieses Fahrzeug freigegeben hast. Sie zählen zu den erfassten Kilometern, damit sie nicht als „Nicht erklärt“ erscheinen.</p>
+                <p>Gefahren von anderen Fahrern: <strong>{km(selected?.otherDriversKm)}</strong></p>
+                <p className="text-fb-muted">Aus Datenschutzgründen werden keine Ziele, Routen, Kategorien oder Fahrtdetails anderer Benutzer angezeigt.</p>
+              </div>
+            ) : categoryModal === "unknownKm" ? (
               <div className="mt-5 space-y-3 text-sm">
                 <p>„Nicht erklärt“ ist keine Fahrtenkategorie. Die Kilometer ergeben sich aus der Differenz zwischen Kilometerstandsänderung und aufgezeichneten Fahrten. Einzelne Fahrten können daher nicht aufgelistet werden.</p>
                 <p>Kilometerstand: {km(selected?.startOdometerKm)} → {km(selected?.endOdometerKm)}</p>

@@ -2872,14 +2872,14 @@ components:
         - { name: from, in: query, required: true, schema: { type: string, format: date } }
         - { name: to, in: query, required: true, schema: { type: string, format: date } }
       responses:
-        '200': { description: Kilometer- und Fahrtenwerte je Ableseintervall }
+        '200': { description: Kilometer- und Fahrtenwerte je Ableseintervall. trackedKm enthält Fahrten freigegebener Fahrer während der eigenen Halterschaft; deren Summe steht zusätzlich in otherDriversKm (ohne Kategorien). }
 
   /statistics/monthly-odometer:
     get:
       tags: [Statistics]
       summary: Monthly statistics with odometer and untracked distance
       responses:
-        '200': { description: Monatliche Kilometerstatistik }
+        '200': { description: Monatliche Kilometerstatistik. trackedKm enthält Fahrten freigegebener Fahrer während der eigenen Halterschaft; deren Summe steht zusätzlich in otherDriversKm (ohne Kategorien). }
 
   /trips/{id}/split:
     post:

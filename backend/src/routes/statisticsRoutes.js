@@ -233,6 +233,18 @@ statisticsRoutes.get(
 );
 
 
+// Fahrten auf eigenen Fahrzeugen: eigene Fahrten sowie Fahrten freigegebener
+// Fahrer, solange der Benutzer laut Besitzzeitraum Halter des Fahrzeugs war.
+// Fremde Fahrten fließen nur als Summe ein (keine Kategorien oder Details).
+function vehicleTripScopeSql(alias, userParameter) {
+  return `(${alias}.user_id = ${userParameter} OR EXISTS (
+    SELECT 1 FROM vehicle_ownership_periods p
+    WHERE p.vehicle_id = ${alias}.vehicle_id AND p.user_id = ${userParameter}
+      AND ${alias}.started_at >= p.valid_from
+      AND (p.valid_to IS NULL OR ${alias}.started_at < p.valid_to)
+  ))`;
+}
+
 statisticsRoutes.get(
   "/odometer-intervals",
   asyncHandler(async (request, response) => {
@@ -267,14 +279,15 @@ statisticsRoutes.get(
              to_char(i.next_date, 'YYYY-MM-DD') AS end_date,
              i.odometer_meters AS start_meter, i.next_meter AS end_meter,
              coalesce(sum(t.distance_meters), 0)::bigint AS tracked_meters,
-             coalesce(sum(t.distance_meters) FILTER (WHERE t.type='business'), 0)::bigint AS business_meters,
-             coalesce(sum(t.distance_meters) FILTER (WHERE t.type='private'), 0)::bigint AS private_meters,
-             coalesce(sum(t.distance_meters) FILTER (WHERE t.type='commute'), 0)::bigint AS commute_meters,
-             coalesce(sum(t.distance_meters) FILTER (WHERE t.type='unclassified'), 0)::bigint AS unclassified_meters,
+             coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id=$1 AND t.type='business'), 0)::bigint AS business_meters,
+             coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id=$1 AND t.type='private'), 0)::bigint AS private_meters,
+             coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id=$1 AND t.type='commute'), 0)::bigint AS commute_meters,
+             coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id=$1 AND t.type='unclassified'), 0)::bigint AS unclassified_meters,
+             coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id<>$1), 0)::bigint AS other_drivers_meters,
              count(t.id)::int AS trip_count
       FROM intervals i
       LEFT JOIN trips t
-        ON t.user_id=$1 AND t.vehicle_id=i.vehicle_id
+        ON ${vehicleTripScopeSql("t", "$1")} AND t.vehicle_id=i.vehicle_id
        AND t.archived_at IS NULL AND t.status='completed'
        AND ${tripLocalStartSql("t", "$5")}::date >= greatest(i.reading_date, $3::date)
        AND ${tripLocalStartSql("t", "$5")}::date <= least(i.next_date, $4::date)
@@ -301,6 +314,7 @@ statisticsRoutes.get(
         privateKm: Number(row.private_meters || 0) / 1000,
         commuteKm: Number(row.commute_meters || 0) / 1000,
         unclassifiedKm: Number(row.unclassified_meters || 0) / 1000,
+        otherDriversKm: Number(row.other_drivers_meters || 0) / 1000,
         tripCount: Number(row.trip_count || 0),
       };
     }));
@@ -339,18 +353,21 @@ statisticsRoutes.get(
         WHERE v.user_id = $1 AND v.archived_at IS NULL
       ),
       distances AS (
-        SELECT vehicle_id, date_trunc('month', ${tripLocalStartSql("", "$3")})::date AS month,
-          coalesce(sum(distance_meters), 0)::bigint AS tracked_meters,
-          coalesce(sum(distance_meters) FILTER (WHERE type = 'business'), 0)::bigint AS business_meters,
-          coalesce(sum(distance_meters) FILTER (WHERE type = 'private'), 0)::bigint AS private_meters,
-          coalesce(sum(distance_meters) FILTER (WHERE type = 'commute'), 0)::bigint AS commute_meters,
-          coalesce(sum(distance_meters) FILTER (WHERE type = 'unclassified'), 0)::bigint AS unclassified_meters
-        FROM trips
-        WHERE user_id = $1 AND archived_at IS NULL AND status = 'completed'
-        GROUP BY vehicle_id, date_trunc('month', ${tripLocalStartSql("", "$3")})
+        SELECT t.vehicle_id, date_trunc('month', ${tripLocalStartSql("t", "$3")})::date AS month,
+          coalesce(sum(t.distance_meters), 0)::bigint AS tracked_meters,
+          coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id = $1 AND t.type = 'business'), 0)::bigint AS business_meters,
+          coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id = $1 AND t.type = 'private'), 0)::bigint AS private_meters,
+          coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id = $1 AND t.type = 'commute'), 0)::bigint AS commute_meters,
+          coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id = $1 AND t.type = 'unclassified'), 0)::bigint AS unclassified_meters,
+          coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id <> $1), 0)::bigint AS other_drivers_meters
+        FROM trips t
+        WHERE t.archived_at IS NULL AND t.status = 'completed'
+          AND ${vehicleTripScopeSql("t", "$1")}
+        GROUP BY t.vehicle_id, date_trunc('month', ${tripLocalStartSql("t", "$3")})
       )
       SELECT vm.vehicle_id, vm.vehicle_name, to_char(vm.month, 'YYYY-MM') AS month,
         d.tracked_meters, d.business_meters, d.private_meters, d.commute_meters, d.unclassified_meters,
+        d.other_drivers_meters,
         start_r.odometer_meters AS start_odometer_meters,
         start_r.reading_date AS start_reading_date,
         end_r.odometer_meters AS end_odometer_meters,
@@ -393,6 +410,7 @@ statisticsRoutes.get(
         privateKm: Number(row.private_meters || 0) / 1000,
         commuteKm: Number(row.commute_meters || 0) / 1000,
         unclassifiedKm: Number(row.unclassified_meters || 0) / 1000,
+        otherDriversKm: Number(row.other_drivers_meters || 0) / 1000,
         unknownKm: actual == null ? null : Math.max(0, actual - tracked) / 1000,
         startOdometerKm: row.start_odometer_meters == null ? null : Number(row.start_odometer_meters) / 1000,
         endOdometerKm: row.end_odometer_meters == null ? null : Number(row.end_odometer_meters) / 1000,
