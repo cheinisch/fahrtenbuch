@@ -7,7 +7,7 @@ Guidance for AI coding agents (and humans) working on this repository. See `READ
 Self-hosted mileage logbook (Fahrtenbuch). npm workspaces monorepo, Node.js ≥ 22, license AGPL-3.0-only.
 
 - `backend/` – Express 5 REST API (`/api/v1`), PostgreSQL via `pg`, a small Redis job queue (`jobs/`), pdfkit for PDF exports
-- `frontend/` – React + Vite web dashboard (`src/i18n/locales/de.js`, `en.js`)
+- `frontend/` – React + Vite web dashboard (translations in `src/i18n/locales/`, see *Translations*)
 - `shared/` – shared package
 - `api/openapi.yml` – **the public API contract**; mobile clients (e.g. the Android app `cheinisch/fahrtenbuch-android`) are built against it
 
@@ -48,9 +48,37 @@ The backend needs `POSTGRES_*` and `JWT_SECRET`/`JWT_ACCESS_SECRET`; `DEFAULT_AD
 - **Units:** distances are stored in meters (`distance_meters`), durations in seconds; the API additionally returns km.
 - **Errors:** throw `badRequest("CODE", "message")` etc.; user-facing messages are German.
 - **Trip categories:** `type` is `business|private|commute|unclassified`; `special_category` is a second level (see `SPECIAL_CATEGORIES`). Category-only changes go through `PUT /trips/{id}/classify`.
-- **Frontend texts:** add keys to both `de.js` and `en.js`.
+- **Frontend texts:** add keys to every language file – see *Translations* below.
 - **Preview features:** new features can be limited to the `:dev` image via `config.features` (default on when `APP_CHANNEL=dev`, override with `FEATURE_<NAME>`). The API returns 404 `FEATURE_DISABLED`; clients read `features` from `GET /config/services` (web: `useFeatures()`). Currently: `expenses`.
 - Comments are mostly German; either language is fine – keep them short and explain *why*.
+
+## Translations
+
+Default format for all translations: **one JSON file per language** with nested key-value pairs.
+
+```
+frontend/src/i18n/locales/
+├── de/translation.json
+└── en/translation.json
+```
+
+```json
+{
+  "welcome": "Willkommen in unserer Anwendung",
+  "buttons": {
+    "save": "Speichern",
+    "cancel": "Abbrechen"
+  }
+}
+```
+
+- Plain JSON (no JS, no comments), UTF-8, 2-space indentation.
+- Keys in camelCase, grouped by area/component as nested objects; accessed with dot notation (`t("buttons.save")`).
+- Every language file has the **same key structure**. German (`de`) is the reference and fallback language – add new keys there first, then to all other languages in the same commit.
+- Values are plain strings; placeholders use single braces: `"Fahrzeug {vehicle} gespeichert"` → `t("key", { vehicle })`.
+- Reuse generic keys (e.g. `buttons.*`) instead of duplicating identical texts.
+- New languages: add `<code>/translation.json` and register it in `I18nProvider.jsx`.
+- **Migration:** the legacy files `de.js` / `en.js` are to be converted to this format. Until that is done, `I18nProvider.jsx` still imports them – keep both in sync and don't start new JSON files alongside them.
 
 ## Git
 
