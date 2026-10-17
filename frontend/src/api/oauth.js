@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate.js";
 import { ApiError } from "./auth.js";
 import { authenticatedFetch } from "./app.js";
 
@@ -19,7 +20,7 @@ async function request(accessToken, path, options = {}) {
   if (!response.ok) {
     const code = typeof body?.error === "string" ? body.error : body?.error?.code;
     throw new ApiError(
-      body?.message || body?.error?.message || "Die Anfrage ist fehlgeschlagen.",
+      body?.message || body?.error?.message || translate("common.requestFailed"),
       response.status,
       code || "OAUTH_REQUEST_FAILED",
     );

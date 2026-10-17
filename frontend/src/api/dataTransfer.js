@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate.js";
 import {
   ApiError,
 } from "./auth.js";
@@ -55,7 +56,7 @@ async function download(
   if (!response.ok) {
     throw await errorFromResponse(
       response,
-      "Der Datenexport ist fehlgeschlagen.",
+      translate("common.dataExportFailed"),
     );
   }
 
@@ -118,7 +119,7 @@ async function upload(
     throw new ApiError(
       result?.message ||
         result?.error?.message ||
-        "Der Datenimport ist fehlgeschlagen.",
+        translate("common.dataImportFailed"),
       response.status,
       typeof result?.error ===
         "string"

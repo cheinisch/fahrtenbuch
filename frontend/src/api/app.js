@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate.js";
 import { ApiError } from "./auth.js";
 
 let refreshAccessTokenHandler = null;
@@ -85,10 +86,10 @@ async function apiRequest(
 
     throw new ApiError(
       code === "INVALID_ACCESS_TOKEN"
-        ? "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an."
+        ? translate("common.sessionExpired")
         : body?.message ||
           body?.error?.message ||
-          "Die Anfrage ist fehlgeschlagen.",
+          translate("common.requestFailed"),
       response.status,
       code,
     );
@@ -442,7 +443,7 @@ async function downloadRequest(accessToken, path) {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new ApiError(
-      body?.message || "Der Export ist fehlgeschlagen.",
+      body?.message || translate("exportPage.failed"),
       response.status,
       typeof body?.error === "string"
         ? body.error

@@ -23,6 +23,7 @@ import {
   useAuth,
 } from "../auth/AuthProvider.jsx";
 import PageHeader from "../components/PageHeader.jsx";
+import { useI18n } from "../i18n/I18nProvider.jsx";
 
 const fieldClass =
   "mt-1.5 block h-11 w-full rounded-lg border border-fb-border bg-fb-surface px-3 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
@@ -53,21 +54,22 @@ function localIsoDate(date) {
 }
 
 // Schnellauswahl für übliche Abrechnungszeiträume (lokale Kalendertage).
-function periodPresets(now = new Date()) {
+function periodPresets(t, now = new Date()) {
   const year = now.getFullYear();
   const month = now.getMonth();
   const quarter = Math.floor(month / 3);
   const previousQuarterStart = new Date(year, (quarter - 1) * 3, 1);
   return [
-    { id: "ytd", label: "Jahr bis heute", from: localIsoDate(new Date(year, 0, 1)), to: localIsoDate(now) },
-    { id: "lastMonth", label: "Letzter Monat", from: localIsoDate(new Date(year, month - 1, 1)), to: localIsoDate(new Date(year, month, 0)) },
-    { id: "lastQuarter", label: "Letztes Quartal", from: localIsoDate(previousQuarterStart), to: localIsoDate(new Date(previousQuarterStart.getFullYear(), previousQuarterStart.getMonth() + 3, 0)) },
+    { id: "ytd", label: t("exportPage.presetYtd"), from: localIsoDate(new Date(year, 0, 1)), to: localIsoDate(now) },
+    { id: "lastMonth", label: t("exportPage.presetLastMonth"), from: localIsoDate(new Date(year, month - 1, 1)), to: localIsoDate(new Date(year, month, 0)) },
+    { id: "lastQuarter", label: t("exportPage.presetLastQuarter"), from: localIsoDate(previousQuarterStart), to: localIsoDate(new Date(previousQuarterStart.getFullYear(), previousQuarterStart.getMonth() + 3, 0)) },
     { id: "lastYear", label: String(year - 1), from: localIsoDate(new Date(year - 1, 0, 1)), to: localIsoDate(new Date(year - 1, 11, 31)) },
   ];
 }
 
 export default function ExportPage() {
   const { accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [vehicles, setVehicles] =
     useState([]);
@@ -147,7 +149,7 @@ export default function ExportPage() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "Die Exportkonfiguration konnte nicht geladen werden.",
+              : t("exportPage.configFailed"),
           );
           setLoading(false);
         }
@@ -200,7 +202,7 @@ export default function ExportPage() {
               setError(
                 loadError instanceof Error
                   ? loadError.message
-                  : "Die Exportdaten konnten nicht geladen werden.",
+                  : t("exportPage.dataFailed"),
               );
             }
           } finally {
@@ -241,7 +243,7 @@ export default function ExportPage() {
       setError(
         downloadError instanceof Error
           ? downloadError.message
-          : "Der Export ist fehlgeschlagen.",
+          : t("exportPage.failed"),
       );
     } finally {
       setDownloading("");
@@ -251,9 +253,9 @@ export default function ExportPage() {
   return (
     <div className="space-y-7">
       <PageHeader
-        eyebrow="Export"
-        title="Statistik und Fahrtenbuch exportieren"
-        subtitle="Der PDF-Aufbau wird automatisch anhand deines Heimatlands gewählt."
+        eyebrow={t("nav.export")}
+        title={t("exportPage.title")}
+        subtitle={t("exportPage.subtitle")}
       />
 
       {error && (
@@ -271,8 +273,7 @@ export default function ExportPage() {
             <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-fb-accent-soft text-[15px] font-bold text-fb-accent-strong">{country.code}</span>
             <div>
               <div className="text-[13px] font-semibold text-fb-accent-strong">
-                Länderprofil{" "}
-                {country.code}
+                {t("exportPage.countryProfile", { code: country.code })}
               </div>
 
               <h2 className="mt-0.5 text-xl font-bold">
@@ -289,8 +290,7 @@ export default function ExportPage() {
                 {" · "}
                 {country.taxYearLabel}
                 {" · "}
-                Entfernungen in{" "}
-                {country.distanceUnit}
+                {t("exportPage.distancesIn", { unit: country.distanceUnit })}
               </p>
             </div>
             </div>
@@ -299,7 +299,7 @@ export default function ExportPage() {
               to="/profilesettings"
               className="text-sm font-semibold text-fb-accent-strong hover:underline"
             >
-              Heimatland ändern
+              {t("exportPage.changeCountry")}
             </Link>
           </div>
         </section>
@@ -307,12 +307,12 @@ export default function ExportPage() {
 
       <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <h2 className="text-lg font-bold">
-          Zeitraum und Filter
+          {t("exportPage.filtersTitle")}
         </h2>
 
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
           <label className="text-sm font-medium">
-            Von
+            {t("exportPage.from")}
             <input
               type="date"
               value={filters.from}
@@ -327,7 +327,7 @@ export default function ExportPage() {
           </label>
 
           <label className="text-sm font-medium">
-            Bis
+            {t("exportPage.to")}
             <input
               type="date"
               value={filters.to}
@@ -342,7 +342,7 @@ export default function ExportPage() {
           </label>
 
           <label className="text-sm font-medium">
-            Fahrzeug
+            {t("exportPage.vehicle")}
             <select
               value={filters.vehicleId}
               onChange={(event) =>
@@ -355,7 +355,7 @@ export default function ExportPage() {
               className={fieldClass}
             >
               <option value="">
-                Alle Fahrzeuge
+                {t("exportPage.allVehicles")}
               </option>
 
               {vehicles.map(
@@ -375,7 +375,7 @@ export default function ExportPage() {
           </label>
 
           <label className="text-sm font-medium">
-            Fahrtenart
+            {t("exportPage.tripType")}
             <select
               value={filters.type}
               onChange={(event) =>
@@ -387,26 +387,26 @@ export default function ExportPage() {
               className={fieldClass}
             >
               <option value="">
-                Alle Arten
+                {t("exportPage.allTypes")}
               </option>
               <option value="business">
-                Dienstlich
+                {t("statistics.categories.businessKm")}
               </option>
               <option value="commute">
-                Arbeitsweg
+                {t("statistics.categories.commuteKm")}
               </option>
               <option value="private">
-                Privat
+                {t("statistics.categories.privateKm")}
               </option>
               <option value="unclassified">
-                Nicht zugeordnet
+                {t("statistics.categories.unclassifiedKm")}
               </option>
             </select>
           </label>
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {periodPresets().map((preset) => {
+          {periodPresets(t).map((preset) => {
             const active = filters.from === preset.from && filters.to === preset.to;
             return (
               <button
@@ -425,7 +425,7 @@ export default function ExportPage() {
 
       {loading || !summary ? (
         <div className="rounded-xl border border-fb-border bg-fb-main p-8 text-fb-muted">
-          Statistik wird berechnet …
+          {t("exportPage.calculating")}
         </div>
       ) : (
         <>
@@ -454,7 +454,7 @@ export default function ExportPage() {
 
               <div>
                 <div className="font-semibold">
-                  Vollständigkeit prüfen
+                  {t("exportPage.checkCompleteness")}
                 </div>
 
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-fb-muted">
@@ -482,9 +482,9 @@ export default function ExportPage() {
                 <DocumentChartBarIcon className="size-6" />
               </span>
               <div>
-                <h2 className="text-lg font-bold">Export erstellen</h2>
+                <h2 className="text-lg font-bold">{t("exportPage.createTitle")}</h2>
                 <p className="mt-1 text-sm text-fb-muted">
-                  Das PDF enthält das ausgewählte Länderprofil, eine Zusammenfassung, Fahrten, Kilometerstände, Änderungen und einen Anforderungsanhang.
+                  {t("exportPage.createHint")}
                 </p>
               </div>
             </div>
@@ -497,7 +497,7 @@ export default function ExportPage() {
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text hover:bg-fb-accent-secondary disabled:opacity-60"
               >
                 <ArrowDownTrayIcon className="size-5" />
-                {downloading === "pdf" ? "PDF wird erstellt …" : `PDF für ${country?.name || "das Heimatland"}`}
+                {downloading === "pdf" ? t("exportPage.pdfCreating") : t("exportPage.pdfFor", { country: country?.name || t("exportPage.homeCountry") })}
               </button>
               <button
                 type="button"
@@ -506,18 +506,18 @@ export default function ExportPage() {
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-fb-border px-4 text-sm font-semibold hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
               >
                 <ArrowDownTrayIcon className="size-5" />
-                {downloading === "csv" ? "CSV wird erstellt …" : "CSV exportieren"}
+                {downloading === "csv" ? t("exportPage.csvCreating") : t("exportPage.csv")}
               </button>
             </div>
 
             <p className="mt-4 text-xs text-fb-muted">
-              Das Länderprofil strukturiert den Bericht. Die Anerkennung hängt von der vollständigen und zeitnahen Erfassung sowie den im Einzelfall geltenden steuerlichen Regeln ab.
+              {t("exportPage.disclaimer")}
             </p>
           </section>
 
           {country?.requirements?.length > 0 && (
             <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
-              <h2 className="text-base font-bold">Angaben für dieses Länderprofil</h2>
+              <h2 className="text-base font-bold">{t("exportPage.requirements")}</h2>
               <ul className="mt-3 space-y-2 text-sm text-fb-muted">
                 {country.requirements.map((requirement) => (
                   <li key={requirement} className="flex gap-2">

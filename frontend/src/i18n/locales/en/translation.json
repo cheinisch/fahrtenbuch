@@ -10,7 +10,11 @@
     "language": "Language",
     "german": "German",
     "english": "English",
-    "systemDefault": "System default"
+    "systemDefault": "System default",
+    "requestFailed": "The request failed.",
+    "sessionExpired": "Your session has expired. Please sign in again.",
+    "dataExportFailed": "The data export failed.",
+    "dataImportFailed": "The data import failed."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -729,6 +733,75 @@
       "assign": "Assign:",
       "noTrips": "No trips found."
     }
+  },
+
+  // ===== Export =====
+  "exportPage": {
+    "title": "Export statistics and logbook",
+    "subtitle": "The PDF layout is chosen automatically based on your home country.",
+    "presetYtd": "Year to date",
+    "presetLastMonth": "Last month",
+    "presetLastQuarter": "Last quarter",
+    "configFailed": "The export configuration could not be loaded.",
+    "dataFailed": "The export data could not be loaded.",
+    "failed": "The export failed.",
+    "countryProfile": "Country profile {code}",
+    "distancesIn": "Distances in {unit}",
+    "changeCountry": "Change home country",
+    "filtersTitle": "Period and filters",
+    "from": "From",
+    "to": "To",
+    "vehicle": "Vehicle",
+    "allVehicles": "All vehicles",
+    "tripType": "Trip type",
+    "allTypes": "All types",
+    "calculating": "Calculating statistics …",
+    "checkCompleteness": "Check completeness",
+    "createTitle": "Create export",
+    "createHint": "The PDF contains the selected country profile, a summary, trips, odometer readings, changes and a requirements appendix.",
+    "pdfCreating": "Creating PDF …",
+    "pdfFor": "PDF for {country}",
+    "homeCountry": "your home country",
+    "csvCreating": "Creating CSV …",
+    "csv": "Export CSV",
+    "disclaimer": "The country profile structures the report. Acceptance depends on complete and timely recording as well as the tax rules that apply in each case.",
+    "requirements": "Details for this country profile"
+  },
+
+  // ===== Compliance and period closing =====
+  "compliance": {
+    "title": "Compliance and closing",
+    "subtitle": "Check trips for inconsistencies, verify the revision chain and close finished periods.",
+    "closeConfirm": "Permanently close the period {from} to {to}? Trips in it can no longer be changed afterwards.",
+    "closed": "The period has been closed and locked against changes.",
+    "errors": "Errors",
+    "warnings": "Warnings",
+    "chain": "Revision chain",
+    "chainValid": "Intact",
+    "chainInvalid": "Broken",
+    "noRevisions": "No revisions yet",
+    "issues": "Issues",
+    "filterIssues": "Filter issues",
+    "filterAll": "All ({count})",
+    "filterErrors": "Errors ({count})",
+    "filterWarnings": "Warnings ({count})",
+    "noIssues": "No issues found.",
+    "severityError": "Error",
+    "severityWarning": "Warning",
+    "openTrip": "Open trip",
+    "monthlyTitle": "Monthly check",
+    "monthlyHint": "Share of the kilometres driven according to the odometer that is covered by recorded trips.",
+    "monthlyEmpty": "There are no complete readings for the last months yet.",
+    "odometer": "Odometer",
+    "tracked": "recorded",
+    "unknown": "unknown",
+    "closeTitle": "Close period",
+    "closeHint": "Closing is permanent. Trips and tags in the period are then locked against changes at database level.",
+    "label": "Label",
+    "closing": "Closing …",
+    "chainBlocks": "No period can be closed while the revision chain is broken.",
+    "closedPeriod": "Closed period",
+    "closedAt": "closed on {date}"
   },
 
   // ===== Profile and personal settings =====

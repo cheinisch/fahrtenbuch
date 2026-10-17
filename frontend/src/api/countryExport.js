@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate.js";
 import {
   ApiError,
 } from "./auth.js";
@@ -23,7 +24,7 @@ async function request(
     throw new ApiError(
       body?.message ||
         body?.error?.message ||
-        "Die Anfrage ist fehlgeschlagen.",
+        translate("common.requestFailed"),
       response.status,
       body?.error?.code ||
         (typeof body?.error === "string"
@@ -101,7 +102,7 @@ export async function downloadCountryExport(
 
     throw new ApiError(
       body?.message ||
-        "Der Export ist fehlgeschlagen.",
+        translate("exportPage.failed"),
       response.status,
       typeof body?.error === "string"
         ? body.error

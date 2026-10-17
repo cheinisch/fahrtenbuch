@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate.js";
 export class ApiError extends Error {
   constructor(message, status, code) {
     super(message);
@@ -25,7 +26,7 @@ async function request(path, options = {}) {
     // Server liefert { error: "CODE", message }; ältere Form { error: { code, message } } weiter unterstützen
     const code = typeof body?.error === "string" ? body.error : body?.error?.code;
     throw new ApiError(
-      body?.message || body?.error?.message || "Die Anfrage ist fehlgeschlagen.",
+      body?.message || body?.error?.message || translate("common.requestFailed"),
       response.status,
       code || "REQUEST_FAILED",
     );

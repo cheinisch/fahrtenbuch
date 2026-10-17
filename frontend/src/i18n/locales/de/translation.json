@@ -11,7 +11,11 @@
     "language": "Sprache",
     "german": "Deutsch",
     "english": "Englisch",
-    "systemDefault": "Systemstandard"
+    "systemDefault": "Systemstandard",
+    "requestFailed": "Die Anfrage ist fehlgeschlagen.",
+    "sessionExpired": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+    "dataExportFailed": "Der Datenexport ist fehlgeschlagen.",
+    "dataImportFailed": "Der Datenimport ist fehlgeschlagen."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -730,6 +734,75 @@
       "assign": "Zuordnen:",
       "noTrips": "Keine Fahrten gefunden."
     }
+  },
+
+  // ===== Export =====
+  "exportPage": {
+    "title": "Statistik und Fahrtenbuch exportieren",
+    "subtitle": "Der PDF-Aufbau wird automatisch anhand deines Heimatlands gewählt.",
+    "presetYtd": "Jahr bis heute",
+    "presetLastMonth": "Letzter Monat",
+    "presetLastQuarter": "Letztes Quartal",
+    "configFailed": "Die Exportkonfiguration konnte nicht geladen werden.",
+    "dataFailed": "Die Exportdaten konnten nicht geladen werden.",
+    "failed": "Der Export ist fehlgeschlagen.",
+    "countryProfile": "Länderprofil {code}",
+    "distancesIn": "Entfernungen in {unit}",
+    "changeCountry": "Heimatland ändern",
+    "filtersTitle": "Zeitraum und Filter",
+    "from": "Von",
+    "to": "Bis",
+    "vehicle": "Fahrzeug",
+    "allVehicles": "Alle Fahrzeuge",
+    "tripType": "Fahrtenart",
+    "allTypes": "Alle Arten",
+    "calculating": "Statistik wird berechnet …",
+    "checkCompleteness": "Vollständigkeit prüfen",
+    "createTitle": "Export erstellen",
+    "createHint": "Das PDF enthält das ausgewählte Länderprofil, eine Zusammenfassung, Fahrten, Kilometerstände, Änderungen und einen Anforderungsanhang.",
+    "pdfCreating": "PDF wird erstellt …",
+    "pdfFor": "PDF für {country}",
+    "homeCountry": "das Heimatland",
+    "csvCreating": "CSV wird erstellt …",
+    "csv": "CSV exportieren",
+    "disclaimer": "Das Länderprofil strukturiert den Bericht. Die Anerkennung hängt von der vollständigen und zeitnahen Erfassung sowie den im Einzelfall geltenden steuerlichen Regeln ab.",
+    "requirements": "Angaben für dieses Länderprofil"
+  },
+
+  // ===== Prüfung und Abschluss =====
+  "compliance": {
+    "title": "Prüfung und Abschluss",
+    "subtitle": "Fahrten auf Unstimmigkeiten prüfen, die Revisionskette kontrollieren und fertige Zeiträume abschließen.",
+    "closeConfirm": "Zeitraum {from} bis {to} endgültig abschließen? Fahrten darin können danach nicht mehr geändert werden.",
+    "closed": "Der Zeitraum wurde abgeschlossen und gegen Änderungen gesperrt.",
+    "errors": "Fehler",
+    "warnings": "Warnungen",
+    "chain": "Revisionskette",
+    "chainValid": "Integer",
+    "chainInvalid": "Fehlerhaft",
+    "noRevisions": "Noch keine Revisionen",
+    "issues": "Auffälligkeiten",
+    "filterIssues": "Auffälligkeiten filtern",
+    "filterAll": "Alle ({count})",
+    "filterErrors": "Fehler ({count})",
+    "filterWarnings": "Warnungen ({count})",
+    "noIssues": "Keine Auffälligkeiten gefunden.",
+    "severityError": "Fehler",
+    "severityWarning": "Warnung",
+    "openTrip": "Fahrt öffnen",
+    "monthlyTitle": "Monatskontrolle",
+    "monthlyHint": "Anteil der laut Tacho gefahrenen Kilometer, der durch erfasste Fahrten belegt ist.",
+    "monthlyEmpty": "Für die letzten Monate liegen noch keine vollständigen Ablesungen vor.",
+    "odometer": "Tacho",
+    "tracked": "erfasst",
+    "unknown": "unbekannt",
+    "closeTitle": "Zeitraum abschließen",
+    "closeHint": "Ein Abschluss ist dauerhaft. Fahrten und Tags im Zeitraum werden anschließend auf Datenbankebene gegen Änderungen gesperrt.",
+    "label": "Bezeichnung",
+    "closing": "Schließe …",
+    "chainBlocks": "Solange die Revisionskette fehlerhaft ist, kann kein Zeitraum abgeschlossen werden.",
+    "closedPeriod": "Abgeschlossener Zeitraum",
+    "closedAt": "abgeschlossen am {date}"
   },
 
   // ===== Profil und persönliche Einstellungen =====
