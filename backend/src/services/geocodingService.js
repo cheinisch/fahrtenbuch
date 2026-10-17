@@ -268,8 +268,16 @@ const PROVIDER_LABELS = {
 
 async function timed(fn) {
   const started = Date.now();
-  const message = await fn();
-  return { message, responseTimeMs: Date.now() - started };
+  const result = await fn();
+  const { message, details } = typeof result === "string" ? { message: result } : result;
+  return { message, details: details || null, responseTimeMs: Date.now() - started };
+}
+
+/** Dienst antwortet, ist aber noch im Aufbau (z. B. Valhalla baut Kacheln). */
+function startingError(message) {
+  const error = serviceUnavailable("SERVICE_STARTING", message);
+  error.checkState = "starting";
+  return error;
 }
 
 async function checkAtlas(atlas) {
@@ -282,10 +290,18 @@ async function checkAtlas(atlas) {
     const names = { geocoding: "Geocoding", routing: "Routing", pois: "POIs", transit: "ÖPNV" };
     const parts = Object.entries(names)
       .filter(([key]) => capabilities[key])
-      .map(([key, label]) => `${label}: ${capabilities[key]}`);
-    const versionText = version?.data?.data?.version ? `Atlas ${version.data.data.version}` : "Atlas erreichbar";
+      .map(([key, label]) => `${label}: ${{ up: "aktiv", starting: "startet", down: "aus" }[capabilities[key]] || capabilities[key]}`);
+    const atlasVersion = version?.data?.data?.version || null;
+    const versionText = atlasVersion ? `Atlas ${atlasVersion}` : "Atlas erreichbar";
 
-    return parts.length ? `${versionText} · ${parts.join(", ")}` : versionText;
+    return {
+      message: parts.length ? `${versionText} · ${parts.join(", ")}` : versionText,
+      details: {
+        version: atlasVersion,
+        status: health.data?.data?.status || null,
+        capabilities,
+      },
+    };
   });
 }
 
@@ -345,12 +361,14 @@ async function checkMapMatching(matching, settings) {
     const health = await fetchJson(`${atlas.baseUrl}/api/v1/health`, {}, atlas.timeoutMs);
     const routing = health.data?.data?.capabilities?.routing;
 
+    if (routing === "starting") {
+      throw startingError("Atlas startet das Routing noch (Valhalla baut ggf. Kacheln).");
+    }
+
     if (routing !== "up") {
       throw serviceUnavailable(
         "ATLAS_ROUTING_DOWN",
-        routing === "starting"
-          ? "Atlas startet das Routing noch (Valhalla baut ggf. Kacheln)."
-          : "Atlas ist erreichbar, aber das Routing (Valhalla) ist nicht aktiv.",
+        "Atlas ist erreichbar, aber das Routing (Valhalla) ist nicht aktiv.",
       );
     }
 
@@ -359,7 +377,7 @@ async function checkMapMatching(matching, settings) {
 }
 
 function inactiveResult(module, label, provider, reason, state = "inactive") {
-  return { module, label, provider, providerLabel: PROVIDER_LABELS[provider] || provider, state, message: reason, responseTimeMs: null };
+  return { module, label, provider, providerLabel: PROVIDER_LABELS[provider] || provider, state, message: reason, details: null, responseTimeMs: null };
 }
 
 async function runCheck(module, label, provider, fn) {
@@ -372,8 +390,9 @@ async function runCheck(module, label, provider, fn) {
       label,
       provider,
       providerLabel: PROVIDER_LABELS[provider] || provider,
-      state: "unavailable",
+      state: error?.checkState || "unavailable",
       message: error?.message || "Prüfung fehlgeschlagen.",
+      details: null,
       responseTimeMs: null,
     };
   }
@@ -440,11 +459,17 @@ export async function testService(category, candidateConfig) {
     };
     const result = await checkModule(category, candidate);
 
-    if (result.state !== "available") {
+    if (result.state !== "available" && result.state !== "starting") {
       throw serviceUnavailable("SERVICE_TEST_FAILED", result.message);
     }
 
-    return { success: true, responseTimeMs: result.responseTimeMs, message: result.message };
+    return {
+      success: true,
+      state: result.state,
+      responseTimeMs: result.responseTimeMs,
+      message: result.message,
+      details: result.details,
+    };
   }
 
   if (category === "photon") {

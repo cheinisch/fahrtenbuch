@@ -1706,7 +1706,11 @@ adminRoutes.get("/jobs/status", asyncHandler(async (_request, response) => {
   for (const state of JOB_STATES) {
     counts[state] = await redisCommand(state === "delayed" ? "ZCARD" : "LLEN", JOB_PREFIX + state);
   }
-  response.json({ online, counts });
+  response.json({
+    online,
+    counts,
+    redisInsight: { url: config.redisInsightUrl, port: config.redisInsightPort },
+  });
 }));
 
 adminRoutes.get("/jobs", asyncHandler(async (request, response) => {

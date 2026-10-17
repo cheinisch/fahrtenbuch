@@ -1589,6 +1589,22 @@ export default function Dashboard() {
                   </div>
                   {gpsError && <p role="alert" className="mt-2 text-xs text-fb-danger">{gpsError}</p>}
                   {gpsMode !== "route" && <p className="mt-2 text-xs text-fb-muted">{gpsPoints.length} {t("tripGpsView.pointsCount")}</p>}
+                  {selectedTrip.mapMatching?.status === "applied" && (
+                    <p className="mt-2 flex items-start gap-1.5 text-xs text-fb-accent-strong">
+                      <svg aria-hidden="true" viewBox="0 0 24 24" className="mt-px h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19 9 5M20 19 15 5M12 6v2M12 11v2M12 16v2" /></svg>
+                      <span>
+                        {t("tripGpsView.matched")
+                          .replace("{provider}", { atlas: "Dawarich Atlas", valhalla: "Valhalla", osrm: "OSRM" }[selectedTrip.mapMatching.provider] || selectedTrip.mapMatching.provider)
+                          .replace("{km}", fmtKm(selectedTrip.mapMatching.rawDistanceMeters))}
+                        {gpsMode === "route" && <span className="block text-fb-muted">{t("tripGpsView.matchedHint")}</span>}
+                      </span>
+                    </p>
+                  )}
+                  {["rejected", "failed"].includes(selectedTrip.mapMatching?.status) && (
+                    <p className="mt-2 text-xs text-fb-muted">
+                      {t(`tripGpsView.${selectedTrip.mapMatching.status}`).replace("{message}", selectedTrip.mapMatching.message || "–")}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

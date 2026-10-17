@@ -973,7 +973,11 @@ paths:
             enum: [medical, volunteer, education, application, moving, other]
         - { name: tagId, in: query, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: Dashboarddaten }
+        '200':
+          description: >-
+            Dashboarddaten. Jede Fahrt enthält route (Liste aus latitude/longitude) und routeSource:
+            matched = auf das Straßennetz gelegt (Map-Matching übernommen), gps = GPS-Rohpunkte,
+            fallback = nur Start- und Zielpunkt.
   /language:
     get:
       tags: [System]
@@ -1937,7 +1941,19 @@ paths:
       summary: Get background job status
       responses:
         '200':
-          description: Successful response
+          description: Redis-Verbindung, Anzahl Jobs je Warteschlange und Redis-Insight-Adresse
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  online: { type: boolean }
+                  counts: { type: object, additionalProperties: { type: integer } }
+                  redisInsight:
+                    type: object
+                    properties:
+                      url: { type: [string, 'null'], description: REDIS_INSIGHT_URL; null = nur über localhost/SSH-Tunnel }
+                      port: { type: integer, example: 5540 }
         '400':
           description: Invalid request
         '401':
@@ -2788,8 +2804,12 @@ components:
               label: { type: string }
               provider: { type: string, example: atlas }
               providerLabel: { type: string }
-              state: { type: string, enum: [available, unavailable, inactive, misconfigured] }
+              state: { type: string, enum: [available, starting, unavailable, inactive, misconfigured] }
               message: { type: string }
+              details:
+                type: [object, 'null']
+                description: Bei Atlas Version, Gesamtstatus und Fähigkeiten (geocoding, routing, pois, transit → up/starting/down).
+                additionalProperties: true
               responseTimeMs: { type: [integer, 'null'] }
  }
       responses:
@@ -3884,6 +3904,10 @@ components:
               label: { type: string }
               provider: { type: string, example: atlas }
               providerLabel: { type: string }
-              state: { type: string, enum: [available, unavailable, inactive, misconfigured] }
+              state: { type: string, enum: [available, starting, unavailable, inactive, misconfigured] }
               message: { type: string }
+              details:
+                type: [object, 'null']
+                description: Bei Atlas Version, Gesamtstatus und Fähigkeiten (geocoding, routing, pois, transit → up/starting/down).
+                additionalProperties: true
               responseTimeMs: { type: [integer, 'null'] }

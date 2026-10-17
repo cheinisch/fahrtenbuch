@@ -14,40 +14,77 @@ const fieldClass =
   "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft disabled:opacity-60";
 
 const primaryButton =
-  "rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60";
+  "min-h-11 rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60";
 
 const secondaryButton =
-  "rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent disabled:opacity-60";
-
-const smallButton =
-  "rounded-lg border border-fb-border px-3 py-1.5 text-xs font-semibold text-fb-text transition hover:border-fb-accent disabled:opacity-60";
+  "min-h-11 rounded-lg border border-fb-border px-4 text-sm font-semibold text-fb-text transition hover:border-fb-accent disabled:opacity-60";
 
 const MODULE_ORDER = ["atlas", "geocoding", "mapMatching"];
 
+const MODULE_LABELS = {
+  atlas: "Dawarich Atlas",
+  geocoding: "Adresssuche (Photon)",
+  mapMatching: "Map-Matching (Valhalla)",
+};
+
+// Icon-Pfade (24er Raster, Strich) je Modul
+const MODULE_ICONS = {
+  atlas: "M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20M2 12h20M12 2c3 3 3 17 0 20M12 2c-3 3-3 17 0 20",
+  geocoding: "M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14M21 21l-4.3-4.3",
+  mapMatching: "M6 19a2 2 0 1 0 0-4a2 2 0 1 0 0 4M18 9a2 2 0 1 0 0-4a2 2 0 1 0 0 4M8 17h5a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h5",
+};
+
 const STATE_STYLES = {
-  available: { label: "Verfügbar", className: "border-fb-accent bg-fb-accent-soft text-fb-accent-strong" },
+  available: { label: "Verfügbar", className: "border-transparent bg-fb-accent-soft text-fb-accent-strong" },
+  starting: { label: "Startet", className: "border-transparent bg-fb-warn-soft text-fb-warn" },
   unavailable: { label: "Nicht erreichbar", className: "border-fb-danger text-fb-danger" },
   misconfigured: { label: "Unvollständig", className: "border-fb-danger text-fb-danger" },
-  inactive: { label: "Inaktiv", className: "border-fb-border text-fb-muted" },
+  inactive: { label: "Inaktiv", className: "border-fb-border bg-fb-surface text-fb-muted" },
   checking: { label: "Prüfe …", className: "border-fb-border text-fb-muted" },
 };
+
+const CAPABILITY_LABELS = { geocoding: "Geocoding", routing: "Routing", pois: "POIs", transit: "ÖPNV" };
+
+const CAPABILITY_STYLES = {
+  up: { text: "aktiv", className: "bg-fb-accent-soft font-semibold text-fb-accent-strong" },
+  starting: { text: "startet", className: "bg-fb-warn-soft font-semibold text-fb-warn" },
+  down: { text: "aus", className: "border border-fb-border bg-fb-surface text-fb-muted" },
+};
+
+const PHOTON_OPTIONS = [
+  { value: "disabled", title: "Deaktiviert", hint: "Keine automatischen Adressen, Suche ausgeblendet" },
+  { value: "public", title: "Öffentlicher Server", hint: "photon.komoot.io – ohne eigene Infrastruktur" },
+  { value: "custom", title: "Eigener Photon-Server", hint: "Eigene Adresse, z. B. http://192.168.1.12:2322" },
+  { value: "atlas", title: "Über Dawarich Atlas", hint: "Nutzt den Photon-Passthrough von Atlas", needsAtlas: true },
+];
+
+const ROUTING_OPTIONS = [
+  { value: "disabled", title: "Deaktiviert", hint: "Distanz aus den GPS-Punkten, Lücken als Luftlinie" },
+  { value: "valhalla", title: "Eigener Valhalla-Server", hint: "Eigene Adresse, Standardport 8002" },
+  { value: "osrm", title: "Eigener OSRM-Server", hint: "Eigene Adresse, z. B. http://192.168.1.10:5000" },
+  { value: "atlas", title: "Über Dawarich Atlas", hint: "Nutzt das Valhalla-Map-Matching von Atlas", needsAtlas: true },
+];
 
 function errorText(error, fallback) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function formatCheckedAt(value) {
+  if (!value) return null;
+  return new Date(value).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
 function StatusLine({ status }) {
   if (!status) return null;
 
+  const className = {
+    ok: "border-fb-accent bg-fb-accent-soft text-fb-accent-strong",
+    warn: "border-fb-warn bg-fb-warn-soft text-fb-warn",
+    error: "border-fb-danger text-fb-danger",
+  }[status.kind];
+
   return (
-    <div
-      className={[
-        "rounded-lg border px-3 py-2 text-sm",
-        status.ok
-          ? "border-fb-accent bg-fb-accent-soft text-fb-accent-strong"
-          : "border-fb-danger text-fb-danger",
-      ].join(" ")}
-    >
+    <div role="status" className={`rounded-lg border px-3 py-2 text-sm ${className}`}>
       {status.text}
     </div>
   );
@@ -57,65 +94,71 @@ function StateBadge({ state }) {
   const style = STATE_STYLES[state] || STATE_STYLES.inactive;
 
   return (
-    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style.className}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style.className}`}>
+      <span aria-hidden="true" className="h-[7px] w-[7px] rounded-full bg-current" />
       {style.label}
     </span>
   );
 }
 
+function ModuleIcon({ module }) {
+  return (
+    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-fb-surface">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-fb-muted">
+        <path d={MODULE_ICONS[module]} />
+      </svg>
+    </div>
+  );
+}
+
 /** Systemcheck: welche Funktion ist mit den gespeicherten Einstellungen verfügbar? */
-function SystemCheck({ results, checking, onCheck }) {
+function SystemCheck({ results, checking, checkedAt, onCheck }) {
+  const anyChecking = Object.values(checking).some(Boolean);
+
   return (
     <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold">Systemcheck</h2>
           <p className="mt-1 text-sm text-fb-muted">
-            Prüft mit den gespeicherten Einstellungen, welche Funktionen
-            verfügbar sind.
+            Prüft mit den gespeicherten Einstellungen, welche Funktionen verfügbar sind.
+            {checkedAt && <> Zuletzt geprüft um {formatCheckedAt(checkedAt)} Uhr.</>}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => onCheck()}
-          disabled={Object.values(checking).some(Boolean)}
-          className={secondaryButton}
-        >
+        <button type="button" onClick={() => onCheck()} disabled={anyChecking} className={secondaryButton}>
           Alle prüfen
         </button>
       </div>
 
-      <ul className="mt-5 divide-y divide-fb-border">
+      <ul className="mt-[18px]">
         {MODULE_ORDER.map((module) => {
           const result = results[module];
           const state = checking[module] ? "checking" : result?.state;
 
           return (
-            <li key={module} className="flex flex-wrap items-center gap-3 py-3">
-              <div className="min-w-0 flex-1">
+            <li key={module} className="flex flex-wrap items-center gap-3.5 border-t border-fb-border py-3.5">
+              <ModuleIcon module={module} />
+              <div className="min-w-0 flex-[1_1_320px]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold">
-                    {result?.label || module}
-                  </span>
+                  <span className="text-sm font-semibold">{MODULE_LABELS[module]}</span>
                   {state && <StateBadge state={state} />}
                 </div>
                 {result && (
-                  <div className="mt-1 text-xs text-fb-muted">
-                    {result.state !== "inactive" && result.providerLabel && (
-                      <span>{result.providerLabel} · </span>
-                    )}
+                  <div className="mt-0.5 text-[13px] text-fb-muted">
+                    {result.state !== "inactive" && result.providerLabel && <>{result.providerLabel} · </>}
                     {result.message}
-                    {result.responseTimeMs != null && (
-                      <span> ({result.responseTimeMs} ms)</span>
-                    )}
                   </div>
                 )}
+              </div>
+              <div className="min-w-[60px] text-right text-[13px] text-fb-muted">
+                {result?.responseTimeMs != null ? `${result.responseTimeMs} ms` : "–"}
               </div>
               <button
                 type="button"
                 onClick={() => onCheck(module)}
                 disabled={checking[module]}
-                className={smallButton}
+                aria-label={`${MODULE_LABELS[module]} testen`}
+                className="min-h-9 rounded-lg border border-fb-border px-3.5 text-[13px] font-semibold text-fb-text transition hover:border-fb-accent disabled:opacity-60"
               >
                 Testen
               </button>
@@ -127,6 +170,75 @@ function SystemCheck({ results, checking, onCheck }) {
   );
 }
 
+/** Auswahlkarten statt Dropdown: jede Quelle erklärt sich selbst. */
+function SourcePicker({ name, options, value, atlasReady, onChange, children }) {
+  return (
+    <fieldset className="mt-5">
+      <legend className="text-sm font-medium">Quelle</legend>
+      <div className="mt-2 flex flex-col gap-2">
+        {options.map((option) => {
+          const selected = value === option.value;
+          const disabled = option.needsAtlas && !atlasReady && !selected;
+
+          return (
+            <div key={option.value}>
+              <label
+                className={[
+                  "flex items-start gap-3 rounded-lg border px-3.5 py-3 transition",
+                  selected ? "border-fb-accent bg-fb-accent-soft" : "border-fb-border",
+                  disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-fb-accent",
+                ].join(" ")}
+              >
+                <input
+                  type="radio"
+                  name={name}
+                  value={option.value}
+                  checked={selected}
+                  disabled={disabled}
+                  onChange={() => onChange(option.value)}
+                  className="mt-1 h-4 w-4 flex-none accent-fb-accent"
+                />
+                <span className="flex-1">
+                  <span className="block text-sm font-semibold">{option.title}</span>
+                  <span className="block text-xs text-fb-muted">
+                    {disabled ? "Erst Dawarich Atlas oben aktivieren und speichern" : option.hint}
+                  </span>
+                </span>
+              </label>
+              {selected && children?.(option.value)}
+            </div>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+function CapabilityChips({ details }) {
+  if (!details) return null;
+  const capabilities = details.capabilities || {};
+
+  return (
+    <div className="mt-5 flex flex-wrap gap-2">
+      {details.version && (
+        <span className="rounded-lg border border-fb-border bg-fb-surface px-2.5 py-1 text-xs text-fb-muted">
+          Atlas {details.version}
+        </span>
+      )}
+      {Object.entries(CAPABILITY_LABELS)
+        .filter(([key]) => capabilities[key])
+        .map(([key, label]) => {
+          const style = CAPABILITY_STYLES[capabilities[key]] || CAPABILITY_STYLES.down;
+          return (
+            <span key={key} className={`rounded-lg px-2.5 py-1 text-xs ${style.className}`}>
+              {label}: {style.text}
+            </span>
+          );
+        })}
+    </div>
+  );
+}
+
 export default function GeocodingSettings() {
   const { accessToken } = useAuth();
 
@@ -135,8 +247,11 @@ export default function GeocodingSettings() {
 
   const [checkResults, setCheckResults] = useState({});
   const [checking, setChecking] = useState({});
+  const [checkedAt, setCheckedAt] = useState(null);
 
   const [atlas, setAtlas] = useState({ enabled: false, baseUrl: "", timeoutMs: 10_000 });
+  const [atlasSaved, setAtlasSaved] = useState(false);
+  const [atlasDetails, setAtlasDetails] = useState(null);
   const [atlasStatus, setAtlasStatus] = useState(null);
   const [atlasBusy, setAtlasBusy] = useState(false);
 
@@ -151,24 +266,26 @@ export default function GeocodingSettings() {
   const runCheck = useCallback(
     async (module) => {
       const modules = module ? [module] : MODULE_ORDER;
-      setChecking((current) => ({ ...current, ...Object.fromEntries(modules.map((key) => [key, true])) }));
+      const flag = (value) => Object.fromEntries(modules.map((key) => [key, value]));
+      setChecking((current) => ({ ...current, ...flag(true) }));
 
       try {
         const result = await runAdminServiceCheck(accessToken, module);
+        setCheckedAt(result.checkedAt);
         setCheckResults((current) => ({
           ...current,
           ...Object.fromEntries(result.modules.map((entry) => [entry.module, entry])),
         }));
+        const atlasResult = result.modules.find((entry) => entry.module === "atlas");
+        if (atlasResult) setAtlasDetails(atlasResult.details);
       } catch (error) {
         const message = errorText(error, "Der Systemcheck ist fehlgeschlagen.");
         setCheckResults((current) => ({
           ...current,
-          ...Object.fromEntries(
-            modules.map((key) => [key, { ...current[key], module: key, state: "unavailable", message }]),
-          ),
+          ...Object.fromEntries(modules.map((key) => [key, { ...current[key], module: key, state: "unavailable", message }])),
         }));
       } finally {
-        setChecking((current) => ({ ...current, ...Object.fromEntries(modules.map((key) => [key, false])) }));
+        setChecking((current) => ({ ...current, ...flag(false) }));
       }
     },
     [accessToken],
@@ -195,15 +312,14 @@ export default function GeocodingSettings() {
           baseUrl: services.atlas?.baseUrl || "",
           timeoutMs: Number(services.atlas?.timeoutMs || 10_000),
         });
+        setAtlasSaved(Boolean(services.atlas?.enabled && services.atlas?.baseUrl));
         setRouting({
           provider: services.mapMatching?.provider || "disabled",
           osrmUrl: services.mapMatching?.osrmUrl || "",
           valhallaUrl: services.mapMatching?.valhallaUrl || "",
         });
       } catch (error) {
-        if (!cancelled) {
-          setLoadError(errorText(error, "Die Geocoding-Einstellungen konnten nicht geladen werden."));
-        }
+        if (!cancelled) setLoadError(errorText(error, "Die Geocoding-Einstellungen konnten nicht geladen werden."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -224,7 +340,8 @@ export default function GeocodingSettings() {
 
   const photonPayload = () => ({
     provider: photon.provider,
-    baseUrl: photon.provider === "custom" ? photon.baseUrl.trim() : photon.baseUrl.trim() || null,
+    // Öffentlich: Server setzt photon.komoot.io; sonst eigene Adresse für späteres Umschalten behalten
+    baseUrl: photon.provider === "public" ? null : photon.baseUrl.trim() || null,
     timeoutMs: Number(photon.timeoutMs),
   });
 
@@ -240,11 +357,11 @@ export default function GeocodingSettings() {
     setStatus(null);
 
     try {
-      const text = await action();
-      setStatus({ ok: true, text });
+      const result = await action();
+      setStatus(typeof result === "string" ? { kind: "ok", text: result } : result);
       if (recheck) runCheck();
     } catch (error) {
-      setStatus({ ok: false, text: errorText(error, fallback) });
+      setStatus({ kind: "error", text: errorText(error, fallback) });
     } finally {
       setBusy(false);
     }
@@ -252,7 +369,9 @@ export default function GeocodingSettings() {
 
   const testCandidate = async (category, config) => {
     const result = await testAdminService(accessToken, category, { ...config, atlas: atlasPayload() });
-    return `${result.message} (${result.responseTimeMs} ms)`;
+    if (category === "atlas") setAtlasDetails(result.details || null);
+    const time = result.responseTimeMs != null ? ` (${result.responseTimeMs} ms)` : "";
+    return { kind: result.state === "starting" ? "warn" : "ok", text: `${result.message}${time}` };
   };
 
   if (loading) {
@@ -271,11 +390,20 @@ export default function GeocodingSettings() {
     );
   }
 
-  const atlasReady = atlas.enabled && atlas.baseUrl.trim() !== "";
+  // „Über Atlas“ erst anbieten, wenn Atlas gespeichert aktiv ist – sonst würde
+  // die Auswahl serverseitig ins Leere laufen.
+  const atlasReady = atlasSaved;
+
+  const timeoutField = (value, onChange) => (
+    <label className="block text-sm font-medium">
+      Zeitlimit in Millisekunden
+      <input type="number" min="1000" max="120000" step="500" value={value} onChange={onChange} className={fieldClass} />
+    </label>
+  );
 
   return (
     <div className="space-y-8">
-      <SystemCheck results={checkResults} checking={checking} onCheck={runCheck} />
+      <SystemCheck results={checkResults} checking={checking} checkedAt={checkedAt} onCheck={runCheck} />
 
       {/* Dawarich Atlas: Photon + Valhalla aus einem Container */}
       <form
@@ -284,30 +412,38 @@ export default function GeocodingSettings() {
           runAction(setAtlasBusy, setAtlasStatus, async () => {
             const saved = await updateAdminAtlasSettings(accessToken, atlasPayload());
             setAtlas({ enabled: saved.enabled, baseUrl: saved.baseUrl || "", timeoutMs: saved.timeoutMs });
+            setAtlasSaved(Boolean(saved.enabled && saved.baseUrl));
             return "Die Atlas-Einstellungen wurden gespeichert.";
           }, "Die Atlas-Einstellungen konnten nicht gespeichert werden.", true);
         }}
         className="rounded-xl border border-fb-border bg-fb-main p-[22px]"
       >
-        <h2 className="text-lg font-bold">Dawarich Atlas</h2>
-        <p className="mt-1 text-sm text-fb-muted">
-          Atlas bündelt Photon (Adresssuche) und Valhalla (Routing) in einer
-          selbst gehosteten Installation. Wenn Atlas aktiv ist, kannst du
-          Adresssuche und Map-Matching unten jeweils auf „über Atlas“ stellen –
-          einzeln, beide oder keins.
-        </p>
-
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
-          <label className="flex items-center gap-3 text-sm font-medium sm:col-span-2">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-[720px]">
+            <h2 className="text-lg font-bold">Dawarich Atlas</h2>
+            <p className="mt-1 text-sm text-fb-muted">
+              Atlas bündelt Photon (Adresssuche) und Valhalla (Routing) in einer selbst gehosteten
+              Installation. Ist Atlas aktiv, lassen sich Adresssuche und Map-Matching unten einzeln
+              auf „Über Atlas“ stellen.
+            </p>
+          </div>
+          <label className="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-sm font-semibold">
             <input
               type="checkbox"
+              role="switch"
               checked={atlas.enabled}
               onChange={(event) => setAtlas((current) => ({ ...current, enabled: event.target.checked }))}
-              className="h-4 w-4 accent-fb-accent"
+              className="peer sr-only"
             />
-            Atlas aktivieren
+            <span
+              aria-hidden="true"
+              className="relative inline-block h-6 w-11 rounded-full bg-fb-border transition peer-checked:bg-fb-accent peer-focus-visible:ring-2 peer-focus-visible:ring-fb-accent-soft after:absolute after:left-[3px] after:top-[3px] after:h-[18px] after:w-[18px] after:rounded-full after:bg-white after:transition peer-checked:after:left-[23px]"
+            />
+            {atlas.enabled ? "Aktiv" : "Inaktiv"}
           </label>
+        </div>
 
+        <div className="mt-[22px] grid gap-5 sm:grid-cols-2">
           <label className="block text-sm font-medium">
             Atlas-Serveradresse
             <input
@@ -319,25 +455,15 @@ export default function GeocodingSettings() {
               className={fieldClass}
             />
             <span className="mt-1 block text-xs font-normal text-fb-muted">
-              Basis-URL ohne /api/v1. Muss nur vom Fahrtenbuch-Backend erreichbar sein.
+              Basis-URL ohne /api/v1. Muss nur vom Backend erreichbar sein.
             </span>
           </label>
-
-          <label className="block text-sm font-medium">
-            Zeitlimit in Millisekunden
-            <input
-              type="number"
-              min="1000"
-              max="120000"
-              step="500"
-              value={atlas.timeoutMs}
-              onChange={(event) => setAtlas((current) => ({ ...current, timeoutMs: Number(event.target.value) }))}
-              className={fieldClass}
-            />
-          </label>
+          {timeoutField(atlas.timeoutMs, (event) => setAtlas((current) => ({ ...current, timeoutMs: Number(event.target.value) })))}
         </div>
 
-        <div className="mt-6 space-y-4">
+        <CapabilityChips details={atlasDetails} />
+
+        <div className="mt-[22px] space-y-4">
           <StatusLine status={atlasStatus} />
           <div className="flex flex-wrap justify-end gap-3">
             <button
@@ -359,206 +485,156 @@ export default function GeocodingSettings() {
         </div>
       </form>
 
-      {/* Photon: Adresssuche und Rückwärts-Geocoding */}
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          runAction(setPhotonBusy, setPhotonStatus, async () => {
-            await updateAdminPhotonSettings(accessToken, photonPayload());
-            return "Die Einstellungen zur Adresssuche wurden gespeichert.";
-          }, "Die Einstellungen zur Adresssuche konnten nicht gespeichert werden.", true);
-        }}
-        className="rounded-xl border border-fb-border bg-fb-main p-[22px]"
-      >
-        <h2 className="text-lg font-bold">Adresssuche (Photon)</h2>
-        <p className="mt-1 text-sm text-fb-muted">
-          Photon wandelt Adressen in Koordinaten um und ermittelt die Start- und
-          Zieladressen von Fahrten. Deaktiviert bleiben Fahrten ohne
-          automatische Adressen, die Adresssuche ist dann ausgeblendet.
-        </p>
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        {/* Photon: Adresssuche und Rückwärts-Geocoding */}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            runAction(setPhotonBusy, setPhotonStatus, async () => {
+              await updateAdminPhotonSettings(accessToken, photonPayload());
+              return "Die Einstellungen zur Adresssuche wurden gespeichert.";
+            }, "Die Einstellungen zur Adresssuche konnten nicht gespeichert werden.", true);
+          }}
+          className="rounded-xl border border-fb-border bg-fb-main p-[22px]"
+        >
+          <h2 className="text-lg font-bold">Adresssuche (Photon)</h2>
+          <p className="mt-1 text-sm text-fb-muted">
+            Wandelt Adressen in Koordinaten um und ermittelt Start- und Zieladressen von Fahrten.
+          </p>
 
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
-          <label className="block text-sm font-medium">
-            Quelle
-            <select
-              value={photon.provider}
-              onChange={(event) => setPhoton((current) => ({ ...current, provider: event.target.value }))}
-              className={fieldClass}
-            >
-              <option value="disabled">Deaktiviert</option>
-              <option value="public">Öffentlicher Server (photon.komoot.io)</option>
-              <option value="custom">Eigener Photon-Server</option>
-              <option value="atlas" disabled={!atlasReady && photon.provider !== "atlas"}>
-                Über Dawarich Atlas{atlasReady ? "" : " (Atlas nicht aktiv)"}
-              </option>
-            </select>
-          </label>
+          <SourcePicker
+            name="photon-source"
+            options={PHOTON_OPTIONS}
+            value={photon.provider}
+            atlasReady={atlasReady}
+            onChange={(provider) => setPhoton((current) => ({ ...current, provider }))}
+          >
+            {(selected) =>
+              (selected === "public" || selected === "custom") && (
+                <div className="mt-3 grid gap-4 rounded-lg border border-fb-border p-3.5">
+                  {selected === "custom" && (
+                    <label className="block text-sm font-medium">
+                      Photon-Serveradresse
+                      <input
+                        type="url"
+                        required
+                        placeholder="http://192.168.1.12:2322"
+                        value={photon.baseUrl}
+                        onChange={(event) => setPhoton((current) => ({ ...current, baseUrl: event.target.value }))}
+                        className={fieldClass}
+                      />
+                      <span className="mt-1 block text-xs font-normal text-fb-muted">
+                        Basis-URL inklusive Protokoll und Port, ohne /api.
+                      </span>
+                    </label>
+                  )}
+                  {timeoutField(photon.timeoutMs, (event) => setPhoton((current) => ({ ...current, timeoutMs: Number(event.target.value) })))}
+                </div>
+              )
+            }
+          </SourcePicker>
 
-          {(photon.provider === "public" || photon.provider === "custom") && (
-            <label className="block text-sm font-medium">
-              Zeitlimit in Millisekunden
-              <input
-                type="number"
-                min="1000"
-                max="120000"
-                step="500"
-                value={photon.timeoutMs}
-                onChange={(event) => setPhoton((current) => ({ ...current, timeoutMs: Number(event.target.value) }))}
-                className={fieldClass}
-              />
-            </label>
-          )}
-
-          {photon.provider === "custom" && (
-            <label className="block text-sm font-medium sm:col-span-2">
-              Photon-Serveradresse
-              <input
-                type="url"
-                required
-                placeholder="http://192.168.1.12:2322"
-                value={photon.baseUrl}
-                onChange={(event) => setPhoton((current) => ({ ...current, baseUrl: event.target.value }))}
-                className={fieldClass}
-              />
-              <span className="mt-1 block text-xs font-normal text-fb-muted">
-                Basis-URL inklusive Protokoll und Port, ohne /api.
-              </span>
-            </label>
-          )}
-
-          {photon.provider === "atlas" && !atlasReady && (
-            <p className="text-sm text-fb-danger sm:col-span-2">
-              Atlas ist nicht aktiviert. Aktiviere und speichere Atlas oben, sonst bleibt die Adresssuche aus.
-            </p>
-          )}
-        </div>
-
-        <div className="mt-6 space-y-4">
-          <StatusLine status={photonStatus} />
-          <div className="flex flex-wrap justify-end gap-3">
-            {photon.provider !== "disabled" && (
-              <button
-                type="button"
-                disabled={photonBusy}
-                onClick={() =>
-                  runAction(setPhotonBusy, setPhotonStatus, () =>
-                    testCandidate("geocoding", photonPayload()),
-                  "Der Photon-Server ist nicht erreichbar.")
-                }
-                className={secondaryButton}
-              >
-                Verbindung testen
+          <div className="mt-4 space-y-4">
+            <StatusLine status={photonStatus} />
+            <div className="flex flex-wrap justify-end gap-3">
+              {photon.provider !== "disabled" && (
+                <button
+                  type="button"
+                  disabled={photonBusy}
+                  onClick={() =>
+                    runAction(setPhotonBusy, setPhotonStatus, () =>
+                      testCandidate("geocoding", photonPayload()),
+                    "Der Photon-Server ist nicht erreichbar.")
+                  }
+                  className={secondaryButton}
+                >
+                  Verbindung testen
+                </button>
+              )}
+              <button type="submit" disabled={photonBusy} className={primaryButton}>
+                {photonBusy ? "Bitte warten …" : "Adresssuche speichern"}
               </button>
-            )}
-            <button type="submit" disabled={photonBusy} className={primaryButton}>
-              {photonBusy ? "Bitte warten …" : "Adresssuche speichern"}
-            </button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
 
-      {/* Valhalla/OSRM: Map-Matching der GPS-Spuren auf das Straßennetz */}
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          runAction(setRoutingBusy, setRoutingStatus, async () => {
-            // Nur mapMatching senden, damit die übrigen Systemeinstellungen unberührt bleiben
-            const result = await updateAdminSettings(accessToken, { mapMatching: routingPayload() });
-            if (result?.mapMatching) setRouting(result.mapMatching);
-            return "Die Map-Matching-Einstellungen wurden gespeichert.";
-          }, "Die Map-Matching-Einstellungen konnten nicht gespeichert werden.", true);
-        }}
-        className="rounded-xl border border-fb-border bg-fb-main p-[22px]"
-      >
-        <h2 className="text-lg font-bold">Map-Matching (Valhalla)</h2>
-        <p className="mt-1 text-sm text-fb-muted">
-          Legt aufgezeichnete GPS-Punkte auf das Straßennetz. Lücken in der
-          Aufzeichnung werden entlang der Straße statt als Luftlinie
-          geschlossen, dadurch stimmt die Distanz besser. Es gibt keinen
-          öffentlichen Standardserver.
-        </p>
+        {/* Valhalla/OSRM: Map-Matching der GPS-Spuren auf das Straßennetz */}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            runAction(setRoutingBusy, setRoutingStatus, async () => {
+              // Nur mapMatching senden, damit die übrigen Systemeinstellungen unberührt bleiben
+              const result = await updateAdminSettings(accessToken, { mapMatching: routingPayload() });
+              if (result?.mapMatching) setRouting(result.mapMatching);
+              return "Die Map-Matching-Einstellungen wurden gespeichert.";
+            }, "Die Map-Matching-Einstellungen konnten nicht gespeichert werden.", true);
+          }}
+          className="rounded-xl border border-fb-border bg-fb-main p-[22px]"
+        >
+          <h2 className="text-lg font-bold">Map-Matching (Valhalla)</h2>
+          <p className="mt-1 text-sm text-fb-muted">
+            Legt GPS-Punkte auf das Straßennetz, damit Lücken entlang der Straße statt als Luftlinie
+            geschlossen werden. Gestartet wird es unter „Hintergrundaufgaben“.
+          </p>
 
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
-          <label className="block text-sm font-medium">
-            Quelle
-            <select
-              value={routing.provider}
-              onChange={(event) => setRouting((current) => ({ ...current, provider: event.target.value }))}
-              className={fieldClass}
-            >
-              <option value="disabled">Deaktiviert</option>
-              <option value="valhalla">Eigener Valhalla-Server</option>
-              <option value="osrm">Eigener OSRM-Server</option>
-              <option value="atlas" disabled={!atlasReady && routing.provider !== "atlas"}>
-                Über Dawarich Atlas{atlasReady ? "" : " (Atlas nicht aktiv)"}
-              </option>
-            </select>
-          </label>
+          <SourcePicker
+            name="routing-source"
+            options={ROUTING_OPTIONS}
+            value={routing.provider}
+            atlasReady={atlasReady}
+            onChange={(provider) => setRouting((current) => ({ ...current, provider }))}
+          >
+            {(selected) =>
+              (selected === "valhalla" || selected === "osrm") && (
+                <div className="mt-3 rounded-lg border border-fb-border p-3.5">
+                  <label className="block text-sm font-medium">
+                    {selected === "valhalla" ? "Valhalla-Serveradresse" : "OSRM-Serveradresse"}
+                    <input
+                      type="url"
+                      required
+                      placeholder={selected === "valhalla" ? "http://192.168.1.11:8002" : "http://192.168.1.10:5000"}
+                      value={selected === "valhalla" ? routing.valhallaUrl : routing.osrmUrl}
+                      onChange={(event) =>
+                        setRouting((current) => ({
+                          ...current,
+                          [selected === "valhalla" ? "valhallaUrl" : "osrmUrl"]: event.target.value,
+                        }))
+                      }
+                      className={fieldClass}
+                    />
+                    <span className="mt-1 block text-xs font-normal text-fb-muted">
+                      IP/Hostname inklusive Protokoll und Port.
+                    </span>
+                  </label>
+                </div>
+              )
+            }
+          </SourcePicker>
 
-          {routing.provider === "valhalla" && (
-            <label className="block text-sm font-medium sm:col-span-2">
-              Valhalla-Serveradresse
-              <input
-                type="url"
-                required
-                placeholder="http://192.168.1.11:8002"
-                value={routing.valhallaUrl}
-                onChange={(event) => setRouting((current) => ({ ...current, valhallaUrl: event.target.value }))}
-                className={fieldClass}
-              />
-              <span className="mt-1 block text-xs font-normal text-fb-muted">
-                IP/Hostname inklusive Protokoll und Port. Der Standardport von Valhalla ist 8002.
-              </span>
-            </label>
-          )}
-
-          {routing.provider === "osrm" && (
-            <label className="block text-sm font-medium sm:col-span-2">
-              OSRM-Serveradresse
-              <input
-                type="url"
-                required
-                placeholder="http://192.168.1.10:5000"
-                value={routing.osrmUrl}
-                onChange={(event) => setRouting((current) => ({ ...current, osrmUrl: event.target.value }))}
-                className={fieldClass}
-              />
-              <span className="mt-1 block text-xs font-normal text-fb-muted">
-                IP/Hostname inklusive Protokoll und Port, z. B. http://192.168.1.10:5000
-              </span>
-            </label>
-          )}
-
-          {routing.provider === "atlas" && !atlasReady && (
-            <p className="text-sm text-fb-danger sm:col-span-2">
-              Atlas ist nicht aktiviert. Aktiviere und speichere Atlas oben, sonst bleibt Map-Matching aus.
-            </p>
-          )}
-        </div>
-
-        <div className="mt-6 space-y-4">
-          <StatusLine status={routingStatus} />
-          <div className="flex flex-wrap justify-end gap-3">
-            {routing.provider !== "disabled" && (
-              <button
-                type="button"
-                disabled={routingBusy}
-                onClick={() =>
-                  runAction(setRoutingBusy, setRoutingStatus, () =>
-                    testCandidate("mapMatching", routingPayload()),
-                  "Der Routing-Server ist nicht erreichbar.")
-                }
-                className={secondaryButton}
-              >
-                Verbindung testen
+          <div className="mt-4 space-y-4">
+            <StatusLine status={routingStatus} />
+            <div className="flex flex-wrap justify-end gap-3">
+              {routing.provider !== "disabled" && (
+                <button
+                  type="button"
+                  disabled={routingBusy}
+                  onClick={() =>
+                    runAction(setRoutingBusy, setRoutingStatus, () =>
+                      testCandidate("mapMatching", routingPayload()),
+                    "Der Routing-Server ist nicht erreichbar.")
+                  }
+                  className={secondaryButton}
+                >
+                  Verbindung testen
+                </button>
+              )}
+              <button type="submit" disabled={routingBusy} className={primaryButton}>
+                {routingBusy ? "Bitte warten …" : "Map-Matching speichern"}
               </button>
-            )}
-            <button type="submit" disabled={routingBusy} className={primaryButton}>
-              {routingBusy ? "Bitte warten …" : "Map-Matching speichern"}
-            </button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

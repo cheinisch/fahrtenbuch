@@ -15,6 +15,9 @@
   --color-danger: #b42318;
   /* Akzent als Textfarbe (Überzeilen, Links) – dunkler für ausreichenden Kontrast. */
   --color-accent-strong: #0369a1;
+  /* Warnung (z. B. Dienst startet noch) */
+  --color-warn: #92400e;
+  --color-warn-soft: #fef3c7;
 
   color: var(--color-text);
   background: var(--color-surface);
@@ -37,6 +40,8 @@
     --color-accent-soft: #082f49;
     --color-danger: #ff7b72;
     --color-accent-strong: #7dd3fc;
+    --color-warn: #fbbf24;
+    --color-warn-soft: #3a2a06;
     color-scheme: dark;
   }
 }
@@ -53,6 +58,8 @@
   --color-accent-soft: #082f49;
   --color-danger: #ff7b72;
   --color-accent-strong: #7dd3fc;
+  --color-warn: #fbbf24;
+  --color-warn-soft: #3a2a06;
   color-scheme: dark;
 }
 
@@ -82,6 +89,8 @@
   --color-fb-accent-soft: var(--color-accent-soft);
   --color-fb-danger: var(--color-danger);
   --color-fb-accent-strong: var(--color-accent-strong);
+  --color-fb-warn: var(--color-warn);
+  --color-fb-warn-soft: var(--color-warn-soft);
 
   /* Radien wie im Mockup: Karten 14px, Felder und Buttons 10px. */
   --radius-lg: 0.625rem;

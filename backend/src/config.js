@@ -208,6 +208,19 @@ export const config = Object.freeze({
     true,
   ),
 
+  // Adresse, unter der Admins Redis Insight im Browser öffnen (z. B. hinter
+  // einem Reverse-Proxy mit Anmeldung). Leer: Hinweis auf localhost/SSH-Tunnel.
+  redisInsightUrl: normalizedUrl(
+    stringValue("REDIS_INSIGHT_URL", ""),
+  ) || null,
+
+  redisInsightPort: integerValue(
+    "REDIS_INSIGHT_PORT",
+    5540,
+    1,
+    65535,
+  ),
+
   debug: booleanValue(
     ["DEBUG", "APP_DEBUG"],
     false,

@@ -73,6 +73,10 @@ export default function JobManagement() {
     finally { setBusy(null); }
   };
 
+  const insightPort = status?.redisInsight?.port || 5540;
+  // Ohne REDIS_INSIGHT_URL nur auf dem Docker-Host bzw. per SSH-Tunnel erreichbar
+  const insightUrl = status?.redisInsight?.url || `http://localhost:${insightPort}`;
+
   const providerName = { atlas: t("jobs.providerAtlas"), valhalla: t("jobs.providerValhalla"), osrm: t("jobs.providerOsrm") };
   const matchCounts = [
     ["missing", t("jobs.matchOpen")],
@@ -130,7 +134,21 @@ export default function JobManagement() {
       {matchNotice && <p role="status" className="mt-3 text-sm text-fb-accent">{matchNotice}</p>}
     </div>
     <div className="rounded-xl border border-fb-border bg-fb-main p-4 text-sm">
-      {t("jobs.redis")}: <strong>{status?.online ? t("jobs.online") : t("jobs.offline")}</strong>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          {t("jobs.redis")}: <strong>{status?.online ? t("jobs.online") : t("jobs.offline")}</strong>
+          <span className="ml-2 text-fb-muted">redis:6379</span>
+        </div>
+        <a href={insightUrl} target="_blank" rel="noopener noreferrer"
+          className="inline-flex min-h-9 items-center rounded-lg border border-fb-border px-3 font-semibold hover:border-fb-accent">
+          {t("jobs.insightOpen")}
+        </a>
+      </div>
+      <p className="mt-2 text-xs text-fb-muted">
+        {status?.redisInsight?.url
+          ? t("jobs.insightConfigured")
+          : t("jobs.insightLocal").replaceAll("{port}", insightPort)}
+      </p>
     </div>
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {states.map((item) => <button key={item} type="button" onClick={() => setState(item)}

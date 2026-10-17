@@ -228,6 +228,7 @@ dashboardRoutes.get(
 
     const tripIds = tripsResult.rows.map((row) => row.id);
     let routeMap = new Map();
+    const matchedRoutes = new Map();
 
     if (tripIds.length > 0) {
       const pointsResult = await pool.query(
@@ -280,6 +281,35 @@ dashboardRoutes.get(
       routeMap = new Map(
         pointsResult.rows.map((row) => [row.trip_id, row.route || []]),
       );
+
+      // Übernommenes Map-Matching ersetzt die GPS-Linie: die Fahrt folgt der
+      // Straße statt Luftlinien zwischen spärlichen Punkten. Wie oben auf
+      // höchstens ~500 Punkte ausgedünnt.
+      const matchedResult = await pool.query(
+        `
+          SELECT
+            m.trip_id,
+            jsonb_agg(
+              jsonb_build_object('latitude', (c.value->>0)::float8, 'longitude', (c.value->>1)::float8)
+              ORDER BY c.ordinality
+            ) AS route
+          FROM trip_map_matches m
+          CROSS JOIN LATERAL jsonb_array_elements(m.route) WITH ORDINALITY c(value, ordinality)
+          WHERE m.trip_id = ANY($1::uuid[])
+            AND m.status = 'applied'
+            AND (
+              c.ordinality = 1
+              OR c.ordinality = jsonb_array_length(m.route)
+              OR mod(c.ordinality - 1, GREATEST(1, ceil(jsonb_array_length(m.route) / 500.0)::bigint)) = 0
+            )
+          GROUP BY m.trip_id
+        `,
+        [tripIds],
+      );
+
+      for (const row of matchedResult.rows) {
+        if ((row.route || []).length >= 2) matchedRoutes.set(row.trip_id, row.route);
+      }
     }
 
     const trips = tripsResult.rows.map((row) => ({
@@ -288,7 +318,9 @@ dashboardRoutes.get(
         id: row.vehicle_id,
         name: row.vehicle_name,
       },
-      route: routeMap.get(row.id) || createFallbackRoute(row),
+      route: matchedRoutes.get(row.id) || routeMap.get(row.id) || createFallbackRoute(row),
+      // matched = auf die Straße gelegt, gps = Rohpunkte, fallback = nur Start/Ziel
+      routeSource: matchedRoutes.has(row.id) ? "matched" : routeMap.has(row.id) ? "gps" : "fallback",
     }));
 
     const stats = statsResult.rows[0];
