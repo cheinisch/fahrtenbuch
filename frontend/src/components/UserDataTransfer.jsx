@@ -50,29 +50,29 @@ function ResultSummary({
 
   const values = [
     [
-      "Einstellungen",
+      t("profileTranslations.backupSettings"),
       result.settings,
     ],
     [
-      "Fahrzeuge",
+      t("profileTranslations.backupVehicles"),
       result.vehicles,
     ],
-    ["Tags", result.tags],
-    ["Fahrten", result.trips],
+    [t("profileTranslations.backupTags"), result.tags],
+    [t("profileTranslations.backupTrips"), result.trips],
     [
-      "GPS-Datenpunkte",
+      t("profileTranslations.backupTrackPoints"),
       result.trackPoints,
     ],
     [
-      "GPS-Upload-Batches",
+      t("profileTranslations.backupBatches"),
       result.trackPointBatches,
     ],
     [
-      "Tag-Zuordnungen",
+      t("profileTranslations.backupTripTags"),
       result.tripTags,
     ],
     [
-      "Änderungsnachweise",
+      t("profileTranslations.backupChangeLog"),
       result.tripChangeLog,
     ],
   ];
@@ -166,7 +166,7 @@ export default function UserDataTransfer() {
 
       setMessage(
         download.checksum
-          ? `Das persönliche Backup wurde erstellt. SHA-256: ${download.checksum}`
+          ? t("profileTranslations.backupCreatedChecksum", { checksum: download.checksum })
           : t("profileTranslations.74"),
       );
     } catch (exportError) {
@@ -254,7 +254,7 @@ export default function UserDataTransfer() {
       setError(
         importError instanceof Error
           ? importError.message
-          : "Das Backup konnte nicht wiederhergestellt werden.",
+          : t("profileTranslations.backupRestoreFailed"),
       );
     } finally {
       setBusy("");
@@ -316,7 +316,7 @@ export default function UserDataTransfer() {
         >
           <ArrowDownTrayIcon className="size-5" />
           {busy === "export"
-            ? "Backup wird erstellt …"
+            ? t("profileTranslations.backupCreating")
             : t("profileTranslations.62")}
         </button>
       </section>

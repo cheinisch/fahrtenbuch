@@ -51,11 +51,11 @@ import { GRAVATAR_SETTING_EVENT } from "../lib/gravatar.js";
 // Gruppen der Abschnittsnavigation (wie im Mockup); der Anker zeigt auf den
 // ersten Abschnitt der Gruppe, SECTION_GROUP ordnet jeden Abschnitt zu.
 const SETTINGS_GROUPS = [
-  ["profile", "Profil"],
-  ["home", "Orte"],
-  ["tracking", "Tracking & Karte"],
-  ["credentials", "Sicherheit"],
-  ["devices", "Geräte"],
+  ["profile", "profileTranslations.groupProfile"],
+  ["home", "profileTranslations.groupPlaces"],
+  ["tracking", "profileTranslations.groupTracking"],
+  ["credentials", "profileTranslations.groupSecurity"],
+  ["devices", "profileTranslations.groupDevices"],
 ];
 
 const SECTION_GROUP = {
@@ -111,7 +111,8 @@ function formatSafeDate(value, fallback = "–") {
   if (!value) return fallback;
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return fallback;
-  return new Intl.DateTimeFormat("de-DE", {
+  // Modul-Helfer ohne Hook: Sprache kommt aus <html lang>, das der I18nProvider setzt.
+  return new Intl.DateTimeFormat(document.documentElement.lang || "de", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -124,7 +125,7 @@ const labelClass =
   "block text-sm font-medium text-fb-text";
 
 export default function ProfileSettings() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const {
     accessToken,
@@ -402,7 +403,7 @@ export default function ProfileSettings() {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Die Einstellungen konnten nicht geladen werden.",
+          : t("profileTranslations.loadFailed"),
       );
     } finally {
       setLoading(false);
@@ -690,7 +691,7 @@ export default function ProfileSettings() {
       );
 
       if (!Number.isFinite(radius) || radius < 25 || radius > 5000) {
-        setError("Der Erkennungsradius muss zwischen 25 und 5000 Metern liegen.");
+        setError(t("profileTranslations.radiusRange"));
         return;
       }
 
@@ -969,11 +970,11 @@ export default function ProfileSettings() {
       await verifyPasskeyRegistration(
         accessToken,
         credential,
-        newPasskeyName.trim() || "Passkey",
+        newPasskeyName.trim() || t("profileTranslations.passkeyDefaultName"),
       );
       setPasskeys(await getPasskeys(accessToken));
       setNewPasskeyName("");
-      showSuccess("Der Passkey wurde registriert.");
+      showSuccess(t("profileTranslations.passkeyRegistered"));
     } catch (passkeyError) {
       if (passkeyError?.name !== "NotAllowedError") showError(passkeyError);
     } finally {
@@ -982,7 +983,7 @@ export default function ProfileSettings() {
   }
 
   async function editPasskey(passkey) {
-    const name = window.prompt("Name des Passkeys", passkey.name);
+    const name = window.prompt(t("profileTranslations.passkeyNamePrompt"), passkey.name);
     if (!name?.trim() || name.trim() === passkey.name) return;
     setSaving(`passkey-rename:${passkey.id}`);
     try {
@@ -990,7 +991,7 @@ export default function ProfileSettings() {
       setPasskeys((current) =>
         current.map((item) => item.id === passkey.id ? updated : item),
       );
-      showSuccess("Der Passkey wurde umbenannt.");
+      showSuccess(t("profileTranslations.passkeyRenamed"));
     } catch (passkeyError) {
       showError(passkeyError);
     } finally {
@@ -999,7 +1000,7 @@ export default function ProfileSettings() {
   }
 
   async function removePasskey(passkey) {
-    if (!window.confirm(`Passkey „${passkey.name}“ wirklich löschen?`)) return;
+    if (!window.confirm(t("profileTranslations.passkeyDeleteConfirm", { name: passkey.name }))) return;
     setSaving(`passkey-delete:${passkey.id}`);
     try {
       await deletePasskey(accessToken, passkey.id);
@@ -1071,7 +1072,7 @@ export default function ProfileSettings() {
       />
 
       <nav
-        aria-label="Persönliche Einstellungen"
+        aria-label={t("profileTranslations.0")}
         className="flex gap-7 overflow-x-auto border-b border-fb-border"
       >
         <TabButton
@@ -1115,7 +1116,7 @@ export default function ProfileSettings() {
       )}
 
       <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start lg:gap-8">
-        <nav aria-label="Abschnitte" className="mb-6 hidden lg:sticky lg:top-6 lg:mb-0 lg:block">
+        <nav aria-label={t("profileTranslations.sectionsAria")} className="mb-6 hidden lg:sticky lg:top-6 lg:mb-0 lg:block">
           <ul className="space-y-0.5 text-sm">
             {SETTINGS_GROUPS.map(([id, title]) => (
               <li key={id}>
@@ -1124,7 +1125,7 @@ export default function ProfileSettings() {
                   aria-current={activeGroup === id ? "true" : undefined}
                   className={`block rounded-lg px-3 py-2.5 transition ${activeGroup === id ? "bg-fb-accent-soft font-semibold text-fb-accent-strong" : "text-fb-muted hover:bg-fb-main hover:text-fb-text"}`}
                 >
-                  {title}
+                  {t(title)}
                 </a>
               </li>
             ))}
@@ -1134,8 +1135,8 @@ export default function ProfileSettings() {
       <form onSubmit={saveProfile}>
         <Section
           id="profile"
-          title="Profil"
-          description="Persönliche Angaben und Darstellung der Weboberfläche."
+          title={t("profileTranslations.groupProfile")}
+          description={t("profileTranslations.102")}
         >
           <div className="grid gap-5 sm:grid-cols-2">
             <label className={labelClass}>
@@ -1257,7 +1258,7 @@ export default function ProfileSettings() {
       </form>
 
       <form onSubmit={saveLanguage}>
-        <Section id="language" title="Sprache" description="Überschreibt die globale Standardsprache nur für dein Benutzerkonto.">
+        <Section id="language" title={t("profileTranslations.18")} description={t("profileTranslations.103")}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className={labelClass}>{t("profileTranslations.11")}
               <select value={personalLanguage} onChange={(e)=>setPersonalLanguage(e.target.value)} className={fieldClass}>
@@ -1272,8 +1273,8 @@ export default function ProfileSettings() {
       <form onSubmit={saveHomeCountry}>
         <Section
           id="country"
-          title="Heimatland und Steuerexport"
-          description="Das gewählte Land bestimmt Aufbau, Sprache, Einheit und Hinweise des PDF-Exports."
+          title={t("profileTranslations.countryTitle")}
+          description={t("profileTranslations.104")}
         >
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <label className={labelClass}>
@@ -1333,18 +1334,11 @@ export default function ProfileSettings() {
                     </p>
 
                     <p className="mt-1 text-xs text-fb-muted">
-                      Zeitraum:{" "}
-                      {
-                        selected.taxYearLabel
-                      }
+                      {t("profileTranslations.countryPeriod", { value: selected.taxYearLabel })}
                       {" · "}
-                      Einheit:{" "}
-                      {
-                        selected.distanceUnit
-                      }
+                      {t("profileTranslations.countryUnit", { value: selected.distanceUnit })}
                       {" · "}
-                      Währung:{" "}
-                      {selected.currency}
+                      {t("profileTranslations.countryCurrency", { value: selected.currency })}
                     </p>
                   </>
                 );
@@ -1371,8 +1365,8 @@ export default function ProfileSettings() {
 
       <Section
         id="home"
-        title="Heimatort"
-        description="Wird auf dem Dashboard als Kartenmittelpunkt verwendet, wenn noch keine Fahrt vorhanden ist."
+        title={t("profileTranslations.homeTitle")}
+        description={t("profileTranslations.108")}
       >
         {savedHomeLocation && (
           <div className="mb-5 rounded-lg border border-fb-border bg-fb-surface p-4">
@@ -1394,8 +1388,8 @@ export default function ProfileSettings() {
               ).toFixed(6)}
               {" · "}
               {savedHomeLocation.source === "gps"
-                ? "per GPS bestimmt"
-                : "manuell gewählt"}
+                ? t("profileTranslations.sourceGps")
+                : t("profileTranslations.sourceManual")}
             </div>
           </div>
         )}
@@ -1426,7 +1420,7 @@ export default function ProfileSettings() {
                   saveEnteredHomeLocation();
                 }
               }}
-              placeholder="z. B. Geisenheim"
+              placeholder={t("profileTranslations.homePlaceholder")}
               className={fieldClass}
             />
           </label>
@@ -1461,7 +1455,7 @@ export default function ProfileSettings() {
                     setHomeCandidates([]);
                     setError("");
                     setMessage(
-                      "Adresse ausgewählt. Klicke auf „Heimatort speichern“.",
+                      t("profileTranslations.homeAddressSelected"),
                     );
                   }}
                   className="block w-full bg-fb-main px-4 py-3 text-left transition hover:bg-fb-surface"
@@ -1506,7 +1500,7 @@ export default function ProfileSettings() {
             onClick={() => {
               if (!navigator.geolocation) {
                 setError(
-                  "Dieses Gerät unterstützt keine Standortbestimmung.",
+                  t("profileTranslations.noGeolocation"),
                 );
                 return;
               }
@@ -1542,7 +1536,7 @@ export default function ProfileSettings() {
                     setHomeCandidates([]);
 
                     setMessage(
-                      "Der aktuelle Standort wurde ermittelt. Klicke auf „Heimatort speichern“.",
+                      t("profileTranslations.homeGpsFound"),
                     );
                   } catch (gpsError) {
                     showError(gpsError);
@@ -1552,14 +1546,14 @@ export default function ProfileSettings() {
                 },
                 (gpsError) => {
                   const messages = {
-                    1: "Der Zugriff auf den Standort wurde abgelehnt.",
-                    2: "Der Standort konnte nicht bestimmt werden.",
-                    3: "Die Standortbestimmung hat zu lange gedauert.",
+                    1: t("profileTranslations.gpsDenied"),
+                    2: t("profileTranslations.gpsUnavailable"),
+                    3: t("profileTranslations.gpsTimeout"),
                   };
 
                   setError(
                     messages[gpsError.code] ||
-                      "Der Standort konnte nicht bestimmt werden.",
+                      t("profileTranslations.gpsUnavailable"),
                   );
 
                   setGpsLoading(false);
@@ -1574,8 +1568,8 @@ export default function ProfileSettings() {
             className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
           >
             {gpsLoading
-              ? "Standort wird bestimmt …"
-              : "Aktuellen Standort verwenden"}
+              ? t("profileTranslations.locating")
+              : t("profileTranslations.useCurrentLocation")}
           </button>
 
           {!window.isSecureContext && (
@@ -1597,8 +1591,8 @@ export default function ProfileSettings() {
               className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-danger transition hover:border-fb-danger disabled:opacity-60"
             >
               {saving === "home-delete"
-                ? "Entfernen …"
-                : "Heimatort entfernen"}
+                ? t("profileTranslations.removing")
+                : t("profileTranslations.removeHome")}
             </button>
           )}
 
@@ -1622,8 +1616,8 @@ export default function ProfileSettings() {
 
       <Section
         id="work"
-        title="Arbeitsort (optional)"
-        description="Optionaler Arbeitsort für die Erkennung von Arbeitswegen. Die Adresse wird wie der Heimatort als Koordinate gespeichert."
+        title={t("profileTranslations.workTitle")}
+        description={t("profileTranslations.124")}
       >
         {savedWorkLocation && (
           <div className="mb-5 rounded-lg border border-fb-border bg-fb-surface p-4">
@@ -1636,8 +1630,8 @@ export default function ProfileSettings() {
               {Number(savedWorkLocation.longitude).toFixed(6)}
               {" · "}
               {savedWorkLocation.source === "gps"
-                ? "per GPS bestimmt"
-                : "manuell gewählt"}
+                ? t("profileTranslations.sourceGps")
+                : t("profileTranslations.sourceManual")}
             </div>
           </div>
         )}
@@ -1662,7 +1656,7 @@ export default function ProfileSettings() {
                   saveEnteredWorkLocation();
                 }
               }}
-              placeholder="z. B. Darmstadt"
+              placeholder={t("profileTranslations.workPlaceholder")}
               className={fieldClass}
             />
           </label>
@@ -1689,7 +1683,7 @@ export default function ProfileSettings() {
                   setWorkCandidates([]);
                   setError("");
                   setMessage(
-                    "Adresse ausgewählt. Klicke auf „Arbeitsort speichern“.",
+                    t("profileTranslations.workAddressSelected"),
                   );
                 }}
                 className="block w-full bg-fb-main px-4 py-3 text-left transition hover:bg-fb-surface"
@@ -1710,7 +1704,7 @@ export default function ProfileSettings() {
             disabled={workGpsLoading}
             onClick={() => {
               if (!navigator.geolocation) {
-                setError("Dieses Gerät unterstützt keine Standortbestimmung.");
+                setError(t("profileTranslations.noGeolocation"));
                 return;
               }
 
@@ -1732,7 +1726,7 @@ export default function ProfileSettings() {
                     setWorkQuery(result.candidate.address);
                     setWorkCandidates([]);
                     setMessage(
-                      "Der aktuelle Standort wurde ermittelt. Klicke auf „Arbeitsort speichern“.",
+                      t("profileTranslations.workGpsFound"),
                     );
                   } catch (gpsError) {
                     showError(gpsError);
@@ -1741,7 +1735,7 @@ export default function ProfileSettings() {
                   }
                 },
                 () => {
-                  setError("Der Standort konnte nicht bestimmt werden.");
+                  setError(t("profileTranslations.gpsUnavailable"));
                   setWorkGpsLoading(false);
                 },
                 {
@@ -1754,8 +1748,8 @@ export default function ProfileSettings() {
             className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
           >
             {workGpsLoading
-              ? "Standort wird bestimmt …"
-              : "Aktuellen Standort verwenden"}
+              ? t("profileTranslations.locating")
+              : t("profileTranslations.useCurrentLocation")}
           </button>
         </div>
 
@@ -1767,7 +1761,7 @@ export default function ProfileSettings() {
               onClick={removeSavedWorkLocation}
               className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-danger transition hover:border-fb-danger disabled:opacity-60"
             >
-              {saving === "work-delete" ? "Entfernen …" : "Arbeitsort entfernen"}
+              {saving === "work-delete" ? t("profileTranslations.removing") : t("profileTranslations.removeWork")}
             </button>
           )}
 
@@ -1789,8 +1783,8 @@ export default function ProfileSettings() {
 
       <Section
         id="recognition"
-        title="Ortserkennung"
-        description="Legt fest, wie nah Start oder Ziel an Heimat- bzw. Arbeitsort liegen müssen, damit der Ort als Treffer erkannt wird."
+        title={t("profileTranslations.recognitionTitle")}
+        description={t("profileTranslations.125")}
       >
         <div className="grid gap-4 sm:grid-cols-[minmax(0,320px)_1fr] sm:items-end">
           <label className={labelClass}>
@@ -1820,24 +1814,24 @@ export default function ProfileSettings() {
             onClick={saveRecognitionRadius}
             className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
           >
-            {saving === "location-radius" ? t("profileTranslations.135") : "Radius speichern"}
+            {saving === "location-radius" ? t("profileTranslations.135") : t("profileTranslations.saveRadius")}
           </button>
         </div>
       </Section>
 
       <Section
         id="places"
-        title="Gespeicherte Orte"
-        description="Kunden, Niederlassungen und häufige Ziele für automatische Klassifizierungsvorschläge."
+        title={t("profileTranslations.placesTitle")}
+        description={t("profileTranslations.123")}
       >
         <form onSubmit={addSavedPlace} className="grid gap-3 md:grid-cols-3">
-          <input required placeholder="Name, z. B. Kunde Müller" value={newPlace.name} onChange={(e)=>setNewPlace(p=>({...p,name:e.target.value}))} className={fieldClass} />
-          <input placeholder="Adresse" value={newPlace.address} onChange={(e)=>setNewPlace(p=>({...p,address:e.target.value}))} className={fieldClass} />
+          <input required placeholder={t("profileTranslations.placeNamePlaceholder")} value={newPlace.name} onChange={(e)=>setNewPlace(p=>({...p,name:e.target.value}))} className={fieldClass} />
+          <input placeholder={t("profileTranslations.address")} value={newPlace.address} onChange={(e)=>setNewPlace(p=>({...p,address:e.target.value}))} className={fieldClass} />
           <select value={newPlace.suggestedType} onChange={(e)=>setNewPlace(p=>({...p,suggestedType:e.target.value}))} className={fieldClass}>
             <option value="">{t("profileTranslations.5")}</option><option value="business">{t("profileTranslations.6")}</option><option value="private">{t("profileTranslations.7")}</option><option value="commute">{t("profileTranslations.8")}</option>
           </select>
-          <input required type="number" step="any" placeholder="Breitengrad" value={newPlace.latitude} onChange={(e)=>setNewPlace(p=>({...p,latitude:e.target.value}))} className={fieldClass} />
-          <input required type="number" step="any" placeholder="Längengrad" value={newPlace.longitude} onChange={(e)=>setNewPlace(p=>({...p,longitude:e.target.value}))} className={fieldClass} />
+          <input required type="number" step="any" placeholder={t("profileTranslations.latitude")} value={newPlace.latitude} onChange={(e)=>setNewPlace(p=>({...p,latitude:e.target.value}))} className={fieldClass} />
+          <input required type="number" step="any" placeholder={t("profileTranslations.longitude")} value={newPlace.longitude} onChange={(e)=>setNewPlace(p=>({...p,longitude:e.target.value}))} className={fieldClass} />
           <div className="flex gap-2"><input required type="number" min="25" max="5000" value={newPlace.radiusMeters} onChange={(e)=>setNewPlace(p=>({...p,radiusMeters:e.target.value}))} className={fieldClass} /><button disabled={saving==="saved-place"} className="mt-2 rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text">{t("profileTranslations.9")}</button></div>
         </form>
         <div className="mt-5 divide-y divide-fb-border">
@@ -1853,8 +1847,8 @@ export default function ProfileSettings() {
       <form onSubmit={saveTracking}>
         <Section
           id="tracking"
-          title="Tracking"
-          description="Vorgaben für die Android-App und die automatische Fahrterkennung."
+          title={t("profileTranslations.trackingTitle")}
+          description={t("profileTranslations.105")}
         >
           <div className="space-y-5">
             <label className="flex items-start justify-between gap-6 rounded-lg border border-fb-border bg-fb-surface p-4">
@@ -1961,7 +1955,7 @@ export default function ProfileSettings() {
                     ["private", t("profileTranslations.7")],
                     ["business", t("profileTranslations.6")],
                     ["commute", t("profileTranslations.8")],
-                    ["unclassified", "Nicht zugeordnet"],
+                    ["unclassified", t("profileTranslations.unclassified")],
                   ].map(([key, label]) => (
                     <label key={key} className="flex items-center gap-3 rounded-lg border border-fb-border p-3 text-sm">
                       <input type="checkbox" checked={Boolean(tracking.mapRouteColors?.[key])}
@@ -1969,7 +1963,7 @@ export default function ProfileSettings() {
                           ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.checked ? DEFAULT_ROUTE_COLORS[key] : null },
                         }))} />
                       <span className="flex-1">{label}</span>
-                      <input type="color" aria-label={`Farbe für ${label}`} disabled={!tracking.mapRouteColors?.[key]}
+                      <input type="color" aria-label={t("profileTranslations.colorFor", { label })} disabled={!tracking.mapRouteColors?.[key]}
                         value={tracking.mapRouteColors?.[key] || DEFAULT_ROUTE_COLORS[key]}
                         onChange={(event) => setTracking((current) => ({
                           ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.value },
@@ -2016,8 +2010,8 @@ export default function ProfileSettings() {
       <form onSubmit={savePassword}>
         <Section
           id="credentials"
-          title="Passwort"
-          description="Nach einer Änderung werden alle anderen Sitzungen beendet."
+          title={t("profileTranslations.passwordTitle")}
+          description={t("profileTranslations.111")}
         >
           <div className="grid gap-5 sm:grid-cols-3">
             <label className={labelClass}>
@@ -2090,8 +2084,8 @@ export default function ProfileSettings() {
 
       <Section
         id="security"
-        title="Sicherheit"
-        description="Status der zusätzlichen Anmeldeverfahren."
+        title={t("profileTranslations.groupSecurity")}
+        description={t("profileTranslations.126")}
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-lg border border-fb-border bg-fb-surface p-4">
@@ -2124,7 +2118,7 @@ export default function ProfileSettings() {
                 type="text"
                 value={newPasskeyName}
                 onChange={(event) => setNewPasskeyName(event.target.value)}
-                placeholder="Name, z. B. Notebook oder YubiKey"
+                placeholder={t("profileTranslations.passkeyNamePlaceholder")}
                 maxLength={120}
                 className={fieldClass}
               />
@@ -2134,7 +2128,7 @@ export default function ProfileSettings() {
                 disabled={saving === "passkey-add" || user?.passkeyEnabled === false}
                 className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60"
               >
-                {saving === "passkey-add" ? "Registriere …" : t("profileTranslations.96")}
+                {saving === "passkey-add" ? t("profileTranslations.registering") : t("profileTranslations.96")}
               </button>
             </div>
 
@@ -2152,9 +2146,9 @@ export default function ProfileSettings() {
                   <div>
                     <div className="font-semibold">{passkey.name}</div>
                     <div className="mt-1 text-xs text-fb-muted">
-                      Erstellt {new Date(passkey.createdAt).toLocaleString("de-DE")}
-                      {passkey.lastUsedAt ? ` · zuletzt verwendet ${new Date(passkey.lastUsedAt).toLocaleString("de-DE")}` : ""}
-                      {passkey.backedUp ? " · synchronisiert" : ""}
+                      {t("profileTranslations.passkeyCreated", { date: new Date(passkey.createdAt).toLocaleString(locale) })}
+                      {passkey.lastUsedAt ? ` · ${t("profileTranslations.passkeyLastUsed", { date: new Date(passkey.lastUsedAt).toLocaleString(locale) })}` : ""}
+                      {passkey.backedUp ? ` · ${t("profileTranslations.passkeySynced")}` : ""}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -2234,8 +2228,8 @@ export default function ProfileSettings() {
 
       <Section
         id="devices"
-        title="Geräte und Sitzungen"
-        description="Geräte, die sich mit deinem Konto angemeldet haben."
+        title={t("profileTranslations.devicesTitle")}
+        description={t("profileTranslations.114")}
       >
         <div className="mb-5 flex justify-end">
           <button
@@ -2296,7 +2290,7 @@ export default function ProfileSettings() {
                       className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-text hover:border-fb-danger hover:text-fb-danger disabled:opacity-60"
                     >
                       {saving === device.id
-                        ? "Abmelden …"
+                        ? t("profileTranslations.signingOut")
                         : t("profileTranslations.97")}
                     </button>
                   )}

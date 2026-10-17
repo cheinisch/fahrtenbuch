@@ -1,3 +1,5 @@
+import { translate } from "../i18n/translate.js";
+
 function decodeBase64Url(value) {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
@@ -55,14 +57,14 @@ function commonCredential(credential) {
 
 export async function createPasskey(options) {
   if (!window.PublicKeyCredential || !navigator.credentials) {
-    throw new Error("Dieser Browser unterstützt keine Passkeys.");
+    throw new Error(translate("authMethods.passkeyUnsupported"));
   }
 
   const credential = await navigator.credentials.create({
     publicKey: creationOptions(options),
   });
 
-  if (!credential) throw new Error("Die Passkey-Erstellung wurde abgebrochen.");
+  if (!credential) throw new Error(translate("authMethods.passkeyCreateCancelled"));
 
   return {
     ...commonCredential(credential),
@@ -83,14 +85,14 @@ export async function createPasskey(options) {
 
 export async function authenticateWithPasskey(options) {
   if (!window.PublicKeyCredential || !navigator.credentials) {
-    throw new Error("Dieser Browser unterstützt keine Passkeys.");
+    throw new Error(translate("authMethods.passkeyUnsupported"));
   }
 
   const credential = await navigator.credentials.get({
     publicKey: requestOptions(options),
   });
 
-  if (!credential) throw new Error("Die Passkey-Anmeldung wurde abgebrochen.");
+  if (!credential) throw new Error(translate("authMethods.passkeyLoginCancelled"));
 
   return {
     ...commonCredential(credential),

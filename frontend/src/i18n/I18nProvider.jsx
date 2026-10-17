@@ -1,23 +1,9 @@
 import { createContext,useContext,useEffect,useMemo,useState } from "react";
-import { parse as parseJsonc } from "jsonc-parser";
-import deJson from "./locales/de/translation.json?raw";
-import enJson from "./locales/en/translation.json?raw";
+import { dictionaries,setActiveLanguage,translateIn } from "./translate.js";
 import { getPersonalSettings,getPublicLanguageSettings } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 
-// Übersetzungsdateien sind JSONC (Kommentare erlaubt) – daher ?raw + jsonc-parser
-// statt Vites JSON-Import.
-function loadJsonc(source,file){
- const errors=[];
- const data=parseJsonc(source,errors,{allowTrailingComma:true});
- if(errors.length)throw new Error(`Invalid translation file ${file} (offset ${errors[0].offset})`);
- return data;
-}
-const de=loadJsonc(deJson,"de/translation.json");
-const en=loadJsonc(enJson,"en/translation.json");
-const dictionaries={de,en};
 const I18nContext=createContext(null);
-function read(obj,key){return key.split(".").reduce((value,part)=>value?.[part],obj);}
 export function I18nProvider({children}){
  const {accessToken,isAuthenticated}=useAuth();
  const [language,setLanguage]=useState("de");
@@ -28,15 +14,11 @@ export function I18nProvider({children}){
    if(active)setLanguage(dictionaries[selected]?selected:"de");
  }catch{if(active)setLanguage("de");}})();return()=>{active=false};},[accessToken,isAuthenticated]);
  useEffect(()=>{document.documentElement.lang=language;},[language]);
+ setActiveLanguage(language);
  const locale=language==="en"?"en-US":"de-DE";
  const value=useMemo(()=>({
    language,locale,setLanguage,
-   t:(key,paramsOrFallback,fallback)=>{
-     const params=paramsOrFallback&&typeof paramsOrFallback==="object"?paramsOrFallback:{};
-     const fb=typeof paramsOrFallback==="string"?paramsOrFallback:fallback;
-     const template=read(dictionaries[language],key)??read(de,key)??fb??key;
-     return typeof template==="string" ? template.replace(/\{(\w+)\}/g,(_,name)=>params[name]??`{${name}}`) : template;
-   },
+   t:(key,paramsOrFallback,fallback)=>translateIn(language,key,paramsOrFallback,fallback),
    number:(value,options)=>new Intl.NumberFormat(locale,options).format(value),
    date:(value,options)=>new Intl.DateTimeFormat(locale,options).format(value instanceof Date?value:new Date(value)),
  }),[language,locale]);

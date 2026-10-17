@@ -182,7 +182,7 @@ export default function AddNewDeviceModal({
         setError(
           generationError instanceof Error
             ? generationError.message
-            : "Der QR-Code konnte nicht erzeugt werden.",
+            : t("profileTranslations.qrCreateFailed"),
         );
       } finally {
         if (
@@ -392,7 +392,7 @@ export default function AddNewDeviceModal({
       }, 1_500);
     } catch {
       setError(
-        "Der QR-Inhalt konnte nicht in die Zwischenablage kopiert werden.",
+        t("profileTranslations.qrCopyFailed"),
       );
     }
   }
@@ -455,13 +455,12 @@ export default function AddNewDeviceModal({
                   ) : pairing?.qrCodeDataUrl ? (
                     <img
                       src={pairing.qrCodeDataUrl}
-                      alt="QR-Code zum Verbinden der Fahrtenbuch-App"
+                      alt={t("profileTranslations.qrAlt")}
                       className="size-full object-contain"
                     />
                   ) : (
                     <div className="px-6 text-center text-sm text-fb-muted">
-                      QR-Code konnte nicht geladen
-                      werden.
+                      {t("profileTranslations.99")}
                     </div>
                   )}
                 </div>
@@ -475,7 +474,7 @@ export default function AddNewDeviceModal({
                   ) : (
                     <>
                       <div className="text-sm font-semibold text-fb-text">
-                        Gültig für noch{" "}
+                        {t("profileTranslations.qrValidFor")}{" "}
                         <span className="font-mono text-fb-accent">
                           {formatRemainingTime(
                             secondsLeft,
@@ -560,8 +559,8 @@ export default function AddNewDeviceModal({
                   >
                     <ClipboardDocumentIcon className="size-5" />
                     {copied
-                      ? "Kopiert"
-                      : "QR-Inhalt kopieren"}
+                      ? t("profileTranslations.qrCopied")
+                      : t("profileTranslations.qrCopy")}
                   </button>
 
                   <button

@@ -1,3 +1,4 @@
+import { translate } from "../i18n/translate.js";
 import { ApiError } from "./auth.js";
 import { authenticatedFetch } from "./app.js";
 
@@ -16,7 +17,7 @@ async function request(accessToken, path, options = {}) {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     throw new ApiError(
-      body?.error?.message || body?.message || "Die Passkey-Anfrage ist fehlgeschlagen.",
+      body?.error?.message || body?.message || translate("authMethods.passkeyRequestFailed"),
       response.status,
       body?.error?.code || "PASSKEY_REQUEST_FAILED",
     );
