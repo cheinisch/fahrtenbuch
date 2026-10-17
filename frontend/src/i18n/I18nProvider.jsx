@@ -1,28 +1,20 @@
 import { createContext,useContext,useEffect,useMemo,useState } from "react";
 import { parse as parseJsonc } from "jsonc-parser";
-import deLegacy from "./locales/de.js";
-import enLegacy from "./locales/en.js";
 import deJson from "./locales/de/translation.json?raw";
 import enJson from "./locales/en/translation.json?raw";
 import { getPersonalSettings,getPublicLanguageSettings } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 
 // Übersetzungsdateien sind JSONC (Kommentare erlaubt) – daher ?raw + jsonc-parser
-// statt Vites JSON-Import. Während der Migration ergänzen sie die alten JS-Dateien.
+// statt Vites JSON-Import.
 function loadJsonc(source,file){
  const errors=[];
  const data=parseJsonc(source,errors,{allowTrailingComma:true});
  if(errors.length)throw new Error(`Invalid translation file ${file} (offset ${errors[0].offset})`);
  return data;
 }
-function merge(base,extra){
- const out={...base};
- for(const [key,value] of Object.entries(extra||{}))
-  out[key]=value&&typeof value==="object"&&!Array.isArray(value)&&typeof out[key]==="object"?merge(out[key],value):value;
- return out;
-}
-const de=merge(deLegacy,loadJsonc(deJson,"de/translation.json"));
-const en=merge(enLegacy,loadJsonc(enJson,"en/translation.json"));
+const de=loadJsonc(deJson,"de/translation.json");
+const en=loadJsonc(enJson,"en/translation.json");
 const dictionaries={de,en};
 const I18nContext=createContext(null);
 function read(obj,key){return key.split(".").reduce((value,part)=>value?.[part],obj);}
