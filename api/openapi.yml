@@ -1064,7 +1064,22 @@ paths:
       parameters:
         - { name: token, in: query, required: true, schema: { type: string, minLength: 20 } }
       responses:
-        '200': { description: Status und Metadaten der Einladung }
+        '200':
+          description: Status und Metadaten der Einladung
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [pending, accepted, declined, cancelled, expired] }
+                  expired: { type: boolean }
+                  vehicleName: { type: string }
+                  licensePlate: { type: [string, 'null'], description: Nur wenn die Einladung für den angemeldeten Benutzer gedacht ist }
+                  ownerName: { type: string }
+                  expiresAt: { type: string, format: date-time }
+                  invitationType: { type: string, enum: [email, link] }
+                  isOwnVehicle: { type: boolean, description: Der angemeldete Benutzer hat den Link selbst erstellt }
+                  intendedForCurrentUser: { type: boolean }
         '404': { $ref: '#/components/responses/NotFound' }
   /vehicles/share-invitations/pending:
     get:
@@ -2565,6 +2580,23 @@ components:
         color: { type: [string, 'null'] }
         notes: { type: [string, 'null'] }
         bluetoothMac: { type: [string, 'null'] }
+        isOwner: { type: boolean, description: false = vom Besitzer geteiltes Fahrzeug }
+        accessType: { type: string, enum: [owner, shared] }
+        ownerDisplayName: { type: [string, 'null'], description: Nur bei geteilten Fahrzeugen }
+        ownerUsername: { type: [string, 'null'], description: Nur bei geteilten Fahrzeugen }
+        acquisitionType:
+          type: string
+          enum: [owned, leasing, financing]
+          description: Nur für den Besitzer; bei geteilten Fahrzeugen nicht enthalten.
+        sharedWith:
+          type: array
+          description: Nur für den Besitzer – Benutzer, mit denen das Fahrzeug geteilt ist.
+          items:
+            type: object
+            properties:
+              userId: { type: string, format: uuid }
+              displayName: { type: [string, 'null'] }
+              username: { type: [string, 'null'] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     VehicleInput:
@@ -3709,6 +3741,23 @@ components:
         color: { type: [string, 'null'] }
         notes: { type: [string, 'null'] }
         bluetoothMac: { type: [string, 'null'] }
+        isOwner: { type: boolean, description: false = vom Besitzer geteiltes Fahrzeug }
+        accessType: { type: string, enum: [owner, shared] }
+        ownerDisplayName: { type: [string, 'null'], description: Nur bei geteilten Fahrzeugen }
+        ownerUsername: { type: [string, 'null'], description: Nur bei geteilten Fahrzeugen }
+        acquisitionType:
+          type: string
+          enum: [owned, leasing, financing]
+          description: Nur für den Besitzer; bei geteilten Fahrzeugen nicht enthalten.
+        sharedWith:
+          type: array
+          description: Nur für den Besitzer – Benutzer, mit denen das Fahrzeug geteilt ist.
+          items:
+            type: object
+            properties:
+              userId: { type: string, format: uuid }
+              displayName: { type: [string, 'null'] }
+              username: { type: [string, 'null'] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     VehicleInput:

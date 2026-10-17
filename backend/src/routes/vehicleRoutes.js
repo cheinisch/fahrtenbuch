@@ -188,7 +188,16 @@ vehicleRoutes.get(
           (v.user_id = $1) AS is_owner,
           owner.display_name AS owner_display_name,
           owner.username AS owner_username,
-          CASE WHEN v.user_id = $1 THEN 'owner' ELSE 'shared' END AS access_type
+          CASE WHEN v.user_id = $1 THEN 'owner' ELSE 'shared' END AS access_type,
+          -- Nur für den Besitzer: mit wem das Fahrzeug geteilt ist
+          CASE WHEN v.user_id = $1 THEN COALESCE((
+            SELECT json_agg(json_build_object(
+                     'userId', su.id, 'displayName', su.display_name, 'username', su.username
+                   ) ORDER BY lower(coalesce(su.display_name, su.username)))
+            FROM vehicle_shares vs2
+            INNER JOIN users su ON su.id = vs2.user_id
+            WHERE vs2.vehicle_id = v.id
+          ), '[]'::json) END AS shared_with
         FROM vehicles v
         INNER JOIN users owner ON owner.id = v.user_id
         WHERE v.archived_at IS NULL
@@ -216,7 +225,8 @@ vehicleRoutes.get(
     response.json(result.rows.map((row) => {
       const mapped=mapVehicle(row);
       mapped.odometerKm = row.display_odometer_meters == null ? null : Number(row.display_odometer_meters) / 1000;
-      if(row.is_owner) return mapped;
+      if(row.is_owner) { mapped.sharedWith = row.shared_with || []; return mapped; }
+      // Mitbenutzer sehen keine Finanzierungs-, Leasing- oder Bluetooth-Daten
       return {
         id:mapped.id,name:mapped.name,manufacturer:mapped.manufacturer,model:mapped.model,
         licensePlate:mapped.licensePlate,color:mapped.color,isDefault:false,
@@ -348,8 +358,8 @@ vehicleRoutes.get(
     await pool.query(`DELETE FROM vehicle_share_invitations
       WHERE invitation_type='link' AND created_at <= now() - interval '7 days'`);
     const result=await pool.query(
-      `SELECT i.id,i.status,i.expires_at,i.invitation_type,i.invited_user_id,
-              v.name AS vehicle_name,u.display_name AS owner_display_name,u.username AS owner_username
+      `SELECT i.id,i.status,i.expires_at,i.invitation_type,i.invited_user_id,i.invited_by_user_id,
+              v.name AS vehicle_name,v.license_plate,u.display_name AS owner_display_name,u.username AS owner_username
        FROM vehicle_share_invitations i
        INNER JOIN vehicles v ON v.id=i.vehicle_id
        INNER JOIN users u ON u.id=i.invited_by_user_id
@@ -358,11 +368,15 @@ vehicleRoutes.get(
     const row=result.rows[0];
     const expired=new Date(row.expires_at).getTime()<=Date.now();
     if(expired&&row.status==="pending") await pool.query(`UPDATE vehicle_share_invitations SET status='expired' WHERE id=$1`,[row.id]);
+    const intendedForCurrentUser=row.invitation_type==="link" || row.invited_user_id===request.auth.userId;
     response.json({
       status:expired?"expired":row.status,expired,vehicleName:row.vehicle_name,
+      // Kennzeichen nur, wenn die Einladung für den angemeldeten Benutzer gedacht ist
+      licensePlate:intendedForCurrentUser?(row.license_plate??null):null,
       ownerName:row.owner_display_name||row.owner_username,expiresAt:row.expires_at,
       invitationType:row.invitation_type,
-      intendedForCurrentUser:row.invitation_type==="link" || row.invited_user_id===request.auth.userId,
+      isOwnVehicle:row.invited_by_user_id===request.auth.userId,
+      intendedForCurrentUser,
     });
   })
 );

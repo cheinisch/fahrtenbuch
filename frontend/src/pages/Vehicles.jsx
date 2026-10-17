@@ -9,6 +9,7 @@ import {
   TruckIcon,
 } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   createVehicle,
@@ -40,6 +41,8 @@ function label(vehicle, t) {
 export default function Vehicles() {
   const { accessToken } = useAuth();
   const { t, locale } = useI18n();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("active");
@@ -78,6 +81,14 @@ export default function Vehicles() {
   }
 
   useEffect(() => { load(); }, [accessToken]);
+
+  // Rückmeldung z. B. nach angenommenem Freigabelink anzeigen und aus dem Verlauf entfernen
+  useEffect(() => {
+    if (typeof location.state?.message === "string") {
+      setMessage(location.state.message);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state]);
 
   async function save(payload) {
     setSaving(true);
@@ -285,13 +296,28 @@ export default function Vehicles() {
                   </div>
                   {badge && <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>{badge.text}</span>}
                 </div>
+                {vehicle.isOwner ? (
                 <dl className="grid grid-cols-2 gap-3.5 text-sm">
                   <div><dt className={fieldLabel}>{t("vehicles.plate")}</dt><dd className="mt-1 font-semibold">{vehicle.licensePlate || "–"}</dd></div>
                   <div><dt className={fieldLabel}>{t("vehicles.odometer")}</dt><dd className="mt-1 font-semibold">{vehicle.odometerKm == null ? "–" : `${Number(vehicle.odometerKm).toLocaleString(locale, { maximumFractionDigits: 1 })} km`}</dd></div>
                   <div className="min-w-0"><dt className={fieldLabel}>{t("vehicles.bluetooth")}</dt><dd className={`mt-1 truncate ${vehicle.bluetoothMac ? "font-mono text-xs font-medium" : "font-medium"}`}>{vehicle.bluetoothMac || t("vehicles.notAssigned")}</dd></div>
                   <div><dt className={fieldLabel}>{t("vehicles.financing")}</dt><dd className="mt-1 font-medium">{acquisitionLabel(vehicle)}</dd></div>
                 </dl>
-                {!vehicle.isOwner && <div className="rounded-lg bg-fb-accent-soft px-3 py-2 text-xs font-semibold text-fb-accent-strong">{t("vehicles.sharedBy", { user: vehicle.owner?.displayName || vehicle.owner?.username || t("vehicles.otherUser") })}</div>}
+                ) : (
+                  // Mitbenutzer: keine Finanzierungs-/Leasing- oder Bluetooth-Angaben
+                  <dl className="grid grid-cols-2 gap-3.5 text-sm">
+                    <div><dt className={fieldLabel}>{t("vehicles.plate")}</dt><dd className="mt-1 font-semibold">{vehicle.licensePlate || "–"}</dd></div>
+                    <div className="min-w-0"><dt className={fieldLabel}>{t("vehicles.owner")}</dt><dd className="mt-1 truncate font-semibold">{vehicle.ownerDisplayName || vehicle.ownerUsername || t("vehicles.otherUser")}</dd></div>
+                  </dl>
+                )}
+                {vehicle.isOwner && vehicle.sharedWith?.length > 0 && (
+                  <button type="button" onClick={() => openSharing(vehicle)} className="flex min-w-0 items-center gap-2 rounded-lg bg-orange-50 px-3 py-2 text-left text-xs text-orange-900 hover:bg-orange-100 dark:bg-orange-950/60 dark:text-orange-200 dark:hover:bg-orange-950">
+                    <span className="flex shrink-0 -space-x-1.5">
+                      {vehicle.sharedWith.slice(0, 3).map((entry) => <span key={entry.userId} aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-orange-200 text-[10px] font-bold ring-2 ring-orange-50 dark:bg-orange-900 dark:ring-orange-950">{initials(entry.displayName || entry.username)}</span>)}
+                    </span>
+                    <span className="min-w-0 truncate"><span className="font-semibold">{t("vehicles.sharedWith")}</span> {vehicle.sharedWith.map((entry) => entry.displayName || entry.username).join(", ")}</span>
+                  </button>
+                )}
                 {vehicle.isOwner && (
                   <div className="mt-auto flex flex-wrap gap-2 border-t border-fb-border pt-4">
                     <button type="button" onClick={() => { setEditing(vehicle); setModalOpen(true); }} className={secondaryButton}>{t("vehicles.edit")}</button>
