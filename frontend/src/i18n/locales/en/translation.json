@@ -1,0 +1,130 @@
+// English translations. Keys mirror ../de/translation.json.
+// Areas not migrated yet still live in ../en.js.
+{
+  "statistics": {
+    "title": "Statistics",
+    "heading": "Monthly report",
+    "subtitle": "Recorded trips compared with the odometer readings.",
+    "vehicle": "Vehicle",
+    "year": "Year",
+    "month": "Month",
+    "sharedSuffix": "shared",
+    "sharedTitle": "Shared vehicle",
+    "sharedHint": "You only see your own trips with this vehicle here. Odometer readings, leasing data and other drivers' trips are managed by the owner.",
+    "ownTrips": "your trips with this vehicle",
+    "ownTripsMonth": "Your trips: {value}",
+
+    // Key figure tiles at the top
+    "yearSummary": "Key figures {year}",
+    "drivenYear": "Driven in {year}",
+    "byReadings": "according to readings",
+    "tracked": "Of which recorded",
+    "coverage": "{value} coverage",
+    "businessShare": "Business share",
+    "unexplained": "Unexplained",
+    "unexplainedHint": "without a recorded trip",
+
+    "categories": {
+      "businessKm": "Business",
+      "privateKm": "Private",
+      "commuteKm": "Commute",
+      "unclassifiedKm": "Unclassified",
+      "otherDriversKm": "Other drivers",
+      "unknownKm": "Unexplained"
+    },
+
+    "reading": {
+      "heading": "Add odometer reading",
+      "hint": "Odometer readings can be added for any day. Several intermediate readings per month are possible; the order relative to earlier and later readings is checked.",
+      "date": "Reading date",
+      "time": "Reading time",
+      "odometer": "Odometer",
+      "placeholder": "e.g. 82450",
+      "save": "Save reading",
+      "log": "Reading log ({count})",
+      "saved": "Odometer reading from {date} has been saved.",
+      "errorVehicle": "Please select a vehicle.",
+      "errorDate": "Please select a valid reading date.",
+      "errorOdometer": "Please enter a valid odometer reading.",
+      "errorTime": "Please enter a valid reading time that is not in the future."
+    },
+
+    // Leasing or financing contract with a mileage limit
+    "leasing": {
+      "titleLeasing": "Leasing mileage",
+      "titleContract": "Contract mileage",
+      "period": "{start} – {end} · {limit} mileage limit",
+      "excessLeasing": "Excess mileage expected",
+      "excessContract": "Mileage limit likely to be exceeded",
+      "onTrack": "On track",
+      "baseline": "Baseline: {value} on {date} → current reading {current}",
+      "baselineEstimated": "No reading at contract start; the mileage is extrapolated from the available reading period.",
+      "lastReading": "Last reading: {value} on {date} · trips recorded since: {gps}. Intermediate readings replace previously estimated trip kilometres.",
+      "drivenSoFar": "Driven so far",
+      "proRata": "Pro-rata allowance",
+      "forecastEnd": "Forecast at contract end",
+      "forecastDeviation": "Forecast deviation",
+      "settlement": "Payment / refund (forecast)",
+      "rateMissing": "No rate per kilometre set",
+      "expectedPayment": "Expected additional payment",
+      "expectedRefund": "Expected refund",
+      "noPayment": "No payment expected",
+      "usage": "Mileage used relative to the contract limit",
+      "usageAria": "Mileage used",
+      "targetMarker": "Line = pro-rata target as of today ({value})"
+    },
+
+    "chart": {
+      "heading": "Mileage over time",
+      "hint": "Recorded kilometres by category; the hatched part was driven according to the readings but not matched to any trip. Click a month for details.",
+      "hintShared": "Your kilometres with this vehicle by category. Click a month for details.",
+      "showMonthlyLimit": "Show monthly limit",
+      "monthlyLimit": "Contractual monthly limit: {value}",
+      "stackedAria": "Kilometres per month by category",
+      "barAria": "{month}: {value} – show details",
+      "readingsAria": "Mileage statistics for the selected period",
+      "actual": "Actual according to readings",
+      "trackedTrips": "Recorded trips",
+      "barTitle": "{month} – {series}: {value}",
+      "notEnoughData": "There are not enough readings for a chart in this period yet."
+    },
+
+    "intervals": {
+      "title": "Accuracy by reading interval",
+      "hint": "The shorter the intervals between two readings, the more precisely you can see in which period kilometres are not explained by recorded trips.",
+      "period": "Period",
+      "odometer": "Odometer",
+      "actual": "Actual",
+      "tracked": "Recorded",
+      "difference": "Difference",
+      "trips": "Trips"
+    },
+
+    "monthDetails": {
+      "title": "Month details",
+      "hint": "Kilometres by category. Click one to see its trips.",
+      "odometerAndTracked": "Odometer {actual} · recorded {tracked}",
+      "trackedIncomplete": "Recorded {tracked} · month boundaries not fully covered by readings",
+      "noYear": "No year",
+      "noMonth": "No month",
+      "odometerRange": "Odometer: {start} → {end}"
+    },
+
+    // Dialog opened by clicking a category in the month details
+    "categoryDialog": {
+      "otherDriversIntro": "Trips by other users you have shared this vehicle with. They count towards the recorded kilometres so they don't show up as \"Unexplained\".",
+      "otherDriversKm": "Driven by other drivers:",
+      "otherDriversPrivacy": "For privacy reasons, destinations, routes, categories and trip details of other users are not shown.",
+      "unknownIntro": "\"Unexplained\" is not a trip category. These kilometres are the difference between the change in odometer reading and the recorded trips, so individual trips cannot be listed.",
+      "trackedTrips": "Recorded trips: {value}",
+      "untracked": "Not recorded (calculated): {value}",
+      "unreliable": "Without matching readings for the month, the difference cannot be determined reliably.",
+      "loading": "Loading trips …",
+      "summary": "{count} trips · {value}",
+      "startUnknown": "Start unknown",
+      "endUnknown": "Destination unknown",
+      "assign": "Assign:",
+      "noTrips": "No trips found."
+    }
+  }
+}

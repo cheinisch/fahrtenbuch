@@ -79,7 +79,7 @@ frontend/src/i18n/locales/
 - Values are plain strings; placeholders use single braces: `"Fahrzeug {vehicle} gespeichert"` → `t("key", { vehicle })`.
 - Reuse generic keys (e.g. `buttons.*`) instead of duplicating identical texts.
 - New languages: add `<code>/translation.json` and register it in `I18nProvider.jsx`.
-- **Migration:** the legacy files `de.js` / `en.js` are to be converted to this format. Until that is done, `I18nProvider.jsx` still imports them – keep both in sync and don't start new JSON files alongside them.
+- **Migration (in progress):** `I18nProvider.jsx` loads the legacy files `de.js` / `en.js` and merges `<lang>/translation.json` on top. Areas are moved one at a time: move the whole top-level block (e.g. `statistics`) into the JSON files and delete it from the JS files – a key lives in exactly one place. New areas go straight into JSON. Done so far: `statistics`.
 
 ## Git
 

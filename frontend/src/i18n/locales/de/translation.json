@@ -1,0 +1,130 @@
+// Deutsche Übersetzungen (Referenz- und Fallback-Sprache).
+// Bereiche, die noch nicht migriert sind, liegen weiterhin in ../de.js.
+{
+  "statistics": {
+    "title": "Statistiken",
+    "heading": "Monatsauswertung",
+    "subtitle": "Aufgezeichnete Fahrten im Vergleich zu den abgelesenen Kilometerständen.",
+    "vehicle": "Fahrzeug",
+    "year": "Jahr",
+    "month": "Monat",
+    "sharedSuffix": "geteilt",
+    "sharedTitle": "Geteiltes Fahrzeug",
+    "sharedHint": "Du siehst hier nur deine eigenen Fahrten mit diesem Fahrzeug. Kilometerstände, Leasingdaten und Fahrten anderer Fahrer verwaltet der Besitzer.",
+    "ownTrips": "deine Fahrten mit diesem Fahrzeug",
+    "ownTripsMonth": "Deine Fahrten: {value}",
+
+    // Kennzahlen-Kacheln oben
+    "yearSummary": "Kennzahlen {year}",
+    "drivenYear": "Gefahren {year}",
+    "byReadings": "laut Ablesungen",
+    "tracked": "Davon erfasst",
+    "coverage": "{value} Abdeckung",
+    "businessShare": "Dienstlicher Anteil",
+    "unexplained": "Nicht erklärt",
+    "unexplainedHint": "ohne aufgezeichnete Fahrt",
+
+    "categories": {
+      "businessKm": "Dienstlich",
+      "privateKm": "Privat",
+      "commuteKm": "Arbeitsweg",
+      "unclassifiedKm": "Nicht zugeordnet",
+      "otherDriversKm": "Andere Fahrer",
+      "unknownKm": "Nicht erklärt"
+    },
+
+    "reading": {
+      "heading": "Kilometerstand nachtragen",
+      "hint": "Kilometerstände können für beliebige Tage nachgetragen werden. Mehrere Zwischenablesungen pro Monat sind möglich; die Reihenfolge zu vorherigen und folgenden Messwerten wird geprüft.",
+      "date": "Ablesedatum",
+      "time": "Ablesezeit",
+      "odometer": "Kilometerstand",
+      "placeholder": "z. B. 82450",
+      "save": "Ablesung speichern",
+      "log": "Ableseprotokoll ({count})",
+      "saved": "Kilometerstand vom {date} wurde gespeichert.",
+      "errorVehicle": "Bitte ein Fahrzeug auswählen.",
+      "errorDate": "Bitte ein gültiges Ablesedatum auswählen.",
+      "errorOdometer": "Bitte einen gültigen Kilometerstand eingeben.",
+      "errorTime": "Bitte eine gültige Ablesezeit angeben, die nicht in der Zukunft liegt."
+    },
+
+    // Leasing- bzw. Finanzierungsvertrag mit Kilometerlimit
+    "leasing": {
+      "titleLeasing": "Leasing-Kilometer",
+      "titleContract": "Vertragskilometer",
+      "period": "{start} – {end} · {limit} Kilometerlimit",
+      "excessLeasing": "Mehrkilometer erwartet",
+      "excessContract": "Kilometerlimit voraussichtlich überschritten",
+      "onTrack": "Im Plan",
+      "baseline": "Basis: {value} am {date} → aktueller Stand {current}",
+      "baselineEstimated": "Keine Ablesung am Vertragsbeginn; die Fahrleistung wird anhand des verfügbaren Ablesezeitraums hochgerechnet.",
+      "lastReading": "Letzte Ablesung: {value} am {date} · danach erfasste Fahrten: {gps}. Zwischenablesungen ersetzen die zuvor geschätzten Fahrtkilometer.",
+      "drivenSoFar": "Bisher gefahren",
+      "proRata": "Zeitanteilig vorgesehen",
+      "forecastEnd": "Prognose Vertragsende",
+      "forecastDeviation": "Prognose Abweichung",
+      "settlement": "Nachzahlung / Erstattung (Prognose)",
+      "rateMissing": "Kilometersatz nicht hinterlegt",
+      "expectedPayment": "Voraussichtliche Nachzahlung",
+      "expectedRefund": "Voraussichtliche Erstattung",
+      "noPayment": "Keine Zahlung erwartet",
+      "usage": "Kilometerverbrauch im Verhältnis zum Vertragslimit",
+      "usageAria": "Kilometerverbrauch",
+      "targetMarker": "Strich = zeitanteiliger Soll-Stand heute ({value})"
+    },
+
+    "chart": {
+      "heading": "Kilometerentwicklung",
+      "hint": "Erfasste Kilometer nach Kategorie; schraffiert ist der Teil, der laut Ablesung gefahren, aber keiner Fahrt zugeordnet ist. Ein Klick auf einen Monat zeigt die Details.",
+      "hintShared": "Deine Kilometer mit diesem Fahrzeug nach Kategorie. Ein Klick auf einen Monat zeigt die Details.",
+      "showMonthlyLimit": "Monatslimit zeigen",
+      "monthlyLimit": "Vertragliches Monatslimit: {value}",
+      "stackedAria": "Kilometer pro Monat nach Kategorie",
+      "barAria": "{month}: {value} – Details anzeigen",
+      "readingsAria": "Kilometerstatistik im ausgewählten Zeitraum",
+      "actual": "Tatsächlich laut Ablesungen",
+      "trackedTrips": "Erfasste Fahrten",
+      "barTitle": "{month} – {series}: {value}",
+      "notEnoughData": "Für diesen Zeitraum liegen noch nicht genügend Ablesungen für ein Diagramm vor."
+    },
+
+    "intervals": {
+      "title": "Genauigkeit nach Ableseintervall",
+      "hint": "Je kürzer die Intervalle zwischen zwei Ablesungen sind, desto genauer lässt sich erkennen, in welchem Zeitraum Kilometer nicht durch aufgezeichnete Fahrten erklärt werden.",
+      "period": "Zeitraum",
+      "odometer": "Kilometerstand",
+      "actual": "Tatsächlich",
+      "tracked": "Erfasst",
+      "difference": "Differenz",
+      "trips": "Fahrten"
+    },
+
+    "monthDetails": {
+      "title": "Monatsdetails",
+      "hint": "Aufteilung der Kilometer nach Kategorie. Ein Klick zeigt die zugehörigen Fahrten.",
+      "odometerAndTracked": "Tacho {actual} · erfasst {tracked}",
+      "trackedIncomplete": "Erfasst {tracked} · Monatsgrenzen nicht vollständig abgelesen",
+      "noYear": "Kein Jahr",
+      "noMonth": "Kein Monat",
+      "odometerRange": "Kilometerstand: {start} → {end}"
+    },
+
+    // Dialog nach Klick auf eine Kategorie in den Monatsdetails
+    "categoryDialog": {
+      "otherDriversIntro": "Fahrten anderer Benutzer, denen du dieses Fahrzeug freigegeben hast. Sie zählen zu den erfassten Kilometern, damit sie nicht als „Nicht erklärt“ erscheinen.",
+      "otherDriversKm": "Gefahren von anderen Fahrern:",
+      "otherDriversPrivacy": "Aus Datenschutzgründen werden keine Ziele, Routen, Kategorien oder Fahrtdetails anderer Benutzer angezeigt.",
+      "unknownIntro": "„Nicht erklärt“ ist keine Fahrtenkategorie. Die Kilometer ergeben sich aus der Differenz zwischen Kilometerstandsänderung und aufgezeichneten Fahrten. Einzelne Fahrten können daher nicht aufgelistet werden.",
+      "trackedTrips": "Erfasste Fahrten: {value}",
+      "untracked": "Nicht erfasst (berechnet): {value}",
+      "unreliable": "Ohne passende Ablesungen für den Monatszeitraum ist die Differenz nicht zuverlässig bestimmbar.",
+      "loading": "Lade Fahrten …",
+      "summary": "{count} Fahrten · {value}",
+      "startUnknown": "Start unbekannt",
+      "endUnknown": "Ziel unbekannt",
+      "assign": "Zuordnen:",
+      "noTrips": "Keine Fahrten gefunden."
+    }
+  }
+}
