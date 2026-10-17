@@ -74,7 +74,8 @@ frontend/src/i18n/locales/
 
 - JSON (no JS), UTF-8, 2-space indentation. Comments are allowed (`//` and `/* */`, JSONC) – use them sparingly, e.g. to give translators context.
 - Because of the comments, the files must not be loaded with a plain `JSON.parse` / Vite's built-in JSON import; load them through a JSONC-capable parser (e.g. `jsonc-parser` or `json5`).
-- Keys in camelCase, grouped by area/component as nested objects; accessed with dot notation (`t("buttons.save")`).
+- Keys in camelCase, grouped by area/component as nested objects; accessed with dot notation (`t("buttons.save")`). No numeric or generic keys like `0`, `text1`.
+- Keys looked up from server codes or DB fields (`OAUTH_NOT_LINKED`, `vehicle_id`) are stored in camelCase and resolved with `codeKey()` from `src/i18n/translate.js`: ``t(`oauth.errors.${codeKey(code)}`, fallback)``.
 - Every language file has the **same key structure**. German (`de`) is the reference and fallback language – add new keys there first, then to all other languages in the same commit.
 - Values are plain strings; placeholders use single braces: `"Fahrzeug {vehicle} gespeichert"` → `t("key", { vehicle })`.
 - Reuse generic keys (e.g. `buttons.*`) instead of duplicating identical texts.

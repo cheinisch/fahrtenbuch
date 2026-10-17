@@ -1,4 +1,5 @@
 import { useI18n } from "../i18n/I18nProvider.jsx";
+import { codeKey } from "../i18n/translate.js";
 import {
   useEffect,
   useState,
@@ -51,11 +52,11 @@ import { GRAVATAR_SETTING_EVENT } from "../lib/gravatar.js";
 // Gruppen der Abschnittsnavigation (wie im Mockup); der Anker zeigt auf den
 // ersten Abschnitt der Gruppe, SECTION_GROUP ordnet jeden Abschnitt zu.
 const SETTINGS_GROUPS = [
-  ["profile", "profileTranslations.groupProfile"],
-  ["home", "profileTranslations.groupPlaces"],
-  ["tracking", "profileTranslations.groupTracking"],
-  ["credentials", "profileTranslations.groupSecurity"],
-  ["devices", "profileTranslations.groupDevices"],
+  ["profile", "profile.nav.profile"],
+  ["home", "profile.nav.places"],
+  ["tracking", "profile.nav.tracking"],
+  ["credentials", "profile.nav.security"],
+  ["devices", "profile.nav.devices"],
 ];
 
 const SECTION_GROUP = {
@@ -403,7 +404,7 @@ export default function ProfileSettings() {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : t("profileTranslations.loadFailed"),
+          : t("profile.page.loadFailed"),
       );
     } finally {
       setLoading(false);
@@ -422,7 +423,7 @@ export default function ProfileSettings() {
 
     if (oauthErrorParam) {
       setMessage("");
-      setError(t(`oauth.errors.${oauthErrorParam}`, t("oauth.errors.default")));
+      setError(t(`oauth.errors.${codeKey(oauthErrorParam)}`, t("oauth.errors.default")));
     } else {
       const name = { google: "Google", microsoft: "Microsoft" }[oauthLinkedParam] || oauthLinkedParam;
       setError("");
@@ -451,7 +452,7 @@ export default function ProfileSettings() {
     setError(
       saveError instanceof Error
         ? saveError.message
-        : t("profileTranslations.67"),
+        : t("profile.page.changeFailed"),
     );
   }
 
@@ -460,7 +461,7 @@ export default function ProfileSettings() {
 
     if (query.length < 3) {
       setError(
-        t("profileTranslations.91"),
+        t("profile.home.tooShort"),
       );
       setMessage("");
       return [];
@@ -484,7 +485,7 @@ export default function ProfileSettings() {
 
       if (candidates.length === 0) {
         setError(
-          t("profileTranslations.68"),
+          t("profile.location.notFound"),
         );
       }
 
@@ -500,7 +501,7 @@ export default function ProfileSettings() {
   async function persistHomeLocation(candidate) {
     if (!candidate) {
       setError(
-        t("profileTranslations.93"),
+        t("profile.home.required"),
       );
       setMessage("");
       return false;
@@ -520,7 +521,7 @@ export default function ProfileSettings() {
     setHomeCandidates([]);
 
     showSuccess(
-      t("profileTranslations.84"),
+      t("profile.home.saved"),
     );
 
     return true;
@@ -569,7 +570,7 @@ export default function ProfileSettings() {
       setHomeCandidates([]);
 
       showSuccess(
-        t("profileTranslations.85"),
+        t("profile.home.removed"),
       );
     } catch (deleteError) {
       showError(deleteError);
@@ -583,7 +584,7 @@ export default function ProfileSettings() {
 
     if (query.length < 3) {
       setError(
-        t("profileTranslations.92"),
+        t("profile.work.tooShort"),
       );
       setMessage("");
       return [];
@@ -602,7 +603,7 @@ export default function ProfileSettings() {
       setWorkCandidates(candidates);
 
       if (candidates.length === 0) {
-        setError(t("profileTranslations.68"));
+        setError(t("profile.location.notFound"));
       }
 
       return candidates;
@@ -617,7 +618,7 @@ export default function ProfileSettings() {
   async function persistWorkLocation(candidate) {
     if (!candidate) {
       setError(
-        t("profileTranslations.94"),
+        t("profile.work.required"),
       );
       setMessage("");
       return false;
@@ -633,7 +634,7 @@ export default function ProfileSettings() {
     setSavedWorkLocation(storedLocation);
     setWorkQuery(storedLocation.address);
     setWorkCandidates([]);
-    showSuccess(t("profileTranslations.86"));
+    showSuccess(t("profile.work.saved"));
     return true;
   }
 
@@ -672,7 +673,7 @@ export default function ProfileSettings() {
       setSavedWorkLocation(null);
       setWorkQuery("");
       setWorkCandidates([]);
-      showSuccess(t("profileTranslations.87"));
+      showSuccess(t("profile.work.removed"));
     } catch (deleteError) {
       showError(deleteError);
     } finally {
@@ -691,7 +692,7 @@ export default function ProfileSettings() {
       );
 
       if (!Number.isFinite(radius) || radius < 25 || radius > 5000) {
-        setError(t("profileTranslations.radiusRange"));
+        setError(t("profile.recognition.range"));
         return;
       }
 
@@ -703,7 +704,7 @@ export default function ProfileSettings() {
       setLocationRecognitionRadiusMeters(
         Number(updated.locationRecognitionRadiusMeters || radius),
       );
-      showSuccess(t("profileTranslations.88"));
+      showSuccess(t("profile.recognition.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -724,7 +725,7 @@ export default function ProfileSettings() {
       });
       setSavedPlaces((items) => [...items, created]);
       setNewPlace({ name: "", address: "", latitude: "", longitude: "", radiusMeters: locationRecognitionRadiusMeters, suggestedType: "" });
-      showSuccess(t("profileTranslations.80"));
+      showSuccess(t("profile.places.saved"));
     } catch (e) { showError(e); } finally { setSaving(""); }
   }
 
@@ -732,7 +733,7 @@ export default function ProfileSettings() {
     try {
       await deleteSavedPlace(accessToken, id);
       setSavedPlaces((items) => items.filter((p) => p.id !== id));
-      showSuccess(t("profileTranslations.81"));
+      showSuccess(t("profile.places.removed"));
     } catch (e) { showError(e); }
   }
 
@@ -747,7 +748,7 @@ export default function ProfileSettings() {
       );
 
       updateUser(updated);
-      showSuccess(t("profileTranslations.82"));
+      showSuccess(t("profile.account.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -776,7 +777,7 @@ export default function ProfileSettings() {
       );
 
       showSuccess(
-        t("profileTranslations.89"),
+        t("profile.country.saved"),
       );
     } catch (saveError) {
       showError(saveError);
@@ -789,7 +790,7 @@ export default function ProfileSettings() {
     event.preventDefault(); setSaving("language");
     try {
       await updatePersonalSettings(accessToken,{language:personalLanguage || null});
-      showSuccess(t("profileTranslations.90"));
+      showSuccess(t("profile.language.saved"));
       window.location.reload();
     } catch(saveError){showError(saveError);} finally{setSaving("");}
   }
@@ -800,7 +801,7 @@ export default function ProfileSettings() {
     try {
       const updated = await updatePersonalSettings(accessToken, { speedUnit });
       setSpeedUnit(updated.speedUnit === "mph" ? "mph" : "kmh");
-      showSuccess(t("speedPreference.saved"));
+      showSuccess(t("profile.speed.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -814,7 +815,7 @@ export default function ProfileSettings() {
     try {
       const updated = await updatePersonalSettings(accessToken, { timeFormat });
       setTimeFormat(updated.timeFormat === "12h" ? "12h" : "24h");
-      showSuccess(t("timePreference.saved"));
+      showSuccess(t("profile.time.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -832,7 +833,7 @@ export default function ProfileSettings() {
       window.dispatchEvent(new CustomEvent(GRAVATAR_SETTING_EVENT, {
         detail: updated.gravatarEnabled !== false && updated.gravatarAvailable !== false,
       }));
-      showSuccess(t("gravatarPreference.saved"));
+      showSuccess(t("profile.gravatar.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -846,7 +847,7 @@ export default function ProfileSettings() {
     try {
       const updated = await updatePersonalSettings(accessToken, { dateFormat });
       setDateFormat(updated.dateFormat === "US" ? "US" : "EU");
-      showSuccess(t("datePreference.saved"));
+      showSuccess(t("profile.date.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -860,7 +861,7 @@ export default function ProfileSettings() {
     try {
       const updated = await updatePersonalSettings(accessToken, { distanceUnit });
       setDistanceUnit(updated.distanceUnit === "mi" ? "mi" : "km");
-      showSuccess(t("distancePreference.saved"));
+      showSuccess(t("profile.distance.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -894,7 +895,7 @@ export default function ProfileSettings() {
       });
 
       showSuccess(
-        t("profileTranslations.83"),
+        t("profile.tracking.saved"),
       );
     } catch (saveError) {
       showError(saveError);
@@ -911,7 +912,7 @@ export default function ProfileSettings() {
       passwords.confirmation
     ) {
       setError(
-        t("profileTranslations.69"),
+        t("profile.password.mismatch"),
       );
       return;
     }
@@ -932,7 +933,7 @@ export default function ProfileSettings() {
         confirmation: "",
       });
 
-      showSuccess(t("profileTranslations.70"));
+      showSuccess(t("profile.password.changed"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -952,7 +953,7 @@ export default function ProfileSettings() {
         ),
       );
 
-      showSuccess(t("profileTranslations.71"));
+      showSuccess(t("profile.devices.signedOutMessage"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -970,11 +971,11 @@ export default function ProfileSettings() {
       await verifyPasskeyRegistration(
         accessToken,
         credential,
-        newPasskeyName.trim() || t("profileTranslations.passkeyDefaultName"),
+        newPasskeyName.trim() || t("profile.passkeys.defaultName"),
       );
       setPasskeys(await getPasskeys(accessToken));
       setNewPasskeyName("");
-      showSuccess(t("profileTranslations.passkeyRegistered"));
+      showSuccess(t("profile.passkeys.registered"));
     } catch (passkeyError) {
       if (passkeyError?.name !== "NotAllowedError") showError(passkeyError);
     } finally {
@@ -983,7 +984,7 @@ export default function ProfileSettings() {
   }
 
   async function editPasskey(passkey) {
-    const name = window.prompt(t("profileTranslations.passkeyNamePrompt"), passkey.name);
+    const name = window.prompt(t("profile.passkeys.namePrompt"), passkey.name);
     if (!name?.trim() || name.trim() === passkey.name) return;
     setSaving(`passkey-rename:${passkey.id}`);
     try {
@@ -991,7 +992,7 @@ export default function ProfileSettings() {
       setPasskeys((current) =>
         current.map((item) => item.id === passkey.id ? updated : item),
       );
-      showSuccess(t("profileTranslations.passkeyRenamed"));
+      showSuccess(t("profile.passkeys.renamed"));
     } catch (passkeyError) {
       showError(passkeyError);
     } finally {
@@ -1000,12 +1001,12 @@ export default function ProfileSettings() {
   }
 
   async function removePasskey(passkey) {
-    if (!window.confirm(t("profileTranslations.passkeyDeleteConfirm", { name: passkey.name }))) return;
+    if (!window.confirm(t("profile.passkeys.deleteConfirm", { name: passkey.name }))) return;
     setSaving(`passkey-delete:${passkey.id}`);
     try {
       await deletePasskey(accessToken, passkey.id);
       setPasskeys((current) => current.filter((item) => item.id !== passkey.id));
-      showSuccess(t("profileTranslations.72"));
+      showSuccess(t("profile.passkeys.deleted"));
     } catch (passkeyError) {
       showError(passkeyError);
     } finally {
@@ -1024,7 +1025,7 @@ export default function ProfileSettings() {
       setMessage("");
       setError(
         linkError?.code
-          ? t(`oauth.errors.${linkError.code}`, linkError.message || t("oauth.errors.default"))
+          ? t(`oauth.errors.${codeKey(linkError.code)}`, linkError.message || t("oauth.errors.default"))
           : t("oauth.errors.default"),
       );
       setSaving("");
@@ -1047,7 +1048,7 @@ export default function ProfileSettings() {
       setMessage("");
       setError(
         unlinkError?.code
-          ? t(`oauth.errors.${unlinkError.code}`, unlinkError.message || t("oauth.errors.default"))
+          ? t(`oauth.errors.${codeKey(unlinkError.code)}`, unlinkError.message || t("oauth.errors.default"))
           : t("oauth.errors.default"),
       );
     } finally {
@@ -1058,7 +1059,7 @@ export default function ProfileSettings() {
   if (loading) {
     return (
       <div className="rounded-xl border border-fb-border bg-fb-main p-8 text-fb-muted">
-        {t("profileTranslations.3")}
+        {t("profile.page.loading")}
       </div>
     );
   }
@@ -1066,13 +1067,13 @@ export default function ProfileSettings() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow={t("profileTranslations.1")}
-        title={t("profileTranslations.2")}
-        subtitle={t("profileTranslations.101")}
+        eyebrow={t("profile.page.eyebrow")}
+        title={t("profile.page.headerTitle")}
+        subtitle={t("profile.page.subtitle")}
       />
 
       <nav
-        aria-label={t("profileTranslations.0")}
+        aria-label={t("profile.page.heading")}
         className="flex gap-7 overflow-x-auto border-b border-fb-border"
       >
         <TabButton
@@ -1081,14 +1082,14 @@ export default function ProfileSettings() {
             openTab("settings")
           }
         >
-          {t("profileTranslations.0")}
+          {t("profile.page.heading")}
         </TabButton>
 
         <TabButton
           active={activeTab === "units"}
           onClick={() => openTab("units")}
         >
-          {t("unitSettingsTab.title")}
+          {t("profile.units.title")}
         </TabButton>
 
         <TabButton
@@ -1097,7 +1098,7 @@ export default function ProfileSettings() {
             openTab("backup")
           }
         >
-          {t("profileTranslations.4")}
+          {t("profile.backup.tab")}
         </TabButton>
       </nav>
 
@@ -1116,7 +1117,7 @@ export default function ProfileSettings() {
       )}
 
       <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start lg:gap-8">
-        <nav aria-label={t("profileTranslations.sectionsAria")} className="mb-6 hidden lg:sticky lg:top-6 lg:mb-0 lg:block">
+        <nav aria-label={t("profile.page.sectionsAria")} className="mb-6 hidden lg:sticky lg:top-6 lg:mb-0 lg:block">
           <ul className="space-y-0.5 text-sm">
             {SETTINGS_GROUPS.map(([id, title]) => (
               <li key={id}>
@@ -1135,12 +1136,12 @@ export default function ProfileSettings() {
       <form onSubmit={saveProfile}>
         <Section
           id="profile"
-          title={t("profileTranslations.groupProfile")}
-          description={t("profileTranslations.102")}
+          title={t("profile.nav.profile")}
+          description={t("profile.account.description")}
         >
           <div className="grid gap-5 sm:grid-cols-2">
             <label className={labelClass}>
-              {t("profileTranslations.15")}
+              {t("profile.account.displayName")}
               <input
                 type="text"
                 value={profile.displayName}
@@ -1157,7 +1158,7 @@ export default function ProfileSettings() {
             </label>
 
             <label className={labelClass}>
-              {t("profileTranslations.16")}
+              {t("profile.account.username")}
               <input
                 type="text"
                 value={profile.username}
@@ -1173,7 +1174,7 @@ export default function ProfileSettings() {
             </label>
 
             <label className={labelClass}>
-              {t("profileTranslations.17")}
+              {t("profile.account.email")}
               <input
                 type="email"
                 value={profile.email}
@@ -1189,7 +1190,7 @@ export default function ProfileSettings() {
             </label>
 
             <label className={labelClass}>
-              {t("profileTranslations.18")}
+              {t("profile.language.title")}
               <select
                 value={profile.locale}
                 onChange={(event) =>
@@ -1200,13 +1201,13 @@ export default function ProfileSettings() {
                 }
                 className={fieldClass}
               >
-                <option value="de">{t("profileTranslations.13")}</option>
+                <option value="de">{t("profile.language.german")}</option>
                 <option value="en">English</option>
               </select>
             </label>
 
             <label className={labelClass}>
-              {t("profileTranslations.19")}
+              {t("profile.account.timezone")}
               <input
                 type="text"
                 value={profile.timezone}
@@ -1222,7 +1223,7 @@ export default function ProfileSettings() {
             </label>
 
             <label className={labelClass}>
-              {t("profileTranslations.20")}
+              {t("profile.account.theme")}
               <select
                 value={profile.themeMode}
                 onChange={(event) =>
@@ -1235,10 +1236,10 @@ export default function ProfileSettings() {
                 className={fieldClass}
               >
                 <option value="system">
-                  {t("profileTranslations.21")}
+                  {t("profile.account.themeSystem")}
                 </option>
-                <option value="light">{t("profileTranslations.22")}</option>
-                <option value="dark">{t("profileTranslations.23")}</option>
+                <option value="light">{t("profile.account.themeLight")}</option>
+                <option value="dark">{t("profile.account.themeDark")}</option>
               </select>
             </label>
           </div>
@@ -1250,22 +1251,22 @@ export default function ProfileSettings() {
               className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
             >
               {saving === "profile"
-                ? t("profileTranslations.135")
-                : t("profileTranslations.132")}
+                ? t("profile.page.saving")
+                : t("profile.account.save")}
             </button>
           </div>
         </Section>
       </form>
 
       <form onSubmit={saveLanguage}>
-        <Section id="language" title={t("profileTranslations.18")} description={t("profileTranslations.103")}>
+        <Section id="language" title={t("profile.language.title")} description={t("profile.language.description")}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <label className={labelClass}>{t("profileTranslations.11")}
+            <label className={labelClass}>{t("profile.language.label")}
               <select value={personalLanguage} onChange={(e)=>setPersonalLanguage(e.target.value)} className={fieldClass}>
-                <option value="">{t("profileTranslations.12")}</option><option value="de">{t("profileTranslations.13")}</option><option value="en">English</option>
+                <option value="">{t("profile.language.systemDefault")}</option><option value="de">{t("profile.language.german")}</option><option value="en">English</option>
               </select>
             </label>
-            <button disabled={saving==="language"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-50">{t("profileTranslations.14")}</button>
+            <button disabled={saving==="language"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-50">{t("profile.language.save")}</button>
           </div>
         </Section>
       </form>
@@ -1273,12 +1274,12 @@ export default function ProfileSettings() {
       <form onSubmit={saveHomeCountry}>
         <Section
           id="country"
-          title={t("profileTranslations.countryTitle")}
-          description={t("profileTranslations.104")}
+          title={t("profile.country.title")}
+          description={t("profile.country.description")}
         >
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <label className={labelClass}>
-              {t("profileTranslations.24")}
+              {t("profile.country.label")}
               <select
                 value={homeCountry}
                 onChange={(event) =>
@@ -1308,7 +1309,7 @@ export default function ProfileSettings() {
 
             <div className="rounded-lg border border-fb-border bg-fb-surface p-4">
               <div className="text-sm font-semibold text-fb-text">
-                {t("profileTranslations.25")}
+                {t("profile.country.activeProfile")}
               </div>
 
               {(() => {
@@ -1322,7 +1323,7 @@ export default function ProfileSettings() {
                 if (!selected) {
                   return (
                     <p className="mt-2 text-sm text-fb-muted">
-                      {t("profileTranslations.122")}
+                      {t("profile.country.loading")}
                     </p>
                   );
                 }
@@ -1334,11 +1335,11 @@ export default function ProfileSettings() {
                     </p>
 
                     <p className="mt-1 text-xs text-fb-muted">
-                      {t("profileTranslations.countryPeriod", { value: selected.taxYearLabel })}
+                      {t("profile.country.period", { value: selected.taxYearLabel })}
                       {" · "}
-                      {t("profileTranslations.countryUnit", { value: selected.distanceUnit })}
+                      {t("profile.country.unit", { value: selected.distanceUnit })}
                       {" · "}
-                      {t("profileTranslations.countryCurrency", { value: selected.currency })}
+                      {t("profile.country.currency", { value: selected.currency })}
                     </p>
                   </>
                 );
@@ -1356,8 +1357,8 @@ export default function ProfileSettings() {
               className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
             >
               {saving === "home-country"
-                ? t("profileTranslations.135")
-                : t("profileTranslations.133")}
+                ? t("profile.page.saving")
+                : t("profile.country.save")}
             </button>
           </div>
         </Section>
@@ -1365,13 +1366,13 @@ export default function ProfileSettings() {
 
       <Section
         id="home"
-        title={t("profileTranslations.homeTitle")}
-        description={t("profileTranslations.108")}
+        title={t("profile.home.title")}
+        description={t("profile.home.description")}
       >
         {savedHomeLocation && (
           <div className="mb-5 rounded-lg border border-fb-border bg-fb-surface p-4">
             <div className="text-sm font-semibold">
-              {t("profileTranslations.36")}
+              {t("profile.location.current")}
             </div>
 
             <div className="mt-1 text-sm text-fb-text">
@@ -1388,15 +1389,15 @@ export default function ProfileSettings() {
               ).toFixed(6)}
               {" · "}
               {savedHomeLocation.source === "gps"
-                ? t("profileTranslations.sourceGps")
-                : t("profileTranslations.sourceManual")}
+                ? t("profile.location.sourceGps")
+                : t("profile.location.sourceManual")}
             </div>
           </div>
         )}
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
           <label className={labelClass}>
-            {t("profileTranslations.37")}
+            {t("profile.location.query")}
             <input
               type="text"
               value={homeQuery}
@@ -1420,7 +1421,7 @@ export default function ProfileSettings() {
                   saveEnteredHomeLocation();
                 }
               }}
-              placeholder={t("profileTranslations.homePlaceholder")}
+              placeholder={t("profile.home.placeholder")}
               className={fieldClass}
             />
           </label>
@@ -1435,8 +1436,8 @@ export default function ProfileSettings() {
             className="self-end rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
           >
             {homeSearchLoading
-              ? t("profileTranslations.136")
-              : t("profileTranslations.129")}
+              ? t("profile.location.searching")
+              : t("profile.location.search")}
           </button>
         </div>
 
@@ -1455,7 +1456,7 @@ export default function ProfileSettings() {
                     setHomeCandidates([]);
                     setError("");
                     setMessage(
-                      t("profileTranslations.homeAddressSelected"),
+                      t("profile.home.addressSelected"),
                     );
                   }}
                   className="block w-full bg-fb-main px-4 py-3 text-left transition hover:bg-fb-surface"
@@ -1484,7 +1485,7 @@ export default function ProfileSettings() {
             savedHomeLocation?.address && (
             <div className="mt-4 rounded-lg border border-fb-accent bg-fb-accent-soft p-4">
               <div className="text-sm font-semibold text-fb-accent">
-                {t("profileTranslations.38")}
+                {t("profile.location.selected")}
               </div>
 
               <div className="mt-1 text-sm text-fb-text">
@@ -1500,7 +1501,7 @@ export default function ProfileSettings() {
             onClick={() => {
               if (!navigator.geolocation) {
                 setError(
-                  t("profileTranslations.noGeolocation"),
+                  t("profile.location.noGeolocation"),
                 );
                 return;
               }
@@ -1536,7 +1537,7 @@ export default function ProfileSettings() {
                     setHomeCandidates([]);
 
                     setMessage(
-                      t("profileTranslations.homeGpsFound"),
+                      t("profile.home.gpsFound"),
                     );
                   } catch (gpsError) {
                     showError(gpsError);
@@ -1546,14 +1547,14 @@ export default function ProfileSettings() {
                 },
                 (gpsError) => {
                   const messages = {
-                    1: t("profileTranslations.gpsDenied"),
-                    2: t("profileTranslations.gpsUnavailable"),
-                    3: t("profileTranslations.gpsTimeout"),
+                    1: t("profile.location.gpsDenied"),
+                    2: t("profile.location.gpsUnavailable"),
+                    3: t("profile.location.gpsTimeout"),
                   };
 
                   setError(
                     messages[gpsError.code] ||
-                      t("profileTranslations.gpsUnavailable"),
+                      t("profile.location.gpsUnavailable"),
                   );
 
                   setGpsLoading(false);
@@ -1568,13 +1569,13 @@ export default function ProfileSettings() {
             className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
           >
             {gpsLoading
-              ? t("profileTranslations.locating")
-              : t("profileTranslations.useCurrentLocation")}
+              ? t("profile.location.locating")
+              : t("profile.location.useCurrent")}
           </button>
 
           {!window.isSecureContext && (
             <p className="text-xs text-fb-danger">
-              {t("profileTranslations.109")}
+              {t("profile.location.httpsHint")}
             </p>
           )}
         </div>
@@ -1591,8 +1592,8 @@ export default function ProfileSettings() {
               className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-danger transition hover:border-fb-danger disabled:opacity-60"
             >
               {saving === "home-delete"
-                ? t("profileTranslations.removing")
-                : t("profileTranslations.removeHome")}
+                ? t("profile.page.removing")
+                : t("profile.home.remove")}
             </button>
           )}
 
@@ -1608,20 +1609,20 @@ export default function ProfileSettings() {
             className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
           >
             {saving === "home-save"
-              ? t("profileTranslations.135")
-              : t("profileTranslations.130")}
+              ? t("profile.page.saving")
+              : t("profile.home.save")}
           </button>
         </div>
       </Section>
 
       <Section
         id="work"
-        title={t("profileTranslations.workTitle")}
-        description={t("profileTranslations.124")}
+        title={t("profile.work.title")}
+        description={t("profile.work.description")}
       >
         {savedWorkLocation && (
           <div className="mb-5 rounded-lg border border-fb-border bg-fb-surface p-4">
-            <div className="text-sm font-semibold">{t("profileTranslations.36")}</div>
+            <div className="text-sm font-semibold">{t("profile.location.current")}</div>
             <div className="mt-1 text-sm text-fb-text">
               {savedWorkLocation.address}
             </div>
@@ -1630,15 +1631,15 @@ export default function ProfileSettings() {
               {Number(savedWorkLocation.longitude).toFixed(6)}
               {" · "}
               {savedWorkLocation.source === "gps"
-                ? t("profileTranslations.sourceGps")
-                : t("profileTranslations.sourceManual")}
+                ? t("profile.location.sourceGps")
+                : t("profile.location.sourceManual")}
             </div>
           </div>
         )}
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
           <label className={labelClass}>
-            {t("profileTranslations.37")}
+            {t("profile.location.query")}
             <input
               type="text"
               value={workQuery}
@@ -1656,7 +1657,7 @@ export default function ProfileSettings() {
                   saveEnteredWorkLocation();
                 }
               }}
-              placeholder={t("profileTranslations.workPlaceholder")}
+              placeholder={t("profile.work.placeholder")}
               className={fieldClass}
             />
           </label>
@@ -1667,7 +1668,7 @@ export default function ProfileSettings() {
             onClick={findWorkCandidates}
             className="self-end rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
           >
-            {workSearchLoading ? t("profileTranslations.136") : t("profileTranslations.129")}
+            {workSearchLoading ? t("profile.location.searching") : t("profile.location.search")}
           </button>
         </div>
 
@@ -1683,7 +1684,7 @@ export default function ProfileSettings() {
                   setWorkCandidates([]);
                   setError("");
                   setMessage(
-                    t("profileTranslations.workAddressSelected"),
+                    t("profile.work.addressSelected"),
                   );
                 }}
                 className="block w-full bg-fb-main px-4 py-3 text-left transition hover:bg-fb-surface"
@@ -1704,7 +1705,7 @@ export default function ProfileSettings() {
             disabled={workGpsLoading}
             onClick={() => {
               if (!navigator.geolocation) {
-                setError(t("profileTranslations.noGeolocation"));
+                setError(t("profile.location.noGeolocation"));
                 return;
               }
 
@@ -1726,7 +1727,7 @@ export default function ProfileSettings() {
                     setWorkQuery(result.candidate.address);
                     setWorkCandidates([]);
                     setMessage(
-                      t("profileTranslations.workGpsFound"),
+                      t("profile.work.gpsFound"),
                     );
                   } catch (gpsError) {
                     showError(gpsError);
@@ -1735,7 +1736,7 @@ export default function ProfileSettings() {
                   }
                 },
                 () => {
-                  setError(t("profileTranslations.gpsUnavailable"));
+                  setError(t("profile.location.gpsUnavailable"));
                   setWorkGpsLoading(false);
                 },
                 {
@@ -1748,8 +1749,8 @@ export default function ProfileSettings() {
             className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-60"
           >
             {workGpsLoading
-              ? t("profileTranslations.locating")
-              : t("profileTranslations.useCurrentLocation")}
+              ? t("profile.location.locating")
+              : t("profile.location.useCurrent")}
           </button>
         </div>
 
@@ -1761,7 +1762,7 @@ export default function ProfileSettings() {
               onClick={removeSavedWorkLocation}
               className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold text-fb-danger transition hover:border-fb-danger disabled:opacity-60"
             >
-              {saving === "work-delete" ? t("profileTranslations.removing") : t("profileTranslations.removeWork")}
+              {saving === "work-delete" ? t("profile.page.removing") : t("profile.work.remove")}
             </button>
           )}
 
@@ -1776,19 +1777,19 @@ export default function ProfileSettings() {
             onClick={saveEnteredWorkLocation}
             className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
           >
-            {saving === "work-save" ? t("profileTranslations.135") : t("profileTranslations.131")}
+            {saving === "work-save" ? t("profile.page.saving") : t("profile.work.save")}
           </button>
         </div>
       </Section>
 
       <Section
         id="recognition"
-        title={t("profileTranslations.recognitionTitle")}
-        description={t("profileTranslations.125")}
+        title={t("profile.recognition.title")}
+        description={t("profile.recognition.description")}
       >
         <div className="grid gap-4 sm:grid-cols-[minmax(0,320px)_1fr] sm:items-end">
           <label className={labelClass}>
-            {t("profileTranslations.39")}
+            {t("profile.recognition.radius")}
             <input
               type="number"
               min="25"
@@ -1803,7 +1804,7 @@ export default function ProfileSettings() {
           </label>
 
           <div className="text-sm text-fb-muted">
-            {t("profileTranslations.110")}
+            {t("profile.recognition.hint")}
           </div>
         </div>
 
@@ -1814,31 +1815,31 @@ export default function ProfileSettings() {
             onClick={saveRecognitionRadius}
             className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
           >
-            {saving === "location-radius" ? t("profileTranslations.135") : t("profileTranslations.saveRadius")}
+            {saving === "location-radius" ? t("profile.page.saving") : t("profile.recognition.save")}
           </button>
         </div>
       </Section>
 
       <Section
         id="places"
-        title={t("profileTranslations.placesTitle")}
-        description={t("profileTranslations.123")}
+        title={t("profile.places.title")}
+        description={t("profile.places.description")}
       >
         <form onSubmit={addSavedPlace} className="grid gap-3 md:grid-cols-3">
-          <input required placeholder={t("profileTranslations.placeNamePlaceholder")} value={newPlace.name} onChange={(e)=>setNewPlace(p=>({...p,name:e.target.value}))} className={fieldClass} />
-          <input placeholder={t("profileTranslations.address")} value={newPlace.address} onChange={(e)=>setNewPlace(p=>({...p,address:e.target.value}))} className={fieldClass} />
+          <input required placeholder={t("profile.places.namePlaceholder")} value={newPlace.name} onChange={(e)=>setNewPlace(p=>({...p,name:e.target.value}))} className={fieldClass} />
+          <input placeholder={t("profile.places.address")} value={newPlace.address} onChange={(e)=>setNewPlace(p=>({...p,address:e.target.value}))} className={fieldClass} />
           <select value={newPlace.suggestedType} onChange={(e)=>setNewPlace(p=>({...p,suggestedType:e.target.value}))} className={fieldClass}>
-            <option value="">{t("profileTranslations.5")}</option><option value="business">{t("profileTranslations.6")}</option><option value="private">{t("profileTranslations.7")}</option><option value="commute">{t("profileTranslations.8")}</option>
+            <option value="">{t("profile.tracking.noCategory")}</option><option value="business">{t("profile.tracking.business")}</option><option value="private">{t("profile.tracking.private")}</option><option value="commute">{t("profile.tracking.commute")}</option>
           </select>
-          <input required type="number" step="any" placeholder={t("profileTranslations.latitude")} value={newPlace.latitude} onChange={(e)=>setNewPlace(p=>({...p,latitude:e.target.value}))} className={fieldClass} />
-          <input required type="number" step="any" placeholder={t("profileTranslations.longitude")} value={newPlace.longitude} onChange={(e)=>setNewPlace(p=>({...p,longitude:e.target.value}))} className={fieldClass} />
-          <div className="flex gap-2"><input required type="number" min="25" max="5000" value={newPlace.radiusMeters} onChange={(e)=>setNewPlace(p=>({...p,radiusMeters:e.target.value}))} className={fieldClass} /><button disabled={saving==="saved-place"} className="mt-2 rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text">{t("profileTranslations.9")}</button></div>
+          <input required type="number" step="any" placeholder={t("profile.places.latitude")} value={newPlace.latitude} onChange={(e)=>setNewPlace(p=>({...p,latitude:e.target.value}))} className={fieldClass} />
+          <input required type="number" step="any" placeholder={t("profile.places.longitude")} value={newPlace.longitude} onChange={(e)=>setNewPlace(p=>({...p,longitude:e.target.value}))} className={fieldClass} />
+          <div className="flex gap-2"><input required type="number" min="25" max="5000" value={newPlace.radiusMeters} onChange={(e)=>setNewPlace(p=>({...p,radiusMeters:e.target.value}))} className={fieldClass} /><button disabled={saving==="saved-place"} className="mt-2 rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text">{t("profile.page.save")}</button></div>
         </form>
         <div className="mt-5 divide-y divide-fb-border">
           {savedPlaces.map((place)=>(
             <div key={place.id} className="flex items-center justify-between gap-4 py-3 text-sm">
               <div><div className="font-semibold">{place.name}</div><div className="text-fb-muted">{place.address || `${place.latitude}, ${place.longitude}`} · {place.radiusMeters || locationRecognitionRadiusMeters} m</div></div>
-              <button type="button" onClick={()=>removeSavedPlace(place.id)} className="rounded border border-fb-border px-3 py-1.5 text-xs">{t("profileTranslations.10")}</button>
+              <button type="button" onClick={()=>removeSavedPlace(place.id)} className="rounded border border-fb-border px-3 py-1.5 text-xs">{t("profile.page.remove")}</button>
             </div>
           ))}
         </div>
@@ -1847,17 +1848,17 @@ export default function ProfileSettings() {
       <form onSubmit={saveTracking}>
         <Section
           id="tracking"
-          title={t("profileTranslations.trackingTitle")}
-          description={t("profileTranslations.105")}
+          title={t("profile.tracking.title")}
+          description={t("profile.tracking.description")}
         >
           <div className="space-y-5">
             <label className="flex items-start justify-between gap-6 rounded-lg border border-fb-border bg-fb-surface p-4">
               <span>
                 <span className="block text-sm font-semibold">
-                  {t("profileTranslations.26")}
+                  {t("profile.tracking.auto")}
                 </span>
                 <span className="mt-1 block text-sm text-fb-muted">
-                  {t("profileTranslations.106")}
+                  {t("profile.tracking.autoHint")}
                 </span>
               </span>
 
@@ -1879,7 +1880,7 @@ export default function ProfileSettings() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <label className={labelClass}>
-                {t("profileTranslations.27")}
+                {t("profile.tracking.accuracyMode")}
                 <select
                   value={
                     tracking.trackingAccuracyMode
@@ -1894,19 +1895,19 @@ export default function ProfileSettings() {
                   className={fieldClass}
                 >
                   <option value="high">
-                    {t("profileTranslations.28")}
+                    {t("profile.tracking.accuracyHigh")}
                   </option>
                   <option value="balanced">
-                    {t("profileTranslations.29")}
+                    {t("profile.tracking.accuracyBalanced")}
                   </option>
                   <option value="battery">
-                    {t("profileTranslations.30")}
+                    {t("profile.tracking.accuracyLow")}
                   </option>
                 </select>
               </label>
 
               <label className={labelClass}>
-                {t("profileTranslations.31")}
+                {t("profile.tracking.stopDelay")}
                 <input
                   type="number"
                   min="0"
@@ -1924,7 +1925,7 @@ export default function ProfileSettings() {
               </label>
 
               <label className={labelClass}>
-                {t("profileTranslations.32")}
+                {t("profile.tracking.mapProvider")}
                 <select
                   value={tracking.mapProvider}
                   onChange={(event) =>
@@ -1943,19 +1944,19 @@ export default function ProfileSettings() {
                     MapLibre
                   </option>
                   <option value="atlas">
-                    {t("profileTranslations.33")}
+                    {t("profile.tracking.mapAtlas")}
                   </option>
                 </select>
         </label>
               <div className="mt-5">
-                <h3 className="text-sm font-semibold">{t("profileTranslations.34")}</h3>
-                <p className="mt-1 text-xs text-fb-muted">{t("profileTranslations.107")}</p>
+                <h3 className="text-sm font-semibold">{t("profile.tracking.routeColors")}</h3>
+                <p className="mt-1 text-xs text-fb-muted">{t("profile.tracking.routeColorsHint")}</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   {[
-                    ["private", t("profileTranslations.7")],
-                    ["business", t("profileTranslations.6")],
-                    ["commute", t("profileTranslations.8")],
-                    ["unclassified", t("profileTranslations.unclassified")],
+                    ["private", t("profile.tracking.private")],
+                    ["business", t("profile.tracking.business")],
+                    ["commute", t("profile.tracking.commute")],
+                    ["unclassified", t("profile.tracking.unclassified")],
                   ].map(([key, label]) => (
                     <label key={key} className="flex items-center gap-3 rounded-lg border border-fb-border p-3 text-sm">
                       <input type="checkbox" checked={Boolean(tracking.mapRouteColors?.[key])}
@@ -1963,7 +1964,7 @@ export default function ProfileSettings() {
                           ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.checked ? DEFAULT_ROUTE_COLORS[key] : null },
                         }))} />
                       <span className="flex-1">{label}</span>
-                      <input type="color" aria-label={t("profileTranslations.colorFor", { label })} disabled={!tracking.mapRouteColors?.[key]}
+                      <input type="color" aria-label={t("profile.tracking.colorFor", { label })} disabled={!tracking.mapRouteColors?.[key]}
                         value={tracking.mapRouteColors?.[key] || DEFAULT_ROUTE_COLORS[key]}
                         onChange={(event) => setTracking((current) => ({
                           ...current, mapRouteColors: { ...current.mapRouteColors, [key]: event.target.value },
@@ -1987,7 +1988,7 @@ export default function ProfileSettings() {
                   className="size-5 accent-[var(--color-accent)]"
                 />
                 <span className="text-sm font-medium">
-                  {t("profileTranslations.35")}
+                  {t("profile.tracking.storeAccuracy")}
                 </span>
               </label>
             </div>
@@ -2000,8 +2001,8 @@ export default function ProfileSettings() {
               className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
             >
               {saving === "tracking"
-                ? t("profileTranslations.135")
-                : t("profileTranslations.134")}
+                ? t("profile.page.saving")
+                : t("profile.tracking.save")}
             </button>
           </div>
         </Section>
@@ -2010,12 +2011,12 @@ export default function ProfileSettings() {
       <form onSubmit={savePassword}>
         <Section
           id="credentials"
-          title={t("profileTranslations.passwordTitle")}
-          description={t("profileTranslations.111")}
+          title={t("profile.password.title")}
+          description={t("profile.password.description")}
         >
           <div className="grid gap-5 sm:grid-cols-3">
             <label className={labelClass}>
-              {t("profileTranslations.40")}
+              {t("profile.password.current")}
               <input
                 type="password"
                 value={passwords.currentPassword}
@@ -2032,7 +2033,7 @@ export default function ProfileSettings() {
             </label>
 
             <label className={labelClass}>
-              {t("profileTranslations.41")}
+              {t("profile.password.new")}
               <input
                 type="password"
                 value={passwords.newPassword}
@@ -2050,7 +2051,7 @@ export default function ProfileSettings() {
             </label>
 
             <label className={labelClass}>
-              {t("profileTranslations.42")}
+              {t("profile.password.confirm")}
               <input
                 type="password"
                 value={passwords.confirmation}
@@ -2075,8 +2076,8 @@ export default function ProfileSettings() {
               className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
             >
               {saving === "password"
-                ? t("profileTranslations.137")
-                : t("profileTranslations.95")}
+                ? t("profile.password.changing")
+                : t("profile.password.change")}
             </button>
           </div>
         </Section>
@@ -2084,33 +2085,33 @@ export default function ProfileSettings() {
 
       <Section
         id="security"
-        title={t("profileTranslations.groupSecurity")}
-        description={t("profileTranslations.126")}
+        title={t("profile.nav.security")}
+        description={t("profile.security.description")}
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-lg border border-fb-border bg-fb-surface p-4">
             <div className="font-semibold">
-              {t("profileTranslations.43")}
+              {t("profile.security.totp")}
             </div>
             <div className="mt-1 text-sm text-fb-muted">
               {!authMethods.totp
                 ? t("authMethods.totpDisabled")
                 : user?.totpEnabled
-                  ? t("profileTranslations.127")
-                  : t("profileTranslations.128")}
+                  ? t("profile.security.enabled")
+                  : t("profile.security.notEnabled")}
             </div>
           </div>
 
           {!authMethods.passkeys ? (
           <div className="rounded-lg border border-fb-border bg-fb-surface p-4 sm:col-span-2">
-            <div className="font-semibold">{t("profileTranslations.44")}</div>
+            <div className="font-semibold">{t("profile.passkeys.title")}</div>
             <p className="mt-1 text-sm text-fb-muted">{t("authMethods.passkeysDisabled")}</p>
           </div>
           ) : (
           <div className="rounded-lg border border-fb-border bg-fb-surface p-4 sm:col-span-2">
-            <div className="font-semibold">{t("profileTranslations.44")}</div>
+            <div className="font-semibold">{t("profile.passkeys.title")}</div>
             <p className="mt-1 text-sm text-fb-muted">
-              {t("profileTranslations.112")}
+              {t("profile.passkeys.hint")}
             </p>
 
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -2118,7 +2119,7 @@ export default function ProfileSettings() {
                 type="text"
                 value={newPasskeyName}
                 onChange={(event) => setNewPasskeyName(event.target.value)}
-                placeholder={t("profileTranslations.passkeyNamePlaceholder")}
+                placeholder={t("profile.passkeys.namePlaceholder")}
                 maxLength={120}
                 className={fieldClass}
               />
@@ -2128,35 +2129,35 @@ export default function ProfileSettings() {
                 disabled={saving === "passkey-add" || user?.passkeyEnabled === false}
                 className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60"
               >
-                {saving === "passkey-add" ? t("profileTranslations.registering") : t("profileTranslations.96")}
+                {saving === "passkey-add" ? t("profile.passkeys.registering") : t("profile.passkeys.add")}
               </button>
             </div>
 
             {user?.passkeyEnabled === false && (
               <p className="mt-3 text-sm text-fb-danger">
-                {t("profileTranslations.113")}
+                {t("profile.passkeys.disabledByAdmin")}
               </p>
             )}
 
             <div className="mt-4 divide-y divide-fb-border rounded-lg border border-fb-border">
               {passkeys.length === 0 ? (
-                <p className="p-4 text-sm text-fb-muted">{t("profileTranslations.45")}</p>
+                <p className="p-4 text-sm text-fb-muted">{t("profile.passkeys.none")}</p>
               ) : passkeys.map((passkey) => (
                 <div key={passkey.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="font-semibold">{passkey.name}</div>
                     <div className="mt-1 text-xs text-fb-muted">
-                      {t("profileTranslations.passkeyCreated", { date: new Date(passkey.createdAt).toLocaleString(locale) })}
-                      {passkey.lastUsedAt ? ` · ${t("profileTranslations.passkeyLastUsed", { date: new Date(passkey.lastUsedAt).toLocaleString(locale) })}` : ""}
-                      {passkey.backedUp ? ` · ${t("profileTranslations.passkeySynced")}` : ""}
+                      {t("profile.passkeys.created", { date: new Date(passkey.createdAt).toLocaleString(locale) })}
+                      {passkey.lastUsedAt ? ` · ${t("profile.passkeys.lastUsed", { date: new Date(passkey.lastUsedAt).toLocaleString(locale) })}` : ""}
+                      {passkey.backedUp ? ` · ${t("profile.passkeys.synced")}` : ""}
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => editPasskey(passkey)} className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold hover:border-fb-accent">
-                      {t("profileTranslations.46")}
+                      {t("profile.passkeys.rename")}
                     </button>
                     <button type="button" onClick={() => removePasskey(passkey)} className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-danger hover:border-fb-danger">
-                      {t("profileTranslations.47")}
+                      {t("profile.passkeys.delete")}
                     </button>
                   </div>
                 </div>
@@ -2228,8 +2229,8 @@ export default function ProfileSettings() {
 
       <Section
         id="devices"
-        title={t("profileTranslations.devicesTitle")}
-        description={t("profileTranslations.114")}
+        title={t("profile.devices.title")}
+        description={t("profile.devices.description")}
       >
         <div className="mb-5 flex justify-end">
           <button
@@ -2239,14 +2240,14 @@ export default function ProfileSettings() {
             }
             className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent"
           >
-            {t("profileTranslations.48")}
+            {t("profile.devices.add")}
           </button>
         </div>
 
         <div className="divide-y divide-fb-border">
           {devices.length === 0 ? (
             <div className="py-6 text-sm text-fb-muted">
-              {t("profileTranslations.49")}
+              {t("profile.devices.none")}
             </div>
           ) : (
             devices.map((device) => (
@@ -2260,13 +2261,13 @@ export default function ProfileSettings() {
 
                     {device.isCurrent && (
                       <span className="rounded-full bg-fb-accent-soft px-2 py-0.5 text-xs text-fb-accent">
-                        {t("profileTranslations.50")}
+                        {t("profile.devices.current")}
                       </span>
                     )}
 
                     {device.revokedAt && (
                       <span className="rounded-full border border-fb-border px-2 py-0.5 text-xs text-fb-muted">
-                        {t("profileTranslations.51")}
+                        {t("profile.devices.signedOut")}
                       </span>
                     )}
                   </div>
@@ -2290,8 +2291,8 @@ export default function ProfileSettings() {
                       className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-text hover:border-fb-danger hover:text-fb-danger disabled:opacity-60"
                     >
                       {saving === device.id
-                        ? t("profileTranslations.signingOut")
-                        : t("profileTranslations.97")}
+                        ? t("profile.devices.signingOut")
+                        : t("profile.devices.signOut")}
                     </button>
                   )}
               </div>
@@ -2311,7 +2312,7 @@ export default function ProfileSettings() {
 
           setDevices(updatedDevices);
           showSuccess(
-            t("profileTranslations.98"),
+            t("profile.pairing.success"),
           );
         }}
       />
@@ -2321,63 +2322,63 @@ export default function ProfileSettings() {
       ) : activeTab === "units" ? (
         <>
           <header className="space-y-1">
-            <h2 className="text-xl font-semibold">{t("unitSettingsTab.title")}</h2>
-            <p className="text-sm text-fb-muted">{t("unitSettingsTab.description")}</p>
+            <h2 className="text-xl font-semibold">{t("profile.units.title")}</h2>
+            <p className="text-sm text-fb-muted">{t("profile.units.description")}</p>
           </header>
           {message && <div className="rounded-xl border border-fb-accent bg-fb-accent-soft px-4 py-3 text-sm text-fb-accent">{message}</div>}
           {error && <div className="rounded-xl border border-fb-danger px-4 py-3 text-sm text-fb-danger">{error}</div>}
       <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
       <form onSubmit={saveSpeedUnit} className="h-full">
-        <Section title={t("speedPreference.title")} description={t("speedPreference.description")}>
-          <label className={labelClass} htmlFor="profile-speed-unit">{t("speedPreference.label")}</label>
+        <Section title={t("profile.speed.title")} description={t("profile.speed.description")}>
+          <label className={labelClass} htmlFor="profile-speed-unit">{t("profile.speed.label")}</label>
           <select id="profile-speed-unit" className={fieldClass} value={speedUnit} onChange={(event) => setSpeedUnit(event.target.value)}>
-            <option value="kmh">{t("speedPreference.kmh")}</option>
-            <option value="mph">{t("speedPreference.mph")}</option>
+            <option value="kmh">{t("profile.speed.kmh")}</option>
+            <option value="mph">{t("profile.speed.mph")}</option>
           </select>
-          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "speed-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "speed-unit" ? t("speedPreference.saving") : t("speedPreference.save")}</button></div>
+          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "speed-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "speed-unit" ? t("profile.speed.saving") : t("profile.speed.save")}</button></div>
         </Section>
       </form>
 
       <form onSubmit={saveTimeFormat} className="h-full">
-        <Section title={t("timePreference.title")} description={t("timePreference.description")}>
-          <label className={labelClass} htmlFor="profile-time-format">{t("timePreference.label")}</label>
+        <Section title={t("profile.time.title")} description={t("profile.time.description")}>
+          <label className={labelClass} htmlFor="profile-time-format">{t("profile.time.label")}</label>
           <select id="profile-time-format" className={fieldClass} value={timeFormat} onChange={(event) => setTimeFormat(event.target.value)}>
-            <option value="24h">{t("timePreference.24h")}</option>
-            <option value="12h">{t("timePreference.12h")}</option>
+            <option value="24h">{t("profile.time.hours24")}</option>
+            <option value="12h">{t("profile.time.hours12")}</option>
           </select>
           <div className="mt-6 flex justify-end">
             <button type="submit" disabled={saving === "time-format"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">
-              {saving === "time-format" ? t("timePreference.saving") : t("timePreference.save")}
+              {saving === "time-format" ? t("profile.time.saving") : t("profile.time.save")}
             </button>
           </div>
         </Section>
       </form>
 
       <form onSubmit={saveDateFormat} className="h-full">
-        <Section title={t("datePreference.title")} description={t("datePreference.description")}>
-          <label className={labelClass} htmlFor="profile-date-format">{t("datePreference.label")}</label>
+        <Section title={t("profile.date.title")} description={t("profile.date.description")}>
+          <label className={labelClass} htmlFor="profile-date-format">{t("profile.date.label")}</label>
           <select id="profile-date-format" className={fieldClass} value={dateFormat} onChange={(event) => setDateFormat(event.target.value)}>
-            <option value="EU">{t("datePreference.EU")}</option>
-            <option value="US">{t("datePreference.US")}</option>
+            <option value="EU">{t("profile.date.eu")}</option>
+            <option value="US">{t("profile.date.us")}</option>
           </select>
-          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "date-format"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "date-format" ? t("datePreference.saving") : t("datePreference.save")}</button></div>
+          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "date-format"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "date-format" ? t("profile.date.saving") : t("profile.date.save")}</button></div>
         </Section>
       </form>
 
       <form onSubmit={saveDistanceUnit} className="h-full">
-        <Section title={t("distancePreference.title")} description={t("distancePreference.description")}>
-          <label className={labelClass} htmlFor="profile-distance-unit">{t("distancePreference.label")}</label>
+        <Section title={t("profile.distance.title")} description={t("profile.distance.description")}>
+          <label className={labelClass} htmlFor="profile-distance-unit">{t("profile.distance.label")}</label>
           <select id="profile-distance-unit" className={fieldClass} value={distanceUnit} onChange={(event) => setDistanceUnit(event.target.value)}>
-            <option value="km">{t("distancePreference.km")}</option>
-            <option value="mi">{t("distancePreference.mi")}</option>
+            <option value="km">{t("profile.distance.km")}</option>
+            <option value="mi">{t("profile.distance.mi")}</option>
           </select>
-          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "distance-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "distance-unit" ? t("distancePreference.saving") : t("distancePreference.save")}</button></div>
+          <div className="mt-6 flex justify-end"><button type="submit" disabled={saving === "distance-unit"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "distance-unit" ? t("profile.distance.saving") : t("profile.distance.save")}</button></div>
         </Section>
       </form>
 
       <form onSubmit={saveGravatar} className="h-full">
-        <Section title={t("gravatarPreference.title")} description={t("gravatarPreference.description")}>
-          <label className={labelClass} htmlFor="profile-gravatar">{t("gravatarPreference.label")}</label>
+        <Section title={t("profile.gravatar.title")} description={t("profile.gravatar.description")}>
+          <label className={labelClass} htmlFor="profile-gravatar">{t("profile.gravatar.label")}</label>
           <select
             id="profile-gravatar"
             className={fieldClass}
@@ -2385,11 +2386,11 @@ export default function ProfileSettings() {
             disabled={!gravatarAvailable}
             onChange={(event) => setGravatarEnabled(event.target.value === "on")}
           >
-            <option value="on">{t("gravatarPreference.on")}</option>
-            <option value="off">{t("gravatarPreference.off")}</option>
+            <option value="on">{t("profile.gravatar.on")}</option>
+            <option value="off">{t("profile.gravatar.off")}</option>
           </select>
-          {!gravatarAvailable && <p className="mt-2 text-sm text-fb-muted">{t("gravatarPreference.disabledByAdmin")}</p>}
-          <div className="mt-6 flex justify-end"><button type="submit" disabled={!gravatarAvailable || saving === "gravatar"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "gravatar" ? t("gravatarPreference.saving") : t("gravatarPreference.save")}</button></div>
+          {!gravatarAvailable && <p className="mt-2 text-sm text-fb-muted">{t("profile.gravatar.disabledByAdmin")}</p>}
+          <div className="mt-6 flex justify-end"><button type="submit" disabled={!gravatarAvailable || saving === "gravatar"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "gravatar" ? t("profile.gravatar.saving") : t("profile.gravatar.save")}</button></div>
         </Section>
       </form>
 

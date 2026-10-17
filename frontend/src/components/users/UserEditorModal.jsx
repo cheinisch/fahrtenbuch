@@ -747,7 +747,7 @@ export default function UserEditorModal({
                               >
                                 <div className="min-w-0">
                                   <div className="truncate text-sm font-semibold text-fb-text">
-                                    {passkey.name || t("profileTranslations.passkeyDefaultName")}
+                                    {passkey.name || t("profile.passkeys.defaultName")}
                                   </div>
                                   <div className="mt-1 text-xs text-fb-muted">
                                     {t("users.editor.passkeyCreated", { date: formatDate(passkey.createdAt) })}
@@ -780,7 +780,7 @@ export default function UserEditorModal({
                           </div>
                         ) : (
                           <p className="mt-3 text-sm text-fb-muted">
-                            {t("profileTranslations.45")}
+                            {t("profile.passkeys.none")}
                           </p>
                         )}
                       </div>
@@ -835,7 +835,7 @@ export default function UserEditorModal({
                         className="rounded-lg border border-fb-border px-3 py-2 text-sm font-semibold text-fb-text transition hover:border-fb-accent hover:text-fb-accent disabled:opacity-50"
                       >
                         {securityAction === "sessions"
-                          ? t("profileTranslations.signingOut")
+                          ? t("profile.devices.signingOut")
                           : t("users.editor.revokeAll")}
                       </button>
                     </div>

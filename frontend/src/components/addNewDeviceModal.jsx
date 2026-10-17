@@ -182,7 +182,7 @@ export default function AddNewDeviceModal({
         setError(
           generationError instanceof Error
             ? generationError.message
-            : t("profileTranslations.qrCreateFailed"),
+            : t("profile.pairing.qrCreateFailed"),
         );
       } finally {
         if (
@@ -348,7 +348,7 @@ export default function AddNewDeviceModal({
           setError(
             statusError instanceof Error
               ? statusError.message
-              : t("profileTranslations.73"),
+              : t("profile.pairing.statusFailed"),
           );
         }
       }
@@ -392,7 +392,7 @@ export default function AddNewDeviceModal({
       }, 1_500);
     } catch {
       setError(
-        t("profileTranslations.qrCopyFailed"),
+        t("profile.pairing.copyFailed"),
       );
     }
   }
@@ -427,11 +427,11 @@ export default function AddNewDeviceModal({
             <header className="flex items-start justify-between gap-4 border-b border-fb-border px-5 py-4 sm:px-6">
               <div>
                 <DialogTitle className="text-xl font-bold text-fb-text">
-                  {t("profileTranslations.48")}
+                  {t("profile.devices.add")}
                 </DialogTitle>
 
                 <p className="mt-1 text-sm text-fb-muted">
-                  {t("profileTranslations.115")}
+                  {t("profile.pairing.scanHint")}
                 </p>
               </div>
 
@@ -441,7 +441,7 @@ export default function AddNewDeviceModal({
                 className="rounded-lg p-2 text-fb-muted transition hover:bg-fb-surface hover:text-fb-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent"
               >
                 <span className="sr-only">
-                  {t("profileTranslations.52")}
+                  {t("profile.pairing.closeDialog")}
                 </span>
                 <XMarkIcon className="size-5" />
               </button>
@@ -455,12 +455,12 @@ export default function AddNewDeviceModal({
                   ) : pairing?.qrCodeDataUrl ? (
                     <img
                       src={pairing.qrCodeDataUrl}
-                      alt={t("profileTranslations.qrAlt")}
+                      alt={t("profile.pairing.qrAlt")}
                       className="size-full object-contain"
                     />
                   ) : (
                     <div className="px-6 text-center text-sm text-fb-muted">
-                      {t("profileTranslations.99")}
+                      {t("profile.pairing.qrLoadFailed")}
                     </div>
                   )}
                 </div>
@@ -469,12 +469,12 @@ export default function AddNewDeviceModal({
                   {pairingStatus === "completed" ? (
                     <div className="inline-flex items-center gap-2 rounded-full bg-fb-accent-soft px-3 py-1.5 text-sm font-semibold text-fb-accent">
                       <CheckCircleIcon className="size-5" />
-                      {t("profileTranslations.53")}
+                      {t("profile.pairing.connected")}
                     </div>
                   ) : (
                     <>
                       <div className="text-sm font-semibold text-fb-text">
-                        {t("profileTranslations.qrValidFor")}{" "}
+                        {t("profile.pairing.validFor")}{" "}
                         <span className="font-mono text-fb-accent">
                           {formatRemainingTime(
                             secondsLeft,
@@ -483,7 +483,7 @@ export default function AddNewDeviceModal({
                       </div>
 
                       <div className="mt-1 text-xs text-fb-muted">
-                        {t("profileTranslations.116")}
+                        {t("profile.pairing.autoRenew")}
                       </div>
                     </>
                   )}
@@ -499,13 +499,13 @@ export default function AddNewDeviceModal({
 
                 <div className="rounded-xl border border-fb-border bg-fb-surface p-4">
                   <h3 className="text-sm font-bold text-fb-text">
-                    {t("profileTranslations.54")}
+                    {t("profile.pairing.connectionData")}
                   </h3>
 
                   <dl className="mt-4 space-y-3 text-sm">
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-fb-muted">
-                        {t("profileTranslations.55")}
+                        {t("profile.pairing.server")}
                       </dt>
                       <dd className="mt-1 break-all text-fb-text">
                         {payloadObject?.server || "–"}
@@ -514,7 +514,7 @@ export default function AddNewDeviceModal({
 
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-fb-muted">
-                        {t("profileTranslations.56")}
+                        {t("profile.pairing.user")}
                       </dt>
                       <dd className="mt-1 text-fb-text">
                         {payloadObject?.username ||
@@ -524,7 +524,7 @@ export default function AddNewDeviceModal({
 
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-fb-muted">
-                        {t("profileTranslations.17")}
+                        {t("profile.account.email")}
                       </dt>
                       <dd className="mt-1 break-all text-fb-text">
                         {payloadObject?.email || "–"}
@@ -533,7 +533,7 @@ export default function AddNewDeviceModal({
 
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-fb-muted">
-                        {t("profileTranslations.57")}
+                        {t("profile.pairing.expiry")}
                       </dt>
                       <dd className="mt-1 text-fb-text">
                         {formatExpiration(
@@ -546,7 +546,7 @@ export default function AddNewDeviceModal({
 
                 <div className="mt-4 rounded-xl border border-fb-border p-4">
                   <p className="text-sm text-fb-muted">
-                    {t("profileTranslations.117")}
+                    {t("profile.pairing.tokenHint")}
                   </p>
                 </div>
 
@@ -559,8 +559,8 @@ export default function AddNewDeviceModal({
                   >
                     <ClipboardDocumentIcon className="size-5" />
                     {copied
-                      ? t("profileTranslations.qrCopied")
-                      : t("profileTranslations.qrCopy")}
+                      ? t("profile.pairing.copied")
+                      : t("profile.pairing.copy")}
                   </button>
 
                   <button
@@ -584,7 +584,7 @@ export default function AddNewDeviceModal({
                           : "",
                       ].join(" ")}
                     />
-                    {t("profileTranslations.58")}
+                    {t("profile.pairing.renewQr")}
                   </button>
                 </div>
               </div>

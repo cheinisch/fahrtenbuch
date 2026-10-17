@@ -50,29 +50,29 @@ function ResultSummary({
 
   const values = [
     [
-      t("profileTranslations.backupSettings"),
+      t("profile.backup.summary.settings"),
       result.settings,
     ],
     [
-      t("profileTranslations.backupVehicles"),
+      t("profile.backup.summary.vehicles"),
       result.vehicles,
     ],
-    [t("profileTranslations.backupTags"), result.tags],
-    [t("profileTranslations.backupTrips"), result.trips],
+    [t("profile.backup.summary.tags"), result.tags],
+    [t("profile.backup.summary.trips"), result.trips],
     [
-      t("profileTranslations.backupTrackPoints"),
+      t("profile.backup.summary.trackPoints"),
       result.trackPoints,
     ],
     [
-      t("profileTranslations.backupBatches"),
+      t("profile.backup.summary.batches"),
       result.trackPointBatches,
     ],
     [
-      t("profileTranslations.backupTripTags"),
+      t("profile.backup.summary.tripTags"),
       result.tripTags,
     ],
     [
-      t("profileTranslations.backupChangeLog"),
+      t("profile.backup.summary.changeLog"),
       result.tripChangeLog,
     ],
   ];
@@ -106,7 +106,7 @@ function ResultSummary({
 
             <div>
               <div className="text-sm font-semibold">
-                {t("profileTranslations.59")}
+                {t("profile.pairing.notes")}
               </div>
 
               <ul className="mt-2 space-y-1 text-sm text-fb-muted">
@@ -166,14 +166,14 @@ export default function UserDataTransfer() {
 
       setMessage(
         download.checksum
-          ? t("profileTranslations.backupCreatedChecksum", { checksum: download.checksum })
-          : t("profileTranslations.74"),
+          ? t("profile.backup.createdChecksum", { checksum: download.checksum })
+          : t("profile.backup.created"),
       );
     } catch (exportError) {
       setError(
         exportError instanceof Error
           ? exportError.message
-          : t("profileTranslations.75"),
+          : t("profile.backup.createFailed"),
       );
     } finally {
       setBusy("");
@@ -192,7 +192,7 @@ export default function UserDataTransfer() {
   async function validateFile() {
     if (!file) {
       setError(
-        t("profileTranslations.76"),
+        t("profile.backup.selectFile"),
       );
       return;
     }
@@ -213,14 +213,14 @@ export default function UserDataTransfer() {
       );
 
       setMessage(
-        t("profileTranslations.78"),
+        t("profile.backup.validated"),
       );
     } catch (validationError) {
       setValidationResult(null);
       setError(
         validationError instanceof Error
           ? validationError.message
-          : t("profileTranslations.77"),
+          : t("profile.backup.invalid"),
       );
     } finally {
       setBusy("");
@@ -248,13 +248,13 @@ export default function UserDataTransfer() {
       );
 
       setMessage(
-        t("profileTranslations.79"),
+        t("profile.backup.restored"),
       );
     } catch (importError) {
       setError(
         importError instanceof Error
           ? importError.message
-          : t("profileTranslations.backupRestoreFailed"),
+          : t("profile.backup.restoreFailed"),
       );
     } finally {
       setBusy("");
@@ -283,11 +283,11 @@ export default function UserDataTransfer() {
 
           <div>
             <h2 className="text-lg font-bold">
-              {t("profileTranslations.60")}
+              {t("profile.backup.title")}
             </h2>
 
             <p className="mt-1 text-sm text-fb-muted">
-              {t("profileTranslations.118")}
+              {t("profile.backup.contents")}
             </p>
           </div>
         </div>
@@ -298,11 +298,11 @@ export default function UserDataTransfer() {
 
             <div className="text-sm">
               <div className="font-semibold">
-                {t("profileTranslations.61")}
+                {t("profile.backup.excludedTitle")}
               </div>
 
               <p className="mt-1 text-fb-muted">
-                {t("profileTranslations.119")}
+                {t("profile.backup.excluded")}
               </p>
             </div>
           </div>
@@ -316,18 +316,18 @@ export default function UserDataTransfer() {
         >
           <ArrowDownTrayIcon className="size-5" />
           {busy === "export"
-            ? t("profileTranslations.backupCreating")
-            : t("profileTranslations.62")}
+            ? t("profile.backup.creating")
+            : t("profile.backup.download")}
         </button>
       </section>
 
       <section className="rounded-xl border border-fb-border bg-fb-main p-5 shadow-sm sm:p-6">
         <h2 className="text-lg font-bold">
-          {t("profileTranslations.121")}
+          {t("profile.backup.restoreTitle")}
         </h2>
 
         <p className="mt-2 text-sm text-fb-muted">
-          {t("profileTranslations.120")}
+          {t("profile.backup.restoreHint")}
         </p>
 
         <input
@@ -372,8 +372,8 @@ export default function UserDataTransfer() {
           >
             <CheckCircleIcon className="size-5" />
             {busy === "validate"
-              ? t("profileTranslations.64")
-              : t("profileTranslations.63")}
+              ? t("profile.backup.validating")
+              : t("profile.backup.validate")}
           </button>
 
           <button
@@ -388,8 +388,8 @@ export default function UserDataTransfer() {
           >
             <ArrowUpTrayIcon className="size-5" />
             {busy === "import"
-              ? t("profileTranslations.65")
-              : t("profileTranslations.66")}
+              ? t("profile.backup.restoring")
+              : t("profile.backup.restore")}
           </button>
         </div>
 

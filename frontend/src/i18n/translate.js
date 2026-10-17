@@ -38,3 +38,9 @@ export function translateIn(language, key, paramsOrFallback, fallback) {
 export function translate(key, paramsOrFallback, fallback) {
   return translateIn(activeLanguage, key, paramsOrFallback, fallback);
 }
+
+// Server-Codes (OAUTH_NOT_LINKED) und DB-Felder (vehicle_id) als camelCase-Key-Segment.
+export function codeKey(code) {
+  const parts = String(code || "").toLowerCase().split("_").filter(Boolean);
+  return parts.map((part, index) => (index ? part[0].toUpperCase() + part.slice(1) : part)).join("");
+}

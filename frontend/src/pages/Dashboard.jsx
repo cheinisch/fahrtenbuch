@@ -32,7 +32,7 @@ import { useAuth } from "../auth/AuthProvider.jsx";
 import { useSearchParams } from "react-router-dom";
 
 import { useI18n } from "../i18n/I18nProvider.jsx";
-import { translate } from "../i18n/translate.js";
+import { codeKey, translate } from "../i18n/translate.js";
 import { routeColor } from "../lib/routeColors.js";
 
 const OSM_MAP_STYLE = {
@@ -114,11 +114,11 @@ function specialCategoryLabel(t, category) {
 }
 
 function historyEventLabel(t, eventType) {
-  return t(`dashboard.historyEvents.${eventType}`) || eventType;
+  return t(`dashboard.historyEvents.${codeKey(eventType)}`, eventType);
 }
 
 function historyFieldLabel(t, field) {
-  return t(`dashboard.historyFields.${field}`) || field;
+  return t(`dashboard.historyFields.${codeKey(field)}`, field);
 }
 
 function historySummary(entry, t) {
