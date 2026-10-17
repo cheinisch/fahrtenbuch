@@ -2879,7 +2879,7 @@ components:
       tags: [Statistics]
       summary: Monthly statistics with odometer and untracked distance
       responses:
-        '200': { description: Monatliche Kilometerstatistik. trackedKm enthält Fahrten freigegebener Fahrer während der eigenen Halterschaft; deren Summe steht zusätzlich in otherDriversKm (ohne Kategorien). }
+        '200': { description: Monatliche Kilometerstatistik je Fahrzeug, inkl. geteilter Fahrzeuge (access = owner|shared). Für Besitzer enthält trackedKm Fahrten freigegebener Fahrer während der eigenen Halterschaft, deren Summe zusätzlich in otherDriversKm steht (ohne Kategorien). Bei geteilten Fahrzeugen nur die eigenen Fahrten, ohne Ablesungen (actualKm/unknownKm null). }
 
   /trips/{id}/split:
     post:
