@@ -242,7 +242,8 @@
       "duration_seconds": "Dauer",
       "archived_at": "Archivierung",
       "tags": "Tags"
-    }
+    },
+    "osmContributors": "OpenStreetMap-Mitwirkende"
   },
   "tripArchive": {
     "open": "Archiv",
@@ -447,7 +448,8 @@
     "value": "Kilometerstand",
     "later": "Später erinnern",
     "saving": "Speichere …",
-    "invalid": "Bitte einen gültigen Kilometerstand eingeben."
+    "invalid": "Bitte einen gültigen Kilometerstand eingeben.",
+    "timeUnknown": "Uhrzeit unbekannt"
   },
 
   // ===== Kosten =====

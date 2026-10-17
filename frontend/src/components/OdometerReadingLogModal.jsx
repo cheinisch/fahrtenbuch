@@ -42,7 +42,7 @@ export default function OdometerReadingLogModal({ open, onClose, readings, vehic
                         className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-fb-surface"
                       >
                         <div>
-                          <div className="font-semibold">{formatDate(reading.readingDate || `${reading.month}-01`, locale)}{reading.readingAt ? ` · ${new Date(reading.readingAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}` : " · Uhrzeit unbekannt"}</div>
+                          <div className="font-semibold">{formatDate(reading.readingDate || `${reading.month}-01`, locale)}{reading.readingAt ? ` · ${new Date(reading.readingAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}` : ` · ${t("odometer.timeUnknown")}`}</div>
                           <div className="mt-1 text-xs text-fb-muted">{t("odometer.source")}: {reading.source === "manual" ? t("odometer.manual") : reading.source}</div>
                         </div>
                         <div className="text-right">

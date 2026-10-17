@@ -127,7 +127,7 @@ function ResultSummary({
 }
 
 export default function UserDataTransfer() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const { accessToken } = useAuth();
 
@@ -351,7 +351,7 @@ export default function UserDataTransfer() {
               1024 /
               1024
             ).toLocaleString(
-              "de-DE",
+              locale,
               {
                 maximumFractionDigits: 2,
               },

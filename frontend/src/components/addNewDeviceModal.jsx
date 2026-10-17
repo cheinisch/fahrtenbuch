@@ -62,7 +62,7 @@ function formatExpiration(value) {
     return "–";
   }
 
-  return new Intl.DateTimeFormat("de-DE", {
+  return new Intl.DateTimeFormat(document.documentElement.lang || "de", {
     dateStyle: "medium",
     timeStyle: "medium",
   }).format(date);

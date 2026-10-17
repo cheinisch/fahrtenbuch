@@ -32,6 +32,7 @@ import { useAuth } from "../auth/AuthProvider.jsx";
 import { useSearchParams } from "react-router-dom";
 
 import { useI18n } from "../i18n/I18nProvider.jsx";
+import { translate } from "../i18n/translate.js";
 import { routeColor } from "../lib/routeColors.js";
 
 const OSM_MAP_STYLE = {
@@ -43,7 +44,7 @@ const OSM_MAP_STYLE = {
         "/api/v1/map/osm/{z}/{x}/{y}.png",
       ],
       tileSize: 256,
-      attribution: "© OpenStreetMap-Mitwirkende",
+      attribution: `© ${translate("dashboard.osmContributors")}`,
     },
   },
   layers: [
@@ -91,13 +92,14 @@ function createMapStyle(settings) {
         type: "vector",
         url: "/api/v1/map/protomaps/tilejson",
         attribution:
-          "Protomaps © OpenStreetMap-Mitwirkende",
+          `Protomaps © ${translate("dashboard.osmContributors")}`,
       },
     },
     layers: layers(
       "protomaps",
       namedFlavor(flavorName),
-      { lang: "de" },
+      // Beschriftungssprache der Karte folgt der Oberflächensprache (vom I18nProvider in <html lang> gesetzt).
+      { lang: document.documentElement.lang || "de" },
     ),
   };
 }

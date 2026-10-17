@@ -241,7 +241,8 @@
       "duration_seconds": "Duration",
       "archived_at": "Archiving",
       "tags": "Tags"
-    }
+    },
+    "osmContributors": "OpenStreetMap contributors"
   },
   "tripArchive": {
     "open": "Archive",
@@ -446,7 +447,8 @@
     "value": "Odometer",
     "later": "Remind me later",
     "saving": "Saving …",
-    "invalid": "Enter a valid odometer reading."
+    "invalid": "Enter a valid odometer reading.",
+    "timeUnknown": "time unknown"
   },
 
   // ===== Costs =====
