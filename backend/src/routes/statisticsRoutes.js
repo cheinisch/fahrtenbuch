@@ -347,10 +347,21 @@ statisticsRoutes.get(
           interval '1 month'
         )::date AS month FROM bounds
       ),
+      -- Eigene Fahrzeuge sowie geteilte Fahrzeuge, die der Benutzer nutzen darf
+      -- oder mit denen er (z. B. vor Entzug der Freigabe) gefahren ist.
       vehicle_months AS (
-        SELECT v.id AS vehicle_id, v.name AS vehicle_name, m.month
+        SELECT v.id AS vehicle_id, v.name AS vehicle_name, (v.user_id = $1) AS is_owner, m.month
         FROM vehicles v CROSS JOIN month_series m
-        WHERE v.user_id = $1 AND v.archived_at IS NULL
+        WHERE v.archived_at IS NULL
+          AND (
+            v.user_id = $1
+            OR EXISTS (SELECT 1 FROM vehicle_shares vs WHERE vs.vehicle_id = v.id AND vs.user_id = $1)
+            OR EXISTS (
+              SELECT 1 FROM trips own
+              WHERE own.vehicle_id = v.id AND own.user_id = $1
+                AND own.archived_at IS NULL AND own.status = 'completed'
+            )
+          )
       ),
       distances AS (
         SELECT t.vehicle_id, date_trunc('month', ${tripLocalStartSql("t", "$3")})::date AS month,
@@ -365,7 +376,7 @@ statisticsRoutes.get(
           AND ${vehicleTripScopeSql("t", "$1")}
         GROUP BY t.vehicle_id, date_trunc('month', ${tripLocalStartSql("t", "$3")})
       )
-      SELECT vm.vehicle_id, vm.vehicle_name, to_char(vm.month, 'YYYY-MM') AS month,
+      SELECT vm.vehicle_id, vm.vehicle_name, vm.is_owner, to_char(vm.month, 'YYYY-MM') AS month,
         d.tracked_meters, d.business_meters, d.private_meters, d.commute_meters, d.unclassified_meters,
         d.other_drivers_meters,
         start_r.odometer_meters AS start_odometer_meters,
@@ -377,7 +388,7 @@ statisticsRoutes.get(
       LEFT JOIN LATERAL (
         SELECT r.odometer_meters, r.reading_date
         FROM vehicle_odometer_readings r
-        WHERE r.user_id = $1 AND r.vehicle_id = vm.vehicle_id
+        WHERE vm.is_owner AND r.user_id = $1 AND r.vehicle_id = vm.vehicle_id
           AND r.reading_date <= vm.month
         ORDER BY r.reading_date DESC
         LIMIT 1
@@ -385,7 +396,7 @@ statisticsRoutes.get(
       LEFT JOIN LATERAL (
         SELECT r.odometer_meters, r.reading_date
         FROM vehicle_odometer_readings r
-        WHERE r.user_id = $1 AND r.vehicle_id = vm.vehicle_id
+        WHERE vm.is_owner AND r.user_id = $1 AND r.vehicle_id = vm.vehicle_id
           AND r.reading_date <= (vm.month + interval '1 month')::date
         ORDER BY r.reading_date DESC
         LIMIT 1
@@ -396,13 +407,17 @@ statisticsRoutes.get(
     );
 
     response.json(result.rows.map((row) => {
-      const tracked = Number(row.tracked_meters || 0);
+      // Mitnutzer sehen nur ihre eigenen Fahrten: keine Ablesungen des Besitzers
+      // und keine Fahrten anderer Fahrer.
+      const otherDrivers = row.is_owner ? Number(row.other_drivers_meters || 0) : 0;
+      const tracked = Number(row.tracked_meters || 0) - Number(row.other_drivers_meters || 0) + otherDrivers;
       const actual = row.start_odometer_meters == null || row.end_odometer_meters == null || !row.start_reading_date || !row.end_reading_date || String(row.start_reading_date) === String(row.end_reading_date)
         ? null
         : Math.max(0, Number(row.end_odometer_meters) - Number(row.start_odometer_meters));
       return {
         vehicleId: row.vehicle_id,
         vehicleName: row.vehicle_name,
+        access: row.is_owner ? "owner" : "shared",
         month: row.month,
         actualKm: actual == null ? null : actual / 1000,
         trackedKm: tracked / 1000,
@@ -410,7 +425,7 @@ statisticsRoutes.get(
         privateKm: Number(row.private_meters || 0) / 1000,
         commuteKm: Number(row.commute_meters || 0) / 1000,
         unclassifiedKm: Number(row.unclassified_meters || 0) / 1000,
-        otherDriversKm: Number(row.other_drivers_meters || 0) / 1000,
+        otherDriversKm: otherDrivers / 1000,
         unknownKm: actual == null ? null : Math.max(0, actual - tracked) / 1000,
         startOdometerKm: row.start_odometer_meters == null ? null : Number(row.start_odometer_meters) / 1000,
         endOdometerKm: row.end_odometer_meters == null ? null : Number(row.end_odometer_meters) / 1000,
