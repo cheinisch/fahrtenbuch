@@ -861,3 +861,19 @@ export const runAdminServiceCheck = (token, module) =>
     "/api/v1/admin/settings/services/check" +
       (module ? "?module=" + encodeURIComponent(module) : ""),
   );
+
+// Ersteinrichtung des Servers (Admin) und Einrichtungsassistent für Benutzer
+export const getAdminSetup = (token) => apiRequest(token, "/api/v1/admin/setup");
+export const completeAdminSetup = (token) =>
+  apiRequest(token, "/api/v1/admin/setup/complete", { method: "POST" });
+export const completeOnboarding = (token) =>
+  apiRequest(token, "/api/v1/users/me/onboarding", { method: "POST" });
+
+// SMTP in den Systemeinstellungen (die .env bleibt Fallback)
+export const getAdminMailSettings = (token) => apiRequest(token, "/api/v1/admin/mail");
+export const saveAdminMailSettings = (token, settings) =>
+  apiRequest(token, "/api/v1/admin/mail", { method: "PUT", body: JSON.stringify(settings) });
+export const deleteAdminMailSettings = (token) =>
+  apiRequest(token, "/api/v1/admin/mail", { method: "DELETE" });
+export const sendAdminTestMail = (token, payload = {}) =>
+  apiRequest(token, "/api/v1/admin/mail/test", { method: "POST", body: JSON.stringify(payload) });

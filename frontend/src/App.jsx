@@ -8,6 +8,9 @@ import {
 import AdminRoute from "./auth/AdminRoute.jsx";
 import { useAuth } from "./auth/AuthProvider.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
+import OnboardingGate from "./auth/OnboardingGate.jsx";
+import SetupWizard from "./pages/SetupWizard.jsx";
+import OnboardingWizard from "./pages/OnboardingWizard.jsx";
 import AppShell from "./components/AppShell.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Compliance from "./pages/Compliance.jsx";
@@ -61,6 +64,11 @@ export default function App() {
       />
 
       <Route element={<ProtectedRoute />}>
+        {/* Einrichtungsassistenten: eigenes Vollbild-Layout ohne App-Navigation */}
+        <Route path="/setup" element={<SetupWizard />} />
+        <Route path="/welcome" element={<OnboardingWizard />} />
+
+        <Route element={<OnboardingGate />}>
         <Route element={<AppShell />}>
           <Route
             index
@@ -106,6 +114,7 @@ export default function App() {
               element={<Settings />}
             />
           </Route>
+        </Route>
         </Route>
       </Route>
 

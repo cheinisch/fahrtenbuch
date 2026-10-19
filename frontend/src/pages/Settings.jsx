@@ -16,6 +16,7 @@ import AdminDataTransfer from "../components/admin/AdminDataTransfer.jsx";
 import UserManagement from "../components/users/UserManagement.jsx";
 import JobManagement from "../components/admin/JobManagement.jsx";
 import GeocodingSettings from "../components/admin/GeocodingSettings.jsx";
+import MailSettingsForm from "../components/admin/MailSettingsForm.jsx";
 
 const fieldClass =
   "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
@@ -230,6 +231,10 @@ export default function Settings() {
           }
         >
           {t("admin.tabUsers")}
+        </TabButton>
+
+        <TabButton active={activeTab === "mail"} onClick={() => setActiveTab("mail")}>
+          {t("admin.tabMail")}
         </TabButton>
 
         <TabButton active={activeTab === "geocoding"} onClick={() => setActiveTab("geocoding")}>
@@ -512,6 +517,29 @@ export default function Settings() {
                   />
                 </label>
 
+                <div className="block text-sm font-medium sm:col-span-2 xl:col-span-3">
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={settings.gravatarEnabled !== false}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          gravatarEnabled: event.target.checked,
+                        }))
+                      }
+                      className="mt-0.5 size-4 accent-fb-accent"
+                    />
+                    <span>
+                      {t("admin.gravatar")}
+                      <span className="mt-1 block text-xs font-normal text-fb-muted">
+                        {t("admin.gravatarHint")}
+                        {settings.gravatarSource === "environment" ? ` ${t("admin.gravatarFromEnv")}` : ""}
+                      </span>
+                    </span>
+                  </label>
+                </div>
+
                 {settings.mapDefaults.provider === "protomaps" && (
                   <>
                     <label className="block text-sm font-medium sm:col-span-2">
@@ -601,6 +629,14 @@ export default function Settings() {
         </div>
       ) : activeTab === "users" ? (
         <UserManagement onUsersChanged={loadOverview} />
+      ) : activeTab === "mail" ? (
+        <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
+          <h2 className="text-lg font-bold">{t("mailSettings.title")}</h2>
+          <p className="mt-1 text-sm text-fb-muted">{t("mailSettings.subtitle")}</p>
+          <div className="mt-6">
+            <MailSettingsForm standalone />
+          </div>
+        </section>
       ) : activeTab === "geocoding" ? (
         <GeocodingSettings />
       ) : activeTab === "jobs" ? (
