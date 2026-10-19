@@ -145,6 +145,7 @@ async function updateProfile(request, response) {
           passkey_enabled,
           (password_hash IS NOT NULL) AS has_password,
           force_password_change,
+          onboarding_completed_at,
           last_login_at,
           created_at,
           updated_at
@@ -263,6 +264,29 @@ userRoutes.get(
 
 userRoutes.put("/me", asyncHandler(updateProfile));
 userRoutes.patch("/me/profile", asyncHandler(updateProfile));
+// Einrichtungsassistent beim ersten Login abgeschlossen (bzw. übersprungen)
+userRoutes.post(
+  "/me/onboarding",
+  asyncHandler(async (request, response) => {
+    const result = await pool.query(
+      `
+        UPDATE users u
+        SET onboarding_completed_at = COALESCE(onboarding_completed_at, now())
+        WHERE u.id = $1
+          AND u.deleted_at IS NULL
+        RETURNING ${USER_PUBLIC_COLUMNS}
+      `,
+      [request.auth.userId],
+    );
+
+    if (!result.rowCount) {
+      throw notFound("USER_NOT_FOUND", "Der Benutzer wurde nicht gefunden.");
+    }
+
+    response.json(mapUser(result.rows[0]));
+  }),
+);
+
 userRoutes.put("/me/password", asyncHandler(changePassword));
 userRoutes.post("/me/password", asyncHandler(changePassword));
 

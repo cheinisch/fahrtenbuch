@@ -1,5 +1,5 @@
-import { config } from "../config.js";
 import { pool } from "../database/pool.js";
+import { isGravatarEnabled } from "./systemSettingsService.js";
 
 const DEFAULT_USER_SETTINGS = Object.freeze({
   automaticTrackingEnabled: false,
@@ -59,7 +59,7 @@ export function mapUserSettings(row) {
     timeFormat: ["12h", "24h"].includes(customSettings.timeFormat) ? customSettings.timeFormat : DEFAULT_USER_SETTINGS.timeFormat,
     // Persönliche Wahl (Standard: an) und ob die Instanz Gravatar überhaupt erlaubt
     gravatarEnabled: customSettings.gravatarEnabled !== false,
-    gravatarAvailable: config.gravatarEnabled,
+    gravatarAvailable: isGravatarEnabled(),
 
     customSettings,
 

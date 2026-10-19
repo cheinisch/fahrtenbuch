@@ -2365,6 +2365,115 @@ paths:
         '401':
           description: Authentication required
 
+  /users/me/onboarding:
+    post:
+      tags: [Users]
+      summary: Mark the first-login assistant as completed
+      description: |
+        Setzt `onboardingCompleted` des eigenen Kontos. Clients zeigen den
+        Einrichtungsassistenten, solange der Wert false ist.
+      responses:
+        '200':
+          description: Aktualisiertes Profil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /admin/setup:
+    get:
+      tags: [Admin]
+      summary: Get initial server setup state
+      description: |
+        Stand der Ersteinrichtung plus Werte, die nur über die Docker-Umgebung
+        einstellbar sind (öffentliche Adresse, OAuth-Anbieter) als Status.
+      responses:
+        '200':
+          description: Einrichtungsstatus
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSetupState' }
+        '401': { description: Authentication required }
+
+  /admin/setup/complete:
+    post:
+      tags: [Admin]
+      summary: Complete the initial server setup
+      description: Markiert die Ersteinrichtung als abgeschlossen; gilt auch als abgeschlossener Assistent des eigenen Kontos.
+      responses:
+        '200':
+          description: Abgeschlossen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  completed: { type: boolean }
+                  completedAt: { type: [string, 'null'], format: date-time }
+                  user: { $ref: '#/components/schemas/User' }
+
+  /admin/mail:
+    get:
+      tags: [Admin]
+      summary: Get SMTP settings
+      description: Ohne Passwort; `source` zeigt, ob die Werte aus der Datenbank oder der .env (Fallback) stammen.
+      responses:
+        '200':
+          description: SMTP-Einstellungen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MailSettings' }
+    put:
+      tags: [Admin]
+      summary: Save SMTP settings
+      description: Ein leeres oder fehlendes Passwort lässt das gespeicherte unverändert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MailSettingsUpdate' }
+      responses:
+        '200':
+          description: Gespeicherte SMTP-Einstellungen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MailSettings' }
+        '400': { description: Invalid request }
+    delete:
+      tags: [Admin]
+      summary: Remove stored SMTP settings
+      description: Danach gelten wieder die SMTP_*-Umgebungsvariablen, falls gesetzt.
+      responses:
+        '200':
+          description: SMTP-Einstellungen nach dem Entfernen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MailSettings' }
+
+  /admin/mail/test:
+    post:
+      tags: [Admin]
+      summary: Send a test e-mail
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to: { type: string, format: email, description: Standard ist die Adresse des angemeldeten Admins }
+                settings: { $ref: '#/components/schemas/MailSettingsUpdate' }
+      responses:
+        '200':
+          description: Gesendet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent: { type: boolean }
+                  to: { type: string, format: email }
+        '400': { description: MAIL_TEST_FAILED }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2442,6 +2551,7 @@ components:
         passkeyEnabled: { type: boolean }
         hasPassword: { type: boolean }
         forcePasswordChange: { type: boolean }
+        onboardingCompleted: { type: boolean, description: "false: beim Login den Einrichtungsassistenten zeigen" }
         lastLoginAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -2746,6 +2856,71 @@ components:
           properties:
             expenses: { type: boolean, description: Kostenerfassung (/expenses). Derzeit nur im dev-Image aktiv. }
         channel: { type: string, enum: [dev, release] }
+        setup:
+          type: object
+          properties:
+            completed: { type: boolean, description: Ersteinrichtung des Servers abgeschlossen }
+        mail:
+          type: object
+          properties:
+            enabled: { type: boolean, description: "SMTP eingerichtet; false: E-Mail-Funktionen ausblenden" }
+        gravatar:
+          type: object
+          properties:
+            enabled: { type: boolean, description: Gravatar-Profilbilder auf dieser Instanz erlaubt }
+    MailSettings:
+      type: object
+      properties:
+        source: { type: string, enum: [database, environment, none] }
+        configured: { type: boolean }
+        host: { type: string }
+        port: { type: integer }
+        security: { type: string, enum: [starttls, tls, none] }
+        username: { type: string }
+        passwordSet: { type: boolean }
+        fromAddress: { type: string }
+        fromName: { type: string }
+    MailSettingsUpdate:
+      type: object
+      required: [host, fromAddress]
+      properties:
+        host: { type: string }
+        port: { type: integer, default: 587 }
+        security: { type: string, enum: [starttls, tls, none], default: starttls }
+        username: { type: [string, 'null'] }
+        password: { type: [string, 'null'], format: password, description: Leer = unverändert }
+        clearPassword: { type: boolean }
+        fromAddress: { type: string, format: email }
+        fromName: { type: [string, 'null'] }
+    AdminSetupState:
+      type: object
+      properties:
+        completed: { type: boolean }
+        completedAt: { type: [string, 'null'], format: date-time }
+        environment:
+          type: object
+          properties:
+            publicBaseUrl: { type: string }
+            publicBaseUrlConfigured: { type: boolean }
+            timezone: { type: string }
+            oauth:
+              type: object
+              properties:
+                google: { type: boolean }
+                microsoft: { type: boolean }
+                redirectUriTemplate: { type: string }
+            passkeys:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                rpId: { type: string }
+            channel: { type: string, enum: [dev, release] }
+        mail: { $ref: '#/components/schemas/MailSettings' }
+        gravatar:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            source: { type: string, enum: [database, environment] }
     PublicMapConfig:
       type: object
       required: [provider, type, attribution, minZoom, maxZoom, tileSize]
@@ -3380,6 +3555,115 @@ components:
       responses:
         '200': { description: Systeminformationen }
 
+  /users/me/onboarding:
+    post:
+      tags: [Users]
+      summary: Mark the first-login assistant as completed
+      description: |
+        Setzt `onboardingCompleted` des eigenen Kontos. Clients zeigen den
+        Einrichtungsassistenten, solange der Wert false ist.
+      responses:
+        '200':
+          description: Aktualisiertes Profil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /admin/setup:
+    get:
+      tags: [Admin]
+      summary: Get initial server setup state
+      description: |
+        Stand der Ersteinrichtung plus Werte, die nur über die Docker-Umgebung
+        einstellbar sind (öffentliche Adresse, OAuth-Anbieter) als Status.
+      responses:
+        '200':
+          description: Einrichtungsstatus
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSetupState' }
+        '401': { description: Authentication required }
+
+  /admin/setup/complete:
+    post:
+      tags: [Admin]
+      summary: Complete the initial server setup
+      description: Markiert die Ersteinrichtung als abgeschlossen; gilt auch als abgeschlossener Assistent des eigenen Kontos.
+      responses:
+        '200':
+          description: Abgeschlossen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  completed: { type: boolean }
+                  completedAt: { type: [string, 'null'], format: date-time }
+                  user: { $ref: '#/components/schemas/User' }
+
+  /admin/mail:
+    get:
+      tags: [Admin]
+      summary: Get SMTP settings
+      description: Ohne Passwort; `source` zeigt, ob die Werte aus der Datenbank oder der .env (Fallback) stammen.
+      responses:
+        '200':
+          description: SMTP-Einstellungen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MailSettings' }
+    put:
+      tags: [Admin]
+      summary: Save SMTP settings
+      description: Ein leeres oder fehlendes Passwort lässt das gespeicherte unverändert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MailSettingsUpdate' }
+      responses:
+        '200':
+          description: Gespeicherte SMTP-Einstellungen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MailSettings' }
+        '400': { description: Invalid request }
+    delete:
+      tags: [Admin]
+      summary: Remove stored SMTP settings
+      description: Danach gelten wieder die SMTP_*-Umgebungsvariablen, falls gesetzt.
+      responses:
+        '200':
+          description: SMTP-Einstellungen nach dem Entfernen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MailSettings' }
+
+  /admin/mail/test:
+    post:
+      tags: [Admin]
+      summary: Send a test e-mail
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to: { type: string, format: email, description: Standard ist die Adresse des angemeldeten Admins }
+                settings: { $ref: '#/components/schemas/MailSettingsUpdate' }
+      responses:
+        '200':
+          description: Gesendet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent: { type: boolean }
+                  to: { type: string, format: email }
+        '400': { description: MAIL_TEST_FAILED }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3592,6 +3876,7 @@ components:
         passkeyEnabled: { type: boolean }
         hasPassword: { type: boolean }
         forcePasswordChange: { type: boolean }
+        onboardingCompleted: { type: boolean, description: "false: beim Login den Einrichtungsassistenten zeigen" }
         lastLoginAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -3886,6 +4171,71 @@ components:
           properties:
             expenses: { type: boolean, description: Kostenerfassung (/expenses). Derzeit nur im dev-Image aktiv. }
         channel: { type: string, enum: [dev, release] }
+        setup:
+          type: object
+          properties:
+            completed: { type: boolean, description: Ersteinrichtung des Servers abgeschlossen }
+        mail:
+          type: object
+          properties:
+            enabled: { type: boolean, description: "SMTP eingerichtet; false: E-Mail-Funktionen ausblenden" }
+        gravatar:
+          type: object
+          properties:
+            enabled: { type: boolean, description: Gravatar-Profilbilder auf dieser Instanz erlaubt }
+    MailSettings:
+      type: object
+      properties:
+        source: { type: string, enum: [database, environment, none] }
+        configured: { type: boolean }
+        host: { type: string }
+        port: { type: integer }
+        security: { type: string, enum: [starttls, tls, none] }
+        username: { type: string }
+        passwordSet: { type: boolean }
+        fromAddress: { type: string }
+        fromName: { type: string }
+    MailSettingsUpdate:
+      type: object
+      required: [host, fromAddress]
+      properties:
+        host: { type: string }
+        port: { type: integer, default: 587 }
+        security: { type: string, enum: [starttls, tls, none], default: starttls }
+        username: { type: [string, 'null'] }
+        password: { type: [string, 'null'], format: password, description: Leer = unverändert }
+        clearPassword: { type: boolean }
+        fromAddress: { type: string, format: email }
+        fromName: { type: [string, 'null'] }
+    AdminSetupState:
+      type: object
+      properties:
+        completed: { type: boolean }
+        completedAt: { type: [string, 'null'], format: date-time }
+        environment:
+          type: object
+          properties:
+            publicBaseUrl: { type: string }
+            publicBaseUrlConfigured: { type: boolean }
+            timezone: { type: string }
+            oauth:
+              type: object
+              properties:
+                google: { type: boolean }
+                microsoft: { type: boolean }
+                redirectUriTemplate: { type: string }
+            passkeys:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                rpId: { type: string }
+            channel: { type: string, enum: [dev, release] }
+        mail: { $ref: '#/components/schemas/MailSettings' }
+        gravatar:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            source: { type: string, enum: [database, environment] }
     PublicMapConfig:
       type: object
       required: [provider, type, attribution, minZoom, maxZoom, tileSize]

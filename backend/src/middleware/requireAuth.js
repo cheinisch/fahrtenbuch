@@ -38,6 +38,7 @@ export const requireAuth = asyncHandler(async (request, _response, next) => {
         u.theme_mode,
         u.totp_enabled,
         u.force_password_change,
+        u.onboarding_completed_at,
         u.last_login_at,
         u.created_at,
         u.updated_at

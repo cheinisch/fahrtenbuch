@@ -873,6 +873,7 @@ authRoutes.post(
           u.passkey_enabled,
           (u.password_hash IS NOT NULL) AS has_password,
           u.force_password_change,
+          u.onboarding_completed_at,
           u.last_login_at,
           u.created_at,
           u.updated_at
@@ -1180,6 +1181,7 @@ authRoutes.post(
             u.passkey_enabled,
             (u.password_hash IS NOT NULL) AS has_password,
             u.force_password_change,
+            u.onboarding_completed_at,
             u.last_login_at,
             u.created_at,
             u.updated_at

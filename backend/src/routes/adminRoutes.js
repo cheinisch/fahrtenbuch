@@ -43,6 +43,19 @@ import {
   resolveMapMatching,
   writeSetting,
 } from "../services/serviceSettingsService.js";
+import { sendTestMail } from "../services/mailService.js";
+import {
+  deleteMailSettings,
+  environmentStatus,
+  getGravatarSetting,
+  getMailSettingsForAdmin,
+  getSetupState,
+  markSetupCompleted,
+  parseMailSettings,
+  saveGravatarSetting,
+  saveMailSettings,
+} from "../services/systemSettingsService.js";
+import { USER_PUBLIC_COLUMNS } from "../users/userMapper.js";
 
 export const adminRoutes = Router();
 
@@ -439,6 +452,7 @@ async function loadAdminUser(userId, database = pool) {
         u.totp_required,
         u.passkey_enabled,
         u.force_password_change,
+        u.onboarding_completed_at,
         u.last_login_at,
         u.created_at,
         u.updated_at,
@@ -557,6 +571,7 @@ adminRoutes.get(
           u.totp_required,
           u.passkey_enabled,
           u.force_password_change,
+          u.onboarding_completed_at,
           u.last_login_at,
           u.created_at,
           u.updated_at,
@@ -1623,6 +1638,7 @@ adminRoutes.get(
         osrmUrl: "",
         valhallaUrl: "",
       },
+      ...(await gravatarResponse()),
     });
   }),
 );
@@ -1643,6 +1659,8 @@ adminRoutes.patch(
     if (body.mapMatching !== undefined) {
       body.mapMatching = parseMapMatchingSettings(body.mapMatching);
     }
+
+    const gravatarEnabled = booleanField(body, "gravatarEnabled");
 
     const client = await pool.connect();
 
@@ -1670,6 +1688,10 @@ adminRoutes.patch(
         );
       }
 
+      if (gravatarEnabled !== undefined) {
+        await saveGravatarSetting(gravatarEnabled, request.auth.userId, client);
+      }
+
       await client.query("COMMIT");
       request.method = "GET";
       const result = await pool.query(
@@ -1688,7 +1710,114 @@ adminRoutes.patch(
           osrmUrl: "",
           valhallaUrl: "",
         },
+        ...(await gravatarResponse()),
       });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+async function gravatarResponse() {
+  const gravatar = await getGravatarSetting();
+  return { gravatarEnabled: gravatar.enabled, gravatarSource: gravatar.source };
+}
+
+// ---------------------------------------------------------------------------
+// E-Mail-Versand (SMTP) – in der Datenbank, die .env bleibt Fallback
+// ---------------------------------------------------------------------------
+
+adminRoutes.get(
+  "/mail",
+  asyncHandler(async (_request, response) => {
+    response.json(await getMailSettingsForAdmin());
+  }),
+);
+
+adminRoutes.put(
+  "/mail",
+  asyncHandler(async (request, response) => {
+    response.json(await saveMailSettings(request.body, request.auth.userId));
+  }),
+);
+
+adminRoutes.delete(
+  "/mail",
+  asyncHandler(async (_request, response) => {
+    response.json(await deleteMailSettings());
+  }),
+);
+
+adminRoutes.post(
+  "/mail/test",
+  asyncHandler(async (request, response) => {
+    const body = objectBody(request.body);
+    // Ohne Angabe an die eigene Adresse des Admins
+    const to = body.to ? emailField(body, "to", true) : request.auth.user.email;
+    // Noch nicht gespeicherte Werte aus dem Formular testen; leeres Passwort = gespeichertes
+    const settings = body.settings ? await parseMailSettings(body.settings) : null;
+
+    try {
+      await sendTestMail({ to, settings });
+    } catch (error) {
+      throw badRequest("MAIL_TEST_FAILED", `Die Test-Mail konnte nicht gesendet werden: ${error.message}`);
+    }
+
+    response.json({ sent: true, to });
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Ersteinrichtung des Servers (Assistent beim ersten Admin-Login)
+// ---------------------------------------------------------------------------
+
+adminRoutes.get(
+  "/setup",
+  asyncHandler(async (_request, response) => {
+    const [setup, mail, gravatar] = await Promise.all([
+      getSetupState(),
+      getMailSettingsForAdmin(),
+      getGravatarSetting(),
+    ]);
+    response.json({
+      ...setup,
+      environment: environmentStatus(),
+      mail,
+      gravatar,
+    });
+  }),
+);
+
+adminRoutes.post(
+  "/setup/complete",
+  asyncHandler(async (request, response) => {
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+      const setup = await markSetupCompleted(request.auth.userId, client);
+      // Der Server-Assistent deckt auch das eigene Konto ab – kein zweiter Assistent
+      const result = await client.query(
+        `
+          UPDATE users u
+          SET onboarding_completed_at = COALESCE(onboarding_completed_at, now())
+          WHERE u.id = $1
+          RETURNING ${USER_PUBLIC_COLUMNS}
+        `,
+        [request.auth.userId],
+      );
+      await client.query(
+        `
+          INSERT INTO audit_log (actor_user_id, action, entity_type, entity_id, metadata)
+          VALUES ($1, 'setup.completed', 'user', $1, '{}'::jsonb)
+        `,
+        [request.auth.userId],
+      );
+      await client.query("COMMIT");
+      response.json({ ...setup, user: mapUser(result.rows[0]) });
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
