@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { classifyTrip, getLeasingLiveKm, getMonthlyCategoryTrips, getMonthlyOdometerStatistics, getOdometerIntervalStatistics, getOdometerReadings, getVehicles, saveMonthlyOdometerReading } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
@@ -560,6 +561,9 @@ export default function Statistics() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow={t("nav.statistics")} title={t("statistics.heading")} subtitle={t("statistics.subtitle")}>
+        <Link to="/reports/monthly" className="inline-flex h-11 items-center rounded-lg border border-fb-border bg-fb-main px-4 text-sm font-semibold hover:border-fb-accent">
+          {t("statistics.monthlyReport")}
+        </Link>
         <label className="text-[13px] font-medium text-fb-muted">
           {t("statistics.vehicle")}
           <select value={vehicleId} onChange={(e) => changeVehicle(e.target.value)} className="mt-1 block h-11 min-w-[220px] rounded-lg border border-fb-border bg-fb-main px-3 text-sm text-fb-text">

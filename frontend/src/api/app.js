@@ -873,3 +873,9 @@ export const completeOnboarding = (token) =>
 export const getAdminMailStatus = (token) => apiRequest(token, "/api/v1/admin/mail");
 export const sendAdminTestMail = (token, payload = {}) =>
   apiRequest(token, "/api/v1/admin/mail/test", { method: "POST", body: JSON.stringify(payload) });
+
+// Monatsbericht (gleicher Inhalt wie die Mail am Monatsersten)
+export const getMonthlyReport = (token, month) =>
+  apiRequest(token, "/api/v1/reports/monthly" + (month ? "?month=" + encodeURIComponent(month) : ""));
+export const sendMonthlyReport = (token, month) =>
+  apiRequest(token, "/api/v1/reports/monthly/send", { method: "POST", body: JSON.stringify(month ? { month } : {}) });

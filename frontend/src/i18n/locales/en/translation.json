@@ -608,6 +608,7 @@
 
   // ===== Statistics =====
   "statistics": {
+    "monthlyReport": "Monthly report",
     "title": "Statistics",
     "heading": "Monthly report",
     "subtitle": "Recorded trips compared with the odometer readings.",
@@ -734,6 +735,82 @@
     }
   },
 
+  // ===== Monthly report =====
+  "monthlyReport": {
+    "title": "Monthly report {month}",
+    "previous": "Previous month",
+    "next": "Next month",
+    "toStatistics": "Go to statistics",
+    "heading": "Your {month} in numbers.",
+    "period": "{from} – {to} · all your vehicles",
+    "driven": "Driven",
+    "business": "For business",
+    "trips": "Trips",
+    "unknown": "Unknown",
+    "open": {
+      "titleOne": "1 trip is waiting for a category",
+      "title": "{count} trips are waiting for a category",
+      "text": "{km} in total. While they are open, they are missing from the business share and the month cannot be closed.",
+      "more": "… and {count} more.",
+      "olderOne": "Plus 1 open trip from earlier months.",
+      "older": "Plus {count} open trips from earlier months.",
+      "none": "All trips are assigned."
+    },
+    "categories": {
+      "business": "Business",
+      "private": "Private",
+      "commute": "Commute",
+      "open": "open",
+      "other": "other drivers",
+      "unexplained": "without trip"
+    },
+    "legend": {
+      "open": "Open",
+      "other": "Other drivers",
+      "unexplained": "Without trip (per odometer)"
+    },
+    "types": {
+      "business": "business",
+      "private": "private",
+      "commute": "commute"
+    },
+    "vehicles": {
+      "title": "Your vehicles",
+      "oneTrip": "1 trip",
+      "trips": "{count} trips",
+      "sharedOneTrip": "only your 1 trip",
+      "sharedTrips": "only your {count} trips",
+      "odometer": "odometer {value}",
+      "sharedBy": "shared by {name}",
+      "shared": "shared",
+      "open": "{count} open",
+      "done": "all assigned",
+      "none": "There were no trips this month."
+    },
+    "places": {
+      "titleOne": "1 new place in {month}",
+      "title": "{count} new places in {month}",
+      "text": "You went here for the first time in {month} – no trip led there in the months before. Save a place to see its name in the trip list and get a category and purpose suggestion for future trips there.",
+      "firstVisit": "First visit {date}",
+      "oneTrip": "1 trip",
+      "trips": "{count} trips",
+      "openOne": "still open",
+      "openBoth": "both still open",
+      "openAll": "all still open",
+      "openSome": "{count} still open",
+      "save": "Save place",
+      "saved": "Saved",
+      "unknown": "Unknown address",
+      "name": "Place name",
+      "suggestedType": "Suggested category",
+      "noSuggestion": "No suggestion"
+    },
+    "sendNow": "Send by e-mail now",
+    "sending": "Sending …",
+    "sent": "The report was sent to {email}.",
+    "settings": "Monthly report settings"
+  },
+
   // ===== Export =====
   "exportPage": {
     "title": "Export statistics and logbook",
@@ -805,6 +882,19 @@
 
   // ===== Profile and personal settings =====
   "profile": {
+    "monthlyReport": {
+      "title": "Monthly report",
+      "description": "An e-mail on the first of each month with all vehicles, open trips and new places of the previous month.",
+      "label": "Monthly report by e-mail",
+      "on": "Enabled",
+      "off": "Disabled",
+      "unavailable": "E-mail sending is not set up on this server.",
+      "view": "View report",
+      "sendNow": "Send now",
+      "sending": "Sending …",
+      "saved": "The monthly report setting has been saved.",
+      "sent": "The monthly report was sent to {email}."
+    },
     "page": {
       "title": "Profile settings",
       "heading": "Personal settings",

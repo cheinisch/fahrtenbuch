@@ -8,6 +8,8 @@ commits are not listed.
 ## [Unreleased]
 
 ### Added
+- **Monthly report by e-mail** on the first of each month (06:00 local time, caught up until the 7th): all own and shared vehicles in one mail (shared ones with your own trips only), open trips waiting for a category, and places visited for the first time that month. Requires SMTP; each user can turn it off under Profile › Units & formats. Each report is sent once per user and month.
+- **Monthly report page** in the web app (Statistics › Monthly report) with the same content: assign open trips and save new places directly. `GET /reports/monthly`, `POST /reports/monthly/send`.
 - **Setup assistant** on the first admin sign-in of a fresh installation: language, own admin password, server status (public address, passkeys, time zone), e-mail, geocoding, sign-in & privacy, first vehicle and pairing the Android app.
 - **First sign-in assistant** for accounts created by an administrator: own password, profile, linking Google/Microsoft (only enabled providers), shared and own vehicles, pairing the app. If only a password change is required, just that step is shown.
 - **E-mail tab** in the administration: shows the SMTP configuration detected from `SMTP_*` and sends a test e-mail. New optional `SMTP_FROM_NAME`.

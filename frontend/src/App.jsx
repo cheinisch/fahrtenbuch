@@ -22,6 +22,7 @@ import ExportPage from "./pages/Export.jsx";
 import ProfileSettings from "./pages/ProfileSettings.jsx";
 import Settings from "./pages/Settings.jsx";
 import Statistics from "./pages/Statistics.jsx";
+import MonthlyReport from "./pages/MonthlyReport.jsx";
 import Vehicles from "./pages/Vehicles.jsx";
 import ShareInvitation from "./pages/ShareInvitation.jsx";
 
@@ -91,6 +92,11 @@ export default function App() {
           <Route
             path="/statistics"
             element={<Statistics />}
+          />
+
+          <Route
+            path="/reports/monthly"
+            element={<MonthlyReport />}
           />
 
           <Route
