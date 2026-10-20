@@ -22,7 +22,7 @@ npm test                           # node --test in the workspaces
 npm run build                      # frontend build
 ```
 
-`npm run check` currently reports two endpoints missing from the OpenAPI spec (`GET /language`, `GET /odometer/{vehicleId}/{month}`); this is pre-existing. Do not add new gaps.
+`npm run check` must pass: every documented endpoint has to be implemented. `api/openapi.yml` must stay a single valid YAML document (one `paths:` and one `components:` block, no duplicate keys) – check with any strict YAML parser after editing.
 
 The backend needs `POSTGRES_*` and `JWT_SECRET`/`JWT_ACCESS_SECRET`; `DEFAULT_ADMIN_EMAIL`/`_USERNAME`/`_PASSWORD` seed an admin. Migrations run automatically on server start. For quick SQL verification a throwaway local PostgreSQL is enough.
 
