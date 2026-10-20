@@ -7,6 +7,7 @@ import {
   uuidValue,
 } from "../lib/validation.js";
 import { tripLocalStartSql, userTimeZone } from "../lib/timezone.js";
+import { vehicleTripScopeSql } from "../lib/vehicleScope.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
@@ -236,15 +237,6 @@ statisticsRoutes.get(
 // Fahrten auf eigenen Fahrzeugen: eigene Fahrten sowie Fahrten freigegebener
 // Fahrer, solange der Benutzer laut Besitzzeitraum Halter des Fahrzeugs war.
 // Fremde Fahrten fließen nur als Summe ein (keine Kategorien oder Details).
-function vehicleTripScopeSql(alias, userParameter) {
-  return `(${alias}.user_id = ${userParameter} OR EXISTS (
-    SELECT 1 FROM vehicle_ownership_periods p
-    WHERE p.vehicle_id = ${alias}.vehicle_id AND p.user_id = ${userParameter}
-      AND ${alias}.started_at >= p.valid_from
-      AND (p.valid_to IS NULL OR ${alias}.started_at < p.valid_to)
-  ))`;
-}
-
 statisticsRoutes.get(
   "/odometer-intervals",
   asyncHandler(async (request, response) => {

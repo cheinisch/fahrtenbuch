@@ -609,6 +609,7 @@
 
   // ===== Statistik =====
   "statistics": {
+    "monthlyReport": "Monatsbericht",
     "title": "Statistiken",
     "heading": "Monatsauswertung",
     "subtitle": "Aufgezeichnete Fahrten im Vergleich zu den abgelesenen Kilometerständen.",
@@ -735,6 +736,88 @@
     }
   },
 
+  // ===== Monatsbericht =====
+  "monthlyReport": {
+    "subscription": {
+      "label": "Monatsbericht per E-Mail",
+      "on": "Kommt am Monatsersten an deine E-Mail-Adresse.",
+      "off": "Ausgeschaltet – du bekommst keine Monatsberichte per E-Mail.",
+      "unavailable": "Auf diesem Server ist kein E-Mail-Versand eingerichtet."
+    },
+    "sendNowHint": "Nur im dev-Image: sendet den angezeigten Monat sofort, zum Testen.",
+    "title": "Monatsbericht {month}",
+    "previous": "Vorheriger Monat",
+    "next": "Nächster Monat",
+    "toStatistics": "Zur Statistik",
+    "heading": "Dein {month} in Zahlen.",
+    "period": "{from} – {to} · alle deine Fahrzeuge",
+    "driven": "Gefahren",
+    "business": "Davon dienstlich",
+    "trips": "Fahrten",
+    "unknown": "Unbekannt",
+    "open": {
+      "titleOne": "1 Fahrt wartet auf eine Kategorie",
+      "title": "{count} Fahrten warten auf eine Kategorie",
+      "text": "Zusammen {km}. Solange sie offen sind, fehlen sie im dienstlichen Anteil und der Monat lässt sich nicht abschließen.",
+      "more": "… und {count} weitere.",
+      "olderOne": "Dazu kommt 1 offene Fahrt aus früheren Monaten.",
+      "older": "Dazu kommen {count} offene Fahrten aus früheren Monaten.",
+      "none": "Alle Fahrten sind zugeordnet."
+    },
+    "categories": {
+      "business": "Dienstlich",
+      "private": "Privat",
+      "commute": "Arbeitsweg",
+      "open": "offen",
+      "other": "andere Fahrer",
+      "unexplained": "ohne Fahrt"
+    },
+    "legend": {
+      "open": "Offen",
+      "other": "Andere Fahrer",
+      "unexplained": "Ohne Fahrt (laut Kilometerstand)"
+    },
+    "types": {
+      "business": "dienstlich",
+      "private": "privat",
+      "commute": "Arbeitsweg"
+    },
+    "vehicles": {
+      "title": "Deine Fahrzeuge",
+      "oneTrip": "1 Fahrt",
+      "trips": "{count} Fahrten",
+      "sharedOneTrip": "nur deine 1 Fahrt",
+      "sharedTrips": "nur deine {count} Fahrten",
+      "odometer": "Stand {value}",
+      "sharedBy": "geteilt von {name}",
+      "shared": "geteilt",
+      "open": "{count} offen",
+      "done": "alles zugeordnet",
+      "none": "In diesem Monat gab es keine Fahrten."
+    },
+    "places": {
+      "titleOne": "1 neuer Ort im {month}",
+      "title": "{count} neue Orte im {month}",
+      "text": "Hier warst du im {month} zum ersten Mal – in den Monaten davor führte keine Fahrt dorthin. Speicherst du einen Ort, erscheint er mit Namen in der Fahrtenliste, und künftige Fahrten dorthin bekommen einen Vorschlag für Kategorie und Zweck.",
+      "firstVisit": "Erstmals am {date}",
+      "oneTrip": "1 Fahrt",
+      "trips": "{count} Fahrten",
+      "openOne": "noch offen",
+      "openBoth": "beide noch offen",
+      "openAll": "alle noch offen",
+      "openSome": "{count} noch offen",
+      "save": "Ort speichern",
+      "saved": "Gespeichert",
+      "unknown": "Unbekannte Adresse",
+      "name": "Name des Orts",
+      "suggestedType": "Vorschlag für Kategorie",
+      "noSuggestion": "Kein Vorschlag"
+    },
+    "sendNow": "Jetzt per E-Mail senden",
+    "sending": "Wird gesendet …",
+    "sent": "Der Bericht wurde an {email} gesendet."
+  },
+
   // ===== Export =====
   "exportPage": {
     "title": "Statistik und Fahrtenbuch exportieren",
@@ -806,6 +889,19 @@
 
   // ===== Profil und persönliche Einstellungen =====
   "profile": {
+    "monthlyReport": {
+      "title": "Monatsbericht",
+      "description": "Am Monatsersten eine E-Mail mit allen Fahrzeugen, offenen Fahrten und neuen Orten des Vormonats.",
+      "label": "Monatsbericht per E-Mail",
+      "on": "Aktiviert",
+      "off": "Deaktiviert",
+      "unavailable": "Auf diesem Server ist kein E-Mail-Versand eingerichtet.",
+      "view": "Bericht ansehen",
+      "sendNow": "Jetzt senden",
+      "sending": "Wird gesendet …",
+      "saved": "Die Einstellung zum Monatsbericht wurde gespeichert.",
+      "sent": "Der Monatsbericht wurde an {email} gesendet."
+    },
     "page": {
       "title": "Profileinstellungen",
       "heading": "Persönliche Einstellungen",

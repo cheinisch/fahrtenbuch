@@ -34,3 +34,16 @@ export async function sendTestMail({ to }) {
     text: "Diese Nachricht bestätigt, dass dein Fahrtenbuch-Server E-Mails versenden kann.\n\nDu musst nichts weiter tun.",
   });
 }
+
+/** Monatsbericht mit eingebettetem Logo (CID). */
+export async function sendMonthlyReportMail({ to, subject, html, text, logoCid, logoPath }) {
+  const { transport, from } = await mailer();
+  await transport.sendMail({
+    from,
+    to,
+    subject,
+    html,
+    text,
+    attachments: logoPath ? [{ filename: "fahrtenbuch.png", path: logoPath, cid: logoCid }] : [],
+  });
+}

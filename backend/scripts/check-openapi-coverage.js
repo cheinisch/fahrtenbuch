@@ -185,6 +185,15 @@ function readImplementedOperations() {
     }
   }
 
+  // Direkt in app.js registrierte Endpunkte (z. B. GET /api/v1/language)
+  const appSource = fs.readFileSync(appPath, "utf8");
+  const appPattern =
+    /\bapp\.(get|post|put|patch|delete|options|head)\s*\(\s*["'](\/api\/v1[^"']*)["']/g;
+
+  for (const [, method, appRoute] of appSource.matchAll(appPattern)) {
+    operations.add(operationKey(method, appRoute));
+  }
+
   return operations;
 }
 

@@ -22,7 +22,7 @@ npm test                           # node --test in the workspaces
 npm run build                      # frontend build
 ```
 
-`npm run check` currently reports two endpoints missing from the OpenAPI spec (`GET /language`, `GET /odometer/{vehicleId}/{month}`); this is pre-existing. Do not add new gaps.
+`npm run check` must pass: every documented endpoint has to be implemented. `api/openapi.yml` must stay a single valid YAML document (one `paths:` and one `components:` block, no duplicate keys) – check with any strict YAML parser after editing.
 
 The backend needs `POSTGRES_*` and `JWT_SECRET`/`JWT_ACCESS_SECRET`; `DEFAULT_ADMIN_EMAIL`/`_USERNAME`/`_PASSWORD` seed an admin. Migrations run automatically on server start. For quick SQL verification a throwaway local PostgreSQL is enough.
 
@@ -49,7 +49,7 @@ The backend needs `POSTGRES_*` and `JWT_SECRET`/`JWT_ACCESS_SECRET`; `DEFAULT_AD
 - **Errors:** throw `badRequest("CODE", "message")` etc.; user-facing messages are German.
 - **Trip categories:** `type` is `business|private|commute|unclassified`; `special_category` is a second level (see `SPECIAL_CATEGORIES`). Category-only changes go through `PUT /trips/{id}/classify`.
 - **Frontend texts:** add keys to every language file – see *Translations* below.
-- **Preview features:** new features can be limited to the `:dev` image via `config.features` (default on when `APP_CHANNEL=dev`, override with `FEATURE_<NAME>`). The API returns 404 `FEATURE_DISABLED`; clients read `features` from `GET /config/services` (web: `useFeatures()`). Currently: `expenses`.
+- **Preview features:** new features can be limited to the `:dev` image via `config.features` (default on when `APP_CHANNEL=dev`, override with `FEATURE_<NAME>`). The API returns 404 `FEATURE_DISABLED`; clients read `features` from `GET /config/services` (web: `useFeatures()`). Currently: `expenses`, `monthlyReportSendNow` (send the monthly report immediately, for testing).
 - Comments are mostly German; either language is fine – keep them short and explain *why*.
 
 ## Translations

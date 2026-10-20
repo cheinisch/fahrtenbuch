@@ -6,6 +6,7 @@ import {
 } from "react";
 import {
   useSearchParams,
+  Link,
 } from "react-router-dom";
 
 import {
@@ -24,6 +25,7 @@ import {
   getSavedPlaces,
   createSavedPlace,
   deleteSavedPlace,
+  sendMonthlyReport,
 } from "../api/app.js";
 import {
   getExportCountryOptions,
@@ -48,6 +50,7 @@ import UserDataTransfer from "../components/UserDataTransfer.jsx";
 import { DEFAULT_ROUTE_COLORS } from "../lib/routeColors.js";
 import PageHeader from "../components/PageHeader.jsx";
 import { GRAVATAR_SETTING_EVENT } from "../lib/gravatar.js";
+import { useFeatures } from "../lib/features.jsx";
 
 // Gruppen der Abschnittsnavigation (wie im Mockup); der Anker zeigt auf den
 // ersten Abschnitt der Gruppe, SECTION_GROUP ordnet jeden Abschnitt zu.
@@ -127,6 +130,7 @@ const labelClass =
 
 export default function ProfileSettings() {
   const { t, locale } = useI18n();
+  const { features } = useFeatures();
 
   const {
     accessToken,
@@ -203,6 +207,8 @@ export default function ProfileSettings() {
   const [timeFormat, setTimeFormat] = useState("24h");
   const [gravatarEnabled, setGravatarEnabled] = useState(true);
   const [gravatarAvailable, setGravatarAvailable] = useState(true);
+  const [monthlyReportEnabled, setMonthlyReportEnabled] = useState(true);
+  const [monthlyReportAvailable, setMonthlyReportAvailable] = useState(false);
   const [speedUnit, setSpeedUnit] = useState("kmh");
 
   const [tracking, setTracking] = useState({
@@ -334,6 +340,8 @@ export default function ProfileSettings() {
       setTimeFormat(settingsResult.settings.timeFormat === "12h" ? "12h" : "24h");
       setGravatarEnabled(settingsResult.settings.gravatarEnabled !== false);
       setGravatarAvailable(settingsResult.settings.gravatarAvailable !== false);
+      setMonthlyReportEnabled(settingsResult.settings.monthlyReportEnabled !== false);
+      setMonthlyReportAvailable(settingsResult.settings.monthlyReportAvailable === true);
       setSpeedUnit(settingsResult.settings.speedUnit === "mph" ? "mph" : "kmh");
 
       setTracking({
@@ -818,6 +826,32 @@ export default function ProfileSettings() {
       showSuccess(t("profile.time.saved"));
     } catch (saveError) {
       showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function saveMonthlyReport(event) {
+    event.preventDefault();
+    setSaving("monthly-report");
+    try {
+      const updated = await updatePersonalSettings(accessToken, { monthlyReportEnabled });
+      setMonthlyReportEnabled(updated.monthlyReportEnabled !== false);
+      showSuccess(t("profile.monthlyReport.saved"));
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function sendMonthlyReportNow() {
+    setSaving("monthly-report-send");
+    try {
+      const result = await sendMonthlyReport(accessToken);
+      showSuccess(t("profile.monthlyReport.sent", { email: result.to || "" }));
+    } catch (sendError) {
+      showError(sendError);
     } finally {
       setSaving("");
     }
@@ -2391,6 +2425,32 @@ export default function ProfileSettings() {
           </select>
           {!gravatarAvailable && <p className="mt-2 text-sm text-fb-muted">{t("profile.gravatar.disabledByAdmin")}</p>}
           <div className="mt-6 flex justify-end"><button type="submit" disabled={!gravatarAvailable || saving === "gravatar"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "gravatar" ? t("profile.gravatar.saving") : t("profile.gravatar.save")}</button></div>
+        </Section>
+      </form>
+
+      <form onSubmit={saveMonthlyReport} className="h-full">
+        <Section id="notifications" title={t("profile.monthlyReport.title")} description={t("profile.monthlyReport.description")}>
+          <label className={labelClass} htmlFor="profile-monthly-report">{t("profile.monthlyReport.label")}</label>
+          <select
+            id="profile-monthly-report"
+            className={fieldClass}
+            value={monthlyReportEnabled ? "on" : "off"}
+            disabled={!monthlyReportAvailable}
+            onChange={(event) => setMonthlyReportEnabled(event.target.value === "on")}
+          >
+            <option value="on">{t("profile.monthlyReport.on")}</option>
+            <option value="off">{t("profile.monthlyReport.off")}</option>
+          </select>
+          {!monthlyReportAvailable && <p className="mt-2 text-sm text-fb-muted">{t("profile.monthlyReport.unavailable")}</p>}
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <Link to="/reports/monthly" className="inline-flex items-center rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold hover:border-fb-accent">{t("profile.monthlyReport.view")}</Link>
+            {monthlyReportAvailable && features.monthlyReportSendNow && (
+              <button type="button" onClick={sendMonthlyReportNow} disabled={saving === "monthly-report-send"} className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold hover:border-fb-accent disabled:opacity-60">
+                {saving === "monthly-report-send" ? t("profile.monthlyReport.sending") : t("profile.monthlyReport.sendNow")} <span className="ml-1 rounded-full bg-fb-warn-soft px-2 py-0.5 text-xs font-semibold text-fb-warn">dev</span>
+              </button>
+            )}
+            <button type="submit" disabled={!monthlyReportAvailable || saving === "monthly-report"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "monthly-report" ? t("common.saving") : t("common.save")}</button>
+          </div>
         </Section>
       </form>
 
