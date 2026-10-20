@@ -1,6 +1,7 @@
 import { Router } from "express";
 
-import { badRequest } from "../lib/errors.js";
+import { config } from "../config.js";
+import { badRequest, notFound } from "../lib/errors.js";
 import { objectBody } from "../lib/validation.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
@@ -20,10 +21,14 @@ reportRoutes.get(
   }),
 );
 
-// Bericht sofort an die eigene Adresse senden, auch für einen leeren Monat
+// Bericht sofort an die eigene Adresse senden, auch für einen leeren Monat.
+// Nur im dev-Image (Testen/Debuggen), sonst 404 wie andere Vorschaufunktionen.
 reportRoutes.post(
   "/monthly/send",
   asyncHandler(async (request, response) => {
+    if (!config.features.monthlyReportSendNow) {
+      throw notFound("FEATURE_DISABLED", "Das sofortige Senden des Monatsberichts ist nur im dev-Image verfügbar.");
+    }
     if (!isMailConfigured()) {
       throw badRequest("MAIL_NOT_CONFIGURED", "Auf diesem Server ist kein E-Mail-Versand eingerichtet.");
     }

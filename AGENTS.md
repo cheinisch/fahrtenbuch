@@ -49,7 +49,7 @@ The backend needs `POSTGRES_*` and `JWT_SECRET`/`JWT_ACCESS_SECRET`; `DEFAULT_AD
 - **Errors:** throw `badRequest("CODE", "message")` etc.; user-facing messages are German.
 - **Trip categories:** `type` is `business|private|commute|unclassified`; `special_category` is a second level (see `SPECIAL_CATEGORIES`). Category-only changes go through `PUT /trips/{id}/classify`.
 - **Frontend texts:** add keys to every language file – see *Translations* below.
-- **Preview features:** new features can be limited to the `:dev` image via `config.features` (default on when `APP_CHANNEL=dev`, override with `FEATURE_<NAME>`). The API returns 404 `FEATURE_DISABLED`; clients read `features` from `GET /config/services` (web: `useFeatures()`). Currently: `expenses`.
+- **Preview features:** new features can be limited to the `:dev` image via `config.features` (default on when `APP_CHANNEL=dev`, override with `FEATURE_<NAME>`). The API returns 404 `FEATURE_DISABLED`; clients read `features` from `GET /config/services` (web: `useFeatures()`). Currently: `expenses`, `monthlyReportSendNow` (send the monthly report immediately, for testing).
 - Comments are mostly German; either language is fine – keep them short and explain *why*.
 
 ## Translations

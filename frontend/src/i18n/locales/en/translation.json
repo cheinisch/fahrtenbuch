@@ -737,6 +737,13 @@
 
   // ===== Monthly report =====
   "monthlyReport": {
+    "subscription": {
+      "label": "Monthly report by e-mail",
+      "on": "Arrives at your e-mail address on the first of each month.",
+      "off": "Turned off – you won't receive monthly reports by e-mail.",
+      "unavailable": "E-mail sending is not set up on this server."
+    },
+    "sendNowHint": "dev image only: sends the month shown right away, for testing.",
     "title": "Monthly report {month}",
     "previous": "Previous month",
     "next": "Next month",
@@ -807,8 +814,7 @@
     },
     "sendNow": "Send by e-mail now",
     "sending": "Sending …",
-    "sent": "The report was sent to {email}.",
-    "settings": "Monthly report settings"
+    "sent": "The report was sent to {email}."
   },
 
   // ===== Export =====

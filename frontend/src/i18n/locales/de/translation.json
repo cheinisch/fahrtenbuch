@@ -738,6 +738,13 @@
 
   // ===== Monatsbericht =====
   "monthlyReport": {
+    "subscription": {
+      "label": "Monatsbericht per E-Mail",
+      "on": "Kommt am Monatsersten an deine E-Mail-Adresse.",
+      "off": "Ausgeschaltet – du bekommst keine Monatsberichte per E-Mail.",
+      "unavailable": "Auf diesem Server ist kein E-Mail-Versand eingerichtet."
+    },
+    "sendNowHint": "Nur im dev-Image: sendet den angezeigten Monat sofort, zum Testen.",
     "title": "Monatsbericht {month}",
     "previous": "Vorheriger Monat",
     "next": "Nächster Monat",
@@ -808,8 +815,7 @@
     },
     "sendNow": "Jetzt per E-Mail senden",
     "sending": "Wird gesendet …",
-    "sent": "Der Bericht wurde an {email} gesendet.",
-    "settings": "Einstellungen zum Monatsbericht"
+    "sent": "Der Bericht wurde an {email} gesendet."
   },
 
   // ===== Export =====

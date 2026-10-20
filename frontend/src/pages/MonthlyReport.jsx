@@ -8,9 +8,12 @@ import {
   getMonthlyReport,
   getPersonalSettings,
   sendMonthlyReport,
+  updatePersonalSettings,
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
+import { WizardToggle } from "../components/wizard/WizardFrame.jsx";
 import { useI18n } from "../i18n/I18nProvider.jsx";
+import { useFeatures } from "../lib/features.jsx";
 import { DEFAULT_ROUTE_COLORS } from "../lib/routeColors.js";
 
 // Monatsbericht in der Web-App: gleicher Aufbau wie die Mail am Monatsersten,
@@ -122,7 +125,10 @@ export default function MonthlyReport() {
   const [error, setError] = useState("");
   const [busyTrip, setBusyTrip] = useState("");
   const [openPlace, setOpenPlace] = useState(requestedPlace);
+  const { features } = useFeatures();
   const [mailAvailable, setMailAvailable] = useState(false);
+  const [reportEnabled, setReportEnabled] = useState(true);
+  const [toggleState, setToggleState] = useState({ busy: false, error: "" });
   const [sendState, setSendState] = useState({ busy: false, message: "", error: "" });
 
   const load = useCallback(async () => {
@@ -141,7 +147,10 @@ export default function MonthlyReport() {
 
   useEffect(() => {
     getPersonalSettings(accessToken)
-      .then((result) => setMailAvailable(result?.settings?.monthlyReportAvailable === true))
+      .then((result) => {
+        setMailAvailable(result?.settings?.monthlyReportAvailable === true);
+        setReportEnabled(result?.settings?.monthlyReportEnabled !== false);
+      })
       .catch(() => {});
   }, [accessToken]);
 
@@ -183,6 +192,19 @@ export default function MonthlyReport() {
       setError(assignError.message);
     } finally {
       setBusyTrip("");
+    }
+  }
+
+  async function toggleReport(next) {
+    setToggleState({ busy: true, error: "" });
+    setReportEnabled(next);
+    try {
+      const updated = await updatePersonalSettings(accessToken, { monthlyReportEnabled: next });
+      setReportEnabled(updated.monthlyReportEnabled !== false);
+      setToggleState({ busy: false, error: "" });
+    } catch (toggleError) {
+      setReportEnabled(!next);
+      setToggleState({ busy: false, error: toggleError.message });
     }
   }
 
@@ -429,15 +451,35 @@ export default function MonthlyReport() {
             </section>
           )}
 
-          <div className="flex flex-wrap items-center gap-3 border-t border-fb-border pt-5">
-            {mailAvailable && (
-              <button type="button" onClick={sendNow} disabled={sendState.busy} className="h-11 rounded-lg border border-fb-border px-4 text-sm font-semibold hover:border-fb-accent disabled:opacity-60">
-                {sendState.busy ? t("monthlyReport.sending") : t("monthlyReport.sendNow")}
-              </button>
+          <div className="space-y-3 border-t border-fb-border pt-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-sm font-semibold">{t("monthlyReport.subscription.label")}</div>
+                <div className="mt-0.5 text-sm text-fb-muted">
+                  {!mailAvailable
+                    ? t("monthlyReport.subscription.unavailable")
+                    : reportEnabled ? t("monthlyReport.subscription.on") : t("monthlyReport.subscription.off")}
+                </div>
+              </div>
+              <WizardToggle
+                checked={mailAvailable && reportEnabled}
+                onChange={toggleReport}
+                disabled={!mailAvailable || toggleState.busy}
+                label={t("monthlyReport.subscription.label")}
+              />
+            </div>
+            {toggleState.error && <p role="alert" className="text-sm text-fb-danger">{toggleState.error}</p>}
+            {mailAvailable && features.monthlyReportSendNow && (
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="button" onClick={sendNow} disabled={sendState.busy} className="inline-flex h-11 items-center gap-2 rounded-lg border border-fb-border px-4 text-sm font-semibold hover:border-fb-accent disabled:opacity-60">
+                  {sendState.busy ? t("monthlyReport.sending") : t("monthlyReport.sendNow")}
+                  <span className="rounded-full bg-fb-warn-soft px-2 py-0.5 text-xs font-semibold text-fb-warn">dev</span>
+                </button>
+                <span className="text-xs text-fb-muted">{t("monthlyReport.sendNowHint")}</span>
+                {sendState.message && <span className="text-sm text-fb-accent-strong">{sendState.message}</span>}
+                {sendState.error && <span role="alert" className="text-sm text-fb-danger">{sendState.error}</span>}
+              </div>
             )}
-            <Link to="/profilesettings?tab=units#section-notifications" className="text-sm font-semibold text-fb-accent-strong hover:underline">{t("monthlyReport.settings")}</Link>
-            {sendState.message && <span className="text-sm text-fb-accent-strong">{sendState.message}</span>}
-            {sendState.error && <span role="alert" className="text-sm text-fb-danger">{sendState.error}</span>}
           </div>
         </div>
       </div>

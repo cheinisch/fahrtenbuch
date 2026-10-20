@@ -50,6 +50,7 @@ import UserDataTransfer from "../components/UserDataTransfer.jsx";
 import { DEFAULT_ROUTE_COLORS } from "../lib/routeColors.js";
 import PageHeader from "../components/PageHeader.jsx";
 import { GRAVATAR_SETTING_EVENT } from "../lib/gravatar.js";
+import { useFeatures } from "../lib/features.jsx";
 
 // Gruppen der Abschnittsnavigation (wie im Mockup); der Anker zeigt auf den
 // ersten Abschnitt der Gruppe, SECTION_GROUP ordnet jeden Abschnitt zu.
@@ -129,6 +130,7 @@ const labelClass =
 
 export default function ProfileSettings() {
   const { t, locale } = useI18n();
+  const { features } = useFeatures();
 
   const {
     accessToken,
@@ -2442,9 +2444,9 @@ export default function ProfileSettings() {
           {!monthlyReportAvailable && <p className="mt-2 text-sm text-fb-muted">{t("profile.monthlyReport.unavailable")}</p>}
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             <Link to="/reports/monthly" className="inline-flex items-center rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold hover:border-fb-accent">{t("profile.monthlyReport.view")}</Link>
-            {monthlyReportAvailable && (
+            {monthlyReportAvailable && features.monthlyReportSendNow && (
               <button type="button" onClick={sendMonthlyReportNow} disabled={saving === "monthly-report-send"} className="rounded-lg border border-fb-border px-4 py-2.5 text-sm font-semibold hover:border-fb-accent disabled:opacity-60">
-                {saving === "monthly-report-send" ? t("profile.monthlyReport.sending") : t("profile.monthlyReport.sendNow")}
+                {saving === "monthly-report-send" ? t("profile.monthlyReport.sending") : t("profile.monthlyReport.sendNow")} <span className="ml-1 rounded-full bg-fb-warn-soft px-2 py-0.5 text-xs font-semibold text-fb-warn">dev</span>
               </button>
             )}
             <button type="submit" disabled={!monthlyReportAvailable || saving === "monthly-report"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "monthly-report" ? t("common.saving") : t("common.save")}</button>

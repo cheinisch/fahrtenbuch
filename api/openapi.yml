@@ -2614,6 +2614,10 @@ paths:
     post:
       tags: [Reports]
       summary: Send the monthly report to the own e-mail address now
+      description: |
+        Zum Testen und Debuggen: sendet den Bericht sofort, auch für einen leeren
+        Monat. Nur verfügbar, wenn `features.monthlyReportSendNow` aktiv ist
+        (Standard im dev-Image, sonst 404 FEATURE_DISABLED).
       requestBody:
         required: false
         content:
@@ -2634,6 +2638,7 @@ paths:
                   to: { type: [string, 'null'], format: email }
                   month: { type: string }
         '400': { description: "MAIL_NOT_CONFIGURED, MAIL_SEND_FAILED oder VALIDATION_ERROR" }
+        '404': { description: FEATURE_DISABLED }
 
   /places:
     get:
@@ -3079,6 +3084,7 @@ components:
           description: Serverseitig aktivierte Funktionen. Fehlt ein Schlüssel, gilt die Funktion als nicht verfügbar.
           properties:
             expenses: { type: boolean, description: Kostenerfassung (/expenses). Derzeit nur im dev-Image aktiv. }
+            monthlyReportSendNow: { type: boolean, description: "POST /reports/monthly/send verfügbar (Monatsbericht sofort senden, zum Testen). Standard nur im dev-Image." }
         channel: { type: string, enum: [dev, release] }
         setup:
           type: object

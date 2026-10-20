@@ -203,6 +203,8 @@ export const config = Object.freeze({
   // Neue Funktionen erscheinen zuerst nur im dev-Kanal; per Umgebungsvariable übersteuerbar
   features: {
     expenses: booleanValue("FEATURE_EXPENSES", appChannel === "dev"),
+    // Monatsbericht sofort per Mail anfordern – zum Testen und Debuggen, nur im dev-Kanal
+    monthlyReportSendNow: booleanValue("FEATURE_MONTHLY_REPORT_SEND_NOW", appChannel === "dev"),
   },
 
   publicBaseUrl,
