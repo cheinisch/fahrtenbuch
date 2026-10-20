@@ -34,6 +34,7 @@ import {
   testService,
 } from "../services/geocodingService.js";
 import {
+  enqueueMapMatch,
   listMatchingIssues,
   mapMatchingSummary,
   selectTripsForMatching,
@@ -1897,15 +1898,7 @@ adminRoutes.post("/jobs/map-matching", asyncHandler(async (request, response) =>
   const trips = await selectTripsForMatching(mode, limit);
   let queued = 0;
   for (const trip of trips) {
-    const lock = "fahrtenbuch:jobs:mapmatch:" + trip.id;
-    if (await redisCommand("SET", lock, "1", "NX", "EX", 6 * 3600) !== "OK") continue;
-    try {
-      await enqueueJob("trip.mapMatch", { tripId: trip.id, userId: trip.user_id });
-      queued++;
-    } catch (error) {
-      await redisCommand("DEL", lock).catch(() => {});
-      throw error;
-    }
+    if (await enqueueMapMatch(trip.id, trip.user_id)) queued++;
   }
   response.status(202).json({ queued, selected: trips.length, mode, provider: matching.provider });
 }));

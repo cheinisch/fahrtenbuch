@@ -66,7 +66,7 @@ const SETTINGS_GROUPS = [
 const SECTION_GROUP = {
   profile: "profile", language: "profile", country: "profile",
   home: "home", work: "home", recognition: "home", places: "home",
-  tracking: "tracking",
+  tracking: "tracking", mapMatching: "tracking",
   notifications: "notifications",
   credentials: "credentials", security: "credentials",
   devices: "devices",
@@ -211,6 +211,8 @@ export default function ProfileSettings() {
   const [gravatarAvailable, setGravatarAvailable] = useState(true);
   const [monthlyReportEnabled, setMonthlyReportEnabled] = useState(true);
   const [monthlyReportAvailable, setMonthlyReportAvailable] = useState(false);
+  const [autoMapMatching, setAutoMapMatching] = useState(false);
+  const [mapMatchingAvailable, setMapMatchingAvailable] = useState(false);
   const [speedUnit, setSpeedUnit] = useState("kmh");
 
   const [tracking, setTracking] = useState({
@@ -344,6 +346,8 @@ export default function ProfileSettings() {
       setGravatarAvailable(settingsResult.settings.gravatarAvailable !== false);
       setMonthlyReportEnabled(settingsResult.settings.monthlyReportEnabled !== false);
       setMonthlyReportAvailable(settingsResult.settings.monthlyReportAvailable === true);
+      setAutoMapMatching(settingsResult.settings.autoMapMatchingEnabled === true);
+      setMapMatchingAvailable(settingsResult.settings.mapMatchingAvailable === true);
       setSpeedUnit(settingsResult.settings.speedUnit === "mph" ? "mph" : "kmh");
 
       setTracking({
@@ -828,6 +832,21 @@ export default function ProfileSettings() {
       const updated = await updatePersonalSettings(accessToken, { timeFormat });
       setTimeFormat(updated.timeFormat === "12h" ? "12h" : "24h");
       showSuccess(t("profile.time.saved"));
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function saveMapMatching(event) {
+    event.preventDefault();
+    setSaving("map-matching");
+    try {
+      const updated = await updatePersonalSettings(accessToken, { autoMapMatchingEnabled: autoMapMatching });
+      setAutoMapMatching(updated.autoMapMatchingEnabled === true);
+      setMapMatchingAvailable(updated.mapMatchingAvailable === true);
+      showSuccess(t("profile.mapMatching.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -2042,6 +2061,29 @@ export default function ProfileSettings() {
                 ? t("profile.page.saving")
                 : t("profile.tracking.save")}
             </button>
+          </div>
+        </Section>
+      </form>
+
+      <form onSubmit={saveMapMatching}>
+        <Section id="mapMatching" title={t("profile.mapMatching.title")} description={t("profile.mapMatching.description")}>
+          <label className={labelClass} htmlFor="profile-map-matching">{t("profile.mapMatching.label")}</label>
+          <select
+            id="profile-map-matching"
+            className={fieldClass}
+            value={autoMapMatching ? "on" : "off"}
+            disabled={!mapMatchingAvailable}
+            aria-describedby="profile-map-matching-hint"
+            onChange={(event) => setAutoMapMatching(event.target.value === "on")}
+          >
+            <option value="on">{t("profile.mapMatching.on")}</option>
+            <option value="off">{t("profile.mapMatching.off")}</option>
+          </select>
+          <p id="profile-map-matching-hint" className="mt-2 text-sm text-fb-muted">
+            {mapMatchingAvailable ? t("profile.mapMatching.hint") : t("profile.mapMatching.unavailable")}
+          </p>
+          <div className="mt-6 flex justify-end">
+            <button type="submit" disabled={!mapMatchingAvailable || saving === "map-matching"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "map-matching" ? t("common.saving") : t("common.save")}</button>
           </div>
         </Section>
       </form>

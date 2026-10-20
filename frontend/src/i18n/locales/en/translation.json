@@ -901,6 +901,16 @@
       "saved": "The monthly report setting has been saved.",
       "sent": "The monthly report was sent to {email}."
     },
+    "mapMatching": {
+      "title": "Map matching",
+      "description": "Snaps every uploaded trip to the road network automatically. Gaps in the GPS recording are closed along the road, making the distance more accurate. Raw GPS points are kept.",
+      "label": "Match automatically after each upload",
+      "on": "Enabled",
+      "off": "Disabled",
+      "hint": "Applies to trips uploaded by the app when they end and to GPX imports. Older trips can be matched by an administrator under Background jobs.",
+      "unavailable": "Map matching is not set up on this server. An administrator can enable it under Administration → Geocoding.",
+      "saved": "The map matching setting was saved."
+    },
     "page": {
       "title": "Profile settings",
       "heading": "Personal settings",

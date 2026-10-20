@@ -6,6 +6,54 @@ import {
   resolveMapMatching,
 } from "./serviceSettingsService.js";
 import { appendTripHistory } from "./tripService.js";
+import { enqueueJob } from "../jobs/queue.js";
+import { redisCommand } from "../jobs/redisClient.js";
+
+const LOCK_PREFIX = "fahrtenbuch:jobs:mapmatch:";
+
+/**
+ * Eine Fahrt zum Map-Matching einreihen. Die Redis-Sperre verhindert, dass
+ * dieselbe Fahrt doppelt in der Warteschlange landet (gibt dann false zurück).
+ */
+export async function enqueueMapMatch(tripId, userId) {
+  const lock = LOCK_PREFIX + tripId;
+  if (await redisCommand("SET", lock, "1", "NX", "EX", 6 * 3600) !== "OK") return false;
+  try {
+    await enqueueJob("trip.mapMatch", { tripId, userId });
+    return true;
+  } catch (error) {
+    await redisCommand("DEL", lock).catch(() => {});
+    throw error;
+  }
+}
+
+/**
+ * Nach einem Upload (Fahrtende in der App, GPX-Import): Fahrten automatisch
+ * matchen, wenn der Benutzer es eingeschaltet hat und ein Dienst eingerichtet
+ * ist. Fehler werden nur protokolliert – der Upload selbst darf nie scheitern.
+ */
+export async function queueAutoMapMatching(userId, tripIds) {
+  const ids = [...new Set((tripIds || []).filter(Boolean))];
+  if (!ids.length) return 0;
+
+  try {
+    const optIn = await pool.query(
+      `SELECT 1 FROM user_settings WHERE user_id = $1 AND settings ->> 'autoMapMatchingEnabled' = 'true'`,
+      [userId],
+    );
+    if (!optIn.rowCount) return 0;
+    if (!resolveMapMatching(await getAdminServiceSettings()).enabled) return 0;
+
+    let queued = 0;
+    for (const tripId of ids) {
+      if (await enqueueMapMatch(tripId, userId)) queued += 1;
+    }
+    return queued;
+  } catch (error) {
+    console.warn("Automatisches Map-Matching konnte nicht eingereiht werden:", error.message);
+    return 0;
+  }
+}
 
 // Atlas nimmt bis 10 000 Punkte; Valhallas Standardlimit (max_shape) liegt darüber.
 const MAX_POINTS = { atlas: 10_000, valhalla: 10_000, osrm: 100 };

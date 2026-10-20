@@ -26,6 +26,7 @@ import {
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { getUserSettings } from "../services/userSettingsService.js";
+import { queueAutoMapMatching } from "../services/mapMatchingService.js";
 import { getCountryExport, listCountryExports } from "../services/countryExports/index.js";
 
 export const exportRoutes = Router();
@@ -1155,6 +1156,8 @@ importRoutes.post(
       }
 
       await client.query("COMMIT");
+      // Nach dem Commit: Warteschlangenfehler dürfen den Import nicht zurückrollen
+      await queueAutoMapMatching(request.auth.userId, results.map((trip) => trip.id));
       response.json({
         importedTrips: results.length,
         trips: results,

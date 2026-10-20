@@ -902,6 +902,16 @@
       "saved": "Die Einstellung zum Monatsbericht wurde gespeichert.",
       "sent": "Der Monatsbericht wurde an {email} gesendet."
     },
+    "mapMatching": {
+      "title": "Map-Matching",
+      "description": "Legt jede hochgeladene Fahrt automatisch auf das Straßennetz. Lücken in der GPS-Aufzeichnung werden entlang der Straße geschlossen, die Distanz wird genauer. Die GPS-Rohpunkte bleiben erhalten.",
+      "label": "Nach jedem Upload automatisch matchen",
+      "on": "Aktiviert",
+      "off": "Deaktiviert",
+      "hint": "Gilt für Fahrten, die die App nach Fahrtende hochlädt, und für GPX-Importe. Ältere Fahrten matcht ein Administrator unter Hintergrundaufgaben.",
+      "unavailable": "Auf diesem Server ist kein Map-Matching eingerichtet. Ein Administrator kann es unter Administration → Geocoding aktivieren.",
+      "saved": "Die Einstellung zum Map-Matching wurde gespeichert."
+    },
     "page": {
       "title": "Profileinstellungen",
       "heading": "Persönliche Einstellungen",

@@ -1,5 +1,7 @@
 import { pool } from "../database/pool.js";
+import { badRequest } from "../lib/errors.js";
 import { isGravatarEnabled, isMailConfigured } from "./systemSettingsService.js";
+import { getAdminServiceSettings, resolveMapMatching } from "./serviceSettingsService.js";
 
 const DEFAULT_USER_SETTINGS = Object.freeze({
   automaticTrackingEnabled: false,
@@ -63,6 +65,10 @@ export function mapUserSettings(row) {
     // Monatsbericht per E-Mail (Standard: an); nur wählbar, wenn SMTP eingerichtet ist
     monthlyReportEnabled: customSettings.monthlyReportEnabled !== false,
     monthlyReportAvailable: isMailConfigured(),
+    // Map-Matching nach jedem Upload (Standard: aus); verfügbar nur, wenn ein
+    // Admin einen Dienst eingerichtet hat – wird in withAvailability ergänzt
+    autoMapMatchingEnabled: customSettings.autoMapMatchingEnabled === true,
+    mapMatchingAvailable: false,
 
     customSettings,
 
@@ -85,6 +91,17 @@ export async function ensureUserSettings(
   );
 }
 
+/** Ergänzt Angaben, die eine Datenbankabfrage brauchen (Admin-Dienste). */
+async function withAvailability(settings, client = pool) {
+  let available = false;
+  try {
+    available = resolveMapMatching(await getAdminServiceSettings(client)).enabled;
+  } catch (error) {
+    console.warn("Map-Matching-Verfügbarkeit nicht ermittelbar:", error.message);
+  }
+  return { ...settings, mapMatchingAvailable: available };
+}
+
 export async function getUserSettings(
   userId,
   client = pool,
@@ -101,7 +118,7 @@ export async function getUserSettings(
     [userId],
   );
 
-  return mapUserSettings(result.rows[0]);
+  return withAvailability(mapUserSettings(result.rows[0]), client);
 }
 
 export async function updateUserSettings(
@@ -110,6 +127,10 @@ export async function updateUserSettings(
   client = pool,
 ) {
   const input = isObject(body) ? body : {};
+
+  if (input.autoMapMatchingEnabled !== undefined && typeof input.autoMapMatchingEnabled !== "boolean") {
+    throw badRequest("VALIDATION_ERROR", "autoMapMatchingEnabled muss true oder false sein.");
+  }
 
   const knownKeys = new Set([
     "automaticTrackingEnabled",
@@ -120,6 +141,10 @@ export async function updateUserSettings(
     "customSettings",
     "createdAt",
     "updatedAt",
+    // Nur zur Anzeige, nie speichern
+    "gravatarAvailable",
+    "monthlyReportAvailable",
+    "mapMatchingAvailable",
   ]);
 
   const customInput = isObject(
@@ -231,5 +256,5 @@ export async function updateUserSettings(
     ],
   );
 
-  return mapUserSettings(result.rows[0]);
+  return withAvailability(mapUserSettings(result.rows[0]), client);
 }

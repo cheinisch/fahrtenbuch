@@ -26,6 +26,7 @@ import {
   replaceTripTags,
 } from "../services/tripService.js";
 import { reconcileCompletedTracking } from "../services/trackingReconciliationService.js";
+import { queueAutoMapMatching } from "../services/mapMatchingService.js";
 import { enqueueJob } from "../jobs/queue.js";
 
 export const trackingRoutes = Router();
@@ -463,6 +464,8 @@ trackingRoutes.post(
       await client.query("COMMIT");
       // Queue after commit: Redis outages must not undo a completed trip.
       await enqueueJob("trip.reverseGeocode", { tripId, userId: request.auth.userId }).catch((error) => console.warn("Trip geocoding enqueue failed:", error));
+      // Optional pro Benutzer: nach dem Upload auf die Straße legen
+      await queueAutoMapMatching(request.auth.userId, [tripId]);
       response.json({
         ...mapTrip(result.rows[0]),
         reconciliation,

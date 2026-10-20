@@ -3191,6 +3191,14 @@ components:
           type: boolean
           readOnly: true
           description: False when the server has no SMTP configuration; the monthly report is not sent then.
+        autoMapMatchingEnabled:
+          type: boolean
+          default: false
+          description: Snap each uploaded trip to the road network automatically (after POST /tracking/stop and GPX import). Only takes effect while mapMatchingAvailable is true. Can be changed via PATCH.
+        mapMatchingAvailable:
+          type: boolean
+          readOnly: true
+          description: True when an administrator has set up a map matching service (Valhalla, OSRM or Dawarich Atlas).
       additionalProperties: true
     MonthlyReport:
       type: object
