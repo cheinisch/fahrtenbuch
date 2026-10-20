@@ -1,6 +1,7 @@
 import { pool } from "../database/pool.js";
 import { resolveTripEndpointAddresses } from "../services/tripAddressService.js";
 import { matchTrip } from "../services/mapMatchingService.js";
+import { runMonthlyReportJob, scheduleDueMonthlyReports } from "../services/monthlyReportDelivery.js";
 import { enqueueJob, reserveJob, acknowledgeJob, retryJob, failJob, recoverAndPromote, promoteDueJobs } from "./queue.js";
 import { redisCommand } from "./redisClient.js";
 
@@ -17,6 +18,9 @@ const handlers = {
       // Sperre erst nach dem letzten Versuch freigeben, sonst erneut einreihbar
       await redisCommand("DEL", "fahrtenbuch:jobs:mapmatch:" + tripId).catch(() => {});
     }
+  },
+  "report.monthly": async ({ userId, month }) => {
+    await runMonthlyReportJob({ userId, month });
   },
   "trip.archivePurge": async () => {
     const result = await pool.query("DELETE FROM trips WHERE archived_at IS NOT NULL AND archived_at < now() - interval '90 days'");
@@ -48,12 +52,19 @@ async function main() {
   await recoverAndPromote();
   let nextScan = 0;
   let nextPurge = 0;
+  let nextReports = 0;
   while (running) {
     try {
       await promoteDueJobs();
       if (Date.now() >= nextScan) {
         await backfillAddresses();
         nextScan = Date.now() + 15 * 60 * 1000;
+      }
+      if (Date.now() >= nextReports) {
+        // Monatsberichte: alle 15 Minuten prüfen, wer laut Ortszeit fällig ist
+        const queued = await scheduleDueMonthlyReports(enqueueJob);
+        if (queued) console.info("Monatsberichte eingereiht:", queued);
+        nextReports = Date.now() + 15 * 60 * 1000;
       }
       if (Date.now() >= nextPurge) {
         await enqueueJob("trip.archivePurge", {});

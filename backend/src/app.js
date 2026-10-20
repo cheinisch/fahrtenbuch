@@ -25,6 +25,7 @@ import { healthRoutes } from "./routes/healthRoutes.js";
 import { mapRoutes } from "./routes/mapRoutes.js";
 import { odometerRoutes } from "./routes/odometerRoutes.js";
 import { placeRoutes } from "./routes/placeRoutes.js";
+import { reportRoutes } from "./routes/reportRoutes.js";
 import {
   exportRoutes,
   importRoutes,
@@ -184,6 +185,7 @@ app.use("/api/v1/vehicles", vehicleRoutes);
 app.use("/api/v1/odometer", odometerRoutes);
 app.use("/api/v1/expenses", expenseRoutes);
 app.use("/api/v1/places", placeRoutes);
+app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/trips", tripRoutes);
 app.use("/api/v1/tracking", trackingRoutes);
 app.use("/api/v1/tags", tagRoutes);

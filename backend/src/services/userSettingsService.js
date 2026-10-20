@@ -1,5 +1,5 @@
 import { pool } from "../database/pool.js";
-import { isGravatarEnabled } from "./systemSettingsService.js";
+import { isGravatarEnabled, isMailConfigured } from "./systemSettingsService.js";
 
 const DEFAULT_USER_SETTINGS = Object.freeze({
   automaticTrackingEnabled: false,
@@ -60,6 +60,9 @@ export function mapUserSettings(row) {
     // Persönliche Wahl (Standard: an) und ob die Instanz Gravatar überhaupt erlaubt
     gravatarEnabled: customSettings.gravatarEnabled !== false,
     gravatarAvailable: isGravatarEnabled(),
+    // Monatsbericht per E-Mail (Standard: an); nur wählbar, wenn SMTP eingerichtet ist
+    monthlyReportEnabled: customSettings.monthlyReportEnabled !== false,
+    monthlyReportAvailable: isMailConfigured(),
 
     customSettings,
 

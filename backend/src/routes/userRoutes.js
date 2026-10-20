@@ -411,6 +411,11 @@ userRoutes.patch(
     // Nur zur Anzeige, wird nicht gespeichert
     delete body.gravatarAvailable;
 
+    if (body.monthlyReportEnabled !== undefined && typeof body.monthlyReportEnabled !== "boolean") {
+      throw badRequest("VALIDATION_ERROR", "monthlyReportEnabled muss true oder false sein.");
+    }
+    delete body.monthlyReportAvailable;
+
     if (body.distanceUnit !== undefined && !["km", "mi"].includes(body.distanceUnit)) {
       throw badRequest("VALIDATION_ERROR", "Die Entfernungseinheit muss km oder mi sein.");
     }
