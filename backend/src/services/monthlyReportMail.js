@@ -179,7 +179,7 @@ export function reportLinks(baseUrl, month) {
     assign: `${page}#open-trips`,
     place: (key) => `${page}&place=${encodeURIComponent(key)}#new-places`,
     trip: (id) => `${base}/?trip=${encodeURIComponent(id)}`,
-    profile: `${base}/profilesettings?tab=units#section-notifications`,
+    profile: `${base}/profilesettings#section-notifications`,
   };
 }
 

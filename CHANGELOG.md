@@ -8,7 +8,7 @@ commits are not listed.
 ## [Unreleased]
 
 ### Added
-- **Monthly report by e-mail** on the first of each month (06:00 local time, caught up until the 7th): all own and shared vehicles in one mail (shared ones with your own trips only), open trips waiting for a category, and places visited for the first time that month. Requires SMTP; each user can turn it off under Profile › Units & formats. Each report is sent once per user and month.
+- **Monthly report by e-mail** on the first of each month (06:00 local time, caught up until the 7th): all own and shared vehicles in one mail (shared ones with your own trips only), open trips waiting for a category, and places visited for the first time that month. Requires SMTP; each user can turn it off under Profile › Notifications. Each report is sent once per user and month.
 - **Monthly report page** in the web app (Statistics › Monthly report) with the same content: assign open trips and save new places directly, and switch the e-mail on or off. `GET /reports/monthly`.
 - "Send monthly report now" for testing, in the `:dev` image only (`FEATURE_MONTHLY_REPORT_SEND_NOW`, `POST /reports/monthly/send`).
 - **Setup assistant** on the first admin sign-in of a fresh installation: language, own admin password, server status (public address, passkeys, time zone), e-mail, geocoding, sign-in & privacy, first vehicle and pairing the Android app.
