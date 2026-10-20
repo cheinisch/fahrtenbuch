@@ -1127,6 +1127,10 @@
     "eyebrow": "Administration",
     "subtitle": "Central defaults, user accounts, geocoding, background jobs and the full system backup.",
     "tabSystem": "Overview and system",
+    "tabMail": "E-mail",
+    "gravatar": "Allow Gravatar profile pictures",
+    "gravatarHint": "A hash of the e-mail address is sent to gravatar.com. Users can additionally turn it off in their profile.",
+    "gravatarFromEnv": "Currently taken from .env (GRAVATAR_ENABLED) – saving stores the value in the database.",
     "tabUsers": "User management",
     "tabGeocoding": "Geocoding",
     "tabJobs": "Background jobs",
@@ -1459,6 +1463,245 @@
       "revokeHint": "All refresh sessions of the account are revoked. For your own account, the current session is kept.",
       "revokeAll": "Sign out all sessions",
       "saveChanges": "Save changes"
+    }
+  },
+  "mailSettings": {
+    "title": "Sending e-mail (SMTP)",
+    "subtitle": "Used for vehicle sharing by e-mail. SMTP is set up in .env; here you see what was detected and can send a test e-mail.",
+    "host": "SMTP server",
+    "security": "Encryption",
+    "username": "Username",
+    "fromAddress": "Sender",
+    "notSet": "Not set",
+    "test": "Send test e-mail",
+    "testSending": "Sending …",
+    "testHint": "Goes to {email}.",
+    "testSent": "The test e-mail was sent to {email}.",
+    "fromMissing": "SMTP_HOST is set but SMTP_FROM is missing – no e-mails are sent without a sender address.",
+    "withoutSmtp": "No SMTP server set up: vehicle sharing by e-mail is hidden. Sharing by link keeps working.",
+    "envHint": "To set up or change it, set SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD and SMTP_FROM (optionally SMTP_FROM_NAME) in .env and restart the container."
+  },
+
+  // ===== Setup assistants (initial setup, first sign-in) =====
+  "wizard": {
+    "optional": "optional",
+    "stepOf": "Step {current} of {total}",
+    "progress": "Setup progress",
+    "steps": "Setup steps",
+    "back": "Back",
+    "next": "Continue",
+    "skip": "Set up later",
+    "password": {
+      "current": "Current password",
+      "new": "New password",
+      "repeat": "Repeat password",
+      "hint": "At least 8 characters.",
+      "currentMissing": "Please enter the current password.",
+      "tooShort": "The new password must be at least 8 characters long.",
+      "mismatch": "The passwords do not match.",
+      "unchanged": "The new password must differ from the previous one."
+    },
+    "vehicles": {
+      "own": "Own vehicle",
+      "sharedBadge": "Co-user",
+      "defaultBadge": "Default",
+      "makeDefault": "Set as default",
+      "none": "No vehicles yet.",
+      "add": "Add vehicle",
+      "addAnother": "Add another vehicle"
+    },
+    "app": {
+      "title": "Connect the Android app",
+      "text": "Enter this server address in the app or pair your phone directly via QR code.",
+      "pair": "Pair device via QR code",
+      "paired": "Device paired"
+    }
+  },
+  "setup": {
+    "title": "Initial server setup",
+    "steps": {
+      "welcome": {
+        "label": "Welcome",
+        "hint": "Language & overview"
+      },
+      "account": {
+        "label": "Administrator",
+        "hint": "Secure access"
+      },
+      "server": {
+        "label": "Server",
+        "hint": "Address & region"
+      },
+      "mail": {
+        "label": "E-mail",
+        "hint": "SMTP · optional"
+      },
+      "geocoding": {
+        "label": "Geocoding",
+        "hint": "Addresses & routes"
+      },
+      "login": {
+        "label": "Sign-in",
+        "hint": "Accounts & privacy"
+      },
+      "vehicle": {
+        "label": "First vehicle",
+        "hint": "optional"
+      },
+      "done": {
+        "label": "Done",
+        "hint": "Summary"
+      }
+    },
+    "welcome": {
+      "eyebrow": "Welcome",
+      "title": "Your Fahrtenbuch server is up and running.",
+      "text": "Before you start, let's set up everything you need in a few minutes. You can skip optional steps and finish them later in the administration.",
+      "language": "Interface language",
+      "requiredTitle": "Required",
+      "requiredText": "Administrator access, server address, geocoding",
+      "optionalTitle": "Optional",
+      "optionalText": "Sending e-mail (via .env), Gravatar, first vehicle",
+      "start": "Start setup"
+    },
+    "account": {
+      "title": "Administrator access",
+      "textForced": "You signed in with the initial credentials from the Docker configuration. Set your own password now – the initial password becomes invalid afterwards.",
+      "text": "Check the name and e-mail address of your account. Changing the password here is optional.",
+      "displayName": "Name",
+      "email": "E-mail address",
+      "emailRequired": "Please enter an e-mail address.",
+      "passwordTitleForced": "Set your own password",
+      "passwordTitle": "Change password (optional)",
+      "startPassword": "Initial password",
+      "envHint": "You can remove the DEFAULT_ADMIN_* variables from your .env afterwards – an existing account is never overwritten."
+    },
+    "server": {
+      "title": "Server & region",
+      "text": "These values come from the Docker environment. The Android app and links in e-mails connect to your server via the public address.",
+      "publicUrl": "Public address",
+      "publicUrlHint": "PUBLIC_BASE_URL",
+      "passkeys": "Passkeys",
+      "passkeysHint": "WEBAUTHN_RP_ID must match the domain you open Fahrtenbuch on.",
+      "disabled": "Disabled",
+      "timezone": "Server time zone",
+      "channel": "Image",
+      "originMismatch": "Configured is {configured}, but you are using {current}. Behind a reverse proxy, set the external address as PUBLIC_BASE_URL, otherwise app sign-in and links in e-mails will not work.",
+      "envHint": "Change these values in .env and restart the container."
+    },
+    "mail": {
+      "title": "Sending e-mail",
+      "text": "Used for vehicle sharing by e-mail. You set up SMTP in .env – here you check that everything is detected and send a test e-mail."
+    },
+    "geocoding": {
+      "title": "Geocoding",
+      "text": "Turns GPS points into addresses and snaps trips to the road network. Photon is preconfigured with the public server – for more privacy you can use your own services."
+    },
+    "login": {
+      "title": "Sign-in & privacy",
+      "text": "Each user links external accounts in their own profile – there is no self-registration through them.",
+      "google": "Sign in with Google",
+      "microsoft": "Sign in with Microsoft",
+      "active": "Active",
+      "notConfigured": "Not set up",
+      "envHint": "Google and Microsoft are enabled via GOOGLE_OAUTH_* or MICROSOFT_OAUTH_* in .env. Redirect URI to register with the provider:",
+      "gravatar": "Allow Gravatar profile pictures",
+      "gravatarHint": "Applies to the whole instance. Users can additionally turn it off in their profile."
+    },
+    "vehicle": {
+      "title": "First vehicle",
+      "text": "This lets you record your first trip right away. Add more vehicles later under Vehicles."
+    },
+    "done": {
+      "eyebrow": "Done",
+      "title": "All set",
+      "text": "You can find all settings later in the administration.",
+      "finish": "Go to dashboard",
+      "account": "Administrator",
+      "accountOk": "Own password set",
+      "passwordPending": "Password change pending",
+      "mail": "E-mail",
+      "mailOk": "Set up",
+      "mailMissing": "Not set up – sharing by e-mail hidden",
+      "oauth": "External sign-in",
+      "passwordOnly": "Password only",
+      "gravatar": "Gravatar",
+      "gravatarOn": "Allowed",
+      "gravatarOff": "Off for the instance",
+      "vehicles": "Vehicles",
+      "vehicleCount": "{count} added",
+      "vehicleSkipped": "Skipped"
+    }
+  },
+  "onboarding": {
+    "title": "Set up your account",
+    "steps": {
+      "password": {
+        "label": "Password",
+        "hint": "Your own password"
+      },
+      "profile": {
+        "label": "Profile",
+        "hint": "Name & language"
+      },
+      "accounts": {
+        "label": "Link accounts",
+        "hint": "optional"
+      },
+      "vehicles": {
+        "label": "Vehicles",
+        "hint": "Shared & own"
+      },
+      "done": {
+        "label": "Done",
+        "hint": "Connect the app"
+      }
+    },
+    "password": {
+      "eyebrow": "Welcome",
+      "title": "Hi {name}, great to have you here.",
+      "titleOnly": "Set a new password",
+      "text": "An administrator created an account for you on this Fahrtenbuch server. First set your own password – the temporary password stops working afterwards.",
+      "textOnly": "An administrator has requested a password change for your account.",
+      "temporary": "Temporary password",
+      "notice": "This step cannot be skipped. You can change everything else later in your profile.",
+      "save": "Save password",
+      "saveOnly": "Save and continue to the app"
+    },
+    "profile": {
+      "eyebrow": "Welcome, {name}",
+      "title": "Your profile",
+      "text": "Taken over from the administrator – quickly check that everything is correct.",
+      "displayName": "Name",
+      "email": "E-mail address",
+      "emailHint": "Used for sign-in and vehicle sharing.",
+      "emailRequired": "Please enter an e-mail address.",
+      "gravatar": "Use Gravatar as profile picture",
+      "gravatarHint": "A hash of your e-mail address is sent to gravatar.com."
+    },
+    "accounts": {
+      "title": "Sign in faster",
+      "text": "Link an existing account to sign in to web and app without a password. Only providers enabled by your administrator are shown.",
+      "linkedAs": "Linked to {account}",
+      "link": "Link {provider} account"
+    },
+    "vehicles": {
+      "title": "Your vehicles",
+      "text": "These vehicles have already been shared with you. You can add your own vehicles right here and choose one as default for new trips."
+    },
+    "done": {
+      "eyebrow": "Done",
+      "title": "Ready for your first trip",
+      "text": "The easiest way to record trips on the go is the Android app.",
+      "finish": "Go to dashboard",
+      "password": "Password",
+      "passwordOk": "Own password set",
+      "accounts": "Linked accounts",
+      "noAccounts": "None",
+      "vehicles": "Vehicles",
+      "defaultVehicle": "Default: {vehicle}",
+      "vehicleCount": "{count} available",
+      "noVehicles": "None yet"
     }
   }
 }

@@ -9,6 +9,7 @@ import morgan from "morgan";
 
 import { config } from "./config.js";
 import { pool } from "./database/pool.js";
+import { isGravatarEnabled } from "./services/systemSettingsService.js";
 import { adminRoutes } from "./routes/adminRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { oauthRoutes } from "./routes/oauthRoutes.js";
@@ -74,10 +75,11 @@ app.use(
           "'self'",
           "data:",
           "blob:",
-          // Gravatar nur, wenn die Instanz es erlaubt (GRAVATAR_ENABLED)
-          ...(config.gravatarEnabled
-            ? ["https://www.gravatar.com", "https://secure.gravatar.com", "https://*.gravatar.com"]
-            : []),
+          // Gravatar nur, wenn die Instanz es erlaubt (Systemeinstellung, Fallback GRAVATAR_ENABLED).
+          // Pro Anfrage ausgewertet, damit das Umschalten ohne Neustart wirkt.
+          () => (isGravatarEnabled()
+            ? "https://www.gravatar.com https://secure.gravatar.com https://*.gravatar.com"
+            : "'self'"),
           "https://tile.openstreetmap.org",
         ],
         connectSrc: [

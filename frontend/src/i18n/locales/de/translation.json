@@ -1128,6 +1128,10 @@
     "eyebrow": "Administration",
     "subtitle": "Zentrale Vorgaben, Benutzerkonten, Geocoding, Hintergrundaufgaben und das vollständige System-Backup.",
     "tabSystem": "Übersicht und System",
+    "tabMail": "E-Mail",
+    "gravatar": "Gravatar-Profilbilder erlauben",
+    "gravatarHint": "Dabei wird ein Hash der E-Mail-Adresse an gravatar.com übertragen. Benutzer können es zusätzlich im Profil abschalten.",
+    "gravatarFromEnv": "Aktuell aus der .env (GRAVATAR_ENABLED) – beim Speichern wird der Wert in die Datenbank übernommen.",
     "tabUsers": "Benutzerverwaltung",
     "tabGeocoding": "Geocoding",
     "tabJobs": "Hintergrundaufgaben",
@@ -1460,6 +1464,245 @@
       "revokeHint": "Alle Refresh-Sitzungen des Kontos werden widerrufen. Beim eigenen Konto bleibt die aktuelle Sitzung bestehen.",
       "revokeAll": "Alle Sitzungen abmelden",
       "saveChanges": "Änderungen speichern"
+    }
+  },
+  "mailSettings": {
+    "title": "E-Mail-Versand (SMTP)",
+    "subtitle": "Für Fahrzeugfreigaben per E-Mail. SMTP wird über die .env eingerichtet; hier siehst du den erkannten Stand und kannst eine Test-Mail senden.",
+    "host": "SMTP-Server",
+    "security": "Verschlüsselung",
+    "username": "Benutzername",
+    "fromAddress": "Absender",
+    "notSet": "Nicht gesetzt",
+    "test": "Test-Mail senden",
+    "testSending": "Wird gesendet …",
+    "testHint": "Geht an {email}.",
+    "testSent": "Die Test-Mail wurde an {email} gesendet.",
+    "fromMissing": "SMTP_HOST ist gesetzt, aber SMTP_FROM fehlt – ohne Absenderadresse werden keine E-Mails versendet.",
+    "withoutSmtp": "Kein SMTP-Server eingerichtet: Die Fahrzeugfreigabe per E-Mail ist ausgeblendet. Freigaben per Link funktionieren weiterhin.",
+    "envHint": "Zum Einrichten oder Ändern SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD und SMTP_FROM (optional SMTP_FROM_NAME) in der .env setzen und den Container neu starten."
+  },
+
+  // ===== Einrichtungsassistenten (Ersteinrichtung, erster Login) =====
+  "wizard": {
+    "optional": "optional",
+    "stepOf": "Schritt {current} von {total}",
+    "progress": "Fortschritt der Einrichtung",
+    "steps": "Einrichtungsschritte",
+    "back": "Zurück",
+    "next": "Weiter",
+    "skip": "Später einrichten",
+    "password": {
+      "current": "Aktuelles Passwort",
+      "new": "Neues Passwort",
+      "repeat": "Passwort wiederholen",
+      "hint": "Mindestens 8 Zeichen.",
+      "currentMissing": "Bitte das aktuelle Passwort eingeben.",
+      "tooShort": "Das neue Passwort muss mindestens 8 Zeichen lang sein.",
+      "mismatch": "Die Passwörter stimmen nicht überein.",
+      "unchanged": "Das neue Passwort muss sich vom bisherigen unterscheiden."
+    },
+    "vehicles": {
+      "own": "Eigenes Fahrzeug",
+      "sharedBadge": "Mitbenutzer",
+      "defaultBadge": "Standard",
+      "makeDefault": "Als Standard",
+      "none": "Noch keine Fahrzeuge vorhanden.",
+      "add": "Fahrzeug anlegen",
+      "addAnother": "Weiteres Fahrzeug anlegen"
+    },
+    "app": {
+      "title": "Android-App verbinden",
+      "text": "Gib in der App diese Serveradresse ein oder koppel das Handy direkt per QR-Code.",
+      "pair": "Gerät per QR-Code koppeln",
+      "paired": "Gerät gekoppelt"
+    }
+  },
+  "setup": {
+    "title": "Ersteinrichtung des Servers",
+    "steps": {
+      "welcome": {
+        "label": "Willkommen",
+        "hint": "Sprache & Überblick"
+      },
+      "account": {
+        "label": "Administrator",
+        "hint": "Zugang absichern"
+      },
+      "server": {
+        "label": "Server",
+        "hint": "Adresse & Region"
+      },
+      "mail": {
+        "label": "E-Mail",
+        "hint": "SMTP · optional"
+      },
+      "geocoding": {
+        "label": "Geocoding",
+        "hint": "Adressen & Routen"
+      },
+      "login": {
+        "label": "Anmeldung",
+        "hint": "Konten & Datenschutz"
+      },
+      "vehicle": {
+        "label": "Erstes Fahrzeug",
+        "hint": "optional"
+      },
+      "done": {
+        "label": "Fertig",
+        "hint": "Zusammenfassung"
+      }
+    },
+    "welcome": {
+      "eyebrow": "Willkommen",
+      "title": "Dein Fahrtenbuch-Server ist gestartet.",
+      "text": "Bevor es losgeht, richten wir in ein paar Minuten alles Nötige ein. Optionale Schritte kannst du überspringen und später in der Administration nachholen.",
+      "language": "Sprache der Oberfläche",
+      "requiredTitle": "Pflicht",
+      "requiredText": "Administrator-Zugang, Server-Adresse, Geocoding",
+      "optionalTitle": "Optional",
+      "optionalText": "E-Mail-Versand (über die .env), Gravatar, erstes Fahrzeug",
+      "start": "Einrichtung starten"
+    },
+    "account": {
+      "title": "Administrator-Zugang",
+      "textForced": "Du hast dich mit den Start-Zugangsdaten aus der Docker-Konfiguration angemeldet. Lege jetzt ein eigenes Passwort fest – das Start-Passwort ist danach ungültig.",
+      "text": "Prüfe Name und E-Mail-Adresse deines Kontos. Das Passwort kannst du hier optional ändern.",
+      "displayName": "Name",
+      "email": "E-Mail-Adresse",
+      "emailRequired": "Bitte eine E-Mail-Adresse eintragen.",
+      "passwordTitleForced": "Eigenes Passwort festlegen",
+      "passwordTitle": "Passwort ändern (optional)",
+      "startPassword": "Start-Passwort",
+      "envHint": "Die Variablen DEFAULT_ADMIN_* kannst du anschließend aus deiner .env entfernen – ein vorhandenes Konto wird nie überschrieben."
+    },
+    "server": {
+      "title": "Server & Region",
+      "text": "Diese Werte stammen aus der Docker-Umgebung. Unter der öffentlichen Adresse verbinden sich die Android-App und Links in E-Mails mit deinem Server.",
+      "publicUrl": "Öffentliche Adresse",
+      "publicUrlHint": "PUBLIC_BASE_URL",
+      "passkeys": "Passkeys",
+      "passkeysHint": "WEBAUTHN_RP_ID muss zur Domain passen, unter der du das Fahrtenbuch aufrufst.",
+      "disabled": "Deaktiviert",
+      "timezone": "Zeitzone des Servers",
+      "channel": "Image",
+      "originMismatch": "Konfiguriert ist {configured}, aufgerufen wird {current}. Hinter einem Reverse-Proxy bitte die externe Adresse als PUBLIC_BASE_URL eintragen, sonst funktionieren App-Anmeldung und Links in E-Mails nicht.",
+      "envHint": "Änderungen an diesen Werten in der .env vornehmen und den Container neu starten."
+    },
+    "mail": {
+      "title": "E-Mail-Versand",
+      "text": "Für Fahrzeugfreigaben per E-Mail. SMTP richtest du in der .env ein – hier prüfst du, ob alles erkannt wird, und sendest eine Test-Mail."
+    },
+    "geocoding": {
+      "title": "Geocoding",
+      "text": "Wandelt GPS-Punkte in Adressen um und legt Fahrten aufs Straßennetz. Photon ist mit dem öffentlichen Server vorkonfiguriert – für mehr Datenschutz kannst du eigene Dienste eintragen."
+    },
+    "login": {
+      "title": "Anmeldung & Datenschutz",
+      "text": "Externe Konten verknüpft jeder Benutzer selbst im Profil – eine Selbstregistrierung darüber gibt es nicht.",
+      "google": "Anmeldung mit Google",
+      "microsoft": "Anmeldung mit Microsoft",
+      "active": "Aktiv",
+      "notConfigured": "Nicht eingerichtet",
+      "envHint": "Google und Microsoft werden über GOOGLE_OAUTH_* bzw. MICROSOFT_OAUTH_* in der .env aktiviert. Redirect-URI beim Anbieter:",
+      "gravatar": "Gravatar-Profilbilder erlauben",
+      "gravatarHint": "Gilt für die ganze Instanz. Benutzer können es zusätzlich im Profil abschalten."
+    },
+    "vehicle": {
+      "title": "Erstes Fahrzeug",
+      "text": "Damit kannst du direkt die erste Fahrt erfassen. Weitere Fahrzeuge legst du später unter Fahrzeuge an."
+    },
+    "done": {
+      "eyebrow": "Fertig",
+      "title": "Alles eingerichtet",
+      "text": "Alle Einstellungen findest du später in der Administration.",
+      "finish": "Zum Dashboard",
+      "account": "Administrator",
+      "accountOk": "Eigenes Passwort gesetzt",
+      "passwordPending": "Passwortwechsel ausstehend",
+      "mail": "E-Mail",
+      "mailOk": "Eingerichtet",
+      "mailMissing": "Nicht eingerichtet – Freigabe per E-Mail ausgeblendet",
+      "oauth": "Externe Anmeldung",
+      "passwordOnly": "Nur Passwort",
+      "gravatar": "Gravatar",
+      "gravatarOn": "Erlaubt",
+      "gravatarOff": "Serverweit aus",
+      "vehicles": "Fahrzeuge",
+      "vehicleCount": "{count} angelegt",
+      "vehicleSkipped": "Übersprungen"
+    }
+  },
+  "onboarding": {
+    "title": "Konto einrichten",
+    "steps": {
+      "password": {
+        "label": "Passwort",
+        "hint": "Eigenes Passwort"
+      },
+      "profile": {
+        "label": "Profil",
+        "hint": "Name & Sprache"
+      },
+      "accounts": {
+        "label": "Konten verknüpfen",
+        "hint": "optional"
+      },
+      "vehicles": {
+        "label": "Fahrzeuge",
+        "hint": "Freigaben & eigene"
+      },
+      "done": {
+        "label": "Fertig",
+        "hint": "App verbinden"
+      }
+    },
+    "password": {
+      "eyebrow": "Willkommen",
+      "title": "Hallo {name}, schön dass du da bist.",
+      "titleOnly": "Neues Passwort festlegen",
+      "text": "Ein Administrator hat dir ein Konto auf diesem Fahrtenbuch-Server angelegt. Lege zuerst ein eigenes Passwort fest – das vorläufige Passwort funktioniert danach nicht mehr.",
+      "textOnly": "Ein Administrator hat einen Passwortwechsel für dein Konto angefordert.",
+      "temporary": "Vorläufiges Passwort",
+      "notice": "Dieser Schritt lässt sich nicht überspringen. Alles Weitere kannst du später im Profil ändern.",
+      "save": "Passwort speichern",
+      "saveOnly": "Speichern und weiter zur App"
+    },
+    "profile": {
+      "eyebrow": "Willkommen, {name}",
+      "title": "Dein Profil",
+      "text": "Vom Administrator übernommen – prüfe kurz, ob alles stimmt.",
+      "displayName": "Name",
+      "email": "E-Mail-Adresse",
+      "emailHint": "Wird für Anmeldung und Fahrzeugfreigaben verwendet.",
+      "emailRequired": "Bitte eine E-Mail-Adresse eintragen.",
+      "gravatar": "Gravatar als Profilbild verwenden",
+      "gravatarHint": "Dabei wird ein Hash deiner E-Mail-Adresse an gravatar.com übertragen."
+    },
+    "accounts": {
+      "title": "Schneller anmelden",
+      "text": "Verknüpfe ein bestehendes Konto, dann kannst du dich in Web und App ohne Passwort anmelden. Angezeigt werden nur Anbieter, die dein Administrator freigeschaltet hat.",
+      "linkedAs": "Verknüpft mit {account}",
+      "link": "{provider}-Konto verknüpfen"
+    },
+    "vehicles": {
+      "title": "Deine Fahrzeuge",
+      "text": "Hier siehst du Fahrzeuge, die bereits für dich freigegeben wurden. Eigene Fahrzeuge kannst du direkt anlegen und als Standard für neue Fahrten wählen."
+    },
+    "done": {
+      "eyebrow": "Fertig",
+      "title": "Bereit für die erste Fahrt",
+      "text": "Am einfachsten erfasst du Fahrten unterwegs mit der Android-App.",
+      "finish": "Zum Dashboard",
+      "password": "Passwort",
+      "passwordOk": "Eigenes Passwort gesetzt",
+      "accounts": "Verknüpfte Konten",
+      "noAccounts": "Keine",
+      "vehicles": "Fahrzeuge",
+      "defaultVehicle": "Standard: {vehicle}",
+      "vehicleCount": "{count} verfügbar",
+      "noVehicles": "Noch keine"
     }
   }
 }

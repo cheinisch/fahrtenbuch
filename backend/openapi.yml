@@ -2365,6 +2365,91 @@ paths:
         '401':
           description: Authentication required
 
+  /users/me/onboarding:
+    post:
+      tags: [Users]
+      summary: Mark the first-login assistant as completed
+      description: |
+        Setzt `onboardingCompleted` des eigenen Kontos. Clients zeigen den
+        Einrichtungsassistenten, solange der Wert false ist.
+      responses:
+        '200':
+          description: Aktualisiertes Profil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /admin/setup:
+    get:
+      tags: [Admin]
+      summary: Get initial server setup state
+      description: |
+        Stand der Ersteinrichtung plus Werte, die nur über die Docker-Umgebung
+        einstellbar sind (öffentliche Adresse, OAuth-Anbieter, SMTP) als Status.
+      responses:
+        '200':
+          description: Einrichtungsstatus
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSetupState' }
+        '401': { description: Authentication required }
+
+  /admin/setup/complete:
+    post:
+      tags: [Admin]
+      summary: Complete the initial server setup
+      description: Markiert die Ersteinrichtung als abgeschlossen; gilt auch als abgeschlossener Assistent des eigenen Kontos.
+      responses:
+        '200':
+          description: Abgeschlossen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  completed: { type: boolean }
+                  completedAt: { type: [string, 'null'], format: date-time }
+                  user: { $ref: '#/components/schemas/User' }
+
+  /admin/mail:
+    get:
+      tags: [Admin]
+      summary: Get SMTP status
+      description: |
+        SMTP wird ausschließlich über die SMTP_*-Umgebungsvariablen konfiguriert.
+        Liefert die erkannten Werte ohne Passwort.
+      responses:
+        '200':
+          description: SMTP-Status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MailStatus' }
+
+  /admin/mail/test:
+    post:
+      tags: [Admin]
+      summary: Send a test e-mail
+      description: Sendet mit der SMTP-Konfiguration aus der Umgebung.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to: { type: string, format: email, description: Standard ist die Adresse des angemeldeten Admins }
+      responses:
+        '200':
+          description: Gesendet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent: { type: boolean }
+                  to: { type: string, format: email }
+        '400': { description: MAIL_TEST_FAILED }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2442,6 +2527,7 @@ components:
         passkeyEnabled: { type: boolean }
         hasPassword: { type: boolean }
         forcePasswordChange: { type: boolean }
+        onboardingCompleted: { type: boolean, description: "false: beim Login den Einrichtungsassistenten zeigen" }
         lastLoginAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -2746,6 +2832,59 @@ components:
           properties:
             expenses: { type: boolean, description: Kostenerfassung (/expenses). Derzeit nur im dev-Image aktiv. }
         channel: { type: string, enum: [dev, release] }
+        setup:
+          type: object
+          properties:
+            completed: { type: boolean, description: Ersteinrichtung des Servers abgeschlossen }
+        mail:
+          type: object
+          properties:
+            enabled: { type: boolean, description: "SMTP eingerichtet; false: E-Mail-Funktionen ausblenden" }
+        gravatar:
+          type: object
+          properties:
+            enabled: { type: boolean, description: Gravatar-Profilbilder auf dieser Instanz erlaubt }
+    MailStatus:
+      type: object
+      description: Aus SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, SMTP_FROM_NAME.
+      properties:
+        configured: { type: boolean, description: SMTP_HOST und SMTP_FROM gesetzt }
+        host: { type: string }
+        port: { type: [integer, 'null'] }
+        security: { type: [string, 'null'], enum: [starttls, tls, null] }
+        username: { type: string }
+        passwordSet: { type: boolean }
+        fromAddress: { type: string }
+        fromName: { type: string }
+    AdminSetupState:
+      type: object
+      properties:
+        completed: { type: boolean }
+        completedAt: { type: [string, 'null'], format: date-time }
+        environment:
+          type: object
+          properties:
+            publicBaseUrl: { type: string }
+            publicBaseUrlConfigured: { type: boolean }
+            timezone: { type: string }
+            oauth:
+              type: object
+              properties:
+                google: { type: boolean }
+                microsoft: { type: boolean }
+                redirectUriTemplate: { type: string }
+            passkeys:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                rpId: { type: string }
+            channel: { type: string, enum: [dev, release] }
+        mail: { $ref: '#/components/schemas/MailStatus' }
+        gravatar:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            source: { type: string, enum: [database, environment] }
     PublicMapConfig:
       type: object
       required: [provider, type, attribution, minZoom, maxZoom, tileSize]
@@ -3380,6 +3519,91 @@ components:
       responses:
         '200': { description: Systeminformationen }
 
+  /users/me/onboarding:
+    post:
+      tags: [Users]
+      summary: Mark the first-login assistant as completed
+      description: |
+        Setzt `onboardingCompleted` des eigenen Kontos. Clients zeigen den
+        Einrichtungsassistenten, solange der Wert false ist.
+      responses:
+        '200':
+          description: Aktualisiertes Profil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /admin/setup:
+    get:
+      tags: [Admin]
+      summary: Get initial server setup state
+      description: |
+        Stand der Ersteinrichtung plus Werte, die nur über die Docker-Umgebung
+        einstellbar sind (öffentliche Adresse, OAuth-Anbieter, SMTP) als Status.
+      responses:
+        '200':
+          description: Einrichtungsstatus
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSetupState' }
+        '401': { description: Authentication required }
+
+  /admin/setup/complete:
+    post:
+      tags: [Admin]
+      summary: Complete the initial server setup
+      description: Markiert die Ersteinrichtung als abgeschlossen; gilt auch als abgeschlossener Assistent des eigenen Kontos.
+      responses:
+        '200':
+          description: Abgeschlossen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  completed: { type: boolean }
+                  completedAt: { type: [string, 'null'], format: date-time }
+                  user: { $ref: '#/components/schemas/User' }
+
+  /admin/mail:
+    get:
+      tags: [Admin]
+      summary: Get SMTP status
+      description: |
+        SMTP wird ausschließlich über die SMTP_*-Umgebungsvariablen konfiguriert.
+        Liefert die erkannten Werte ohne Passwort.
+      responses:
+        '200':
+          description: SMTP-Status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MailStatus' }
+
+  /admin/mail/test:
+    post:
+      tags: [Admin]
+      summary: Send a test e-mail
+      description: Sendet mit der SMTP-Konfiguration aus der Umgebung.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to: { type: string, format: email, description: Standard ist die Adresse des angemeldeten Admins }
+      responses:
+        '200':
+          description: Gesendet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent: { type: boolean }
+                  to: { type: string, format: email }
+        '400': { description: MAIL_TEST_FAILED }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3592,6 +3816,7 @@ components:
         passkeyEnabled: { type: boolean }
         hasPassword: { type: boolean }
         forcePasswordChange: { type: boolean }
+        onboardingCompleted: { type: boolean, description: "false: beim Login den Einrichtungsassistenten zeigen" }
         lastLoginAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -3886,6 +4111,59 @@ components:
           properties:
             expenses: { type: boolean, description: Kostenerfassung (/expenses). Derzeit nur im dev-Image aktiv. }
         channel: { type: string, enum: [dev, release] }
+        setup:
+          type: object
+          properties:
+            completed: { type: boolean, description: Ersteinrichtung des Servers abgeschlossen }
+        mail:
+          type: object
+          properties:
+            enabled: { type: boolean, description: "SMTP eingerichtet; false: E-Mail-Funktionen ausblenden" }
+        gravatar:
+          type: object
+          properties:
+            enabled: { type: boolean, description: Gravatar-Profilbilder auf dieser Instanz erlaubt }
+    MailStatus:
+      type: object
+      description: Aus SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, SMTP_FROM_NAME.
+      properties:
+        configured: { type: boolean, description: SMTP_HOST und SMTP_FROM gesetzt }
+        host: { type: string }
+        port: { type: [integer, 'null'] }
+        security: { type: [string, 'null'], enum: [starttls, tls, null] }
+        username: { type: string }
+        passwordSet: { type: boolean }
+        fromAddress: { type: string }
+        fromName: { type: string }
+    AdminSetupState:
+      type: object
+      properties:
+        completed: { type: boolean }
+        completedAt: { type: [string, 'null'], format: date-time }
+        environment:
+          type: object
+          properties:
+            publicBaseUrl: { type: string }
+            publicBaseUrlConfigured: { type: boolean }
+            timezone: { type: string }
+            oauth:
+              type: object
+              properties:
+                google: { type: boolean }
+                microsoft: { type: boolean }
+                redirectUriTemplate: { type: string }
+            passkeys:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                rpId: { type: string }
+            channel: { type: string, enum: [dev, release] }
+        mail: { $ref: '#/components/schemas/MailStatus' }
+        gravatar:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            source: { type: string, enum: [database, environment] }
     PublicMapConfig:
       type: object
       required: [provider, type, attribution, minZoom, maxZoom, tileSize]

@@ -176,6 +176,7 @@ export async function rotateRefreshToken(refreshToken, request) {
           u.theme_mode,
           u.totp_enabled,
           u.force_password_change,
+          u.onboarding_completed_at,
           u.last_login_at,
           u.created_at AS user_created_at,
           u.updated_at AS user_updated_at
@@ -232,6 +233,7 @@ export async function rotateRefreshToken(refreshToken, request) {
       theme_mode: session.theme_mode,
       totp_enabled: session.totp_enabled,
       force_password_change: session.force_password_change,
+      onboarding_completed_at: session.onboarding_completed_at,
       last_login_at: session.last_login_at,
       created_at: session.user_created_at,
       updated_at: session.user_updated_at,

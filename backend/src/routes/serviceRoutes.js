@@ -17,6 +17,11 @@ import {
   photonSearch,
 } from "../services/geocodingService.js";
 import { getPublicServiceConfiguration } from "../services/serviceSettingsService.js";
+import {
+  getSetupState,
+  isGravatarEnabled,
+  isMailConfigured,
+} from "../services/systemSettingsService.js";
 
 export const configRoutes = Router();
 export const geocodingRoutes = Router();
@@ -32,6 +37,10 @@ configRoutes.get(
       // Clients blenden Funktionen aus, die auf diesem Server (noch) nicht aktiv sind
       features: { ...config.features },
       channel: config.channel,
+      // Additiv: Ersteinrichtung abgeschlossen? Ohne SMTP blenden Clients E-Mail-Funktionen aus.
+      setup: { completed: (await getSetupState()).completed },
+      mail: { enabled: isMailConfigured() },
+      gravatar: { enabled: isGravatarEnabled() },
     });
   }),
 );

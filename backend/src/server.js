@@ -3,12 +3,15 @@ import { config } from "./config.js";
 import { pool } from "./database/pool.js";
 import { runMigrations } from "./database/migrate.js";
 import { seedDefaultAdmin } from "./database/seedDefaultAdmin.js";
+import { refreshGravatarSetting } from "./services/systemSettingsService.js";
 
 let server;
 
 async function startServer() {
   await runMigrations();
   await seedDefaultAdmin();
+  // Gravatar-Schalter aus der Datenbank laden, bevor die ersten CSP-Header entstehen
+  await refreshGravatarSetting().catch(() => {});
 
   server = app.listen(config.port, "0.0.0.0", () => {
     console.log(

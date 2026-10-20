@@ -5,6 +5,17 @@ All notable changes to Fahrtenbuch. The format is based on
 [Semantic Versioning](https://semver.org/). Build numbers and release-only
 commits are not listed.
 
+## [Unreleased]
+
+### Added
+- **Setup assistant** on the first admin sign-in of a fresh installation: language, own admin password, server status (public address, passkeys, time zone), e-mail, geocoding, sign-in & privacy, first vehicle and pairing the Android app.
+- **First sign-in assistant** for accounts created by an administrator: own password, profile, linking Google/Microsoft (only enabled providers), shared and own vehicles, pairing the app. If only a password change is required, just that step is shown.
+- **E-mail tab** in the administration: shows the SMTP configuration detected from `SMTP_*` and sends a test e-mail. New optional `SMTP_FROM_NAME`.
+
+### Changed
+- **Gravatar** is switched in the administration now; `GRAVATAR_ENABLED` remains the default until it has been saved there. SMTP stays in `.env`.
+- `GET /config/services` additionally returns `setup`, `mail` and `gravatar`; the user object has `onboardingCompleted`.
+
 ## [0.5.2] – 2026-10-17
 
 ### Added

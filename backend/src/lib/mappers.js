@@ -12,6 +12,8 @@ export function mapUser(row) {
     themeMode: row.theme_mode || "system",
     totpEnabled: Boolean(row.totp_enabled),
     forcePasswordChange: Boolean(row.force_password_change),
+    // null = Einrichtungsassistent beim nächsten Login anzeigen
+    onboardingCompleted: Boolean(row.onboarding_completed_at),
     lastLoginAt: row.last_login_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
