@@ -3,7 +3,7 @@ import {
   InformationCircleIcon,
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import { getCurrentUser } from "../api/auth.js";
@@ -18,7 +18,7 @@ import {
 } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import GeocodingSettings from "../components/admin/GeocodingSettings.jsx";
-import MailSettingsForm from "../components/admin/MailSettingsForm.jsx";
+import MailStatusPanel from "../components/admin/MailStatusPanel.jsx";
 import VehicleStep from "../components/wizard/VehicleStep.jsx";
 import WizardFrame, {
   ChoiceChips,
@@ -40,7 +40,7 @@ import { useI18n } from "../i18n/I18nProvider.jsx";
 import { useFeatures } from "../lib/features.jsx";
 
 const STEP_IDS = ["welcome", "account", "server", "mail", "geocoding", "login", "vehicle", "done"];
-const OPTIONAL_STEPS = ["mail", "vehicle"];
+const OPTIONAL_STEPS = ["vehicle"];
 
 // Ersteinrichtung des Servers: erscheint beim ersten Admin-Login, solange
 // 'setup.completed' fehlt. Was nur über die .env geht, wird als Status gezeigt.
@@ -56,12 +56,9 @@ export default function SetupWizard() {
   const [profile, setProfile] = useState({ displayName: user?.displayName || "", email: user?.email || "" });
   const [passwords, setPasswords] = useState(emptyPasswords);
   const [gravatarEnabled, setGravatarEnabled] = useState(true);
-  const [mailState, setMailState] = useState(null);
-  const [mailSkipped, setMailSkipped] = useState(false);
   const [vehicles, setVehicles] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const mailRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -114,10 +111,6 @@ export default function SetupWizard() {
         }
         break;
       }
-      case "mail":
-        await mailRef.current?.save();
-        setMailSkipped(!mailRef.current?.filled);
-        break;
       case "login":
         await updateAdminSettings(accessToken, { gravatarEnabled });
         break;
@@ -153,7 +146,6 @@ export default function SetupWizard() {
 
   function skip() {
     setError("");
-    if (nav.stepId === "mail") setMailSkipped(true);
     nav.goTo(nav.index + 1);
   }
 
@@ -163,7 +155,7 @@ export default function SetupWizard() {
   }[nav.stepId] || t("wizard.next");
 
   const ownVehicles = vehicles.filter((vehicle) => vehicle.isOwner !== false);
-  const mailConfigured = Boolean((mailState || setup?.mail)?.configured);
+  const mailConfigured = Boolean(setup?.mail?.configured);
 
   return (
     <WizardFrame
@@ -265,7 +257,7 @@ export default function SetupWizard() {
       {nav.stepId === "mail" && (
         <>
           <WizardStepHeader title={t("setup.mail.title")} subtitle={t("setup.mail.text")} optional />
-          <MailSettingsForm ref={mailRef} onChange={setMailState} />
+          <MailStatusPanel initialStatus={setup?.mail} />
         </>
       )}
 
@@ -318,8 +310,8 @@ export default function SetupWizard() {
                   { label: t("setup.done.account"), value: user?.forcePasswordChange ? t("setup.done.passwordPending") : t("setup.done.accountOk"), ok: !user?.forcePasswordChange },
                   {
                     label: t("setup.done.mail"),
-                    value: mailConfigured ? t("setup.done.mailOk") : t("setup.done.mailSkipped"),
-                    ok: mailConfigured && !mailSkipped,
+                    value: mailConfigured ? t("setup.done.mailOk") : t("setup.done.mailMissing"),
+                    ok: mailConfigured,
                   },
                   {
                     label: t("setup.done.oauth"),

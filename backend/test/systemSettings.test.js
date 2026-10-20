@@ -8,6 +8,7 @@ process.env.POSTGRES_PASSWORD ||= "test";
 const {
   environmentMailSettings,
   fromHeader,
+  getMailStatus,
   isMailSettingsComplete,
   transportOptions,
 } = await import("../src/services/systemSettingsService.js");
@@ -26,12 +27,10 @@ test("SMTP aus der .env wird übernommen", () => {
   assert.equal(settings.fromAddress, "fb@example.de");
 });
 
-test("Transport-Optionen je Verschlüsselung", () => {
+test("Transport-Optionen wie bisher aus SMTP_SECURE", () => {
   const base = { host: "h", port: 587, username: "u", password: "p" };
-  assert.deepEqual(
-    [transportOptions({ ...base, security: "starttls" }).requireTLS, transportOptions({ ...base, security: "tls" }).secure, transportOptions({ ...base, security: "none" }).ignoreTLS],
-    [true, true, true],
-  );
+  assert.equal(transportOptions({ ...base, security: "tls" }).secure, true);
+  assert.equal(transportOptions({ ...base, security: "starttls" }).secure, false);
   assert.equal(transportOptions({ ...base, username: "" }).auth, undefined);
 });
 
@@ -40,4 +39,12 @@ test("Absender und Vollständigkeit", () => {
   assert.equal(fromHeader({ fromAddress: "a@b.de" }), "a@b.de");
   assert.equal(isMailSettingsComplete({ host: "h" }), false);
   assert.equal(isMailSettingsComplete({ host: "h", fromAddress: "a@b.de" }), true);
+});
+
+test("Status für die Oberfläche enthält kein Passwort", () => {
+  const status = getMailStatus({ SMTP_HOST: "h", SMTP_PASSWORD: "geheim", SMTP_FROM: "a@b.de" });
+  assert.equal(status.configured, true);
+  assert.equal(status.passwordSet, true);
+  assert.equal("password" in status, false);
+  assert.equal(getMailStatus({}).configured, false);
 });

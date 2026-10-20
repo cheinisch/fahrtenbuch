@@ -39,7 +39,7 @@ configRoutes.get(
       channel: config.channel,
       // Additiv: Ersteinrichtung abgeschlossen? Ohne SMTP blenden Clients E-Mail-Funktionen aus.
       setup: { completed: (await getSetupState()).completed },
-      mail: { enabled: await isMailConfigured() },
+      mail: { enabled: isMailConfigured() },
       gravatar: { enabled: isGravatarEnabled() },
     });
   }),

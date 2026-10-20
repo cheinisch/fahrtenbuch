@@ -7,11 +7,11 @@ import {
   transportOptions,
 } from "./systemSettingsService.js";
 
-// SMTP-Daten kommen aus den Systemeinstellungen (Datenbank), sonst aus der .env.
-async function mailer(override = null) {
-  const settings = override || await resolveMailSettings();
+// SMTP-Daten kommen aus der Umgebung (SMTP_*).
+async function mailer() {
+  const settings = resolveMailSettings();
   if (!settings?.host) throw new Error("SMTP ist nicht konfiguriert.");
-  if (!isMailSettingsComplete(settings)) throw new Error("Für SMTP fehlt die Absenderadresse.");
+  if (!isMailSettingsComplete(settings)) throw new Error("SMTP_FROM ist nicht konfiguriert.");
   return { transport: nodemailer.createTransport(transportOptions(settings)), from: fromHeader(settings) };
 }
 
@@ -24,9 +24,9 @@ export async function sendVehicleShareInvitation({to,ownerName,vehicleName,accep
   });
 }
 
-/** Test-Mail aus dem Admin-Bereich; `settings` erlaubt das Testen noch ungespeicherter Werte. */
-export async function sendTestMail({ to, settings = null }) {
-  const { transport, from } = await mailer(settings);
+/** Test-Mail aus dem Admin-Bereich (Einrichtungsassistent, Administration › E-Mail). */
+export async function sendTestMail({ to }) {
+  const { transport, from } = await mailer();
   await transport.sendMail({
     from,
     to,

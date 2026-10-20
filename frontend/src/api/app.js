@@ -869,11 +869,7 @@ export const completeAdminSetup = (token) =>
 export const completeOnboarding = (token) =>
   apiRequest(token, "/api/v1/users/me/onboarding", { method: "POST" });
 
-// SMTP in den Systemeinstellungen (die .env bleibt Fallback)
-export const getAdminMailSettings = (token) => apiRequest(token, "/api/v1/admin/mail");
-export const saveAdminMailSettings = (token, settings) =>
-  apiRequest(token, "/api/v1/admin/mail", { method: "PUT", body: JSON.stringify(settings) });
-export const deleteAdminMailSettings = (token) =>
-  apiRequest(token, "/api/v1/admin/mail", { method: "DELETE" });
+// SMTP: konfiguriert über SMTP_* in der .env; die Oberfläche zeigt nur Status und Test
+export const getAdminMailStatus = (token) => apiRequest(token, "/api/v1/admin/mail");
 export const sendAdminTestMail = (token, payload = {}) =>
   apiRequest(token, "/api/v1/admin/mail/test", { method: "POST", body: JSON.stringify(payload) });

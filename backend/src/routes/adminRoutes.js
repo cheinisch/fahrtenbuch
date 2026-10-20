@@ -45,15 +45,12 @@ import {
 } from "../services/serviceSettingsService.js";
 import { sendTestMail } from "../services/mailService.js";
 import {
-  deleteMailSettings,
   environmentStatus,
   getGravatarSetting,
-  getMailSettingsForAdmin,
+  getMailStatus,
   getSetupState,
   markSetupCompleted,
-  parseMailSettings,
   saveGravatarSetting,
-  saveMailSettings,
 } from "../services/systemSettingsService.js";
 import { USER_PUBLIC_COLUMNS } from "../users/userMapper.js";
 
@@ -1727,41 +1724,25 @@ async function gravatarResponse() {
 }
 
 // ---------------------------------------------------------------------------
-// E-Mail-Versand (SMTP) – in der Datenbank, die .env bleibt Fallback
+// E-Mail-Versand (SMTP) – konfiguriert über SMTP_* in der .env; hier nur Status und Test
 // ---------------------------------------------------------------------------
 
 adminRoutes.get(
   "/mail",
   asyncHandler(async (_request, response) => {
-    response.json(await getMailSettingsForAdmin());
-  }),
-);
-
-adminRoutes.put(
-  "/mail",
-  asyncHandler(async (request, response) => {
-    response.json(await saveMailSettings(request.body, request.auth.userId));
-  }),
-);
-
-adminRoutes.delete(
-  "/mail",
-  asyncHandler(async (_request, response) => {
-    response.json(await deleteMailSettings());
+    response.json(getMailStatus());
   }),
 );
 
 adminRoutes.post(
   "/mail/test",
   asyncHandler(async (request, response) => {
-    const body = objectBody(request.body);
+    const body = objectBody(request.body ?? {});
     // Ohne Angabe an die eigene Adresse des Admins
     const to = body.to ? emailField(body, "to", true) : request.auth.user.email;
-    // Noch nicht gespeicherte Werte aus dem Formular testen; leeres Passwort = gespeichertes
-    const settings = body.settings ? await parseMailSettings(body.settings) : null;
 
     try {
-      await sendTestMail({ to, settings });
+      await sendTestMail({ to });
     } catch (error) {
       throw badRequest("MAIL_TEST_FAILED", `Die Test-Mail konnte nicht gesendet werden: ${error.message}`);
     }
@@ -1777,11 +1758,11 @@ adminRoutes.post(
 adminRoutes.get(
   "/setup",
   asyncHandler(async (_request, response) => {
-    const [setup, mail, gravatar] = await Promise.all([
+    const [setup, gravatar] = await Promise.all([
       getSetupState(),
-      getMailSettingsForAdmin(),
       getGravatarSetting(),
     ]);
+    const mail = getMailStatus();
     response.json({
       ...setup,
       environment: environmentStatus(),

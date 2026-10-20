@@ -1467,26 +1467,19 @@
   },
   "mailSettings": {
     "title": "Sending e-mail (SMTP)",
-    "subtitle": "Used for vehicle sharing by e-mail. Without an SMTP server, e-mail features are hidden.",
+    "subtitle": "Used for vehicle sharing by e-mail. SMTP is set up in .env; here you see what was detected and can send a test e-mail.",
     "host": "SMTP server",
-    "port": "Port",
     "security": "Encryption",
-    "securityNone": "None",
     "username": "Username",
-    "password": "Password",
-    "passwordUnchanged": "Saved – leave empty to keep it",
-    "fromAddress": "Sender address",
-    "fromName": "Sender name",
-    "fromRequired": "Please enter a sender address.",
+    "fromAddress": "Sender",
+    "notSet": "Not set",
     "test": "Send test e-mail",
     "testSending": "Sending …",
-    "testHint": "Goes to {email} and uses the values in the form, even unsaved.",
+    "testHint": "Goes to {email}.",
     "testSent": "The test e-mail was sent to {email}.",
-    "saved": "The SMTP settings have been saved.",
-    "remove": "Remove stored data",
-    "removed": "The stored SMTP data has been removed.",
-    "fromEnvironment": "These values come from .env. Saving stores them in the database so you can manage them here from then on.",
-    "withoutSmtp": "Without an SMTP server, vehicle sharing by e-mail is hidden. Sharing by link keeps working."
+    "fromMissing": "SMTP_HOST is set but SMTP_FROM is missing – no e-mails are sent without a sender address.",
+    "withoutSmtp": "No SMTP server set up: vehicle sharing by e-mail is hidden. Sharing by link keeps working.",
+    "envHint": "To set up or change it, set SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD and SMTP_FROM (optionally SMTP_FROM_NAME) in .env and restart the container."
   },
 
   // ===== Setup assistants (initial setup, first sign-in) =====
@@ -1568,7 +1561,7 @@
       "requiredTitle": "Required",
       "requiredText": "Administrator access, server address, geocoding",
       "optionalTitle": "Optional",
-      "optionalText": "Sending e-mail, Gravatar, first vehicle",
+      "optionalText": "Sending e-mail (via .env), Gravatar, first vehicle",
       "start": "Start setup"
     },
     "account": {
@@ -1598,7 +1591,7 @@
     },
     "mail": {
       "title": "Sending e-mail",
-      "text": "Used for vehicle sharing by e-mail. You can skip this step and set up SMTP later under Administration › E-mail."
+      "text": "Used for vehicle sharing by e-mail. You set up SMTP in .env – here you check that everything is detected and send a test e-mail."
     },
     "geocoding": {
       "title": "Geocoding",
@@ -1629,7 +1622,7 @@
       "passwordPending": "Password change pending",
       "mail": "E-mail",
       "mailOk": "Set up",
-      "mailSkipped": "Skipped – sharing by e-mail hidden",
+      "mailMissing": "Not set up – sharing by e-mail hidden",
       "oauth": "External sign-in",
       "passwordOnly": "Password only",
       "gravatar": "Gravatar",

@@ -1,24 +1,12 @@
 import { config } from "../config.js";
 import { pool } from "../database/pool.js";
-import { badRequest } from "../lib/errors.js";
-import {
-  booleanField,
-  enumField,
-  integerField,
-  objectBody,
-  stringField,
-} from "../lib/validation.js";
-import { decryptSecret, encryptSecret } from "../security/encryption.js";
 
-// Systemeinstellungen, die früher nur aus der .env kamen (SMTP, Gravatar) und jetzt in
-// app_settings liegen. Die Umgebungsvariablen bleiben Fallback, solange in der Oberfläche
-// nichts gespeichert wurde – bestehende Installationen laufen unverändert weiter.
+// Systemeinstellungen rund um die Ersteinrichtung. Gravatar liegt in app_settings
+// (GRAVATAR_ENABLED bleibt Fallback, solange nichts gespeichert wurde); SMTP kommt
+// ausschließlich aus der Umgebung.
 
-const MAIL_KEY = "mail.smtp";
 const GRAVATAR_KEY = "privacy.gravatar";
 const SETUP_KEY = "setup.completed";
-
-const SECURITY_MODES = ["starttls", "tls", "none"];
 
 async function readRaw(key, client = pool) {
   const result = await client.query(
@@ -41,10 +29,11 @@ async function writeRaw(key, value, userId, client = pool) {
 }
 
 // ---------------------------------------------------------------------------
-// SMTP
+// SMTP – nur über die Umgebung (SMTP_*). Die Oberfläche zeigt den Status und
+// kann eine Test-Mail senden, speichert aber nichts.
 // ---------------------------------------------------------------------------
 
-/** SMTP aus der Umgebung (Altbestand), oder null. */
+/** SMTP aus der Umgebung, oder null. */
 export function environmentMailSettings(env = process.env) {
   const host = String(env.SMTP_HOST || "").trim();
   if (!host) return null;
@@ -60,112 +49,27 @@ export function environmentMailSettings(env = process.env) {
   };
 }
 
-function decryptStoredPassword(stored) {
-  if (!stored?.passwordEncrypted) return "";
-  try {
-    return decryptSecret(stored.passwordEncrypted);
-  } catch {
-    // Schlüssel geändert (TOTP_ENCRYPTION_KEY/JWT_SECRET): Passwort muss neu eingegeben werden
-    return "";
-  }
-}
-
 /** Wirksame SMTP-Konfiguration inkl. Klartext-Passwort – nur serverintern verwenden. */
-export async function resolveMailSettings(client = pool) {
-  const stored = await readRaw(MAIL_KEY, client);
-  if (stored?.host) {
-    return {
-      source: "database",
-      host: stored.host,
-      port: Number(stored.port || 587),
-      security: SECURITY_MODES.includes(stored.security) ? stored.security : "starttls",
-      username: stored.username || "",
-      password: decryptStoredPassword(stored),
-      fromAddress: stored.fromAddress || "",
-      fromName: stored.fromName || "",
-    };
-  }
-  const env = environmentMailSettings();
-  return env ? { source: "environment", ...env } : null;
+export function resolveMailSettings(env = process.env) {
+  return environmentMailSettings(env);
 }
 
 export function isMailSettingsComplete(settings) {
   return Boolean(settings?.host && settings?.fromAddress);
 }
 
-/** Für die Oberfläche: ohne Passwort, nur ob eines hinterlegt ist. */
-export async function getMailSettingsForAdmin(client = pool) {
-  const settings = await resolveMailSettings(client);
+/** Für die Oberfläche: ohne Passwort, nur ob eines gesetzt ist. */
+export function getMailStatus(env = process.env) {
+  const settings = resolveMailSettings(env);
   if (!settings) {
-    return {
-      source: "none",
-      configured: false,
-      host: "",
-      port: 587,
-      security: "starttls",
-      username: "",
-      passwordSet: false,
-      fromAddress: "",
-      fromName: "",
-    };
+    return { configured: false, host: "", port: null, security: null, username: "", passwordSet: false, fromAddress: "", fromName: "" };
   }
   const { password, ...rest } = settings;
   return { ...rest, configured: isMailSettingsComplete(settings), passwordSet: Boolean(password) };
 }
 
-export async function isMailConfigured(client = pool) {
-  return isMailSettingsComplete(await resolveMailSettings(client));
-}
-
-/**
- * Prüft Eingaben aus der Oberfläche. Ein leeres Passwort bedeutet „unverändert“, damit
- * das gespeicherte Secret nie zurück an den Browser muss. `clearPassword` entfernt es.
- */
-export async function parseMailSettings(input, client = pool) {
-  const body = objectBody(input);
-  const host = stringField(body, "host", { required: true, minimum: 1, maximum: 253 });
-  const port = integerField(body, "port", { minimum: 1, maximum: 65535 }) ?? 587;
-  const security = enumField(body, "security", SECURITY_MODES) ?? "starttls";
-  const username = stringField(body, "username", { nullable: true, maximum: 320 }) || "";
-  const fromAddress = stringField(body, "fromAddress", { required: true, minimum: 3, maximum: 320 });
-  const fromName = stringField(body, "fromName", { nullable: true, maximum: 120 }) || "";
-  const newPassword = stringField(body, "password", { nullable: true, maximum: 1024, trim: false });
-  const clearPassword = booleanField(body, "clearPassword") === true;
-
-  if (!/^[^\s@]+@[^\s@]+$/.test(fromAddress)) {
-    throw badRequest("VALIDATION_ERROR", "Die Absenderadresse ist ungültig.");
-  }
-
-  let password = "";
-  if (!clearPassword) {
-    if (newPassword) {
-      password = newPassword;
-    } else {
-      // Bisheriges Passwort übernehmen – auch das aus der .env beim ersten Speichern
-      const current = await resolveMailSettings(client);
-      password = current?.password || "";
-    }
-  }
-
-  return { host, port, security, username, password, fromAddress, fromName };
-}
-
-export async function saveMailSettings(input, userId, client = pool) {
-  const settings = await parseMailSettings(input, client);
-  const { password, ...rest } = settings;
-  await writeRaw(
-    MAIL_KEY,
-    { ...rest, passwordEncrypted: password ? encryptSecret(password) : null },
-    userId,
-    client,
-  );
-  return getMailSettingsForAdmin(client);
-}
-
-/** Entfernt die gespeicherten SMTP-Daten; danach gilt wieder die .env (falls gesetzt). */
-export async function deleteMailSettings(client = pool) {
-  await client.query(`DELETE FROM app_settings WHERE key = $1`, [MAIL_KEY]);
-  return getMailSettingsForAdmin(client);
+export function isMailConfigured(env = process.env) {
+  return isMailSettingsComplete(resolveMailSettings(env));
 }
 
 /** Optionen für nodemailer.createTransport aus einer (aufgelösten) SMTP-Konfiguration. */
@@ -173,9 +77,8 @@ export function transportOptions(settings) {
   return {
     host: settings.host,
     port: Number(settings.port || 587),
+    // Wie bisher: SMTP_SECURE=true = implizites TLS, sonst STARTTLS, wenn der Server es anbietet
     secure: settings.security === "tls",
-    requireTLS: settings.security === "starttls",
-    ignoreTLS: settings.security === "none",
     auth: settings.username ? { user: settings.username, pass: settings.password || "" } : undefined,
     connectionTimeout: 15_000,
     greetingTimeout: 15_000,

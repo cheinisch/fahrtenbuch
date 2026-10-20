@@ -1468,26 +1468,19 @@
   },
   "mailSettings": {
     "title": "E-Mail-Versand (SMTP)",
-    "subtitle": "Für Fahrzeugfreigaben per E-Mail. Ohne SMTP-Server sind E-Mail-Funktionen ausgeblendet.",
+    "subtitle": "Für Fahrzeugfreigaben per E-Mail. SMTP wird über die .env eingerichtet; hier siehst du den erkannten Stand und kannst eine Test-Mail senden.",
     "host": "SMTP-Server",
-    "port": "Port",
     "security": "Verschlüsselung",
-    "securityNone": "Keine",
     "username": "Benutzername",
-    "password": "Passwort",
-    "passwordUnchanged": "Gespeichert – leer lassen, um es zu behalten",
-    "fromAddress": "Absenderadresse",
-    "fromName": "Absendername",
-    "fromRequired": "Bitte eine Absenderadresse eintragen.",
+    "fromAddress": "Absender",
+    "notSet": "Nicht gesetzt",
     "test": "Test-Mail senden",
     "testSending": "Wird gesendet …",
-    "testHint": "Geht an {email} und nutzt die Werte im Formular, auch ungespeichert.",
+    "testHint": "Geht an {email}.",
     "testSent": "Die Test-Mail wurde an {email} gesendet.",
-    "saved": "Die SMTP-Einstellungen wurden gespeichert.",
-    "remove": "Gespeicherte Daten entfernen",
-    "removed": "Die gespeicherten SMTP-Daten wurden entfernt.",
-    "fromEnvironment": "Diese Werte stammen aus der .env. Beim Speichern werden sie in die Datenbank übernommen und lassen sich danach hier pflegen.",
-    "withoutSmtp": "Ohne SMTP-Server wird die Fahrzeugfreigabe per E-Mail ausgeblendet. Freigaben per Link funktionieren weiterhin."
+    "fromMissing": "SMTP_HOST ist gesetzt, aber SMTP_FROM fehlt – ohne Absenderadresse werden keine E-Mails versendet.",
+    "withoutSmtp": "Kein SMTP-Server eingerichtet: Die Fahrzeugfreigabe per E-Mail ist ausgeblendet. Freigaben per Link funktionieren weiterhin.",
+    "envHint": "Zum Einrichten oder Ändern SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD und SMTP_FROM (optional SMTP_FROM_NAME) in der .env setzen und den Container neu starten."
   },
 
   // ===== Einrichtungsassistenten (Ersteinrichtung, erster Login) =====
@@ -1569,7 +1562,7 @@
       "requiredTitle": "Pflicht",
       "requiredText": "Administrator-Zugang, Server-Adresse, Geocoding",
       "optionalTitle": "Optional",
-      "optionalText": "E-Mail-Versand, Gravatar, erstes Fahrzeug",
+      "optionalText": "E-Mail-Versand (über die .env), Gravatar, erstes Fahrzeug",
       "start": "Einrichtung starten"
     },
     "account": {
@@ -1599,7 +1592,7 @@
     },
     "mail": {
       "title": "E-Mail-Versand",
-      "text": "Für Fahrzeugfreigaben per E-Mail. Du kannst den Schritt überspringen und SMTP später unter Administration › E-Mail einrichten."
+      "text": "Für Fahrzeugfreigaben per E-Mail. SMTP richtest du in der .env ein – hier prüfst du, ob alles erkannt wird, und sendest eine Test-Mail."
     },
     "geocoding": {
       "title": "Geocoding",
@@ -1630,7 +1623,7 @@
       "passwordPending": "Passwortwechsel ausstehend",
       "mail": "E-Mail",
       "mailOk": "Eingerichtet",
-      "mailSkipped": "Übersprungen – Freigabe per E-Mail ausgeblendet",
+      "mailMissing": "Nicht eingerichtet – Freigabe per E-Mail ausgeblendet",
       "oauth": "Externe Anmeldung",
       "passwordOnly": "Nur Passwort",
       "gravatar": "Gravatar",

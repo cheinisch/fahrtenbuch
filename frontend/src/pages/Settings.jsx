@@ -16,7 +16,7 @@ import AdminDataTransfer from "../components/admin/AdminDataTransfer.jsx";
 import UserManagement from "../components/users/UserManagement.jsx";
 import JobManagement from "../components/admin/JobManagement.jsx";
 import GeocodingSettings from "../components/admin/GeocodingSettings.jsx";
-import MailSettingsForm from "../components/admin/MailSettingsForm.jsx";
+import MailStatusPanel from "../components/admin/MailStatusPanel.jsx";
 
 const fieldClass =
   "mt-2 block w-full rounded-lg border border-fb-border bg-fb-surface px-3 py-2.5 text-sm text-fb-text outline-none transition focus:border-fb-accent focus:ring-2 focus:ring-fb-accent-soft";
@@ -634,7 +634,7 @@ export default function Settings() {
           <h2 className="text-lg font-bold">{t("mailSettings.title")}</h2>
           <p className="mt-1 text-sm text-fb-muted">{t("mailSettings.subtitle")}</p>
           <div className="mt-6">
-            <MailSettingsForm standalone />
+            <MailStatusPanel />
           </div>
         </section>
       ) : activeTab === "geocoding" ? (

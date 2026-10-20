@@ -2385,7 +2385,7 @@ paths:
       summary: Get initial server setup state
       description: |
         Stand der Ersteinrichtung plus Werte, die nur über die Docker-Umgebung
-        einstellbar sind (öffentliche Adresse, OAuth-Anbieter) als Status.
+        einstellbar sind (öffentliche Adresse, OAuth-Anbieter, SMTP) als Status.
       responses:
         '200':
           description: Einrichtungsstatus
@@ -2414,45 +2414,22 @@ paths:
   /admin/mail:
     get:
       tags: [Admin]
-      summary: Get SMTP settings
-      description: Ohne Passwort; `source` zeigt, ob die Werte aus der Datenbank oder der .env (Fallback) stammen.
+      summary: Get SMTP status
+      description: |
+        SMTP wird ausschließlich über die SMTP_*-Umgebungsvariablen konfiguriert.
+        Liefert die erkannten Werte ohne Passwort.
       responses:
         '200':
-          description: SMTP-Einstellungen
+          description: SMTP-Status
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/MailSettings' }
-    put:
-      tags: [Admin]
-      summary: Save SMTP settings
-      description: Ein leeres oder fehlendes Passwort lässt das gespeicherte unverändert.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/MailSettingsUpdate' }
-      responses:
-        '200':
-          description: Gespeicherte SMTP-Einstellungen
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/MailSettings' }
-        '400': { description: Invalid request }
-    delete:
-      tags: [Admin]
-      summary: Remove stored SMTP settings
-      description: Danach gelten wieder die SMTP_*-Umgebungsvariablen, falls gesetzt.
-      responses:
-        '200':
-          description: SMTP-Einstellungen nach dem Entfernen
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/MailSettings' }
+              schema: { $ref: '#/components/schemas/MailStatus' }
 
   /admin/mail/test:
     post:
       tags: [Admin]
       summary: Send a test e-mail
+      description: Sendet mit der SMTP-Konfiguration aus der Umgebung.
       requestBody:
         required: false
         content:
@@ -2461,7 +2438,6 @@ paths:
               type: object
               properties:
                 to: { type: string, format: email, description: Standard ist die Adresse des angemeldeten Admins }
-                settings: { $ref: '#/components/schemas/MailSettingsUpdate' }
       responses:
         '200':
           description: Gesendet
@@ -2868,30 +2844,18 @@ components:
           type: object
           properties:
             enabled: { type: boolean, description: Gravatar-Profilbilder auf dieser Instanz erlaubt }
-    MailSettings:
+    MailStatus:
       type: object
+      description: Aus SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, SMTP_FROM_NAME.
       properties:
-        source: { type: string, enum: [database, environment, none] }
-        configured: { type: boolean }
+        configured: { type: boolean, description: SMTP_HOST und SMTP_FROM gesetzt }
         host: { type: string }
-        port: { type: integer }
-        security: { type: string, enum: [starttls, tls, none] }
+        port: { type: [integer, 'null'] }
+        security: { type: [string, 'null'], enum: [starttls, tls, null] }
         username: { type: string }
         passwordSet: { type: boolean }
         fromAddress: { type: string }
         fromName: { type: string }
-    MailSettingsUpdate:
-      type: object
-      required: [host, fromAddress]
-      properties:
-        host: { type: string }
-        port: { type: integer, default: 587 }
-        security: { type: string, enum: [starttls, tls, none], default: starttls }
-        username: { type: [string, 'null'] }
-        password: { type: [string, 'null'], format: password, description: Leer = unverändert }
-        clearPassword: { type: boolean }
-        fromAddress: { type: string, format: email }
-        fromName: { type: [string, 'null'] }
     AdminSetupState:
       type: object
       properties:
@@ -2915,7 +2879,7 @@ components:
                 enabled: { type: boolean }
                 rpId: { type: string }
             channel: { type: string, enum: [dev, release] }
-        mail: { $ref: '#/components/schemas/MailSettings' }
+        mail: { $ref: '#/components/schemas/MailStatus' }
         gravatar:
           type: object
           properties:
@@ -3575,7 +3539,7 @@ components:
       summary: Get initial server setup state
       description: |
         Stand der Ersteinrichtung plus Werte, die nur über die Docker-Umgebung
-        einstellbar sind (öffentliche Adresse, OAuth-Anbieter) als Status.
+        einstellbar sind (öffentliche Adresse, OAuth-Anbieter, SMTP) als Status.
       responses:
         '200':
           description: Einrichtungsstatus
@@ -3604,45 +3568,22 @@ components:
   /admin/mail:
     get:
       tags: [Admin]
-      summary: Get SMTP settings
-      description: Ohne Passwort; `source` zeigt, ob die Werte aus der Datenbank oder der .env (Fallback) stammen.
+      summary: Get SMTP status
+      description: |
+        SMTP wird ausschließlich über die SMTP_*-Umgebungsvariablen konfiguriert.
+        Liefert die erkannten Werte ohne Passwort.
       responses:
         '200':
-          description: SMTP-Einstellungen
+          description: SMTP-Status
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/MailSettings' }
-    put:
-      tags: [Admin]
-      summary: Save SMTP settings
-      description: Ein leeres oder fehlendes Passwort lässt das gespeicherte unverändert.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/MailSettingsUpdate' }
-      responses:
-        '200':
-          description: Gespeicherte SMTP-Einstellungen
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/MailSettings' }
-        '400': { description: Invalid request }
-    delete:
-      tags: [Admin]
-      summary: Remove stored SMTP settings
-      description: Danach gelten wieder die SMTP_*-Umgebungsvariablen, falls gesetzt.
-      responses:
-        '200':
-          description: SMTP-Einstellungen nach dem Entfernen
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/MailSettings' }
+              schema: { $ref: '#/components/schemas/MailStatus' }
 
   /admin/mail/test:
     post:
       tags: [Admin]
       summary: Send a test e-mail
+      description: Sendet mit der SMTP-Konfiguration aus der Umgebung.
       requestBody:
         required: false
         content:
@@ -3651,7 +3592,6 @@ components:
               type: object
               properties:
                 to: { type: string, format: email, description: Standard ist die Adresse des angemeldeten Admins }
-                settings: { $ref: '#/components/schemas/MailSettingsUpdate' }
       responses:
         '200':
           description: Gesendet
@@ -4183,30 +4123,18 @@ components:
           type: object
           properties:
             enabled: { type: boolean, description: Gravatar-Profilbilder auf dieser Instanz erlaubt }
-    MailSettings:
+    MailStatus:
       type: object
+      description: Aus SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, SMTP_FROM_NAME.
       properties:
-        source: { type: string, enum: [database, environment, none] }
-        configured: { type: boolean }
+        configured: { type: boolean, description: SMTP_HOST und SMTP_FROM gesetzt }
         host: { type: string }
-        port: { type: integer }
-        security: { type: string, enum: [starttls, tls, none] }
+        port: { type: [integer, 'null'] }
+        security: { type: [string, 'null'], enum: [starttls, tls, null] }
         username: { type: string }
         passwordSet: { type: boolean }
         fromAddress: { type: string }
         fromName: { type: string }
-    MailSettingsUpdate:
-      type: object
-      required: [host, fromAddress]
-      properties:
-        host: { type: string }
-        port: { type: integer, default: 587 }
-        security: { type: string, enum: [starttls, tls, none], default: starttls }
-        username: { type: [string, 'null'] }
-        password: { type: [string, 'null'], format: password, description: Leer = unverändert }
-        clearPassword: { type: boolean }
-        fromAddress: { type: string, format: email }
-        fromName: { type: [string, 'null'] }
     AdminSetupState:
       type: object
       properties:
@@ -4230,7 +4158,7 @@ components:
                 enabled: { type: boolean }
                 rpId: { type: string }
             channel: { type: string, enum: [dev, release] }
-        mail: { $ref: '#/components/schemas/MailSettings' }
+        mail: { $ref: '#/components/schemas/MailStatus' }
         gravatar:
           type: object
           properties:
