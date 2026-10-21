@@ -183,6 +183,24 @@
       "removeLast": "Letzten Punkt entfernen",
       "save": "Route speichern"
     },
+    "pointRemoval": {
+      "action": "Einzelne Punkte entfernen",
+      "hint": "Klicke auf der Karte die Punkte an, die nicht stimmen (z. B. Sprünge durch schlechten GPS-Empfang). Erneutes Klicken hebt die Auswahl auf. Die Linie zeigt die Route ohne die markierten Punkte.",
+      "selected": "{count} von {total} Punkten markiert",
+      "distance": "Strecke: {before} → {after}",
+      "legendSuspect": "möglicher Ausreißer",
+      "legendSelected": "wird entfernt",
+      "suggest": "Mögliche Ausreißer markieren ({count})",
+      "noSuggestions": "Keine Ausreißer erkannt",
+      "clear": "Auswahl aufheben",
+      "keepTwo": "Eine Fahrt muss mindestens zwei Punkte behalten.",
+      "remove": "{count} Punkte entfernen",
+      "removeOne": "1 Punkt entfernen",
+      "removing": "Wird entfernt …",
+      "confirm": "{count} GPS-Punkte endgültig entfernen? Strecke und Dauer werden neu berechnet; die entfernten Punkte bleiben in der Historie nachvollziehbar.",
+      "confirmOne": "1 GPS-Punkt endgültig entfernen? Strecke und Dauer werden neu berechnet; der entfernte Punkt bleibt in der Historie nachvollziehbar.",
+      "tooFew": "Diese Fahrt hat zu wenige GPS-Punkte."
+    },
     "reconciliation": {
       "title": "Aus mehreren Geräten zusammengeführt",
       "hint": "Die Aufteilung dieser Fahrt sollte geprüft werden.",
@@ -220,6 +238,7 @@
       "trackReconciled": "Geräteaufzeichnungen zusammengeführt",
       "driverAssigned": "Fahrer geändert",
       "routeCorrected": "Route manuell korrigiert",
+      "pointsRemoved": "Einzelne GPS-Punkte entfernt",
       "autoClassified": "Automatisch klassifiziert",
       "baseline": "Historie aktiviert"
     },

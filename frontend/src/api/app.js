@@ -880,3 +880,11 @@ export const getMonthlyReport = (token, month) =>
   apiRequest(token, "/api/v1/reports/monthly" + (month ? "?month=" + encodeURIComponent(month) : ""));
 export const sendMonthlyReport = (token, month) =>
   apiRequest(token, "/api/v1/reports/monthly/send", { method: "POST", body: JSON.stringify(month ? { month } : {}) });
+
+// Einzelne GPS-Punkte entfernen (z. B. Sprünge); Distanz wird serverseitig neu berechnet
+export function removeTripPoints(accessToken, tripId, pointIds) {
+  return apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/points/remove`, {
+    method: "POST",
+    body: JSON.stringify({ pointIds }),
+  });
+}
