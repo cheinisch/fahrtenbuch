@@ -182,6 +182,24 @@
       "removeLast": "Remove last point",
       "save": "Save route"
     },
+    "pointRemoval": {
+      "action": "Remove single points",
+      "hint": "Click the points on the map that are wrong (e.g. jumps caused by poor GPS reception). Click again to deselect. The line shows the route without the marked points.",
+      "selected": "{count} of {total} points marked",
+      "distance": "Distance: {before} → {after}",
+      "legendSuspect": "possible outlier",
+      "legendSelected": "will be removed",
+      "suggest": "Mark possible outliers ({count})",
+      "noSuggestions": "No outliers detected",
+      "clear": "Clear selection",
+      "keepTwo": "A trip has to keep at least two points.",
+      "remove": "Remove {count} points",
+      "removeOne": "Remove 1 point",
+      "removing": "Removing …",
+      "confirm": "Permanently remove {count} GPS points? Distance and duration are recalculated; the removed points stay traceable in the history.",
+      "confirmOne": "Permanently remove 1 GPS point? Distance and duration are recalculated; the removed point stays traceable in the history.",
+      "tooFew": "This trip has too few GPS points."
+    },
     "reconciliation": {
       "title": "Merged from multiple devices",
       "hint": "The split of this trip should be reviewed.",
@@ -219,6 +237,7 @@
       "trackReconciled": "Device recordings merged",
       "driverAssigned": "Driver changed",
       "routeCorrected": "Route manually corrected",
+      "pointsRemoved": "Single GPS points removed",
       "autoClassified": "Automatically classified",
       "baseline": "History enabled"
     },

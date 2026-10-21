@@ -848,6 +848,84 @@ tripRoutes.post(
   }),
 );
 
+// Einzelne GPS-Punkte entfernen, z. B. Sprünge durch schlechten Empfang. Distanz,
+// Start-/Zielkoordinaten und Dauer werden neu berechnet; die entfernten Punkte stehen
+// mit Koordinaten und Zeit in der Fahrthistorie.
+tripRoutes.post(
+  "/:id/points/remove",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    const body = objectBody(request.body);
+    const ids = Array.isArray(body.pointIds) ? body.pointIds : null;
+    if (!ids || ids.length < 1 || ids.length > 5000) {
+      throw badRequest("VALIDATION_ERROR", "pointIds muss 1 bis 5000 Punkt-IDs enthalten.");
+    }
+    const pointIds = [...new Set(ids.map((id, index) => uuidValue(id, `pointIds[${index}]`)))];
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const trip = await getOwnedTrip(client, request.auth.userId, tripId, { includeTags: false });
+      if (!trip) throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+      if (trip.status !== "completed") {
+        throw badRequest("TRIP_NOT_COMPLETED", "Punkte können nur bei abgeschlossenen Fahrten entfernt werden.");
+      }
+
+      const counts = await client.query(
+        `SELECT count(*)::int AS total,
+                count(*) FILTER (WHERE id = ANY($2::uuid[]))::int AS matched
+         FROM track_points WHERE trip_id = $1`,
+        [tripId, pointIds],
+      );
+      const { total, matched } = counts.rows[0];
+      if (matched !== pointIds.length) {
+        throw badRequest("POINT_NOT_FOUND", "Mindestens ein Punkt gehört nicht zu dieser Fahrt.");
+      }
+      if (total - matched < 2) {
+        throw badRequest("TOO_FEW_POINTS", "Eine Fahrt muss mindestens zwei Punkte behalten.");
+      }
+
+      const removed = await client.query(
+        `DELETE FROM track_points WHERE trip_id = $1 AND id = ANY($2::uuid[])
+         RETURNING sequence_number, lat, lon, recorded_at`,
+        [tripId, pointIds],
+      );
+      // Nimmt die geänderten Punkte als Grundlage und verwirft altes Map-Matching.
+      // Die Änderung an trips protokolliert der Trigger zusätzlich als UPDATED.
+      await recalculateTripMetrics(client, tripId);
+      const updated = await getOwnedTrip(client, request.auth.userId, tripId);
+      const meters = (value) => (value == null ? null : Number(value));
+      await appendTripHistory(client, {
+        tripId,
+        userId: request.auth.userId,
+        eventType: "POINTS_REMOVED",
+        changedFields: { distanceMeters: true },
+        oldValues: { distanceMeters: meters(trip.distance_meters) },
+        newValues: { distanceMeters: meters(updated.distance_meters) },
+        metadata: {
+          removedCount: removed.rowCount,
+          remainingCount: total - matched,
+          points: removed.rows
+            .sort((a, b) => Number(a.sequence_number) - Number(b.sequence_number))
+            .map((point) => ({
+              sequenceNumber: Number(point.sequence_number),
+              lat: Number(point.lat),
+              lon: Number(point.lon),
+              recordedAt: point.recorded_at,
+            })),
+        },
+      });
+      await client.query("COMMIT");
+      response.json(mapTrip(updated));
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
 tripRoutes.get(
   "/:id/history",
   asyncHandler(async (request, response) => {

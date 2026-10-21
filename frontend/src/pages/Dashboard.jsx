@@ -18,6 +18,7 @@ import {
   splitTrip,
   getTripSuggestions,
   correctTripRoute,
+  removeTripPoints,
   getAssignableTripDrivers,
   assignTripDriver,
   archiveTrip,
@@ -28,6 +29,7 @@ import {
   updateTripTags,
 
 } from "../api/app.js";
+import { normalizePoints, routeLengthMeters, suggestOutliers } from "../lib/gpsOutliers.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import { useSearchParams } from "react-router-dom";
 
@@ -354,6 +356,7 @@ export default function Dashboard() {
   const selectedTripIdRef = useRef(null);
   const mapModeRef = useRef(null);
   const splitPointsRef = useRef([]);
+  const pointRemovalRef = useRef({ points: [], selected: [] });
   // Der Karten-Klick-Handler wird nur einmal registriert; über die Ref sieht er
   // nach einem Token-Refresh trotzdem das aktuelle Token.
   const accessTokenRef = useRef(accessToken);
@@ -398,6 +401,9 @@ export default function Dashboard() {
   const [hoveredSplitPointId, setHoveredSplitPointId] = useState(null);
   const [selectedSplitPointId, setSelectedSplitPointId] = useState(null);
   const [routeDraft, setRouteDraft] = useState([]);
+  // Einzelne GPS-Punkte entfernen: geladene Punkte und die zum Löschen markierten IDs
+  const [pointRemoval, setPointRemoval] = useState({ points: [], selected: [] });
+  const [gpsReload, setGpsReload] = useState(0);
   const [driverAssignment, setDriverAssignment] = useState({ loading: false, drivers: [], selected: "", reason: "" });
 
   const [selectedTripId, setSelectedTripId] =
@@ -423,8 +429,14 @@ export default function Dashboard() {
   const selectedTrip = data.trips.find((trip) => trip.id === selectedTripId) || null;
 
   useEffect(() => { selectedTripIdRef.current = selectedTripId; }, [selectedTripId]);
+  // Markierte Punkte gehören zu einer Fahrt: beim Wechsel verwerfen
+  useEffect(() => {
+    setPointRemoval({ points: [], selected: [] });
+    setMapMode((mode) => (mode === "points" ? null : mode));
+  }, [selectedTripId]);
   useEffect(() => { mapModeRef.current = mapMode; }, [mapMode]);
   useEffect(() => { splitPointsRef.current = tripAction.splitPoints || []; }, [tripAction.splitPoints]);
+  useEffect(() => { pointRemovalRef.current = pointRemoval; }, [pointRemoval]);
 
   const [status, setStatus] = useState({
     loading: true,
@@ -440,7 +452,7 @@ export default function Dashboard() {
   );
 
   const lineFeatures = useMemo(() => {
-    if (selectedTripId && gpsMode === "points") return [];
+    if (selectedTripId && (gpsMode === "points" || mapMode === "points")) return [];
     // Originalroute: Linie nur aus den GPS-Rohpunkten statt der Straßenroute
     if (selectedTripId && gpsMode === "original" && gpsPoints.length >= 2) {
       const raw = gpsPoints
@@ -449,7 +461,7 @@ export default function Dashboard() {
       return toLineFeatures(visibleTrips.map((trip) => ({ ...trip, route: raw })), t);
     }
     return toLineFeatures(visibleTrips, t);
-  }, [visibleTrips, selectedTripId, gpsMode, gpsPoints, t]);
+  }, [visibleTrips, selectedTripId, gpsMode, gpsPoints, mapMode, t]);
 
   const endpointFeatures = useMemo(
     () => toEndpointFeatures(visibleTrips),
@@ -834,6 +846,24 @@ export default function Dashboard() {
         },
       });
 
+      // Punkte entfernen: Vorschau der Linie ohne markierte Punkte und alle Punkte zum Anklicken
+      map.addSource("point-removal-line", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "point-removal-line", type: "line", source: "point-removal-line",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": accent, "line-width": 4, "line-opacity": 0.8 },
+      });
+      map.addSource("point-removal-points", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "point-removal-points", type: "circle", source: "point-removal-points",
+        paint: {
+          "circle-radius": ["case", ["get", "selected"], 7, ["get", "suspect"], 6, 4.5],
+          "circle-color": ["case", ["get", "selected"], "#b42318", ["get", "suspect"], "#f59e0b", "#ffffff"],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": ["case", ["get", "selected"], "#ffffff", ["get", "suspect"], "#ffffff", accent],
+        },
+      });
+
       map.addSource("route-draft", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
@@ -928,6 +958,23 @@ export default function Dashboard() {
             }
           } catch (error) {
             setTripAction((state) => ({ ...state, error: error.message }));
+          }
+        } else if (activeMode === "points") {
+          const { points } = pointRemovalRef.current;
+          let nearest = null;
+          let best = Infinity;
+          for (const point of points) {
+            const projected = map.project([point.lon, point.lat]);
+            const distance = Math.hypot(projected.x - event.point.x, projected.y - event.point.y);
+            if (distance < best) { best = distance; nearest = point; }
+          }
+          if (nearest && best <= 24) {
+            setPointRemoval((state) => ({
+              ...state,
+              selected: state.selected.includes(nearest.id)
+                ? state.selected.filter((id) => id !== nearest.id)
+                : [...state.selected, nearest.id],
+            }));
           }
         } else if (activeMode === "correct") {
           setRouteDraft((current) => [...current, { longitude: event.lngLat.lng, latitude: event.lngLat.lat }]);
@@ -1165,6 +1212,7 @@ export default function Dashboard() {
       setHoveredSplitPointId(null);
       setSelectedSplitPointId(null);
       setRouteDraft([]);
+      setPointRemoval({ points: [], selected: [] });
       setMapMode("split");
       setTripAction({ busy: false, error: "", splitPoints });
     } catch (error) {
@@ -1242,6 +1290,78 @@ export default function Dashboard() {
     });
   }, [routeDraft]);
 
+  const removalSuggestions = useMemo(
+    () => (mapMode === "points" ? suggestOutliers(pointRemoval.points) : []),
+    [mapMode, pointRemoval.points],
+  );
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoadedRef.current) return;
+    const active = mapMode === "points";
+    const selected = new Set(pointRemoval.selected);
+    const suspects = new Set(removalSuggestions);
+    const remaining = pointRemoval.points.filter((point) => !selected.has(point.id));
+    map.getSource("point-removal-line")?.setData({
+      type: "FeatureCollection",
+      features: active && remaining.length >= 2 ? [{
+        type: "Feature", properties: {},
+        geometry: { type: "LineString", coordinates: remaining.map((point) => [point.lon, point.lat]) },
+      }] : [],
+    });
+    map.getSource("point-removal-points")?.setData({
+      type: "FeatureCollection",
+      features: active ? pointRemoval.points.map((point) => ({
+        type: "Feature",
+        properties: { selected: selected.has(point.id), suspect: suspects.has(point.id) },
+        geometry: { type: "Point", coordinates: [point.lon, point.lat] },
+      })) : [],
+    });
+  }, [mapMode, pointRemoval, removalSuggestions]);
+
+  async function beginPointRemoval() {
+    if (!selectedTripId) return;
+    cancelSplit();
+    setRouteDraft([]);
+    setTripAction({ busy: true, error: "", splitPoints: null });
+    try {
+      const points = normalizePoints(await getTripPoints(accessToken, selectedTripId));
+      if (points.length < 3) throw new Error(t("dashboard.pointRemoval.tooFew"));
+      setPointRemoval({ points, selected: [] });
+      setMapMode("points");
+      setTripAction({ busy: false, error: "", splitPoints: null });
+      // Auf die Punkte der Fahrt zoomen
+      const map = mapRef.current;
+      if (map) {
+        const bounds = createBounds(points.map((point) => [point.lon, point.lat]));
+        if (bounds) map.fitBounds(bounds, { padding: mapPadding(true, 48), duration: 400, maxZoom: 17 });
+      }
+    } catch (error) {
+      setTripAction({ busy: false, error: error.message, splitPoints: null });
+    }
+  }
+
+  function cancelPointRemoval() {
+    setPointRemoval({ points: [], selected: [] });
+    setMapMode((mode) => (mode === "points" ? null : mode));
+  }
+
+  async function savePointRemoval() {
+    const count = pointRemoval.selected.length;
+    if (!selectedTripId || count === 0) return;
+    if (!window.confirm(count === 1 ? t("dashboard.pointRemoval.confirmOne") : t("dashboard.pointRemoval.confirm", { count }))) return;
+    setTripAction((state) => ({ ...state, busy: true, error: "" }));
+    try {
+      await removeTripPoints(accessToken, selectedTripId, pointRemoval.selected);
+      setData(await getDashboard(accessToken, filters));
+      cancelPointRemoval();
+      setGpsReload((value) => value + 1);
+      setTripAction({ busy: false, error: "", splitPoints: null });
+    } catch (error) {
+      setTripAction((state) => ({ ...state, busy: false, error: error.message }));
+    }
+  }
+
   async function saveRouteCorrection() {
     if (!selectedTripId || routeDraft.length < 2) return;
     setTripAction((state) => ({ ...state, busy: true, error: "" }));
@@ -1264,7 +1384,7 @@ export default function Dashboard() {
       .then((points) => { if (!cancelled) setGpsPoints(points); })
       .catch((error) => { if (!cancelled) setGpsError(error.message); });
     return () => { cancelled = true; };
-  }, [accessToken, selectedTripId, gpsMode]);
+  }, [accessToken, selectedTripId, gpsMode, gpsReload]);
 
   // Beim Wechsel auf Dienstfahrt den Standard des Fahrzeugs vorschlagen – nur,
   // wenn die Fahrt noch keinen eigenen Satz hat (ein gespeicherter bleibt).
@@ -1340,6 +1460,7 @@ export default function Dashboard() {
     setMobileDetailsExpanded(false);
     setMapMode(null);
     setRouteDraft([]);
+    setPointRemoval({ points: [], selected: [] });
     setTripAction({ busy: false, error: "", splitPoints: null });
   }
 
@@ -1722,10 +1843,58 @@ export default function Dashboard() {
                     <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "split"} onClick={beginSplit} className={secondaryButton}>
                       {t("dashboard.split.action")}
                     </button>
-                    <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "correct"} onClick={() => { cancelSplit(); setMapMode("correct"); setRouteDraft([]); }} className={secondaryButton}>
+                    <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "correct"} onClick={() => { cancelSplit(); setPointRemoval({ points: [], selected: [] }); setMapMode("correct"); setRouteDraft([]); }} className={secondaryButton}>
                       {t("dashboard.routeCorrection.action")}
                     </button>
+                    <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "points"} onClick={() => (mapMode === "points" ? cancelPointRemoval() : beginPointRemoval())} className={`${secondaryButton} col-span-2`}>
+                      {t("dashboard.pointRemoval.action")}
+                    </button>
                   </div>
+
+                  {mapMode === "points" && (() => {
+                    const selected = new Set(pointRemoval.selected);
+                    const remaining = pointRemoval.points.filter((point) => !selected.has(point.id));
+                    const before = routeLengthMeters(pointRemoval.points);
+                    const after = routeLengthMeters(remaining);
+                    const tooMany = remaining.length < 2;
+                    return (
+                      <div className="space-y-2 rounded-lg border border-fb-border bg-fb-surface p-3">
+                        <p className="text-xs text-fb-muted">{t("dashboard.pointRemoval.hint")}</p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                          <span>{t("dashboard.pointRemoval.selected", { count: pointRemoval.selected.length, total: pointRemoval.points.length })}</span>
+                          <span>{t("dashboard.pointRemoval.distance", { before: fmtKm(before), after: fmtKm(after) })}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-fb-muted">
+                          <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="inline-block size-2.5 rounded-full bg-[#f59e0b]" />{t("dashboard.pointRemoval.legendSuspect")}</span>
+                          <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="inline-block size-2.5 rounded-full bg-[#b42318]" />{t("dashboard.pointRemoval.legendSelected")}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={removalSuggestions.length === 0}
+                            onClick={() => setPointRemoval((state) => ({ ...state, selected: [...new Set([...state.selected, ...removalSuggestions])] }))}
+                            className="min-h-9 rounded-lg border border-fb-border bg-fb-main px-3 text-xs disabled:opacity-50"
+                          >
+                            {removalSuggestions.length ? t("dashboard.pointRemoval.suggest", { count: removalSuggestions.length }) : t("dashboard.pointRemoval.noSuggestions")}
+                          </button>
+                          <button type="button" disabled={pointRemoval.selected.length === 0} onClick={() => setPointRemoval((state) => ({ ...state, selected: [] }))} className="min-h-9 rounded-lg border border-fb-border bg-fb-main px-3 text-xs disabled:opacity-50">
+                            {t("dashboard.pointRemoval.clear")}
+                          </button>
+                        </div>
+                        {tooMany && <p role="alert" className="text-xs text-fb-danger">{t("dashboard.pointRemoval.keepTwo")}</p>}
+                        <div className="flex flex-wrap gap-2 border-t border-fb-border pt-2">
+                          <button type="button" disabled={pointRemoval.selected.length === 0 || tooMany || tripAction.busy} onClick={savePointRemoval} className="min-h-9 rounded-lg bg-fb-danger px-3 text-xs font-semibold text-white disabled:opacity-50">
+                            {tripAction.busy
+                              ? t("dashboard.pointRemoval.removing")
+                              : pointRemoval.selected.length === 1
+                                ? t("dashboard.pointRemoval.removeOne")
+                                : t("dashboard.pointRemoval.remove", { count: pointRemoval.selected.length })}
+                          </button>
+                          <button type="button" disabled={tripAction.busy} onClick={cancelPointRemoval} className="min-h-9 rounded-lg px-2 text-xs font-semibold text-fb-muted hover:text-fb-accent">{t("common.cancel")}</button>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {mapMode === "split" && <p className="text-xs text-fb-muted">{t("dashboard.split.hint")}</p>}
                   {tripAction.splitPoints && (

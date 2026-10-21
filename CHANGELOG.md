@@ -8,6 +8,7 @@ commits are not listed.
 ## [Unreleased]
 
 ### Added
+- **Remove single GPS points** in the web dashboard (trip details › Edit › Remove single points): click points on the map to mark them, or let the dashboard mark likely outliers (jumps that would need an implausible detour or speed, or points the device reported as very inaccurate). The map previews the route without the marked points together with the new distance. Distance, duration and start/end coordinates are recalculated, an existing map matching is discarded, and the removed points are kept with coordinates and time in the trip history (`POINTS_REMOVED`). `POST /trips/{id}/points/remove`.
 - **Monthly report by e-mail** on the first of each month (06:00 local time, caught up until the 7th): all own and shared vehicles in one mail (shared ones with your own trips only), open trips waiting for a category, and places visited for the first time that month. Requires SMTP; each user can turn it off under Profile › Notifications. Each report is sent once per user and month.
 - **Monthly report page** in the web app (Statistics › Monthly report) with the same content: assign open trips and save new places directly, and switch the e-mail on or off. `GET /reports/monthly`.
 - "Send monthly report now" for testing, in the `:dev` image only (`FEATURE_MONTHLY_REPORT_SEND_NOW`, `POST /reports/monthly/send`).
@@ -17,6 +18,8 @@ commits are not listed.
 - **Employer mileage reimbursement**: vehicles get a default rate (€/km, `businessReimbursementRateEur`). When a trip becomes a business trip and has no rate yet, the vehicle default is copied into the trip (`reimbursementRateEur`); it can be adjusted per trip and is kept when the type changes later. Existing trips are not filled in. Trips return `reimbursementEur` (business trips only); statistics show the reimbursement per month and year (`GET /statistics`, `/statistics/monthly-odometer`, `/statistics/monthly-trips`).
 
 ### Fixed
+- Manual route correction (`POST /trips/{id}/route-correction`) failed when writing the trip history: two migrations had dropped `ROUTE_CORRECTED` and `AUTO_CLASSIFIED` from the allowed history event types.
+- Changing a trip in a closed period now answers 409 `TRIP_PERIOD_LOCKED` with a clear message instead of a 500 error.
 - Creating a trip (`POST /trips`) and the full update (`PUT /trips/{id}`) failed with a database type error for the trip status.
 - `api/openapi.yml` is a single valid document again: a truncated entry had split it so that about 50 paths sat inside `components` and a second `components` block followed. It now passes a strict YAML parser and redocly lint.
 

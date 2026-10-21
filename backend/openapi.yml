@@ -804,6 +804,42 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/TrackPoint' }
 
+  /trips/{id}/points/remove:
+    post:
+      tags: [Trips]
+      summary: Remove single GPS points from a trip
+      description: |
+        Entfernt einzelne GPS-Punkte (z. B. Sprünge durch schlechten Empfang). Distanz,
+        Dauer sowie Start- und Zielkoordinaten werden aus den verbleibenden Punkten neu
+        berechnet, ein vorhandenes Map-Matching wird verworfen und beim nächsten Lauf neu
+        erzeugt. Die entfernten Punkte stehen mit Koordinaten und Zeit in der Fahrthistorie
+        (`POINTS_REMOVED`). Nur für abgeschlossene Fahrten; mindestens zwei Punkte bleiben.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pointIds]
+              properties:
+                pointIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 5000
+                  items: { type: string, format: uuid }
+                  description: IDs aus GET /trips/{id}/points
+      responses:
+        '200':
+          description: Aktualisierte Fahrt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trip' }
+        '400': { description: "VALIDATION_ERROR, TRIP_NOT_COMPLETED, POINT_NOT_FOUND oder TOO_FEW_POINTS" }
+        '404': { description: TRIP_NOT_FOUND }
+        '409': { description: TRIP_PERIOD_LOCKED – die Fahrt liegt in einem abgeschlossenen Zeitraum }
+
   /trips/{id}/classify:
     put:
       tags: [Trips]
@@ -3022,7 +3058,7 @@ components:
         tripId: { type: string, format: uuid }
         eventType:
           type: string
-          enum: [CREATED, UPDATED, CLASSIFIED, ARCHIVED, DELETED, TAG_ADDED, TAG_REMOVED, MAP_MATCHED, BASELINE, TRIP_SPLIT, TRIP_MERGED, ROUTE_CORRECTED, AUTO_CLASSIFIED]
+          enum: [CREATED, UPDATED, CLASSIFIED, ARCHIVED, DELETED, TAG_ADDED, TAG_REMOVED, MAP_MATCHED, BASELINE, TRIP_SPLIT, TRIP_MERGED, ROUTE_CORRECTED, AUTO_CLASSIFIED, TRACK_DUPLICATE, TRACK_RECONCILED, DRIVER_ASSIGNED, POINTS_REMOVED]
         changedFields: { type: object, additionalProperties: true }
         oldValues: { type: [object, 'null'], additionalProperties: true }
         newValues: { type: [object, 'null'], additionalProperties: true }

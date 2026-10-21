@@ -41,6 +41,11 @@ export function errorHandler(error, request, response, _next) {
     code = "REFERENCE_ERROR";
     message = "Ein referenzierter Datensatz existiert nicht oder gehört einem anderen Benutzer.";
     details = { constraint: error.constraint || null };
+  } else if (error?.code === "P0001" && /abgeschlossenen Zeitraum/.test(String(error.message))) {
+    // Sperre aus trips_period_lock (Monat/Zeitraum abgeschlossen)
+    status = 409;
+    code = "TRIP_PERIOD_LOCKED";
+    message = "Die Fahrt liegt in einem abgeschlossenen Zeitraum und kann nicht mehr geändert werden.";
   } else if (error?.code === "22P02") {
     status = 400;
     code = "VALIDATION_ERROR";
