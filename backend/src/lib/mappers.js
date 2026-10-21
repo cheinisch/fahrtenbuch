@@ -61,6 +61,8 @@ export function mapVehicle(row) {
     leaseShortfallToleranceKm: row.lease_shortfall_tolerance_km == null ? null : Number(row.lease_shortfall_tolerance_km),
     leaseExcessRateEur: row.lease_excess_rate_eur == null ? null : Number(row.lease_excess_rate_eur),
     leaseShortfallRateEur: row.lease_shortfall_rate_eur == null ? null : Number(row.lease_shortfall_rate_eur),
+    // Kilometergeld des Arbeitgebers (€/km), Standard für neue Dienstfahrten
+    businessReimbursementRateEur: row.business_reimbursement_rate_eur == null ? null : Number(row.business_reimbursement_rate_eur),
     isOwner: row.is_owner === undefined ? true : Boolean(row.is_owner),
     accessType: row.access_type ?? (row.is_owner === false ? "shared" : "owner"),
     owner: row.owner_display_name || row.owner_username
@@ -116,6 +118,14 @@ export function mapTrackPoint(row) {
   };
 }
 
+// Erstattung nur für Dienstfahrten; der Satz bleibt sonst gespeichert, zählt aber nicht.
+function tripReimbursementEur(row) {
+  if (row.type !== "business" || row.reimbursement_rate_eur == null || row.distance_meters == null) {
+    return null;
+  }
+  return Math.round(Number(row.distance_meters) / 1000 * Number(row.reimbursement_rate_eur) * 100) / 100;
+}
+
 export function mapTrip(row) {
   const tags = Array.isArray(row.tags) ? row.tags : [];
 
@@ -135,6 +145,10 @@ export function mapTrip(row) {
             row.vehicle_license_plate ?? null,
           color:
             row.vehicle_color ?? null,
+          businessReimbursementRateEur:
+            row.vehicle_business_reimbursement_rate_eur == null
+              ? null
+              : Number(row.vehicle_business_reimbursement_rate_eur),
         }
       : null,
     category: row.type,
@@ -182,6 +196,9 @@ export function mapTrip(row) {
       row.duration_seconds === null || row.duration_seconds === undefined
         ? null
         : Number(row.duration_seconds),
+    reimbursementRateEur:
+      row.reimbursement_rate_eur == null ? null : Number(row.reimbursement_rate_eur),
+    reimbursementEur: tripReimbursementEur(row),
     source: row.source ?? undefined,
     reconciliationStatus: row.reconciliation_status ?? "canonical",
     canonicalTripId: row.canonical_trip_id ?? null,

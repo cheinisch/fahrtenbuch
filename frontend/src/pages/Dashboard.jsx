@@ -410,6 +410,8 @@ export default function Dashboard() {
   const [editCategory, setEditCategory] = useState("unclassified");
   const [editSpecialCategory, setEditSpecialCategory] = useState("");
   const [editTags, setEditTags] = useState([]);
+  // Erstattungssatz als Text (leer = keiner), damit „0,30“ tippbar bleibt
+  const [editRate, setEditRate] = useState("");
   const [editError, setEditError] = useState("");
   const [editBusy, setEditBusy] = useState(false);
   const [history, setHistory] = useState({
@@ -1095,6 +1097,7 @@ export default function Dashboard() {
     setEditCategory(trip.type);
     setEditSpecialCategory(trip.specialCategory || "");
     setEditTags((trip.tags || []).map((tag) => tag.id));
+    setEditRate(trip.reimbursementRateEur == null ? "" : String(trip.reimbursementRateEur));
     setEditError('');
     setDriverAssignment({ loading: true, drivers: [], selected: "", reason: "" });
     getAssignableTripDrivers(accessToken, trip.id)
@@ -1263,14 +1266,35 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, [accessToken, selectedTripId, gpsMode]);
 
+  // Beim Wechsel auf Dienstfahrt den Standard des Fahrzeugs vorschlagen – nur,
+  // wenn die Fahrt noch keinen eigenen Satz hat (ein gespeicherter bleibt).
+  function changeEditCategory(category) {
+    setEditCategory(category);
+    if (
+      category === "business" &&
+      selectedTrip &&
+      selectedTrip.reimbursementRateEur == null &&
+      editRate === "" &&
+      selectedTrip.vehicle?.businessReimbursementRateEur != null
+    ) {
+      setEditRate(String(selectedTrip.vehicle.businessReimbursementRateEur));
+    }
+  }
+
   async function saveTripDetails() {
     if (!selectedTrip || editBusy) return;
     setEditBusy(true);
     setEditError('');
     try {
+      const rateText = String(editRate).trim().replace(",", ".");
+      const rate = rateText === "" ? null : Number(rateText);
+      if (rate !== null && (!Number.isFinite(rate) || rate < 0)) throw new Error(t('tripDetails.reimbursementHint'));
+      // Satz nur bei Dienstfahrten bearbeitbar; bei anderen Typen bleibt er unverändert gespeichert.
+      const rateChanged = editCategory === "business" && rate !== (selectedTrip.reimbursementRateEur ?? null);
       if (
         editCategory !== selectedTrip.type ||
-        editSpecialCategory !== (selectedTrip.specialCategory || "")
+        editSpecialCategory !== (selectedTrip.specialCategory || "") ||
+        rateChanged
       ) {
         if (editCategory === 'unclassified') throw new Error(t('tripDetails.categoryRequired'));
         await classifyTrip(
@@ -1278,6 +1302,7 @@ export default function Dashboard() {
           selectedTrip.id,
           editCategory,
           editSpecialCategory || null,
+          rateChanged ? { reimbursementRateEur: rate } : null,
         );
       }
       const oldTags = (selectedTrip.tags || []).map((tag) => tag.id).sort();
@@ -1579,6 +1604,9 @@ export default function Dashboard() {
                   <div><dt className="text-xs text-fb-muted">{t("tripDetails.to")}</dt><dd className="mt-0.5 font-medium">{selectedTrip.endAddress || "–"}</dd></div>
                   <div><dt className="text-xs text-fb-muted">{t("tripDetails.distance")}</dt><dd className="mt-0.5 font-bold text-fb-accent">{fmtKm(selectedTrip.distanceMeters)}</dd></div>
                   <div><dt className="text-xs text-fb-muted">{t("tripDetails.vehicle")}</dt><dd className="mt-0.5 font-medium">{selectedTrip.vehicle?.name || "–"}</dd></div>
+                  {selectedTrip.reimbursementEur != null && (
+                    <div><dt className="text-xs text-fb-muted">{t("tripDetails.reimbursement")}</dt><dd className="mt-0.5 font-medium">{new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(selectedTrip.reimbursementEur)}<span className="ml-1 text-xs text-fb-muted">({new Intl.NumberFormat(locale, { maximumFractionDigits: 4 }).format(selectedTrip.reimbursementRateEur)} €/km)</span></dd></div>
+                  )}
                 </dl>
 
                 <div>
@@ -1621,7 +1649,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-3">
                   <label className="font-semibold">
                     {t("tripDetails.category")}
-                    <select value={editCategory} onChange={(event) => setEditCategory(event.target.value)} className={`${fieldClass} font-normal`}>
+                    <select value={editCategory} onChange={(event) => changeEditCategory(event.target.value)} className={`${fieldClass} font-normal`}>
                       {["unclassified", "private", "business", "commute"].map((type) => <option key={type} value={type}>{tripTypeLabel(t, type)}</option>)}
                     </select>
                   </label>
@@ -1633,6 +1661,15 @@ export default function Dashboard() {
                     </select>
                   </label>
                   <p className="col-span-2 -mt-1 text-xs text-fb-muted">{t("tripDetails.specialCategoryHint")}</p>
+                  {editCategory === "business" && (
+                    <>
+                      <label className="col-span-2 font-semibold sm:col-span-1">
+                        {t("tripDetails.reimbursementRate")}
+                        <input type="number" inputMode="decimal" min="0" step="0.01" value={editRate} onChange={(event) => setEditRate(event.target.value)} placeholder={selectedTrip.vehicle?.businessReimbursementRateEur != null ? String(selectedTrip.vehicle.businessReimbursementRateEur) : ""} className={`${fieldClass} font-normal`} />
+                      </label>
+                      <p className="col-span-2 -mt-1 text-xs text-fb-muted">{t("tripDetails.reimbursementHint")}</p>
+                    </>
+                  )}
                 </div>
 
                 <fieldset>
@@ -1659,7 +1696,7 @@ export default function Dashboard() {
                       <div className="mt-0.5 text-fb-muted">{suggestion.reason}</div>
                     </div>
                     {editCategory !== suggestion.type && (
-                      <button type="button" onClick={() => setEditCategory(suggestion.type)} className="shrink-0 text-xs font-semibold text-fb-accent-strong hover:underline">
+                      <button type="button" onClick={() => changeEditCategory(suggestion.type)} className="shrink-0 text-xs font-semibold text-fb-accent-strong hover:underline">
                         {t("dashboard.applySuggestion")}
                       </button>
                     )}

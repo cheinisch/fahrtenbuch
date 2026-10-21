@@ -835,6 +835,11 @@ paths:
                   type: [string, 'null']
                   maxLength: 20000
                   description: Free-text note. Only changed when present; null or "" removes it.
+                reimbursementRateEur:
+                  type: [number, 'null']
+                  minimum: 0
+                  maximum: 1000
+                  description: Reimbursement rate (EUR per km). Only changed when present; null removes it. Omitted when switching to business = vehicle default if the trip has no rate yet.
       responses:
         '200': { description: Fahrt klassifiziert }
 
@@ -2907,6 +2912,11 @@ components:
         color: { type: [string, 'null'] }
         notes: { type: [string, 'null'] }
         bluetoothMac: { type: [string, 'null'] }
+        businessReimbursementRateEur:
+          type: [number, 'null']
+          minimum: 0
+          example: 0.3
+          description: Default employer mileage reimbursement (EUR per km). Copied into a trip when it becomes a business trip and has no rate yet.
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     VehicleInput:
@@ -2922,6 +2932,11 @@ components:
         bluetoothMac:
           type: [string, 'null']
           pattern: '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$'
+        businessReimbursementRateEur:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 1000
+          description: Default employer mileage reimbursement (EUR per km); null removes it. Omitted on update = unchanged.
     Trip:
       type: object
       required: [id, vehicleId, type, status, startedAt]
@@ -2959,6 +2974,12 @@ components:
         notes: { type: [string, 'null'] }
         distanceKm: { type: [number, 'null'] }
         durationSeconds: { type: [integer, 'null'] }
+        reimbursementRateEur:
+          type: [number, 'null']
+          description: Employer reimbursement rate of this trip (EUR per km). Taken from the vehicle when the trip becomes a business trip and has no rate yet; kept when the type changes later.
+        reimbursementEur:
+          type: [number, 'null']
+          description: distanceKm × reimbursementRateEur, rounded to cents. Only for business trips, otherwise null.
         mapMatching:
           description: Ergebnis des Map-Matchings (null = noch nicht gematcht). Bei status applied ist distanceKm die gematchte Distanz.
           oneOf:
@@ -3035,6 +3056,11 @@ components:
         purpose: { type: [string, 'null'] }
         contact: { type: [string, 'null'] }
         notes: { type: [string, 'null'] }
+        reimbursementRateEur:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 1000
+          description: Reimbursement rate (EUR per km) for this trip. Omitted = keep (update) or vehicle default for business trips (create); null removes it.
     TrackPoint:
       type: object
       required: [lat, lon, recordedAt]

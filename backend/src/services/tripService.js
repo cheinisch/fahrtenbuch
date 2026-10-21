@@ -34,6 +34,7 @@ export const TRIP_SELECT = `
   t.start_timezone,
   t.end_timezone,
   t.client_trip_id,
+  t.reimbursement_rate_eur,
   (SELECT u.timezone FROM users u WHERE u.id = t.user_id) AS user_timezone,
   (SELECT json_build_object(
      'status', m.status, 'provider', m.provider, 'matched_at', m.matched_at,
@@ -49,6 +50,7 @@ export const TRIP_WITH_TAGS_SELECT = `
   v.model AS vehicle_model,
   v.license_plate AS vehicle_license_plate,
   v.color AS vehicle_color,
+  v.business_reimbursement_rate_eur AS vehicle_business_reimbursement_rate_eur,
   COALESCE(
     jsonb_agg(
       DISTINCT jsonb_build_object(

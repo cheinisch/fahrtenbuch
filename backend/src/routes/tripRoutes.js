@@ -14,6 +14,7 @@ import {
   arrayField,
   dateTimeField,
   enumField,
+  numberField,
   objectBody,
   queryInteger,
   stringField,
@@ -77,6 +78,27 @@ function parseTagIds(input) {
   ];
 }
 
+// Erstattungssatz (€/km): undefined = nicht mitgeschickt, null = leeren
+function parseReimbursementRate(input) {
+  return numberField(input, "reimbursementRateEur", {
+    nullable: true,
+    minimum: 0,
+    maximum: 1000,
+  });
+}
+
+// Setzt den Satz einer Fahrt explizit. Bewusst als eigenes UPDATE ohne „type“,
+// damit der Trigger den Fahrzeug-Standard nicht wieder einträgt (z. B. wenn der
+// Wert beim Wechsel auf Dienstfahrt absichtlich geleert wurde).
+async function setTripReimbursementRate(client, userId, tripId, rate) {
+  if (rate === undefined) return;
+  await client.query(
+    `UPDATE trips SET reimbursement_rate_eur = $3
+     WHERE id = $1 AND user_id = $2`,
+    [tripId, userId, rate],
+  );
+}
+
 function parseTripInput(body) {
   const input = objectBody(body);
   const startedAt = dateTimeField(
@@ -132,6 +154,7 @@ function parseTripInput(body) {
             { nullable: true },
           ) ?? null,
     tagIds: parseTagIds(input),
+    reimbursementRateEur: parseReimbursementRate(input),
     startedAt,
     endedAt: endedAt ?? null,
     // Optional IANA zones; undefined = keep (update) / user zone (create)
@@ -372,6 +395,13 @@ tripRoutes.post(
           input.startTimeZone ?? null,
           input.endTimeZone ?? null,
         ],
+      );
+
+      await setTripReimbursementRate(
+        client,
+        request.auth.userId,
+        result.rows[0].id,
+        input.reimbursementRateEur,
       );
 
       await replaceTripTags(
@@ -967,6 +997,7 @@ tripRoutes.put(
     const textFields = [["purpose", 1000], ["contact", 1000], ["notes", 20_000]]
       .filter(([name]) => body[name] !== undefined)
       .map(([name, maximum]) => [name, stringField(body, name, { nullable: true, maximum }) || null]);
+    const reimbursementRate = parseReimbursementRate(body);
 
     const client = await pool.connect();
     try {
@@ -992,6 +1023,14 @@ tripRoutes.put(
         newValues[name] = value;
         if (old !== value) changedFields[name] = { old, new: value };
       }
+      if (reimbursementRate !== undefined) {
+        const old = existing.reimbursement_rate_eur == null ? null : Number(existing.reimbursement_rate_eur);
+        oldValues.reimbursement_rate_eur = old;
+        newValues.reimbursement_rate_eur = reimbursementRate;
+        if (old !== reimbursementRate) {
+          changedFields.reimbursement_rate_eur = { old, new: reimbursementRate };
+        }
+      }
 
       if (Object.keys(changedFields).length > 0) {
         const columns = Object.keys(next);
@@ -1002,6 +1041,7 @@ tripRoutes.put(
            WHERE id = $1 AND user_id = $2 AND archived_at IS NULL`,
           [tripId, request.auth.userId, ...columns.map((name) => next[name])],
         );
+        await setTripReimbursementRate(client, request.auth.userId, tripId, reimbursementRate);
 
         await appendTripHistory(client, {
           tripId,
@@ -1212,6 +1252,13 @@ tripRoutes.put(
           "Die Fahrt wurde nicht gefunden.",
         );
       }
+
+      await setTripReimbursementRate(
+        client,
+        request.auth.userId,
+        tripId,
+        input.reimbursementRateEur,
+      );
 
       if (input.tagIds !== undefined) {
         await replaceTripTags(

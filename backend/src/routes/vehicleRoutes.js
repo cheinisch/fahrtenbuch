@@ -119,6 +119,8 @@ function parseVehicleInput(body) {
     leaseShortfallToleranceKm: acquisitionType !== "owned" ? numberField(input, "leaseShortfallToleranceKm", { nullable: true, minimum: 0, maximum: 10000000 }) ?? null : null,
     leaseExcessRateEur: acquisitionType !== "owned" ? numberField(input, "leaseExcessRateEur", { nullable: true, minimum: 0, maximum: 10000 }) ?? null : null,
     leaseShortfallRateEur: acquisitionType !== "owned" ? numberField(input, "leaseShortfallRateEur", { nullable: true, minimum: 0, maximum: 10000 }) ?? null : null,
+    // undefined = nicht mitgeschickt (ältere App-Versionen) → beim Ändern beibehalten
+    businessReimbursementRateEur: numberField(input, "businessReimbursementRateEur", { nullable: true, minimum: 0, maximum: 1000 }),
   };
 }
 
@@ -565,9 +567,10 @@ vehicleRoutes.post(
             lease_excess_tolerance_km,
             lease_shortfall_tolerance_km,
             lease_excess_rate_eur,
-            lease_shortfall_rate_eur
+            lease_shortfall_rate_eur,
+            business_reimbursement_rate_eur
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
           RETURNING *
         `,
         [
@@ -591,6 +594,7 @@ vehicleRoutes.post(
           input.leaseShortfallToleranceKm,
           input.leaseExcessRateEur,
           input.leaseShortfallRateEur,
+          input.businessReimbursementRateEur ?? null,
         ],
       );
 
@@ -679,7 +683,8 @@ vehicleRoutes.put(
             lease_excess_tolerance_km = $18,
             lease_shortfall_tolerance_km = $19,
             lease_excess_rate_eur = $20,
-            lease_shortfall_rate_eur = $21
+            lease_shortfall_rate_eur = $21,
+            business_reimbursement_rate_eur = CASE WHEN $22::boolean THEN $23::numeric ELSE business_reimbursement_rate_eur END
           WHERE id = $1
             AND user_id = $2
             AND archived_at IS NULL
@@ -707,6 +712,8 @@ vehicleRoutes.put(
           input.leaseShortfallToleranceKm,
           input.leaseExcessRateEur,
           input.leaseShortfallRateEur,
+          input.businessReimbursementRateEur !== undefined,
+          input.businessReimbursementRateEur ?? null,
         ],
       );
 

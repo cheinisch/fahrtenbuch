@@ -14,8 +14,10 @@ commits are not listed.
 - **Setup assistant** on the first admin sign-in of a fresh installation: language, own admin password, server status (public address, passkeys, time zone), e-mail, geocoding, sign-in & privacy, first vehicle and pairing the Android app.
 - **First sign-in assistant** for accounts created by an administrator: own password, profile, linking Google/Microsoft (only enabled providers), shared and own vehicles, pairing the app. If only a password change is required, just that step is shown.
 - **E-mail tab** in the administration: shows the SMTP configuration detected from `SMTP_*` and sends a test e-mail. New optional `SMTP_FROM_NAME`.
+- **Employer mileage reimbursement**: vehicles get a default rate (€/km, `businessReimbursementRateEur`). When a trip becomes a business trip and has no rate yet, the vehicle default is copied into the trip (`reimbursementRateEur`); it can be adjusted per trip and is kept when the type changes later. Existing trips are not filled in. Trips return `reimbursementEur` (business trips only); statistics show the reimbursement per month and year (`GET /statistics`, `/statistics/monthly-odometer`, `/statistics/monthly-trips`).
 
 ### Fixed
+- Creating a trip (`POST /trips`) and the full update (`PUT /trips/{id}`) failed with a database type error for the trip status.
 - `api/openapi.yml` is a single valid document again: a truncated entry had split it so that about 50 paths sat inside `components` and a second `components` block followed. It now passes a strict YAML parser and redocly lint.
 
 ### Changed

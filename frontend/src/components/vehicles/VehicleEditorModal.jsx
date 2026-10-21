@@ -31,6 +31,7 @@ function initialState(vehicle) {
     leaseShortfallToleranceKm: vehicle?.leaseShortfallToleranceKm ?? "",
     leaseExcessRateEur: vehicle?.leaseExcessRateEur ?? "",
     leaseShortfallRateEur: vehicle?.leaseShortfallRateEur ?? "",
+    businessReimbursementRateEur: vehicle?.businessReimbursementRateEur ?? "",
   };
 }
 
@@ -85,6 +86,7 @@ export default function VehicleEditorModal({
       leaseShortfallToleranceKm: form.acquisitionType !== "owned" && form.leaseShortfallToleranceKm !== "" ? Number(form.leaseShortfallToleranceKm) : null,
       leaseExcessRateEur: form.acquisitionType !== "owned" && form.leaseExcessRateEur !== "" ? Number(form.leaseExcessRateEur) : null,
       leaseShortfallRateEur: form.acquisitionType !== "owned" && form.leaseShortfallRateEur !== "" ? Number(form.leaseShortfallRateEur) : null,
+      businessReimbursementRateEur: form.businessReimbursementRateEur === "" ? null : Number(String(form.businessReimbursementRateEur).replace(",", ".")),
     };
 
     const contractStarted = form.acquisitionType !== "owned" && (form.leaseStartDate || form.leaseEndDate || form.leaseIncludedKm !== "");
@@ -164,6 +166,11 @@ export default function VehicleEditorModal({
                       <label className="text-sm font-medium">{t("vehicleEditor.shortfallRate")}<input type="number" min="0" step="0.0001" value={form.leaseShortfallRateEur} onChange={(e) => update("leaseShortfallRateEur", e.target.value)} className={fieldClass} /></label>
                     </div>}
                   </>}
+                </div>
+                <div className="rounded-xl border border-fb-border bg-fb-surface p-4">
+                  <div className="text-sm font-semibold">{t("vehicleEditor.businessTrips")}</div>
+                  <p className="mt-1 text-xs text-fb-muted">{t("vehicleEditor.reimbursementHint")}</p>
+                  <label className="mt-3 block text-sm font-medium sm:max-w-xs">{t("vehicleEditor.reimbursementRate")}<input type="number" min="0" step="0.01" value={form.businessReimbursementRateEur} onChange={(e) => update("businessReimbursementRateEur", e.target.value)} className={fieldClass} placeholder={t("vehicleEditor.reimbursementExample")} /></label>
                 </div>
                 <label className="block text-sm font-medium">{t("vehicleEditor.notes")}<textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3} className={fieldClass} /></label>
                 <label className="flex items-start gap-3 rounded-lg border border-fb-border bg-fb-surface p-4">

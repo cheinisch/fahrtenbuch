@@ -13,6 +13,8 @@ import { requireAuth } from "../middleware/requireAuth.js";
 
 export const statisticsRoutes = Router();
 
+const roundEur = (value) => Math.round(Number(value || 0) * 100) / 100;
+
 statisticsRoutes.use(requireAuth);
 
 // Tages- und Monatsgrenzen gelten in der Ortszeit der Fahrt (Zone beim Start,
@@ -85,6 +87,8 @@ statisticsRoutes.get(
             coalesce(sum(distance_meters), 0) AS distance_meters,
             coalesce(sum(duration_seconds), 0) AS duration_seconds,
             coalesce(avg(distance_meters), 0) AS average_distance_meters,
+            -- Kilometergeld nur für Dienstfahrten
+            coalesce(sum(t.distance_meters / 1000.0 * t.reimbursement_rate_eur) FILTER (WHERE t.type = 'business'), 0) AS reimbursement_eur,
             min(started_at) AS first_trip_at,
             max(started_at) AS last_trip_at
           FROM trips t
@@ -117,6 +121,7 @@ statisticsRoutes.get(
         distanceKm: Number(summary.distance_meters || 0) / 1000,
         durationSeconds: Number(summary.duration_seconds || 0),
         averageDistanceMeters: Number(summary.average_distance_meters || 0),
+        reimbursementEur: roundEur(summary.reimbursement_eur),
         firstTripAt: summary.first_trip_at,
         lastTripAt: summary.last_trip_at,
       },
@@ -359,6 +364,8 @@ statisticsRoutes.get(
         SELECT t.vehicle_id, date_trunc('month', ${tripLocalStartSql("t", "$3")})::date AS month,
           coalesce(sum(t.distance_meters), 0)::bigint AS tracked_meters,
           coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id = $1 AND t.type = 'business'), 0)::bigint AS business_meters,
+          coalesce(sum(t.distance_meters / 1000.0 * t.reimbursement_rate_eur) FILTER (WHERE t.user_id = $1 AND t.type = 'business'), 0) AS business_reimbursement_eur,
+          count(t.id) FILTER (WHERE t.user_id = $1 AND t.type = 'business' AND t.reimbursement_rate_eur IS NULL)::int AS business_without_rate,
           coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id = $1 AND t.type = 'private'), 0)::bigint AS private_meters,
           coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id = $1 AND t.type = 'commute'), 0)::bigint AS commute_meters,
           coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id = $1 AND t.type = 'unclassified'), 0)::bigint AS unclassified_meters,
@@ -369,7 +376,7 @@ statisticsRoutes.get(
         GROUP BY t.vehicle_id, date_trunc('month', ${tripLocalStartSql("t", "$3")})
       )
       SELECT vm.vehicle_id, vm.vehicle_name, vm.is_owner, to_char(vm.month, 'YYYY-MM') AS month,
-        d.tracked_meters, d.business_meters, d.private_meters, d.commute_meters, d.unclassified_meters,
+        d.tracked_meters, d.business_meters, d.business_reimbursement_eur, d.business_without_rate, d.private_meters, d.commute_meters, d.unclassified_meters,
         d.other_drivers_meters,
         start_r.odometer_meters AS start_odometer_meters,
         start_r.reading_date AS start_reading_date,
@@ -414,6 +421,9 @@ statisticsRoutes.get(
         actualKm: actual == null ? null : actual / 1000,
         trackedKm: tracked / 1000,
         businessKm: Number(row.business_meters || 0) / 1000,
+        businessReimbursementEur: roundEur(row.business_reimbursement_eur),
+        // Dienstfahrten ohne hinterlegten Satz (fließen mit 0 € ein)
+        businessTripsWithoutRate: Number(row.business_without_rate || 0),
         privateKm: Number(row.private_meters || 0) / 1000,
         commuteKm: Number(row.commute_meters || 0) / 1000,
         unclassifiedKm: Number(row.unclassified_meters || 0) / 1000,
@@ -434,7 +444,8 @@ statisticsRoutes.get("/monthly-trips", asyncHandler(async (request, response) =>
     throw badRequest("VALIDATION_ERROR", "Ungültiger Monat oder Fahrttyp.");
   }
   const result = await pool.query(
-    `SELECT t.id, t.started_at, t.ended_at, t.start_address, t.end_address, t.distance_meters, t.type
+    `SELECT t.id, t.started_at, t.ended_at, t.start_address, t.end_address, t.distance_meters, t.type,
+            t.reimbursement_rate_eur
      FROM trips t
      WHERE t.user_id = $1 AND t.vehicle_id = $2 AND t.status = 'completed'
        AND t.archived_at IS NULL AND t.type = $4::trip_type
@@ -446,6 +457,10 @@ statisticsRoutes.get("/monthly-trips", asyncHandler(async (request, response) =>
     id: row.id, startedAt: row.started_at, endedAt: row.ended_at,
     startAddress: row.start_address, endAddress: row.end_address,
     distanceKm: Number(row.distance_meters || 0) / 1000, type: row.type,
+    reimbursementRateEur: row.reimbursement_rate_eur == null ? null : Number(row.reimbursement_rate_eur),
+    reimbursementEur: row.type === "business" && row.reimbursement_rate_eur != null
+      ? roundEur(Number(row.distance_meters || 0) / 1000 * Number(row.reimbursement_rate_eur))
+      : null,
   })));
 }));
 

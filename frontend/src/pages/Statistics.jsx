@@ -250,6 +250,7 @@ export default function Statistics() {
   const monthLabel = (value) => formatMonth(value, locale);
   const formatDay = (value) => new Intl.DateTimeFormat(locale).format(value);
   const categoryLabel = (key) => t(`statistics.categories.${key}`);
+  const eur = (value) => new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(Number(value) || 0);
   const [rows, setRows] = useState([]);
   const [categoryModal, setCategoryModal] = useState(null);
   const [categoryTrips, setCategoryTrips] = useState([]);
@@ -537,6 +538,9 @@ export default function Statistics() {
       unexplainedKm: Math.max(0, actualKm - trackedKm),
       businessKm,
       businessShare: classifiedKm > 0 ? businessKm / classifiedKm * 100 : null,
+      // Kilometergeld nur aus Dienstfahrten (Satz je Fahrt)
+      reimbursementEur: sum("businessReimbursementEur"),
+      businessTripsWithoutRate: sum("businessTripsWithoutRate"),
     };
   }, [rows, vehicleId, chartYear]);
 
@@ -609,7 +613,8 @@ export default function Statistics() {
           <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
             <div className="text-[13px] text-fb-muted">{t("statistics.businessShare")}</div>
             <div className="mt-1.5 text-[28px] font-bold leading-tight">{yearSummary.businessShare != null ? percent(yearSummary.businessShare) : "–"}</div>
-            <div className="mt-1 text-xs text-fb-muted">{km(yearSummary.businessKm)}</div>
+            <div className="mt-1 text-xs text-fb-muted">{km(yearSummary.businessKm)}{yearSummary.reimbursementEur > 0 && ` · ${t("statistics.reimbursementYear", { value: eur(yearSummary.reimbursementEur) })}`}</div>
+            {yearSummary.businessTripsWithoutRate > 0 && <div className="mt-1 text-xs text-amber-700 dark:text-amber-400">{t("statistics.reimbursementMissing", { count: yearSummary.businessTripsWithoutRate })}</div>}
           </div>
           {!isShared && (
           <div className={`rounded-xl border bg-fb-main p-[18px] ${yearSummary.unexplainedKm > 0 ? "border-fb-danger/40" : "border-fb-border"}`}>
@@ -762,6 +767,9 @@ export default function Statistics() {
                   <span className="flex items-center gap-1.5 text-xs text-fb-muted"><span aria-hidden="true" className={`size-2 rounded-full ${PART_COLORS[key]}`} />{categoryLabel(key)}</span>
                   <span className={`mt-0.5 block text-xl font-bold ${unknown ? "text-fb-danger" : ""}`}>{km(value)}</span>
                   <span className="mt-0.5 block text-xs text-fb-muted">{percent(share)}</span>
+                  {key === "businessKm" && Number(selected.businessReimbursementEur) > 0 && (
+                    <span className="mt-0.5 block text-xs font-semibold text-fb-accent-strong">{t("statistics.reimbursementMonth", { value: eur(selected.businessReimbursementEur) })}</span>
+                  )}
                 </button>
               );
             })}
@@ -796,9 +804,9 @@ export default function Statistics() {
               <div className="mt-5">
                 {categoryLoading && <p>{t("statistics.categoryDialog.loading")}</p>}
                 {categoryError && <p role="alert" className="text-fb-danger">{categoryError}</p>}
-                {!categoryLoading && !categoryError && <><p className="mb-3 text-sm text-fb-muted">{t("statistics.categoryDialog.summary", { count: categoryTrips.length, value: km(categoryTrips.reduce((sum, trip) => sum + trip.distanceKm, 0)) })}</p>
+                {!categoryLoading && !categoryError && <><p className="mb-3 text-sm text-fb-muted">{t("statistics.categoryDialog.summary", { count: categoryTrips.length, value: km(categoryTrips.reduce((sum, trip) => sum + trip.distanceKm, 0)) })}{categoryModal === "businessKm" && categoryTrips.some((trip) => trip.reimbursementEur != null) && ` · ${t("statistics.categoryDialog.reimbursementSummary", { value: eur(categoryTrips.reduce((sum, trip) => sum + (trip.reimbursementEur || 0), 0)) })}`}</p>
                   <div className="space-y-2">{categoryTrips.map((trip) => <div key={trip.id} className="rounded-lg border border-fb-border p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2"><strong>{new Date(trip.startedAt).toLocaleString(locale)}</strong><strong>{km(trip.distanceKm)}</strong></div>
+                    <div className="flex flex-wrap items-center justify-between gap-2"><strong>{new Date(trip.startedAt).toLocaleString(locale)}</strong><strong>{km(trip.distanceKm)}{trip.reimbursementEur != null && <span className="ml-2 font-normal text-fb-muted">{eur(trip.reimbursementEur)}</span>}</strong></div>
                     <p className="mt-1 text-sm text-fb-muted">{trip.startAddress || t("statistics.categoryDialog.startUnknown")} → {trip.endAddress || t("statistics.categoryDialog.endUnknown")}</p>
                     {categoryModal === "unclassifiedKm" && <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-fb-muted">{t("statistics.categoryDialog.assign")}</span>
