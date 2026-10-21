@@ -211,7 +211,7 @@ export default function ProfileSettings() {
   const [gravatarAvailable, setGravatarAvailable] = useState(true);
   const [monthlyReportEnabled, setMonthlyReportEnabled] = useState(true);
   const [monthlyReportAvailable, setMonthlyReportAvailable] = useState(false);
-  const [autoMapMatching, setAutoMapMatching] = useState(false);
+  const [mapMatchingEnabled, setMapMatchingEnabled] = useState(true);
   const [mapMatchingAvailable, setMapMatchingAvailable] = useState(false);
   const [speedUnit, setSpeedUnit] = useState("kmh");
 
@@ -346,7 +346,7 @@ export default function ProfileSettings() {
       setGravatarAvailable(settingsResult.settings.gravatarAvailable !== false);
       setMonthlyReportEnabled(settingsResult.settings.monthlyReportEnabled !== false);
       setMonthlyReportAvailable(settingsResult.settings.monthlyReportAvailable === true);
-      setAutoMapMatching(settingsResult.settings.autoMapMatchingEnabled === true);
+      setMapMatchingEnabled(settingsResult.settings.mapMatchingEnabled !== false);
       setMapMatchingAvailable(settingsResult.settings.mapMatchingAvailable === true);
       setSpeedUnit(settingsResult.settings.speedUnit === "mph" ? "mph" : "kmh");
 
@@ -843,8 +843,8 @@ export default function ProfileSettings() {
     event.preventDefault();
     setSaving("map-matching");
     try {
-      const updated = await updatePersonalSettings(accessToken, { autoMapMatchingEnabled: autoMapMatching });
-      setAutoMapMatching(updated.autoMapMatchingEnabled === true);
+      const updated = await updatePersonalSettings(accessToken, { mapMatchingEnabled });
+      setMapMatchingEnabled(updated.mapMatchingEnabled !== false);
       setMapMatchingAvailable(updated.mapMatchingAvailable === true);
       showSuccess(t("profile.mapMatching.saved"));
     } catch (saveError) {
@@ -2071,10 +2071,10 @@ export default function ProfileSettings() {
           <select
             id="profile-map-matching"
             className={fieldClass}
-            value={autoMapMatching ? "on" : "off"}
+            value={mapMatchingEnabled ? "on" : "off"}
             disabled={!mapMatchingAvailable}
             aria-describedby="profile-map-matching-hint"
-            onChange={(event) => setAutoMapMatching(event.target.value === "on")}
+            onChange={(event) => setMapMatchingEnabled(event.target.value === "on")}
           >
             <option value="on">{t("profile.mapMatching.on")}</option>
             <option value="off">{t("profile.mapMatching.off")}</option>

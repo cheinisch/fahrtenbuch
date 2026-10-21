@@ -11,6 +11,7 @@ import { tripLocalStartSql, userTimeZone } from "../lib/timezone.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { TRIP_WITH_TAGS_SELECT } from "../services/tripService.js";
+import { getUserSettings } from "../services/userSettingsService.js";
 
 export const dashboardRoutes = Router();
 
@@ -229,6 +230,10 @@ dashboardRoutes.get(
     const tripIds = tripsResult.rows.map((row) => row.id);
     let routeMap = new Map();
     const matchedRoutes = new Map();
+    // Straßenrouten nur, wenn der Server Map-Matching anbietet und der Benutzer
+    // es im Profil nicht abgeschaltet hat – sonst die GPS-Linie
+    const personal = await getUserSettings(request.auth.userId);
+    const mapMatchingVisible = personal.mapMatchingEnabled && personal.mapMatchingAvailable;
 
     if (tripIds.length > 0) {
       const pointsResult = await pool.query(
@@ -285,7 +290,7 @@ dashboardRoutes.get(
       // Übernommenes Map-Matching ersetzt die GPS-Linie: die Fahrt folgt der
       // Straße statt Luftlinien zwischen spärlichen Punkten. Wie oben auf
       // höchstens ~500 Punkte ausgedünnt.
-      const matchedResult = await pool.query(
+      const matchedResult = !mapMatchingVisible ? { rows: [] } : await pool.query(
         `
           SELECT
             m.trip_id,
@@ -337,6 +342,7 @@ dashboardRoutes.get(
     response.json({
       trips,
       recentTrips: trips.slice(0, 6),
+      mapMatchingVisible,
       filters: {
         tags: tagsResult.rows,
       },

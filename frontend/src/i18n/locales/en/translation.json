@@ -903,11 +903,11 @@
     },
     "mapMatching": {
       "title": "Map matching",
-      "description": "Snaps every uploaded trip to the road network automatically. Gaps in the GPS recording are closed along the road, making the distance more accurate. Raw GPS points are kept.",
-      "label": "Match automatically after each upload",
+      "description": "Snaps your trips to the road network. Gaps in the GPS recording are closed along the road, making the distance more accurate. Raw GPS points are kept.",
+      "label": "Use map matching",
       "on": "Enabled",
       "off": "Disabled",
-      "hint": "Applies to trips uploaded by the app when they end and to GPX imports. Older trips can be matched by an administrator under Background jobs.",
+      "hint": "Enabled: every uploaded trip (app or GPX import) is matched automatically, and web and app show the route on the road. Disabled: no automatic matching, web and app show only the GPS route. Distances already applied stay as they are.",
       "unavailable": "Map matching is not set up on this server. An administrator can enable it under Administration → Geocoding.",
       "saved": "The map matching setting was saved."
     },

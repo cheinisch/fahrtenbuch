@@ -38,7 +38,11 @@ export async function queueAutoMapMatching(userId, tripIds) {
 
   try {
     const optIn = await pool.query(
-      `SELECT 1 FROM user_settings WHERE user_id = $1 AND settings ->> 'autoMapMatchingEnabled' = 'true'`,
+      // Ohne Einstellungszeile gilt der Standard (an)
+      `SELECT 1 FROM users u
+       LEFT JOIN user_settings s ON s.user_id = u.id
+       WHERE u.id = $1
+         AND COALESCE(s.settings ->> 'mapMatchingEnabled', s.settings ->> 'autoMapMatchingEnabled', 'true') <> 'false'`,
       [userId],
     );
     if (!optIn.rowCount) return 0;

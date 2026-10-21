@@ -1017,7 +1017,9 @@ paths:
           description: >-
             Dashboarddaten. Jede Fahrt enthält route (Liste aus latitude/longitude) und routeSource:
             matched = auf das Straßennetz gelegt (Map-Matching übernommen), gps = GPS-Rohpunkte,
-            fallback = nur Start- und Zielpunkt.
+            fallback = nur Start- und Zielpunkt. mapMatchingVisible ist false, wenn der Server kein
+            Map-Matching anbietet oder der Benutzer es abgeschaltet hat; dann gibt es keine
+            Straßenrouten.
 
   /language:
     get:
@@ -3191,10 +3193,15 @@ components:
           type: boolean
           readOnly: true
           description: False when the server has no SMTP configuration; the monthly report is not sent then.
-        autoMapMatchingEnabled:
+        mapMatchingEnabled:
           type: boolean
-          default: false
-          description: Snap each uploaded trip to the road network automatically (after POST /tracking/stop and GPX import). Only takes effect while mapMatchingAvailable is true. Can be changed via PATCH.
+          default: true
+          description: >-
+            Use map matching: trips are snapped to the road network automatically after upload
+            (POST /tracking/stop, GPX import), and clients show the matched road route
+            (GET /trips/{id}/matched-route) instead of the GPS line. When false, no automatic
+            matching and clients show only the GPS route; distances already applied stay.
+            Only takes effect while mapMatchingAvailable is true. Can be changed via PATCH.
         mapMatchingAvailable:
           type: boolean
           readOnly: true

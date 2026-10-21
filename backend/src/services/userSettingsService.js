@@ -23,6 +23,13 @@ function isObject(value) {
   );
 }
 
+/** Eigene Einstellung, sonst die frühere Vorabversion autoMapMatchingEnabled, sonst an. */
+function mapMatchingSetting(customSettings) {
+  if (typeof customSettings.mapMatchingEnabled === "boolean") return customSettings.mapMatchingEnabled;
+  if (typeof customSettings.autoMapMatchingEnabled === "boolean") return customSettings.autoMapMatchingEnabled;
+  return true;
+}
+
 export function mapUserSettings(row) {
   const customSettings = isObject(row?.settings)
     ? row.settings
@@ -65,9 +72,10 @@ export function mapUserSettings(row) {
     // Monatsbericht per E-Mail (Standard: an); nur wählbar, wenn SMTP eingerichtet ist
     monthlyReportEnabled: customSettings.monthlyReportEnabled !== false,
     monthlyReportAvailable: isMailConfigured(),
-    // Map-Matching nach jedem Upload (Standard: aus); verfügbar nur, wenn ein
-    // Admin einen Dienst eingerichtet hat – wird in withAvailability ergänzt
-    autoMapMatchingEnabled: customSettings.autoMapMatchingEnabled === true,
+    // Map-Matching verwenden (Standard: an): Fahrten nach dem Upload matchen und
+    // Straßenrouten in Web und App zeigen. Verfügbar nur, wenn ein Admin einen
+    // Dienst eingerichtet hat – wird in withAvailability ergänzt.
+    mapMatchingEnabled: mapMatchingSetting(customSettings),
     mapMatchingAvailable: false,
 
     customSettings,
@@ -128,8 +136,14 @@ export async function updateUserSettings(
 ) {
   const input = isObject(body) ? body : {};
 
-  if (input.autoMapMatchingEnabled !== undefined && typeof input.autoMapMatchingEnabled !== "boolean") {
-    throw badRequest("VALIDATION_ERROR", "autoMapMatchingEnabled muss true oder false sein.");
+  // Vorabversion des Feldes weiter annehmen, aber unter dem neuen Namen speichern
+  if (input.mapMatchingEnabled === undefined && input.autoMapMatchingEnabled !== undefined) {
+    input.mapMatchingEnabled = input.autoMapMatchingEnabled;
+  }
+  delete input.autoMapMatchingEnabled;
+
+  if (input.mapMatchingEnabled !== undefined && typeof input.mapMatchingEnabled !== "boolean") {
+    throw badRequest("VALIDATION_ERROR", "mapMatchingEnabled muss true oder false sein.");
   }
 
   const knownKeys = new Set([
