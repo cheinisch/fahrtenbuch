@@ -348,7 +348,7 @@ tripRoutes.post(
             $14, COALESCE($15, $14),
             'manual',
             CASE
-              WHEN $5 = 'completed'
+              WHEN $5::trip_status = 'completed'
                 THEN now()
               ELSE NULL
             END
@@ -1155,7 +1155,7 @@ tripRoutes.put(
             vehicle_id = $3,
             type = $4,
             special_category = $5,
-            status = $6,
+            status = $6::trip_status,
             started_at = $7,
             ended_at = $8,
             start_address = $9,
@@ -1171,7 +1171,7 @@ tripRoutes.put(
             start_timezone = CASE WHEN $15::boolean THEN $16 ELSE start_timezone END,
             end_timezone = CASE WHEN $17::boolean THEN $18 ELSE end_timezone END,
             completed_at = CASE
-              WHEN $6 = 'completed'
+              WHEN $6::trip_status = 'completed'
                 THEN COALESCE(
                   completed_at,
                   now()
