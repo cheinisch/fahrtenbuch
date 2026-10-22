@@ -1,6 +1,7 @@
 import { pool } from "../database/pool.js";
 import { routeDistance } from "../lib/geo.js";
-import { decodePolyline6, dropOutliers, samplePoints, splitIntoChunks } from "../lib/trace.js";
+import { checkChunk, MAX_RATIO, MIN_RATIO } from "../lib/matchCheck.js";
+import { decodePolyline6, dropOutliers, samplePoints, simplifyRoute, splitIntoChunks } from "../lib/trace.js";
 import {
   getAdminServiceSettings,
   resolveMapMatching,
@@ -62,11 +63,7 @@ export async function queueAutoMapMatching(userId, tripIds) {
 // Atlas nimmt bis 10 000 Punkte; Valhallas Standardlimit (max_shape) liegt darüber.
 const MAX_POINTS = { atlas: 10_000, valhalla: 10_000, osrm: 100 };
 
-// Plausibilitätsgrenzen: Map-Matching schließt Lücken entlang der Straße, die
-// Distanz wird also meist etwas länger. Deutlich kürzer oder vielfach länger
-// spricht für ein Fehlmatching – dann bleibt die bisherige Distanz.
-const MIN_RATIO = 0.8;
-const MAX_RATIO = 2.5;
+// Unsichere Zuordnung (nur Atlas/OSRM liefern eine Konfidenz)
 const MIN_CONFIDENCE = 0.5;
 
 /** Fehler, bei dem ein erneuter Versuch nichts ändert (Spur nicht matchbar). */
@@ -197,13 +194,14 @@ async function saveResult(client, tripId, userId, provider, values) {
   await client.query(
     `INSERT INTO trip_map_matches (
        trip_id, user_id, status, provider, message, point_count,
-       raw_distance_meters, matched_distance_meters, confidence, route, matched_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb, now())
+       raw_distance_meters, matched_distance_meters, confidence, route, route_preview, matched_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb, now())
      ON CONFLICT (trip_id) DO UPDATE SET
        status = EXCLUDED.status, provider = EXCLUDED.provider, message = EXCLUDED.message,
        point_count = EXCLUDED.point_count, raw_distance_meters = EXCLUDED.raw_distance_meters,
        matched_distance_meters = EXCLUDED.matched_distance_meters,
-       confidence = EXCLUDED.confidence, route = EXCLUDED.route, matched_at = now()`,
+       confidence = EXCLUDED.confidence, route = EXCLUDED.route,
+       route_preview = EXCLUDED.route_preview, matched_at = now()`,
     [
       tripId,
       userId,
@@ -215,6 +213,11 @@ async function saveResult(client, tripId, userId, provider, values) {
       values.matchedDistanceMeters ?? null,
       values.confidence ?? null,
       values.route ? JSON.stringify(values.route) : null,
+      // Vereinfachte Linie für die Kartenübersicht, damit das Dashboard nicht
+      // bei jedem Laden alle Routenpunkte aller Fahrten auspacken muss
+      values.route
+        ? JSON.stringify(simplifyRoute(values.route.map(([lat, lon]) => ({ lat, lon }))).map((p) => [p.lat, p.lon]))
+        : null,
     ],
   );
 }
@@ -267,22 +270,48 @@ export async function matchTrip(tripId, userId) {
   const chunks = splitIntoChunks(cleaned);
   const base = { pointCount: points.length, rawDistanceMeters };
 
-  // Abschnitte nacheinander matchen und zu einer Route zusammensetzen
+  // Abschnitte nacheinander matchen und zu einer Route zusammensetzen. Passt
+  // ein Abschnitt nicht zur GPS-Spur, gilt dort die GPS-Spur selbst – ein
+  // einzelner Fehlgriff des Dienstes verwirft so nicht die ganze Fahrt.
   const result = { distanceMeters: 0, route: [], confidence: null };
+  const rejectedChunks = [];
+  const notes = [];
+  const failedChunks = [];
   let sentPointCount = 0;
 
   for (let index = 0; index < chunks.length; index += 1) {
     const sampled = samplePoints(chunks[index], MAX_POINTS[matching.provider]);
     sentPointCount += sampled.length;
+    const where = chunks.length > 1 ? `Abschnitt ${index + 1} von ${chunks.length}: ` : "";
     let part;
+    let reason = null;
+    let check = {};
 
     try {
       part = await MATCHERS[matching.provider](matching, sampled);
+      check = checkChunk(chunks[index], part);
+      reason = check.reason || null;
     } catch (error) {
       if (!(error instanceof PermanentMatchError)) throw error;
-      const where = chunks.length > 1 ? `Abschnitt ${index + 1} von ${chunks.length}: ` : "";
-      await saveResult(pool, tripId, userId, matching.provider, { ...base, status: "failed", message: where + error.message });
-      return { status: "failed" };
+      // Nicht matchbarer Abschnitt (z. B. außerhalb der Kartendaten des
+      // Dienstes): dort die GPS-Spur, die übrigen Abschnitte trotzdem matchen
+      failedChunks.push(where + error.message);
+      reason = error.message;
+      part = { confidence: null };
+    }
+    if (!reason && part.confidence !== null && part.confidence < MIN_CONFIDENCE) {
+      reason = `Konfidenz ${part.confidence.toFixed(2)}`;
+    }
+    if (reason) {
+      rejectedChunks.push(where + reason);
+      part = {
+        distanceMeters: routeDistance(chunks[index]),
+        route: chunks[index].map((p) => [p.lat, p.lon]),
+        confidence: null,
+      };
+    } else {
+      part = check.part;
+      if (check.note) notes.push(where + check.note);
     }
 
     result.distanceMeters += part.distanceMeters;
@@ -292,15 +321,27 @@ export async function matchTrip(tripId, userId) {
     }
   }
 
+  if (failedChunks.length === chunks.length) {
+    await saveResult(pool, tripId, userId, matching.provider, { ...base, status: "failed", message: failedChunks.join("; ") });
+    return { status: "failed" };
+  }
+
   const ratio = rawDistanceMeters > 0 ? result.distanceMeters / rawDistanceMeters : 1;
   let rejection = null;
-  if (!Number.isFinite(result.distanceMeters) || result.distanceMeters <= 0 || result.route.length < 2) {
+  if (rejectedChunks.length === chunks.length) {
+    rejection = `Route passt nicht zur GPS-Spur (${rejectedChunks.join("; ")}).`;
+  } else if (!Number.isFinite(result.distanceMeters) || result.distanceMeters <= 0 || result.route.length < 2) {
     rejection = "Der Dienst hat keine Route geliefert.";
-  } else if (result.confidence !== null && result.confidence < MIN_CONFIDENCE) {
-    rejection = `Zuordnung zu unsicher (Konfidenz ${result.confidence.toFixed(2)}).`;
   } else if (ratio < MIN_RATIO || ratio > MAX_RATIO) {
     rejection = `Gematchte Distanz weicht zu stark ab (${(ratio * 100).toFixed(0)} % der GPS-Distanz).`;
   }
+  // Teilweise übernommen: Hinweis, wo die GPS-Spur gilt
+  const note = !rejection && (rejectedChunks.length || notes.length)
+    ? [
+      ...notes,
+      ...rejectedChunks.map((text) => `${text} – dort gilt die GPS-Spur`),
+    ].join("; ") + "."
+    : null;
 
   const client = await pool.connect();
   try {
@@ -308,7 +349,7 @@ export async function matchTrip(tripId, userId) {
     await saveResult(client, tripId, userId, matching.provider, {
       ...base,
       status: rejection ? "rejected" : "applied",
-      message: rejection,
+      message: rejection || note,
       matchedDistanceMeters: Number.isFinite(result.distanceMeters) ? result.distanceMeters : null,
       confidence: result.confidence,
       route: result.route,
@@ -332,6 +373,7 @@ export async function matchTrip(tripId, userId) {
           droppedOutliers: points.length - cleaned.length,
           rawDistanceMeters,
           confidence: result.confidence,
+          rejectedChunks: rejectedChunks.length,
         },
       });
     }

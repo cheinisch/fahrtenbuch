@@ -305,6 +305,7 @@
     "matched": "Auf Straße gelegt ({provider}) · GPS-Distanz {km}",
     "rejected": "Map-Matching nicht übernommen: {message}",
     "failed": "Map-Matching fehlgeschlagen: {message}",
+    "partial": "Teilweise ohne Straßenzuordnung: {message}",
     "matchedHint": "„Originalroute“ zeigt die Linie aus den GPS-Rohpunkten, „Strecke & Punkte“ beides übereinander."
   },
 

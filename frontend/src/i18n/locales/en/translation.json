@@ -304,6 +304,7 @@
     "matched": "Snapped to roads ({provider}) · GPS distance {km}",
     "rejected": "Map matching not applied: {message}",
     "failed": "Map matching failed: {message}",
+    "partial": "Partly not matched to roads: {message}",
     "matchedHint": "\"Original route\" draws the line from the raw GPS points, \"Route & points\" shows both."
   },
 

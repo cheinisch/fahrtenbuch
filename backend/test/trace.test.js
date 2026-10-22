@@ -95,3 +95,48 @@ test("dropOutliers keeps gaps that are plausible over time", () => {
   ];
   assert.equal(dropOutliers(points).length, 3);
 });
+
+// Ost-West-Linie auf 50° N: 0,01° Länge ≈ 715 m
+function eastbound(count, lat = 50) {
+  return Array.from({ length: count }, (_, i) => ({ lat, lon: 8 + i * 0.01 }));
+}
+
+test("routeDeviation erkennt Umwege abseits der Spur", async () => {
+  const { routeDeviation } = await import("../src/lib/trace.js");
+  const raw = eastbound(50);
+  assert.equal(routeDeviation(raw, raw).offShare, 0);
+
+  // Route macht in der Mitte einen 10-km-Abstecher nach Süden
+  const detour = [...eastbound(20), { lat: 49.91, lon: 8.2 }, { lat: 49.91, lon: 8.3 }, ...eastbound(50).slice(30)];
+  const result = routeDeviation(detour, raw);
+  assert.ok(result.maxMeters > 9_000, `maxMeters ${result.maxMeters}`);
+});
+
+test("uncoveredEnds findet fehlenden Anfang und Ende", async () => {
+  const { uncoveredEnds } = await import("../src/lib/trace.js");
+  const raw = eastbound(60);
+  const route = eastbound(60).slice(10, 55).map((p) => ({ lat: p.lat + 0.0005, lon: p.lon }));
+  const ends = uncoveredEnds(raw, route);
+  assert.equal(ends.lead, 9);
+  assert.equal(ends.trail, 4);
+  assert.equal(ends.middleOffShare, 0);
+});
+
+test("uncoveredEnds meldet Lücken mitten in der Route", async () => {
+  const { uncoveredEnds } = await import("../src/lib/trace.js");
+  const raw = eastbound(60);
+  // Route springt zwischen Punkt 20 und 40 nach Norden statt der Spur zu folgen
+  const route = [...eastbound(20), ...eastbound(20, 50.2).map((p) => ({ ...p, lon: p.lon + 0.2 })), ...eastbound(60).slice(40)];
+  assert.ok(uncoveredEnds(raw, route).middleOffShare > 0.2);
+});
+
+test("simplifyRoute behält Ecken und begrenzt die Punktzahl", async () => {
+  const { simplifyRoute } = await import("../src/lib/trace.js");
+  const corner = [...eastbound(100), ...northbound(100).map((p) => ({ lat: p.lat / 1000 + 50, lon: 8.99 }))];
+  const simple = simplifyRoute(corner);
+  assert.ok(simple.length < 10, `length ${simple.length}`);
+  assert.deepEqual(simple[0], corner[0]);
+  assert.deepEqual(simple.at(-1), corner.at(-1));
+  assert.ok(simple.some((p) => Math.abs(p.lon - 8.99) < 1e-9 && Math.abs(p.lat - 50) < 1e-6));
+  assert.ok(simplifyRoute(northbound(5000).map((p, i) => ({ lat: p.lat, lon: 8.3 + (i % 2) * 0.01 }))).length <= 500);
+});
