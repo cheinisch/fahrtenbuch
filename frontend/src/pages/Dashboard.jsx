@@ -463,10 +463,16 @@ export default function Dashboard() {
     return toLineFeatures(visibleTrips, t);
   }, [visibleTrips, selectedTripId, gpsMode, gpsPoints, mapMode, t]);
 
-  const endpointFeatures = useMemo(
-    () => toEndpointFeatures(visibleTrips),
-    [visibleTrips],
-  );
+  // Start/Ziel passend zur gezeigten Linie (Originalroute: GPS-Rohpunkte)
+  const endpointFeatures = useMemo(() => {
+    if (selectedTripId && gpsMode === "original" && gpsPoints.length >= 2) {
+      const raw = gpsPoints
+        .filter((p) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lon)))
+        .map((p) => ({ latitude: Number(p.lat), longitude: Number(p.lon) }));
+      return toEndpointFeatures(visibleTrips.map((trip) => ({ ...trip, route: raw })));
+    }
+    return toEndpointFeatures(visibleTrips);
+  }, [visibleTrips, selectedTripId, gpsMode, gpsPoints]);
 
   const fitAllTrips = useCallback(() => {
     const map = mapRef.current;
@@ -1756,6 +1762,9 @@ export default function Dashboard() {
                         {t("tripGpsView.matched")
                           .replace("{provider}", { atlas: "Dawarich Atlas", valhalla: "Valhalla", osrm: "OSRM" }[selectedTrip.mapMatching.provider] || selectedTrip.mapMatching.provider)
                           .replace("{km}", fmtKm(selectedTrip.mapMatching.rawDistanceMeters))}
+                        {selectedTrip.mapMatching.message && (
+                          <span className="block text-fb-muted">{t("tripGpsView.partial").replace("{message}", selectedTrip.mapMatching.message)}</span>
+                        )}
                         {gpsMode === "route" && <span className="block text-fb-muted">{t("tripGpsView.matchedHint")}</span>}
                       </span>
                     </p>

@@ -236,84 +236,86 @@ dashboardRoutes.get(
     const mapMatchingVisible = personal.mapMatchingEnabled && personal.mapMatchingAvailable;
 
     if (tripIds.length > 0) {
-      const pointsResult = await pool.query(
-        `
-          WITH numbered_points AS (
-            SELECT
-              tp.trip_id,
-              tp.sequence_number,
-              tp.lat,
-              tp.lon,
-              row_number() OVER (
-                PARTITION BY tp.trip_id
-                ORDER BY tp.sequence_number
-              ) AS point_index,
-              count(*) OVER (
-                PARTITION BY tp.trip_id
-              ) AS point_count
-            FROM track_points tp
-            WHERE tp.trip_id = ANY($1::uuid[])
-          ),
-          sampled_points AS (
-            SELECT *
-            FROM numbered_points
-            WHERE
-              point_index = 1
-              OR point_index = point_count
-              OR mod(
-                point_index - 1,
-                GREATEST(
-                  1,
-                  ceil(point_count / 500.0)::bigint
-                )
-              ) = 0
-          )
-          SELECT
-            trip_id,
-            jsonb_agg(
-              jsonb_build_object(
-                'latitude', lat,
-                'longitude', lon
-              )
-              ORDER BY sequence_number
-            ) AS route
-          FROM sampled_points
-          GROUP BY trip_id
-        `,
-        [tripIds],
-      );
-
-      routeMap = new Map(
-        pointsResult.rows.map((row) => [row.trip_id, row.route || []]),
-      );
-
       // Übernommenes Map-Matching ersetzt die GPS-Linie: die Fahrt folgt der
-      // Straße statt Luftlinien zwischen spärlichen Punkten. Wie oben auf
-      // höchstens ~500 Punkte ausgedünnt.
+      // Straße statt Luftlinien zwischen spärlichen Punkten. route_preview ist
+      // beim Matching vorab vereinfacht (höchstens ~500 Punkte).
       const matchedResult = !mapMatchingVisible ? { rows: [] } : await pool.query(
         `
           SELECT
             m.trip_id,
-            jsonb_agg(
-              jsonb_build_object('latitude', (c.value->>0)::float8, 'longitude', (c.value->>1)::float8)
-              ORDER BY c.ordinality
+            (
+              SELECT jsonb_agg(
+                jsonb_build_object('latitude', (c.value->>0)::float8, 'longitude', (c.value->>1)::float8)
+                ORDER BY c.ordinality
+              )
+              FROM jsonb_array_elements(m.route_preview) WITH ORDINALITY c(value, ordinality)
             ) AS route
           FROM trip_map_matches m
-          CROSS JOIN LATERAL jsonb_array_elements(m.route) WITH ORDINALITY c(value, ordinality)
           WHERE m.trip_id = ANY($1::uuid[])
             AND m.status = 'applied'
-            AND (
-              c.ordinality = 1
-              OR c.ordinality = jsonb_array_length(m.route)
-              OR mod(c.ordinality - 1, GREATEST(1, ceil(jsonb_array_length(m.route) / 500.0)::bigint)) = 0
-            )
-          GROUP BY m.trip_id
+            AND m.route_preview IS NOT NULL
         `,
         [tripIds],
       );
 
       for (const row of matchedResult.rows) {
         if ((row.route || []).length >= 2) matchedRoutes.set(row.trip_id, row.route);
+      }
+
+      // GPS-Linie nur für Fahrten ohne Straßenroute – die übrigen bräuchten
+      // sie nicht und das Ausdünnen aller Punkte kostet bei langen Fahrten Zeit
+      const gpsTripIds = tripIds.filter((id) => !matchedRoutes.has(id));
+      if (gpsTripIds.length > 0) {
+        const pointsResult = await pool.query(
+          `
+            WITH numbered_points AS (
+              SELECT
+                tp.trip_id,
+                tp.sequence_number,
+                tp.lat,
+                tp.lon,
+                row_number() OVER (
+                  PARTITION BY tp.trip_id
+                  ORDER BY tp.sequence_number
+                ) AS point_index,
+                count(*) OVER (
+                  PARTITION BY tp.trip_id
+                ) AS point_count
+              FROM track_points tp
+              WHERE tp.trip_id = ANY($1::uuid[])
+            ),
+            sampled_points AS (
+              SELECT *
+              FROM numbered_points
+              WHERE
+                point_index = 1
+                OR point_index = point_count
+                OR mod(
+                  point_index - 1,
+                  GREATEST(
+                    1,
+                    ceil(point_count / 500.0)::bigint
+                  )
+                ) = 0
+            )
+            SELECT
+              trip_id,
+              jsonb_agg(
+                jsonb_build_object(
+                  'latitude', lat,
+                  'longitude', lon
+                )
+                ORDER BY sequence_number
+              ) AS route
+            FROM sampled_points
+            GROUP BY trip_id
+          `,
+          [gpsTripIds],
+        );
+
+        routeMap = new Map(
+          pointsResult.rows.map((row) => [row.trip_id, row.route || []]),
+        );
       }
     }
 
