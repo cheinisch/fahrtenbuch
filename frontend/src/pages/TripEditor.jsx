@@ -235,31 +235,74 @@ export default function TripEditor() {
     return () => { active = false; };
   }, [accessToken]);
 
-  // Punkte ändern mit Rückgängig/Wiederholen
+  // Rückgängig/Wiederholen für alle Änderungen bis zum Speichern: Punkte, Zeiten, Adressen
+  // und berechnete Route. Jeder Schritt speichert den Zustand davor als Momentaufnahme.
+  const timesRef = useRef(times);
+  const startPlaceRef = useRef(startPlace);
+  const endPlaceRef = useRef(endPlace);
+  const routedRef = useRef(routed);
+  useEffect(() => { timesRef.current = times; }, [times]);
+  useEffect(() => { startPlaceRef.current = startPlace; }, [startPlace]);
+  useEffect(() => { endPlaceRef.current = endPlace; }, [endPlace]);
+  useEffect(() => { routedRef.current = routed; }, [routed]);
+  const historyRef = useRef(history);
+  useEffect(() => { historyRef.current = history; }, [history]);
+  const lastTagRef = useRef({ tag: null, at: 0 });
+
+  const snapshot = useCallback(() => ({
+    points: pointsRef.current,
+    times: timesRef.current,
+    startPlace: startPlaceRef.current,
+    endPlace: endPlaceRef.current,
+    routing: { result: routedRef.current.result, forPoints: routedRef.current.forPoints },
+  }), []);
+
+  const restore = useCallback((snap) => {
+    pointsRef.current = snap.points;
+    setPoints(snap.points);
+    setTimes(snap.times);
+    setStartPlace(snap.startPlace);
+    setEndPlace(snap.endPlace);
+    setRouted({ busy: false, error: "", result: snap.routing.result, forPoints: snap.routing.forPoints });
+  }, []);
+
+  /**
+   * Einen Bearbeitungsschritt festhalten. Gleiche Tags kurz hintereinander (Tippen in ein
+   * Adressfeld) werden zu einem Schritt zusammengefasst.
+   */
+  const record = useCallback((tag = null) => {
+    const now = Date.now();
+    const last = lastTagRef.current;
+    lastTagRef.current = { tag, at: now };
+    if (tag && last.tag === tag && now - last.at < 1500) return;
+    const next = { undo: [...historyRef.current.undo.slice(-(MAX_HISTORY - 1)), snapshot()], redo: [] };
+    historyRef.current = next;
+    setHistory(next);
+  }, [snapshot]);
+
   const change = useCallback((updater) => {
     const before = pointsRef.current;
     const after = typeof updater === "function" ? updater(before) : updater;
     if (after === before) return;
-    setHistory((h) => ({ undo: [...h.undo.slice(-(MAX_HISTORY - 1)), before], redo: [] }));
+    record();
+    pointsRef.current = after;
     setPoints(after);
-  }, []);
+  }, [record]);
 
-  // Rückgängig/Wiederholen über eine Ref, damit State-Updater frei von Nebenwirkungen bleiben
-  const historyRef = useRef(history);
-  useEffect(() => { historyRef.current = history; }, [history]);
   const stepHistory = useCallback((direction) => {
     const h = historyRef.current;
     const from = direction === "undo" ? h.undo : h.redo;
     if (!from.length) return;
     const target = from.at(-1);
     const next = direction === "undo"
-      ? { undo: h.undo.slice(0, -1), redo: [...h.redo, pointsRef.current] }
-      : { undo: [...h.undo, pointsRef.current], redo: h.redo.slice(0, -1) };
+      ? { undo: h.undo.slice(0, -1), redo: [...h.redo, snapshot()] }
+      : { undo: [...h.undo, snapshot()], redo: h.redo.slice(0, -1) };
     historyRef.current = next;
+    lastTagRef.current = { tag: null, at: 0 };
     setHistory(next);
-    setPoints(target);
+    restore(target);
     setSelected(null);
-  }, []);
+  }, [snapshot, restore]);
   const undo = useCallback(() => stepHistory("undo"), [stepHistory]);
   const redo = useCallback(() => stepHistory("redo"), [stepHistory]);
 
@@ -284,8 +327,6 @@ export default function TripEditor() {
 
   // Straßenführung: Lücken über den Routing-Dienst füllen (verzögert). Eine gespeicherte oder
   // schon berechnete Route für genau diese Punkte bleibt, bis „Route neu berechnen“ gedrückt wird.
-  const routedRef = useRef(routed);
-  useEffect(() => { routedRef.current = routed; }, [routed]);
   const forceRouteRef = useRef(false);
   const [recalcKey, setRecalcKey] = useState(0);
   useEffect(() => {
@@ -311,10 +352,11 @@ export default function TripEditor() {
   }, [routingEnabled, followRoads, points, accessToken, recalcKey]);
 
   const recalculateRoute = useCallback(() => {
+    record();
     forceRouteRef.current = true;
     setFollowRoads(true);
     setRecalcKey((value) => value + 1);
-  }, []);
+  }, [record]);
 
   // Eigene (gesetzte) Punkte untereinander tauschen; gemessene Punkte behalten ihre Reihenfolge
   const moveOwnPoint = useCallback((index, direction) => {
@@ -389,7 +431,7 @@ export default function TripEditor() {
         dragRef.current = { index, moved: false, deleteOnly: true };
         return;
       }
-      dragRef.current = { index, moved: false, snapshot: pointsRef.current };
+      dragRef.current = { index, moved: false };
       map.dragPan.disable();
       map.getCanvas().style.cursor = "grabbing";
       setGhost(null);
@@ -399,12 +441,13 @@ export default function TripEditor() {
       if (!drag || drag.deleteOnly) return;
       if (!drag.moved) {
         drag.moved = true;
-        setHistory((h) => ({ undo: [...h.undo.slice(-(MAX_HISTORY - 1)), drag.snapshot], redo: [] }));
+        recordRef.current?.();
       }
       const { lng, lat } = event.lngLat;
       setPoints((current) => current.map((point, i) => (i === drag.index
-        // Verschobener Punkt ist keine Messung mehr: Messwerte verwerfen, Zeit behalten
-        ? { ...point, lat, lon: lng, accuracy: null, speed: null, bearing: null, altitude: null }
+        // Ein verschobener Punkt ist keine Messung mehr: er wird zum gesetzten Punkt,
+        // seine Zeit wird beim Speichern neu verteilt
+        ? { ...point, lat, lon: lng, origin: "set", recordedAt: null, accuracy: null, speed: null, bearing: null, altitude: null }
         : point)));
     };
     const endDrag = () => {
@@ -415,6 +458,22 @@ export default function TripEditor() {
       map.getCanvas().style.cursor = "";
       if (drag.deleteOnly) {
         removePointRef.current?.(drag.index);
+      } else if (drag.moved) {
+        // Losgelassen: an der passenden Stelle zwischen den übrigen Punkten einsortieren
+        // (Start- und Zielpunkt bleiben an ihrem Platz)
+        const list = pointsRef.current;
+        const last = list.length - 1;
+        if (drag.index > 0 && drag.index < last && list.length > 3) {
+          const point = list[drag.index];
+          const rest = list.filter((_, i) => i !== drag.index);
+          const target = Math.min(Math.max(insertionIndex(rest, point), 1), rest.length - 1);
+          const next = [...rest.slice(0, target), point, ...rest.slice(target)];
+          pointsRef.current = next;
+          setPoints(next);
+          setSelected(target);
+        } else {
+          setSelected(drag.index);
+        }
       } else {
         setSelected(drag.index);
       }
@@ -484,6 +543,8 @@ export default function TripEditor() {
 
   // Handler-Refs, damit die Karten-Events immer die aktuelle Fassung aufrufen
   const insertRef = useRef(insertPoint);
+  const recordRef = useRef(record);
+  useEffect(() => { recordRef.current = record; }, [record]);
   const removePointRef = useRef(removePoint);
   const ghostRef = useRef(ghost);
   useEffect(() => { insertRef.current = insertPoint; }, [insertPoint]);
@@ -578,17 +639,23 @@ export default function TripEditor() {
 
   // Adressvorschlag gewählt: ersten bzw. letzten Punkt dorthin setzen
   function placeEndpoint(which, value) {
+    // Tippen fasst Schritte zusammen; ein gewählter Vorschlag ist ein eigener Schritt
+    record(value.coordinate ? null : `place:${which}`);
     (which === "start" ? setStartPlace : setEndPlace)(value);
     if (!value.coordinate) return;
     const point = withKey({ lat: value.coordinate.lat, lon: value.coordinate.lon, recordedAt: null, origin: "set" });
-    change((current) => {
-      if (current.length === 0) return [point];
-      if (current.length === 1) return which === "start" ? [point, current[0]] : [current[0], point];
-      return which === "start" ? [point, ...current.slice(1)] : [...current.slice(0, -1), point];
-    });
+    const current = pointsRef.current;
+    const next = current.length === 0
+      ? [point]
+      : current.length === 1
+        ? (which === "start" ? [point, current[0]] : [current[0], point])
+        : (which === "start" ? [point, ...current.slice(1)] : [...current.slice(0, -1), point]);
+    pointsRef.current = next;
+    setPoints(next);
   }
 
   function updateTime(name, value) {
+    record(`time:${name}`);
     setTimes((current) => {
       const next = { ...current, [name]: value };
       if (name === "startDate" && current.endDate === current.startDate) next.endDate = value;
@@ -601,38 +668,67 @@ export default function TripEditor() {
     setSelected(0);
   }
 
-  // Ungespeicherte Änderungen: Punkt-Schritte plus geänderte Felder
+  // Ungespeichert ist jeder Schritt in der Rückgängig-Liste; zurück bis zum Anfang = unverändert
   const initial = load.initial;
-  const fieldChanges = initial
-    ? ["startDate", "startTime", "endDate", "endTime"].filter((key) => times[key] !== initial.times[key]).length
-      + (startPlace.address !== initial.startAddress ? 1 : 0) + (endPlace.address !== initial.endAddress ? 1 : 0)
-    : 0;
-  // Neu berechnete Route bei sonst unveränderten Punkten zählt ebenfalls als Änderung
-  const routeRecalculated = Boolean(initial && routedCurrent && routedCurrent !== initial.routing && points === initial.points);
-  const changeCount = history.undo.length + fieldChanges + (routeRecalculated ? 1 : 0);
-  const dirty = changeCount > 0 || (initial && points !== initial.points);
+  const changeCount = history.undo.length;
+  const dirty = changeCount > 0;
+  const backTo = `/?trip=${encodeURIComponent(id)}`;
 
-  function discard() {
-    if (!initial) return;
-    if (dirty && !window.confirm(t("tripEditor.discardConfirm"))) return;
-    setPoints(initial.points);
-    setRouted({ busy: false, error: "", result: initial.routing, forPoints: initial.routing ? initial.points : null });
-    setTimes(initial.times);
-    setStartPlace({ address: initial.startAddress, coordinate: null });
-    setEndPlace({ address: initial.endAddress, coordinate: null });
-    setHistory({ undo: [], redo: [] });
-    setSelected(null);
-    setSaveError("");
+  // Abbrechen: nichts speichern, nur zurück zur Fahrt (bei Änderungen mit Rückfrage)
+  function cancel(event) {
+    if (dirty && !window.confirm(t("tripEditor.cancelConfirm"))) {
+      event?.preventDefault();
+      return;
+    }
+    if (!event) navigate(backTo);
   }
 
+  // Beim Schließen oder Neuladen des Tabs vor ungespeicherten Änderungen warnen
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (event) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  /**
+   * Punkte aus Dawarich holen, ohne zu speichern: sie werden nach ihrer Zeit zwischen die
+   * vorhandenen Punkte einsortiert und lassen sich wie jede Änderung rückgängig machen.
+   */
   async function fillFromDawarich() {
-    if (dirty && !window.confirm(t("tripEditor.dawarichConfirm"))) return;
     setDawarich((d) => ({ ...d, busy: true }));
     setSaveError("");
     try {
-      const result = await importTripPointsFromDawarich(accessToken, id);
-      if (result.importedCount === 0) setSaveError(t("tripEditor.dawarichNothing"));
-      setReloadKey((value) => value + 1);
+      const result = await importTripPointsFromDawarich(accessToken, id, { preview: true });
+      const incoming = (result.points || []).map((point) => withKey({
+        lat: Number(point.lat),
+        lon: Number(point.lon),
+        recordedAt: point.recordedAt,
+        altitude: point.altitude ?? null,
+        accuracy: point.accuracy ?? null,
+        speed: null,
+        bearing: point.bearing ?? null,
+        origin: "gps",
+      }));
+      if (!incoming.length) {
+        setSaveError(t("tripEditor.dawarichNothing"));
+        return;
+      }
+      const current = pointsRef.current;
+      const times = estimateTimes(current, startMs, endMs);
+      const merged = [];
+      let j = 0;
+      const sorted = [...incoming].sort((a, b) => Date.parse(a.recordedAt) - Date.parse(b.recordedAt));
+      current.forEach((point, i) => {
+        // Der Startpunkt bleibt vorn; danach Dawarich-Punkte vor jedem späteren Punkt einfügen
+        while (i > 0 && j < sorted.length && Date.parse(sorted[j].recordedAt) < (times[i] ?? Infinity)) merged.push(sorted[j++]);
+        merged.push(point);
+      });
+      // Übrige vor den Zielpunkt
+      if (j < sorted.length) merged.splice(merged.length - 1, 0, ...sorted.slice(j));
+      change(merged);
+      setSaveError("");
+      setDawarich((d) => ({ ...d, notice: t("tripEditor.dawarichAdded", { count: incoming.length }) }));
     } catch (error) {
       setSaveError(error.message);
     } finally {
@@ -682,7 +778,6 @@ export default function TripEditor() {
   const formatTime = useCallback((ms, withSeconds = false) => (Number.isFinite(ms)
     ? new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", ...(withSeconds ? { second: "2-digit" } : {}), timeZone: zone }).format(new Date(ms))
     : "–"), [locale, zone]);
-  const backTo = `/?trip=${encodeURIComponent(id)}`;
   const gpsCount = points.filter((p) => p.origin === "gps").length;
   const setCount = points.length - gpsCount;
   const previousMeters = Number(trip?.distanceKm || 0) * 1000;
@@ -748,7 +843,7 @@ export default function TripEditor() {
     <div className="flex h-[calc(100dvh-4.5rem-1px)] min-h-[320px] flex-col">
       {/* Bearbeitungsleiste (Desktop) */}
       <div className="hidden shrink-0 flex-wrap items-center gap-4 border-b border-[#2c2c2c] bg-[#181818] px-6 py-3.5 md:flex">
-        <Link to={backTo} className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-fb-accent-strong no-underline hover:underline">
+        <Link to={backTo} onClick={cancel} className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-fb-accent-strong no-underline hover:underline">
           <BackIcon width={16} height={16} />{t("tripEditor.back")}
         </Link>
         <div className="h-7 w-px bg-fb-border" />
@@ -758,7 +853,7 @@ export default function TripEditor() {
         </div>
         {unsavedBadge}
         <div className="ml-auto flex flex-wrap gap-2">
-          <button type="button" onClick={discard} disabled={!dirty || saving} className="min-h-11 rounded-[10px] border border-fb-border px-4 font-semibold disabled:opacity-50">{t("tripEditor.discard")}</button>
+          <button type="button" onClick={() => cancel()} disabled={saving} className="min-h-11 rounded-[10px] border border-fb-border px-4 font-semibold disabled:opacity-50">{t("common.cancel")}</button>
           <button type="button" onClick={save} disabled={!canSave} className="min-h-11 rounded-[10px] bg-[#0369a1] px-5 font-semibold text-white disabled:opacity-50">
             {saving ? t("common.saving") : t("tripEditor.save")}
           </button>
@@ -792,6 +887,7 @@ export default function TripEditor() {
               <OwnPointsList points={points} times={pointTimes} selected={selected} editable={editable} formatTime={formatTime}
                 onSelect={(index) => { setSelected(index); fitTo([points[index]]); }} onMove={moveOwnPoint} />
               {selectedCardProps && <SelectedPointCard {...selectedCardProps} />}
+              {dawarich.notice && <p role="status" className="text-sm text-fb-muted">{dawarich.notice}</p>}
               {saveError && <p role="alert" className="text-sm text-fb-danger">{saveError}</p>}
               {editable && (
                 <p className="mt-auto text-xs leading-normal text-fb-muted">
@@ -842,7 +938,7 @@ export default function TripEditor() {
 
           {/* Handy: Kopfzeile, Werkzeuge, Panel */}
           <div className="absolute inset-x-3 top-3 z-10 flex items-center gap-2 md:hidden">
-            <Link to={backTo} aria-label={t("tripEditor.back")} className="inline-flex size-11 items-center justify-center rounded-xl border border-fb-border bg-fb-main text-fb-text">
+            <Link to={backTo} onClick={cancel} aria-label={t("tripEditor.back")} className="inline-flex size-11 items-center justify-center rounded-xl border border-fb-border bg-fb-main text-fb-text">
               <BackIcon />
             </Link>
             <div className="flex h-11 min-w-0 flex-1 flex-col justify-center rounded-xl border border-fb-border bg-fb-main px-3">
@@ -870,7 +966,7 @@ export default function TripEditor() {
               )}
               {saveError && <p role="alert" className="text-sm text-fb-danger">{saveError}</p>}
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
-                <button type="button" onClick={discard} disabled={!dirty || saving} className="min-h-12 rounded-xl border border-fb-border font-semibold disabled:opacity-50">{t("tripEditor.discard")}</button>
+                <button type="button" onClick={() => cancel()} disabled={saving} className="min-h-12 rounded-xl border border-fb-border font-semibold disabled:opacity-50">{t("common.cancel")}</button>
                 <button type="button" onClick={save} disabled={!canSave} className="min-h-12 rounded-xl bg-[#0369a1] font-semibold text-white disabled:opacity-50">
                   {saving ? t("common.saving") : t("tripEditor.save")}
                 </button>

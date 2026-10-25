@@ -989,7 +989,8 @@ tripRoutes.post(
   "/:id/dawarich-import",
   asyncHandler(async (request, response) => {
     const tripId = uuidValue(request.params.id);
-    response.json(await importTripPointsFromDawarich(request.auth.userId, tripId));
+    const preview = request.body?.preview === true;
+    response.json(await importTripPointsFromDawarich(request.auth.userId, tripId, { preview }));
   }),
 );
 

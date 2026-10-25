@@ -933,9 +933,19 @@ paths:
         mit mehr als 200 m Ungenauigkeit werden übersprungen. Distanz und Dauer werden neu
         berechnet, Map-Matching wird neu eingereiht. Verschieben sich Start oder Ziel um mehr
         als 150 m, wird die jeweilige Adresse neu ermittelt. In der Fahrthistorie steht
-        `POINTS_IMPORTED`.
+        `POINTS_IMPORTED`. Mit `preview: true` werden die passenden Punkte nur geliefert
+        (`points`) und nichts gespeichert – so übernimmt der Fahrt-Editor sie als ungespeicherte
+        Änderung.
       parameters:
         - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                preview: { type: boolean, default: false }
       responses:
         '200':
           description: Ergebnis des Imports
@@ -943,11 +953,15 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [importedCount, gapCount, trip]
+                required: [importedCount, gapCount]
                 properties:
-                  importedCount: { type: integer, description: Anzahl übernommener Punkte }
+                  importedCount: { type: integer, description: Anzahl übernommener (bzw. bei preview passender) Punkte }
                   gapCount: { type: integer, description: Anzahl gefundener Lücken }
-                  trip: { $ref: '#/components/schemas/Trip' }
+                  trip: { $ref: '#/components/schemas/Trip', description: Nur ohne preview }
+                  points:
+                    type: array
+                    description: Nur bei preview – die passenden Punkte, nicht gespeichert
+                    items: { $ref: '#/components/schemas/TrackPoint' }
         '400': { description: "TRIP_NOT_COMPLETED oder DAWARICH_UNAUTHORIZED" }
         '404': { description: "TRIP_NOT_FOUND oder DAWARICH_NOT_CONNECTED" }
         '409': { description: TRIP_PERIOD_LOCKED – die Fahrt liegt in einem abgeschlossenen Zeitraum }

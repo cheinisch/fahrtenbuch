@@ -225,7 +225,7 @@ async function fetchDawarichPoints(baseUrl, apiKey, from, to) {
  * Lücken einer abgeschlossenen Fahrt mit Punkten aus Dawarich füllen. Vorhandene Punkte
  * bleiben erhalten; Distanz und Dauer werden neu berechnet, Map-Matching neu eingereiht.
  */
-export async function importTripPointsFromDawarich(userId, tripId) {
+export async function importTripPointsFromDawarich(userId, tripId, { preview = false } = {}) {
   const row = await connectionRow(userId);
   if (!row) throw notFound("DAWARICH_NOT_CONNECTED", "Es ist keine Dawarich-Verbindung eingerichtet.");
 
@@ -237,7 +237,9 @@ export async function importTripPointsFromDawarich(userId, tripId) {
 
   const existing = await pool.query(`SELECT recorded_at FROM track_points WHERE trip_id = $1`, [tripId]);
   const gaps = findGaps(trip.started_at, trip.ended_at, existing.rows.map((point) => point.recorded_at));
-  if (!gaps.length) return { importedCount: 0, gapCount: 0, trip: mapTrip(await getOwnedTrip(pool, userId, tripId)) };
+  if (!gaps.length) {
+    return preview ? { importedCount: 0, gapCount: 0, points: [] } : { importedCount: 0, gapCount: 0, trip: mapTrip(await getOwnedTrip(pool, userId, tripId)) };
+  }
 
   const apiKey = decryptSecret(row.api_key_encrypted);
   const start = new Date(trip.started_at).getTime();
@@ -255,7 +257,25 @@ export async function importTripPointsFromDawarich(userId, tripId) {
       return true;
     });
 
-  if (!candidates.length) return { importedCount: 0, gapCount: gaps.length, trip: mapTrip(await getOwnedTrip(pool, userId, tripId)) };
+  if (!candidates.length) {
+    return preview ? { importedCount: 0, gapCount: gaps.length, points: [] } : { importedCount: 0, gapCount: gaps.length, trip: mapTrip(await getOwnedTrip(pool, userId, tripId)) };
+  }
+  // Vorschau (Fahrt-Editor): nur liefern, nichts speichern
+  if (preview) {
+    return {
+      importedCount: candidates.length,
+      gapCount: gaps.length,
+      points: candidates.map((point) => ({
+        lat: point.lat,
+        lon: point.lon,
+        recordedAt: point.recordedAt.toISOString(),
+        accuracy: point.accuracy,
+        altitude: point.altitude,
+        bearing: point.bearing,
+        source: "gps",
+      })),
+    };
+  }
 
   const client = await pool.connect();
   try {

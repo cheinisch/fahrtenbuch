@@ -899,8 +899,12 @@ export const testDawarichConnection = (token) =>
   apiRequest(token, "/api/v1/users/me/dawarich/test", { method: "POST" });
 
 // Lücken einer Fahrt mit Punkten aus Dawarich füllen
-export const importTripPointsFromDawarich = (token, tripId) =>
-  apiRequest(token, `/api/v1/trips/${encodeURIComponent(tripId)}/dawarich-import`, { method: "POST" });
+// preview: nur die passenden Punkte liefern, nichts speichern (Fahrt-Editor)
+export const importTripPointsFromDawarich = (token, tripId, { preview = false } = {}) =>
+  apiRequest(token, `/api/v1/trips/${encodeURIComponent(tripId)}/dawarich-import`, {
+    method: "POST",
+    body: JSON.stringify(preview ? { preview: true } : {}),
+  });
 
 // Manuell angelegte Fahrt (POST /trips, source=manual)
 export const createTrip = (token, payload) =>
