@@ -295,7 +295,12 @@ export default function TripEditor() {
         type: "circle",
         source: "points",
         paint: {
-          "circle-radius": ["case", ["get", "selected"], 9, ["match", ["get", "role"], ["start", "end"], 11, "set", 7, ["interpolate", ["linear"], ["zoom"], 8, 3, 14, 5]]],
+          // MapLibre erlaubt "zoom" nur im obersten interpolate: Größen je Rolle an beiden Stützstellen
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            8, ["case", ["get", "selected"], 9, ["match", ["get", "role"], ["start", "end"], 11, "set", 7, 3]],
+            14, ["case", ["get", "selected"], 9, ["match", ["get", "role"], ["start", "end"], 11, "set", 7, 5]],
+          ],
           "circle-color": ["match", ["get", "role"], "start", "#16a34a", "end", "#dc2626", "set", ACCENT, "#ffffff"],
           "circle-stroke-color": ["match", ["get", "role"], "gps", ACCENT, "#ffffff"],
           "circle-stroke-width": ["case", ["get", "selected"], 3, ["match", ["get", "role"], ["start", "end"], 3, 2]],
