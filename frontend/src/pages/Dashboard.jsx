@@ -318,11 +318,16 @@ export default function Dashboard() {
 
   const [mapError, setMapError] = useState("");
   const [routeColors, setRouteColors] = useState({});
+  // Persönlicher Kartenstil; null, bis die Einstellungen geladen sind (Karte erst dann anlegen)
+  const [mapStyle, setMapStyle] = useState(null);
   useEffect(() => {
     let active = true;
     getPersonalSettings(accessToken).then((result) => {
-      if (active) setRouteColors(result.settings?.mapRouteColors || {});
-    }).catch(() => {});
+      if (active) {
+        setRouteColors(result.settings?.mapRouteColors || {});
+        setMapStyle(result.settings?.mapStyle || "osm");
+      }
+    }).catch(() => { if (active) setMapStyle("osm"); });
     return () => { active = false; };
   }, [accessToken]);
   const [selectedForMerge, setSelectedForMerge] = useState([]);
@@ -658,7 +663,7 @@ export default function Dashboard() {
 
     const mapSettings = data.map.settings;
 
-    if (!mapSettings) {
+    if (!mapSettings || mapStyle == null) {
       return;
     }
 
@@ -670,7 +675,7 @@ export default function Dashboard() {
 
       map = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: createMapStyle(mapSettings),
+        style: createMapStyle(mapSettings, mapStyle),
         center: [
           Number(
             mapSettings.defaultLongitude ??
@@ -939,6 +944,7 @@ export default function Dashboard() {
     data.map.settings?.protomapsTileServerUrl,
     data.map.settings?.protomapsAssetsUrl,
     data.map.settings?.protomapsFlavor,
+    mapStyle,
   ]);
 
   const updateMapDataRef = useRef(updateMapData);

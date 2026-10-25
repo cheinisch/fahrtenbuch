@@ -82,10 +82,13 @@ app.use(
             ? "https://www.gravatar.com https://secure.gravatar.com https://*.gravatar.com"
             : "'self'"),
           "https://tile.openstreetmap.org",
+          // Kartenstile „Hell“/„Dunkel“ (wie in der Android-App)
+          "https://tiles.openfreemap.org",
         ],
         connectSrc: [
           "'self'",
           "https://tile.openstreetmap.org",
+          "https://tiles.openfreemap.org",
         ],
         workerSrc: ["'self'", "blob:"],
         childSrc: ["'self'", "blob:"],

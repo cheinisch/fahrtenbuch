@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   getDawarichConnection,
   getMapSettings,
+  getPersonalSettings,
   getSavedPlaces,
   getTrip,
   getTripMatchedRoute,
@@ -150,8 +151,9 @@ export default function TripEditor() {
       getTripPoints(accessToken, id).catch(() => []),
       getTripMatchedRoute(accessToken, id).catch(() => null),
       getMapSettings(accessToken).catch(() => ({ provider: "osm" })),
+      getPersonalSettings(accessToken).catch(() => null),
     ])
-      .then(([loaded, rawPoints, matched, mapSettings]) => {
+      .then(([loaded, rawPoints, matched, mapSettings, personal]) => {
         if (!active) return;
         let initialPoints = (Array.isArray(rawPoints) ? rawPoints : []).map(fromApiPoint);
         // Manuell angelegte Fahrt ohne Punkte: mit Start- und Zielkoordinate beginnen
@@ -183,7 +185,7 @@ export default function TripEditor() {
           trip: loaded,
           initial,
           matched: (matched?.coordinates || []).map(([lat, lon]) => ({ lat: Number(lat), lon: Number(lon) })),
-          mapSettings,
+          mapSettings: { ...mapSettings, userStyle: personal?.settings?.mapStyle || "osm" },
         });
       })
       .catch((error) => { if (active) setLoad((current) => ({ ...current, loading: false, error: error.message })); });
@@ -278,7 +280,7 @@ export default function TripEditor() {
     const settings = load.mapSettings;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: createMapStyle(settings),
+      style: createMapStyle(settings, settings.userStyle),
       center: [Number(settings.defaultLongitude ?? 10.45), Number(settings.defaultLatitude ?? 51.17)],
       zoom: Number(settings.defaultZoom ?? 5),
     });

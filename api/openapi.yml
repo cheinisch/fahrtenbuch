@@ -2504,6 +2504,10 @@ paths:
                   type: string
                   enum: [12h, 24h]
                   description: Preferred clock format (12-hour AM/PM or 24-hour).
+                mapStyle:
+                  type: string
+                  enum: [osm, light, dark, auto]
+                  description: Web map style – osm = the server's map default, light/dark = OpenFreeMap like in the Android app, auto = light or dark following the color scheme.
             example:
               distanceUnit: mi
               dateFormat: US
@@ -3497,6 +3501,11 @@ components:
       type: object
       description: User preferences. Unspecified distanceUnit defaults to km.
       properties:
+        mapStyle:
+          type: string
+          enum: [osm, light, dark, auto]
+          default: osm
+          description: Web map style – osm = the server's map default, light/dark = OpenFreeMap like in the Android app, auto = light or dark following the color scheme.
         distanceUnit:
           type: string
           enum: [km, mi]

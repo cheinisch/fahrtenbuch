@@ -221,7 +221,7 @@ export default function ProfileSettings() {
     trackingAccuracyMode: "balanced",
     stopDelaySeconds: 180,
     saveAccuracy: true,
-    mapProvider: "osm",
+    mapStyle: "osm",
     mapRouteColors: {},
   });
 
@@ -362,8 +362,8 @@ export default function ProfileSettings() {
           settingsResult.settings.stopDelaySeconds,
         saveAccuracy:
           settingsResult.settings.saveAccuracy,
-        mapProvider:
-          settingsResult.settings.mapProvider,
+        mapStyle:
+          settingsResult.settings.mapStyle || "osm",
         mapRouteColors: settingsResult.settings.mapRouteColors || {},
       });
 
@@ -947,8 +947,8 @@ export default function ProfileSettings() {
           updated.stopDelaySeconds,
         saveAccuracy:
           updated.saveAccuracy,
-        mapProvider:
-          updated.mapProvider,
+        mapStyle:
+          updated.mapStyle || "osm",
         mapRouteColors: updated.mapRouteColors || {},
       });
 
@@ -1983,29 +1983,24 @@ export default function ProfileSettings() {
               </label>
 
               <label className={labelClass}>
-                {t("profile.tracking.mapProvider")}
+                {t("profile.tracking.mapStyle")}
                 <select
-                  value={tracking.mapProvider}
+                  value={tracking.mapStyle}
                   onChange={(event) =>
                     setTracking((current) => ({
                       ...current,
-                      mapProvider:
-                        event.target.value,
+                      mapStyle: event.target.value,
                     }))
                   }
                   className={fieldClass}
                 >
-                  <option value="osm">
-                    OpenStreetMap
-                  </option>
-                  <option value="maplibre">
-                    MapLibre
-                  </option>
-                  <option value="atlas">
-                    {t("profile.tracking.mapAtlas")}
-                  </option>
+                  <option value="osm">{t("profile.tracking.mapStyleOsm")}</option>
+                  <option value="light">{t("profile.tracking.mapStyleLight")}</option>
+                  <option value="dark">{t("profile.tracking.mapStyleDark")}</option>
+                  <option value="auto">{t("profile.tracking.mapStyleAuto")}</option>
                 </select>
-        </label>
+                <span className="mt-1 block text-xs font-normal text-fb-muted">{t("profile.tracking.mapStyleHint")}</span>
+              </label>
               <div className="mt-5">
                 <h3 className="text-sm font-semibold">{t("profile.tracking.routeColors")}</h3>
                 <p className="mt-1 text-xs text-fb-muted">{t("profile.tracking.routeColorsHint")}</p>

@@ -13,7 +13,10 @@ const DEFAULT_USER_SETTINGS = Object.freeze({
   dateFormat: "EU",
   speedUnit: "kmh",
   timeFormat: "24h",
+  mapStyle: "osm",
 });
+
+export const MAP_STYLES = ["osm", "light", "dark", "auto"];
 
 function isObject(value) {
   return (
@@ -66,6 +69,9 @@ export function mapUserSettings(row) {
     dateFormat: ["EU", "US"].includes(customSettings.dateFormat) ? customSettings.dateFormat : DEFAULT_USER_SETTINGS.dateFormat,
     speedUnit: ["kmh", "mph"].includes(customSettings.speedUnit) ? customSettings.speedUnit : DEFAULT_USER_SETTINGS.speedUnit,
     timeFormat: ["12h", "24h"].includes(customSettings.timeFormat) ? customSettings.timeFormat : DEFAULT_USER_SETTINGS.timeFormat,
+    // Kartenstil im Web: osm = Kartenvorgabe des Servers, light/dark = OpenFreeMap wie in der App,
+    // auto = hell oder dunkel passend zum Farbschema
+    mapStyle: MAP_STYLES.includes(customSettings.mapStyle) ? customSettings.mapStyle : DEFAULT_USER_SETTINGS.mapStyle,
     // Persönliche Wahl (Standard: an) und ob die Instanz Gravatar überhaupt erlaubt
     gravatarEnabled: customSettings.gravatarEnabled !== false,
     gravatarAvailable: isGravatarEnabled(),
@@ -144,6 +150,10 @@ export async function updateUserSettings(
 
   if (input.mapMatchingEnabled !== undefined && typeof input.mapMatchingEnabled !== "boolean") {
     throw badRequest("VALIDATION_ERROR", "mapMatchingEnabled muss true oder false sein.");
+  }
+
+  if (input.mapStyle !== undefined && !MAP_STYLES.includes(input.mapStyle)) {
+    throw badRequest("VALIDATION_ERROR", `mapStyle muss einer der Werte ${MAP_STYLES.join(", ")} sein.`);
   }
 
   const knownKeys = new Set([

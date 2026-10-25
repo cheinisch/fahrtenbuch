@@ -41,7 +41,26 @@ function resolveProtomapsFlavor(value) {
     : "light";
 }
 
-export function createMapStyle(settings) {
+// OpenFreeMap-Stile wie in der Android-App (hell: Positron, dunkel: Dark)
+export const OPENFREEMAP_STYLES = {
+  light: "https://tiles.openfreemap.org/styles/positron",
+  dark: "https://tiles.openfreemap.org/styles/dark",
+};
+
+/** Persönlicher Kartenstil (osm | light | dark | auto) → light/dark oder null (Servervorgabe). */
+export function resolveUserMapStyle(mapStyle) {
+  if (mapStyle === "light" || mapStyle === "dark") return mapStyle;
+  if (mapStyle === "auto") return resolveProtomapsFlavor("auto");
+  return null;
+}
+
+/**
+ * Kartenstil: der persönliche Stil hat Vorrang (OpenFreeMap hell/dunkel bzw. passend zum
+ * Farbschema), sonst die Kartenvorgabe des Servers (OSM-Raster oder Protomaps).
+ */
+export function createMapStyle(settings, mapStyle = "osm") {
+  const personal = resolveUserMapStyle(mapStyle);
+  if (personal) return OPENFREEMAP_STYLES[personal];
   if (settings?.provider !== "protomaps") {
     return OSM_MAP_STYLE;
   }
