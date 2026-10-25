@@ -4,9 +4,11 @@ import { haversineDistance } from "../lib/geo.js";
 import { mapTrip } from "../lib/mappers.js";
 import { enqueueJob } from "../jobs/queue.js";
 import { queueAutoMapMatching } from "./mapMatchingService.js";
+import { routePath } from "./routingService.js";
 import { appendTripHistory, getOwnedTrip, recalculateTripMetrics } from "./tripService.js";
 
 export const MAX_EDITOR_POINTS = 20_000;
+export const POINT_SOURCES = ["gps", "manual", "routed"];
 // Ab dieser Verschiebung wird eine unveränderte Start-/Zieladresse neu ermittelt
 const ADDRESS_MOVE_METERS = 150;
 
@@ -34,9 +36,15 @@ export function normalizeEditorPoints(input) {
       recordedAt = date;
     }
     const bearing = optionalNumber(point?.bearing, 0, 359.999999);
+    // Ohne Angabe: mit Zeitstempel gemessen, sonst gesetzt (ältere Clients)
+    const source = point?.source == null ? (recordedAt ? "gps" : "manual") : point.source;
+    if (!POINT_SOURCES.includes(source)) {
+      throw badRequest("VALIDATION_ERROR", `Die Herkunft von Punkt ${index + 1} ist ungültig.`);
+    }
     return {
       lat,
       lon,
+      source,
       recordedAt,
       altitude: optionalNumber(point?.altitude, -1000, 10_000),
       accuracy: optionalNumber(point?.accuracy, 0, 100_000),
@@ -54,7 +62,11 @@ export function normalizeEditorPoints(input) {
 export function assignPointTimes(points, startedAt, endedAt) {
   const start = new Date(startedAt).getTime();
   const end = new Date(endedAt).getTime();
-  const times = points.map((point) => (point.recordedAt ? new Date(point.recordedAt).getTime() : null));
+  // Nur gemessene Zeiten sind Anker; gesetzte und erzeugte Punkte werden neu verteilt,
+  // damit ihre Zeiten nach dem Umsortieren oder Neuberechnen stimmen
+  const times = points.map((point) => (point.recordedAt && (point.source ?? "gps") === "gps"
+    ? new Date(point.recordedAt).getTime()
+    : null));
   times[0] = start;
   times[times.length - 1] = end;
   // Vorhandene Zeiten in den Rahmen bringen und gegen Rücksprünge absichern
@@ -97,7 +109,7 @@ function addressInput(body, name) {
  * Fahrt aus dem Editor speichern: Punkte ersetzen, Start/Ende und Adressen setzen,
  * Distanz und Dauer neu berechnen. Abgeschlossene Zeiträume schützt der DB-Trigger.
  */
-export async function saveTripRoute(userId, tripId, body) {
+export async function saveTripRoute(userId, tripId, body, { method = "editor" } = {}) {
   const input = body && typeof body === "object" ? body : {};
   const startedAt = new Date(input.startedAt);
   const endedAt = new Date(input.endedAt);
@@ -109,7 +121,7 @@ export async function saveTripRoute(userId, tripId, body) {
   const times = assignPointTimes(points, startedAt, endedAt);
   const startAddress = addressInput(input, "startAddress");
   const endAddress = addressInput(input, "endAddress");
-  const routedCount = Number.isInteger(input.routedPointCount) ? input.routedPointCount : null;
+  const routedCount = points.filter((point) => point.source === "routed").length;
 
   const client = await pool.connect();
   try {
@@ -124,11 +136,11 @@ export async function saveTripRoute(userId, tripId, body) {
 
     await client.query(`DELETE FROM track_points WHERE trip_id = $1`, [tripId]);
     await client.query(
-      `INSERT INTO track_points (trip_id, sequence_number, lat, lon, altitude_meters, accuracy_meters, speed_mps, bearing_degrees, recorded_at)
-       SELECT $1, n - 1, lat, lon, alt, acc, spd, brg, ts
+      `INSERT INTO track_points (trip_id, sequence_number, lat, lon, altitude_meters, accuracy_meters, speed_mps, bearing_degrees, recorded_at, point_source)
+       SELECT $1, n - 1, lat, lon, alt, acc, spd, brg, ts, src
        FROM unnest($2::double precision[], $3::double precision[], $4::double precision[], $5::double precision[],
-                   $6::double precision[], $7::double precision[], $8::timestamptz[])
-         WITH ORDINALITY AS p(lat, lon, alt, acc, spd, brg, ts, n)`,
+                   $6::double precision[], $7::double precision[], $8::timestamptz[], $9::text[])
+         WITH ORDINALITY AS p(lat, lon, alt, acc, spd, brg, ts, src, n)`,
       [
         tripId,
         points.map((point) => point.lat),
@@ -138,6 +150,7 @@ export async function saveTripRoute(userId, tripId, body) {
         points.map((point) => point.speed),
         points.map((point) => point.bearing),
         times,
+        points.map((point) => point.source),
       ],
     );
 
@@ -176,10 +189,10 @@ export async function saveTripRoute(userId, tripId, body) {
       oldValues: { distanceMeters: meters(trip.distance_meters) },
       newValues: { distanceMeters: meters(updated.distance_meters) },
       metadata: {
-        method: "editor",
+        method,
         pointCount: points.length,
         previousCount: previous.rows[0].count,
-        ...(routedCount != null ? { routedPointCount: routedCount } : {}),
+        routedPointCount: routedCount,
       },
     });
     await client.query("COMMIT");
@@ -196,4 +209,51 @@ export async function saveTripRoute(userId, tripId, body) {
   } finally {
     client.release();
   }
+}
+
+/**
+ * Erzeugte Punkte verwerfen und die Lücken zwischen gemessenen und gesetzten Punkten neu
+ * über den Routing-Dienst füllen. Start, Ende und Adressen bleiben, wie sie sind.
+ */
+export async function recalculateTripRoute(userId, tripId) {
+  const trip = await getOwnedTrip(pool, userId, tripId, { includeTags: false });
+  if (!trip) throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+  if (trip.status !== "completed") {
+    throw badRequest("TRIP_NOT_COMPLETED", "Nur abgeschlossene Fahrten können neu berechnet werden.");
+  }
+  const result = await pool.query(
+    `SELECT lat, lon, altitude_meters, accuracy_meters, speed_mps, bearing_degrees, recorded_at, point_source
+     FROM track_points WHERE trip_id = $1 AND point_source <> 'routed'
+     ORDER BY sequence_number, recorded_at, id`,
+    [tripId],
+  );
+  const own = result.rows.map((row) => ({
+    lat: Number(row.lat),
+    lon: Number(row.lon),
+    altitude: row.altitude_meters,
+    accuracy: row.accuracy_meters,
+    speed: row.speed_mps,
+    bearing: row.bearing_degrees,
+    recordedAt: row.point_source === "gps" ? row.recorded_at : null,
+    source: row.point_source,
+  }));
+  if (own.length < 2) {
+    throw badRequest("TOO_FEW_POINTS", "Für die Neuberechnung braucht die Fahrt mindestens zwei eigene Punkte.");
+  }
+  const routed = await routePath(own.map(({ lat, lon }) => ({ lat, lon })));
+  const points = routed.path.map((entry) => (entry.index == null
+    ? { lat: entry.lat, lon: entry.lon, source: "routed" }
+    : own[entry.index]));
+  const updated = await saveTripRoute(userId, tripId, {
+    startedAt: trip.started_at,
+    endedAt: trip.ended_at,
+    points,
+  }, { method: "recalculate" });
+  return {
+    trip: updated,
+    gapCount: routed.gapCount,
+    routedGaps: routed.routedGaps,
+    failedGaps: routed.failedGaps,
+    routedPointCount: points.filter((point) => point.source === "routed").length,
+  };
 }

@@ -20,6 +20,7 @@ import GapNotice from "../components/tripEditor/GapNotice.jsx";
 import { BackIcon } from "../components/tripEditor/icons.jsx";
 import LayersPanel from "../components/tripEditor/LayersPanel.jsx";
 import MapToolbar from "../components/tripEditor/MapToolbar.jsx";
+import OwnPointsList from "../components/tripEditor/OwnPointsList.jsx";
 import RoadToggle from "../components/tripEditor/RoadToggle.jsx";
 import SelectedPointCard from "../components/tripEditor/SelectedPointCard.jsx";
 import StartEndCompact from "../components/tripEditor/StartEndCompact.jsx";
@@ -75,8 +76,39 @@ function fromApiPoint(point) {
     accuracy: point.accuracy ?? null,
     speed: point.speed ?? null,
     bearing: point.bearing ?? null,
-    origin: "gps",
+    // Gesetzte Punkte bleiben eigene Punkte; gemessene sind GPS
+    origin: point.source === "manual" ? "set" : "gps",
   });
+}
+
+/**
+ * Gespeicherte erzeugte Punkte (source routed) als fertiges Routing-Ergebnis: so zeigt der
+ * Editor die gespeicherte Route, ohne sie beim Öffnen neu zu berechnen.
+ */
+function storedRouting(rawPoints, ownPoints) {
+  if (!rawPoints.some((point) => point.source === "routed")) return null;
+  let own = 0;
+  let gaps = 0;
+  let inGap = false;
+  const path = rawPoints.map((point) => {
+    if (point.source === "routed") {
+      if (!inGap) gaps += 1;
+      inGap = true;
+      return { lat: Number(point.lat), lon: Number(point.lon), index: null };
+    }
+    inGap = false;
+    return { lat: Number(point.lat), lon: Number(point.lon), index: own++ };
+  });
+  if (own !== ownPoints.length) return null;
+  return {
+    stored: true,
+    provider: null,
+    distanceMeters: Math.round(pathLength(path)),
+    gapCount: gaps,
+    routedGaps: gaps,
+    failedGaps: 0,
+    path,
+  };
 }
 
 /** Nächster Punkt auf einem Segment (Bildschirmkoordinaten). */
@@ -155,7 +187,9 @@ export default function TripEditor() {
     ])
       .then(([loaded, rawPoints, matched, mapSettings, personal]) => {
         if (!active) return;
-        let initialPoints = (Array.isArray(rawPoints) ? rawPoints : []).map(fromApiPoint);
+        const apiPoints = Array.isArray(rawPoints) ? rawPoints : [];
+        // Erzeugte Punkte sind keine eigenen Punkte: sie werden bei Bedarf neu berechnet
+        let initialPoints = apiPoints.filter((point) => point.source !== "routed").map(fromApiPoint);
         // Manuell angelegte Fahrt ohne Punkte: mit Start- und Zielkoordinate beginnen
         if (initialPoints.length === 0) {
           initialPoints = [
@@ -172,7 +206,9 @@ export default function TripEditor() {
           startAddress: loaded.startAddress || "",
           endAddress: loaded.endAddress || "",
         };
+        initial.routing = storedRouting(apiPoints, initialPoints);
         setPoints(initial.points);
+        setRouted({ busy: false, error: "", result: initial.routing, forPoints: initial.routing ? initial.points : null });
         setTimes(initial.times);
         setStartPlace({ address: initial.startAddress, coordinate: null });
         setEndPlace({ address: initial.endAddress, coordinate: null });
@@ -246,14 +282,22 @@ export default function TripEditor() {
   const gaps = useMemo(() => gpsGaps(points, startMs, endMs), [points, startMs, endMs]);
   const biggestGap = useMemo(() => gaps.reduce((best, gap) => (!best || gap.to - gap.from > best.to - best.from ? gap : best), null), [gaps]);
 
-  // Straßenführung: Lücken über den Routing-Dienst füllen (verzögert)
+  // Straßenführung: Lücken über den Routing-Dienst füllen (verzögert). Eine gespeicherte oder
+  // schon berechnete Route für genau diese Punkte bleibt, bis „Route neu berechnen“ gedrückt wird.
+  const routedRef = useRef(routed);
+  useEffect(() => { routedRef.current = routed; }, [routed]);
+  const forceRouteRef = useRef(false);
+  const [recalcKey, setRecalcKey] = useState(0);
   useEffect(() => {
+    if (!forceRouteRef.current && routedRef.current.result && routedRef.current.forPoints === points) return undefined;
     if (!routingEnabled || !followRoads || points.length < 2) {
       setRouted((current) => (current.result || current.busy || current.error ? { busy: false, error: "", result: null, forPoints: null } : current));
       return undefined;
     }
     let cancelled = false;
     const snapshot = points;
+    const delay = forceRouteRef.current ? 0 : ROUTE_DEBOUNCE_MS;
+    forceRouteRef.current = false;
     const timer = setTimeout(async () => {
       setRouted((current) => ({ ...current, busy: true, error: "" }));
       try {
@@ -262,9 +306,29 @@ export default function TripEditor() {
       } catch (error) {
         if (!cancelled) setRouted({ busy: false, error: error.message, result: null, forPoints: null });
       }
-    }, ROUTE_DEBOUNCE_MS);
+    }, delay);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [routingEnabled, followRoads, points, accessToken]);
+  }, [routingEnabled, followRoads, points, accessToken, recalcKey]);
+
+  const recalculateRoute = useCallback(() => {
+    forceRouteRef.current = true;
+    setFollowRoads(true);
+    setRecalcKey((value) => value + 1);
+  }, []);
+
+  // Eigene (gesetzte) Punkte untereinander tauschen; gemessene Punkte behalten ihre Reihenfolge
+  const moveOwnPoint = useCallback((index, direction) => {
+    const list = pointsRef.current;
+    let other = index + direction;
+    while (other >= 0 && other < list.length && list[other].origin !== "set") other += direction;
+    if (other < 0 || other >= list.length) return;
+    change((current) => {
+      const next = [...current];
+      [next[index], next[other]] = [next[other], next[index]];
+      return next;
+    });
+    setSelected(other);
+  }, [change]);
 
   const routedCurrent = routed.result && routed.forPoints === points ? routed.result : null;
   const displayPath = useMemo(
@@ -543,13 +607,16 @@ export default function TripEditor() {
     ? ["startDate", "startTime", "endDate", "endTime"].filter((key) => times[key] !== initial.times[key]).length
       + (startPlace.address !== initial.startAddress ? 1 : 0) + (endPlace.address !== initial.endAddress ? 1 : 0)
     : 0;
-  const changeCount = history.undo.length + fieldChanges;
+  // Neu berechnete Route bei sonst unveränderten Punkten zählt ebenfalls als Änderung
+  const routeRecalculated = Boolean(initial && routedCurrent && routedCurrent !== initial.routing && points === initial.points);
+  const changeCount = history.undo.length + fieldChanges + (routeRecalculated ? 1 : 0);
   const dirty = changeCount > 0 || (initial && points !== initial.points);
 
   function discard() {
     if (!initial) return;
     if (dirty && !window.confirm(t("tripEditor.discardConfirm"))) return;
     setPoints(initial.points);
+    setRouted({ busy: false, error: "", result: initial.routing, forPoints: initial.routing ? initial.points : null });
     setTimes(initial.times);
     setStartPlace({ address: initial.startAddress, coordinate: null });
     setEndPlace({ address: initial.endAddress, coordinate: null });
@@ -585,10 +652,16 @@ export default function TripEditor() {
     if (endMs <= startMs) { setSaveError(t("tripEditor.errors.endBeforeStart")); return; }
     if (points.length < 2) { setSaveError(t("tripEditor.errors.tooFewPoints")); return; }
     // Mit Straßenführung die gerouteten Ergänzungen mitspeichern; eigene Punkte behalten ihre Daten
-    const strip = ({ key, origin, ...point }) => point;
+    // Herkunft mitschicken: erzeugte Punkte lassen sich später neu berechnen; nur gemessene
+    // Zeiten zählen, gesetzte Punkte werden beim Speichern zeitlich verteilt
+    const own = ({ key, origin, ...point }) => (origin === "gps"
+      ? { ...point, source: "gps" }
+      : { ...point, recordedAt: null, source: "manual" });
     const payloadPoints = routedCurrent
-      ? routedCurrent.path.map((entry) => (entry.index == null ? { lat: entry.lat, lon: entry.lon } : strip(points[entry.index])))
-      : points.map(strip);
+      ? routedCurrent.path.map((entry) => (entry.index == null
+        ? { lat: entry.lat, lon: entry.lon, source: "routed" }
+        : own(points[entry.index])))
+      : points.map(own);
     setSaving(true);
     try {
       await saveTripRoute(accessToken, id, {
@@ -596,7 +669,6 @@ export default function TripEditor() {
         endedAt: new Date(endMs).toISOString(),
         startAddress: startPlace.address.trim() || null,
         endAddress: endPlace.address.trim() || null,
-        routedPointCount: routedCurrent ? routedCurrent.path.filter((entry) => entry.index == null).length : 0,
         points: payloadPoints,
       });
       navigate(`/?trip=${encodeURIComponent(id)}`);
@@ -630,7 +702,9 @@ export default function TripEditor() {
         ? t("tripEditor.routing")
         : routed.error
           ? routed.error
-          : routedCurrent
+          : routedCurrent?.stored
+            ? t("tripEditor.routedStored", { count: routedCurrent.path.filter((entry) => entry.index == null).length })
+            : routedCurrent
             ? (routedCurrent.gapCount === 0
               ? t("tripEditor.noRoadGaps")
               : t("tripEditor.routedInfo", { routed: routedCurrent.routedGaps, gaps: routedCurrent.gapCount, provider: { atlas: "Atlas", valhalla: "Valhalla", osrm: "OSRM" }[routedCurrent.provider] || routedCurrent.provider }))
@@ -647,6 +721,9 @@ export default function TripEditor() {
     onClose: () => setSelected(null),
     onRemove: () => removePoint(selected),
     onMakeStart: () => makeStart(selected),
+    onMove: (direction) => moveOwnPoint(selected, direction),
+    canMoveEarlier: selectedPoint.origin === "set" && points.slice(0, selected).some((p) => p.origin === "set"),
+    canMoveLater: selectedPoint.origin === "set" && points.slice(selected + 1).some((p) => p.origin === "set"),
   };
   const startEndProps = {
     times,
@@ -705,7 +782,15 @@ export default function TripEditor() {
               <section aria-labelledby="editor-roads" className="flex flex-col gap-2.5">
                 <h2 id="editor-roads" className="text-xs font-semibold uppercase tracking-[0.06em] text-fb-muted">{t("tripEditor.routePlanning")}</h2>
                 <RoadToggle checked={followRoads && routingEnabled} disabled={!routingEnabled || !editable} onChange={setFollowRoads} status={roadStatus} />
+                {routingEnabled && editable && (
+                  <button type="button" onClick={recalculateRoute} disabled={routed.busy || points.length < 2}
+                    className="min-h-10 self-start rounded-lg border border-fb-border px-3 text-[13px] font-semibold hover:border-fb-accent disabled:opacity-50">
+                    {routed.busy ? t("tripEditor.routing") : t("tripEditor.recalculate")}
+                  </button>
+                )}
               </section>
+              <OwnPointsList points={points} times={pointTimes} selected={selected} editable={editable} formatTime={formatTime}
+                onSelect={(index) => { setSelected(index); fitTo([points[index]]); }} onMove={moveOwnPoint} />
               {selectedCardProps && <SelectedPointCard {...selectedCardProps} />}
               {saveError && <p role="alert" className="text-sm text-fb-danger">{saveError}</p>}
               {editable && (
@@ -777,6 +862,12 @@ export default function TripEditor() {
               <StatCards compact distanceMeters={distanceMeters} previousMeters={previousMeters} durationSeconds={durationSeconds} gpsCount={gpsCount} setCount={setCount} />
               <StartEndCompact {...startEndProps} />
               <RoadToggle framed={false} checked={followRoads && routingEnabled} disabled={!routingEnabled || !editable} onChange={setFollowRoads} status={roadStatus} />
+              {routingEnabled && editable && (
+                <button type="button" onClick={recalculateRoute} disabled={routed.busy || points.length < 2}
+                  className="min-h-10 rounded-lg border border-fb-border px-3 text-[13px] font-semibold disabled:opacity-50">
+                  {routed.busy ? t("tripEditor.routing") : t("tripEditor.recalculate")}
+                </button>
+              )}
               {saveError && <p role="alert" className="text-sm text-fb-danger">{saveError}</p>}
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
                 <button type="button" onClick={discard} disabled={!dirty || saving} className="min-h-12 rounded-xl border border-fb-border font-semibold disabled:opacity-50">{t("tripEditor.discard")}</button>

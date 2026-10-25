@@ -19,6 +19,7 @@ import {
   removeTripPoints,
   getDawarichConnection,
   importTripPointsFromDawarich,
+  recalculateTripRoute,
   getAssignableTripDrivers,
   assignTripDriver,
   archiveTrip,
@@ -37,6 +38,7 @@ import { useI18n } from "../i18n/I18nProvider.jsx";
 import { codeKey } from "../i18n/translate.js";
 import { routeColor } from "../lib/routeColors.js";
 import ManualTripModal from "../components/trips/ManualTripModal.jsx";
+import { useFeatures } from "../lib/features.jsx";
 import { createMapStyle } from "../lib/mapStyle.js";
 
 function tripTypeLabel(t, type) {
@@ -253,6 +255,7 @@ function pointCoordinates(point) {
 export default function Dashboard() {
   const { accessToken } = useAuth();
   const navigate = useNavigate();
+  const { routingEnabled } = useFeatures();
   const { t, locale } = useI18n();
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archivedTrips, setArchivedTrips] = useState([]);
@@ -1293,6 +1296,24 @@ export default function Dashboard() {
     }
   }
 
+  // Erzeugte Punkte verwerfen und die Route zwischen eigenen Punkten neu routen (speichert direkt)
+  async function recalculateRoute() {
+    if (!selectedTripId) return;
+    setDawarichNotice("");
+    setTripAction((state) => ({ ...state, busy: true, error: "" }));
+    try {
+      const result = await recalculateTripRoute(accessToken, selectedTripId);
+      setData(await getDashboard(accessToken, filters));
+      setGpsReload((value) => value + 1);
+      setDawarichNotice(result.gapCount === 0
+        ? t("dashboard.recalculate.noGaps")
+        : t("dashboard.recalculate.done", { routed: result.routedGaps, gaps: result.gapCount }));
+      setTripAction({ busy: false, error: "", splitPoints: null });
+    } catch (error) {
+      setTripAction((state) => ({ ...state, busy: false, error: error.message }));
+    }
+  }
+
   async function fillFromDawarich() {
     if (!selectedTripId) return;
     setDawarichNotice("");
@@ -1804,6 +1825,11 @@ export default function Dashboard() {
                     <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "points"} onClick={() => (mapMode === "points" ? cancelPointRemoval() : beginPointRemoval())} className={`${secondaryButton} col-span-2`}>
                       {t("dashboard.pointRemoval.action")}
                     </button>
+                    {routingEnabled && selectedTrip.status === "completed" && (
+                      <button type="button" disabled={tripAction.busy} onClick={recalculateRoute} title={t("dashboard.recalculate.hint")} className={`${secondaryButton} col-span-2`}>
+                        {t("dashboard.recalculate.action")}
+                      </button>
+                    )}
                     {dawarichConnected && selectedTrip.status === "completed" && (
                       <button type="button" disabled={tripAction.busy} onClick={fillFromDawarich} title={t("dashboard.dawarich.hint")} className={`${secondaryButton} col-span-2`}>
                         {t("dashboard.dawarich.action")}

@@ -38,6 +38,18 @@ test("assignPointTimes behält vorhandene Zeiten und hält die Reihenfolge ein",
   for (let i = 1; i < times.length; i++) assert.ok(times[i] >= times[i - 1]);
 });
 
+test("assignPointTimes verteilt gesetzte Punkte neu, auch wenn sie eine alte Zeit tragen", () => {
+  const points = [
+    { lat: 50, lon: 8.0, source: "gps", recordedAt: start },
+    { lat: 50, lon: 8.03, source: "manual", recordedAt: "2026-10-22T14:05:00Z" },
+    { lat: 50, lon: 8.01, source: "manual", recordedAt: "2026-10-22T14:50:00Z" },
+    { lat: 50, lon: 8.04, source: "gps", recordedAt: end },
+  ];
+  const times = assignPointTimes(points, start, end).map((date) => date.getTime());
+  for (let i = 1; i < times.length; i++) assert.ok(times[i] >= times[i - 1]);
+  assert.notEqual(times[1], Date.parse("2026-10-22T14:05:00Z"));
+});
+
 test("normalizeEditorPoints prüft Koordinaten und verwirft ungültige Messwerte", () => {
   const points = normalizeEditorPoints([
     { lat: 50, lon: 8, accuracy: 5, bearing: 400 },
@@ -46,6 +58,9 @@ test("normalizeEditorPoints prüft Koordinaten und verwirft ungültige Messwerte
   assert.equal(points[0].accuracy, 5);
   assert.equal(points[0].bearing, null);
   assert.equal(points[1].lat, 50.1);
+  assert.equal(points[1].source, "manual");
+  assert.equal(normalizeEditorPoints([{ lat: 50, lon: 8, recordedAt: start }, { lat: 50, lon: 8.1, source: "routed" }])[0].source, "gps");
+  assert.throws(() => normalizeEditorPoints([{ lat: 50, lon: 8, source: "fake" }, { lat: 50, lon: 8.1 }]));
   assert.throws(() => normalizeEditorPoints([{ lat: 50, lon: 8 }]));
   assert.throws(() => normalizeEditorPoints([{ lat: 95, lon: 8 }, { lat: 50, lon: 8 }]));
 });

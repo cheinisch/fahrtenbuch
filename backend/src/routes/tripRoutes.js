@@ -33,7 +33,7 @@ import {
 } from "../services/tripService.js";
 import { getLocationSuggestions } from "../services/tripSuggestionService.js";
 import { importTripPointsFromDawarich } from "../services/dawarichService.js";
-import { saveTripRoute } from "../services/tripEditorService.js";
+import { recalculateTripRoute, saveTripRoute } from "../services/tripEditorService.js";
 
 export const tripRoutes = Router();
 
@@ -550,11 +550,11 @@ tripRoutes.post(
       await client.query(
         `INSERT INTO track_points (
            trip_id, sequence_number, lat, lon, altitude_meters, accuracy_meters,
-           speed_mps, bearing_degrees, recorded_at
+           speed_mps, bearing_degrees, recorded_at, point_source
          )
          SELECT $1,
                 COALESCE((SELECT MAX(sequence_number) + 1 FROM track_points WHERE trip_id=$1), 0),
-                lat, lon, altitude_meters, accuracy_meters, speed_mps, bearing_degrees, recorded_at
+                lat, lon, altitude_meters, accuracy_meters, speed_mps, bearing_degrees, recorded_at, point_source
          FROM track_points
          WHERE id=$2 AND trip_id=$3`,
         [tripId, splitPointId, secondId],
@@ -873,8 +873,8 @@ tripRoutes.post(
       for(let i=0;i<normalized.length;i++){
         const ratio=normalized.length===1?0:i/(normalized.length-1);
         const at=new Date(firstAt.getTime()+(lastAt.getTime()-firstAt.getTime())*ratio);
-        await client.query(`INSERT INTO track_points(trip_id,sequence_number,lat,lon,recorded_at)
-          VALUES($1,$2,$3,$4,$5)`,[tripId,i,normalized[i].lat,normalized[i].lon,at]);
+        await client.query(`INSERT INTO track_points(trip_id,sequence_number,lat,lon,recorded_at,point_source)
+          VALUES($1,$2,$3,$4,$5,'manual')`,[tripId,i,normalized[i].lat,normalized[i].lon,at]);
       }
       await recalculateTripMetrics(client,tripId);
       await appendTripHistory(client,{tripId,userId:request.auth.userId,eventType:"ROUTE_CORRECTED",
@@ -971,6 +971,15 @@ tripRoutes.put(
   asyncHandler(async (request, response) => {
     const tripId = uuidValue(request.params.id);
     response.json(await saveTripRoute(request.auth.userId, tripId, objectBody(request.body)));
+  }),
+);
+
+// Erzeugte Punkte verwerfen und die Route zwischen gemessenen und gesetzten Punkten neu routen
+tripRoutes.post(
+  "/:id/route/recalculate",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    response.json(await recalculateTripRoute(request.auth.userId, tripId));
   }),
 );
 

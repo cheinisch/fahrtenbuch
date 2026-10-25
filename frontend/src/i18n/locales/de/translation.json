@@ -183,6 +183,12 @@
       "removeLast": "Letzten Punkt entfernen",
       "save": "Route speichern"
     },
+    "recalculate": {
+      "action": "Route neu berechnen",
+      "hint": "Verwirft die erzeugten Punkte und verbindet gemessene und gesetzte Punkte neu über die Straße.",
+      "done": "Route neu berechnet: {routed} von {gaps} Lücken über die Straße verbunden.",
+      "noGaps": "Keine Lücken – die Route besteht nur aus eigenen Punkten."
+    },
     "dawarich": {
       "action": "Lücken aus Dawarich füllen",
       "hint": "Ergänzt Zeiträume ohne GPS-Punkte mit den Standortdaten aus deiner Dawarich-Instanz. Vorhandene Punkte bleiben erhalten.",
@@ -343,6 +349,13 @@
     "dawarichConfirm": "Ungespeicherte Änderungen gehen beim Import aus Dawarich verloren. Fortfahren?",
     "dawarichNothing": "Dawarich hat für diese Fahrt keine passenden Punkte.",
     "jumpToGap": "Zur Lücke springen",
+    "recalculate": "Route neu berechnen",
+    "routedStored": "Gespeicherte Straßenroute ({count} erzeugte Punkte)",
+    "ownPoints": "Eigene Punkte ({count})",
+    "ownPointsHint": "Reihenfolge der gesetzten Punkte ändern – gemessene GPS-Punkte bleiben an ihrem Platz.",
+    "pointNumber": "Punkt {number} von {total}",
+    "moveEarlier": "Früher",
+    "moveLater": "Später",
     "routePlanning": "Routenplanung",
     "followRoads": "Lücken über Straßen füllen",
     "followRoadsHint": "Abstände über 250 m werden entlang der Straße verbunden.",

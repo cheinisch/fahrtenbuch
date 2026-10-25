@@ -927,3 +927,7 @@ export const saveTripRoute = (token, tripId, payload) =>
 // Rückwärts-Geocoding über den eingerichteten Photon-Dienst (z. B. „Nähe“ im Fahrt-Editor)
 export const reverseGeocode = (token, lat, lon, lang) =>
   apiRequest(token, `/api/v1/geocoding/reverse?lat=${lat}&lon=${lon}&lang=${encodeURIComponent(lang || "de")}`);
+
+// Erzeugte Punkte verwerfen und die Route zwischen eigenen Punkten neu berechnen (speichert direkt)
+export const recalculateTripRoute = (token, tripId) =>
+  apiRequest(token, `/api/v1/trips/${encodeURIComponent(tripId)}/route/recalculate`, { method: "POST" });

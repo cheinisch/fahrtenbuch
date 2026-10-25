@@ -2,7 +2,7 @@ import { useI18n } from "../../i18n/I18nProvider.jsx";
 import { CloseIcon } from "./icons.jsx";
 
 /** Ausgewählter Punkt: Herkunft, Zeit, Position, Nähe und Aktionen. */
-export default function SelectedPointCard({ index, total, point, timeText, estimated, nearby, editable, onClose, onRemove, onMakeStart, compact = false }) {
+export default function SelectedPointCard({ index, total, point, timeText, estimated, nearby, editable, onClose, onRemove, onMakeStart, onMove, canMoveEarlier, canMoveLater, compact = false }) {
   const { t } = useI18n();
   const title = t("tripEditor.pointTitle", {
     number: index + 1,
@@ -17,6 +17,12 @@ export default function SelectedPointCard({ index, total, point, timeText, estim
           <div className="font-semibold">{title}</div>
           <div className="truncate text-xs text-fb-muted">{estimated ? "≈ " : ""}{timeText}{nearby ? ` · ${nearby}` : ""}</div>
         </div>
+        {editable && point.origin === "set" && (canMoveEarlier || canMoveLater) && (
+          <span className="flex shrink-0 gap-1">
+            <button type="button" onClick={() => onMove(-1)} disabled={!canMoveEarlier} aria-label={t("tripEditor.moveEarlier")} className="min-h-10 min-w-10 rounded-lg border border-fb-border text-fb-text disabled:opacity-40">↑</button>
+            <button type="button" onClick={() => onMove(1)} disabled={!canMoveLater} aria-label={t("tripEditor.moveLater")} className="min-h-10 min-w-10 rounded-lg border border-fb-border text-fb-text disabled:opacity-40">↓</button>
+          </span>
+        )}
         {editable && (
           <button type="button" onClick={onRemove} className="min-h-10 shrink-0 rounded-lg border border-[#5f2320] bg-[#2a1312] px-3 text-[13px] font-semibold text-[#ff9b94]">
             {t("tripEditor.removeShort")}
@@ -47,6 +53,16 @@ export default function SelectedPointCard({ index, total, point, timeText, estim
       </dl>
       {editable && (
         <div className="flex flex-wrap gap-2">
+          {point.origin === "set" && (canMoveEarlier || canMoveLater) && (
+            <>
+              <button type="button" onClick={() => onMove(-1)} disabled={!canMoveEarlier} className="min-h-9 rounded-lg border border-fb-border bg-fb-surface px-3 text-[13px] font-semibold text-fb-text hover:border-fb-accent disabled:opacity-40">
+                {t("tripEditor.moveEarlier")}
+              </button>
+              <button type="button" onClick={() => onMove(1)} disabled={!canMoveLater} className="min-h-9 rounded-lg border border-fb-border bg-fb-surface px-3 text-[13px] font-semibold text-fb-text hover:border-fb-accent disabled:opacity-40">
+                {t("tripEditor.moveLater")}
+              </button>
+            </>
+          )}
           {index > 0 && (
             <button type="button" onClick={onMakeStart} className="min-h-9 rounded-lg border border-fb-border bg-fb-surface px-3 text-[13px] font-semibold text-fb-text hover:border-fb-accent">
               {t("tripEditor.makeStart")}

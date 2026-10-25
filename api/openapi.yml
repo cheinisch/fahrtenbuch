@@ -865,7 +865,7 @@ paths:
                 endedAt: { type: string, format: date-time }
                 startAddress: { type: [string, 'null'], description: Fehlt das Feld, bleibt die Adresse. }
                 endAddress: { type: [string, 'null'], description: Fehlt das Feld, bleibt die Adresse. }
-                routedPointCount: { type: integer, description: Anzahl über die Straße ergänzter Punkte (nur für die Historie). }
+                routedPointCount: { type: integer, description: Veraltet – wird aus den Punkten mit source routed ermittelt. }
                 points:
                   type: array
                   minItems: 2
@@ -876,7 +876,8 @@ paths:
                     properties:
                       lat: { type: number, minimum: -90, maximum: 90 }
                       lon: { type: number, minimum: -180, maximum: 180 }
-                      recordedAt: { type: [string, 'null'], format: date-time }
+                      recordedAt: { type: [string, 'null'], format: date-time, description: Nur bei source gps als Zeitanker genutzt; gesetzte und erzeugte Punkte werden zeitlich verteilt. }
+                      source: { type: string, enum: [gps, manual, routed], description: "Fehlt sie: mit recordedAt gps, sonst manual." }
                       altitude: { type: [number, 'null'] }
                       accuracy: { type: [number, 'null'] }
                       speed: { type: [number, 'null'] }
@@ -890,6 +891,35 @@ paths:
         '400': { description: "VALIDATION_ERROR oder TRIP_NOT_COMPLETED" }
         '404': { description: TRIP_NOT_FOUND }
         '409': { description: TRIP_PERIOD_LOCKED – die Fahrt liegt in einem abgeschlossenen Zeitraum }
+
+  /trips/{id}/route/recalculate:
+    post:
+      tags: [Trips]
+      summary: Recalculate the generated route of a trip
+      description: |
+        Verwirft alle erzeugten Punkte (`source = routed`) und füllt die Lücken über 250 m
+        zwischen gemessenen und gesetzten Punkten neu über den Routing-Dienst. Gemessene und
+        gesetzte Punkte, Start, Ende und Adressen bleiben unverändert; Distanz und Dauer werden
+        neu berechnet. Historie: `ROUTE_CORRECTED` mit `metadata.method = recalculate`.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Ergebnis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trip: { $ref: '#/components/schemas/Trip' }
+                  gapCount: { type: integer }
+                  routedGaps: { type: integer }
+                  failedGaps: { type: integer }
+                  routedPointCount: { type: integer }
+        '400': { description: "TRIP_NOT_COMPLETED, TOO_FEW_POINTS oder TOO_MANY_GAPS" }
+        '404': { description: TRIP_NOT_FOUND }
+        '409': { description: TRIP_PERIOD_LOCKED – die Fahrt liegt in einem abgeschlossenen Zeitraum }
+        '503': { description: "ROUTING_DISABLED, ROUTING_UNREACHABLE oder ROUTING_FAILED" }
 
   /trips/{id}/dawarich-import:
     post:
@@ -3386,6 +3416,10 @@ components:
         speed: { type: [number, 'null'] }
         bearing: { type: [number, 'null'] }
         recordedAt: { type: string, format: date-time }
+        source:
+          type: string
+          enum: [gps, manual, routed]
+          description: "Herkunft: gps = gemessen, manual = im Fahrt-Editor gesetzt, routed = vom Routing-Dienst zwischen eigenen Punkten erzeugt (lässt sich mit POST /trips/{id}/route/recalculate neu berechnen)."
     Tag:
       type: object
       required: [id, name]

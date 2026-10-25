@@ -182,6 +182,12 @@
       "removeLast": "Remove last point",
       "save": "Save route"
     },
+    "recalculate": {
+      "action": "Recalculate route",
+      "hint": "Discards the generated points and reconnects measured and placed points along the road.",
+      "done": "Route recalculated: {routed} of {gaps} gaps connected along the road.",
+      "noGaps": "No gaps – the route only consists of own points."
+    },
     "dawarich": {
       "action": "Fill gaps from Dawarich",
       "hint": "Fills periods without GPS points with the location data from your Dawarich instance. Existing points are kept.",
@@ -342,6 +348,13 @@
     "dawarichConfirm": "Unsaved changes are lost when importing from Dawarich. Continue?",
     "dawarichNothing": "Dawarich has no matching points for this trip.",
     "jumpToGap": "Jump to gap",
+    "recalculate": "Recalculate route",
+    "routedStored": "Stored road route ({count} generated points)",
+    "ownPoints": "Own points ({count})",
+    "ownPointsHint": "Change the order of placed points – measured GPS points stay where they are.",
+    "pointNumber": "Point {number} of {total}",
+    "moveEarlier": "Earlier",
+    "moveLater": "Later",
     "routePlanning": "Route planning",
     "followRoads": "Fill gaps along roads",
     "followRoadsHint": "Gaps of more than 250 m are connected along the road.",

@@ -108,8 +108,8 @@ export async function reconcileCompletedTracking(client, tripId) {
           jsonb_build_object('reason','multi_device_merge','sourceTripIds',jsonb_build_array($5::text,$6::text)))
         RETURNING id`,[owner.rows[0].user_id,current.vehicle_id,new Date(combinedStart),new Date(combinedEnd),current.id,other.id]);
       const mergedId=created.rows[0].id;
-      await client.query(`INSERT INTO track_points(trip_id,sequence_number,lat,lon,altitude_meters,accuracy_meters,speed_mps,bearing_degrees,recorded_at)
-        SELECT $1,row_number() OVER(ORDER BY recorded_at,accuracy_meters NULLS LAST,id)-1,lat,lon,altitude_meters,accuracy_meters,speed_mps,bearing_degrees,recorded_at
+      await client.query(`INSERT INTO track_points(trip_id,sequence_number,lat,lon,altitude_meters,accuracy_meters,speed_mps,bearing_degrees,recorded_at,point_source)
+        SELECT $1,row_number() OVER(ORDER BY recorded_at,accuracy_meters NULLS LAST,id)-1,lat,lon,altitude_meters,accuracy_meters,speed_mps,bearing_degrees,recorded_at,point_source
         FROM (SELECT * FROM track_points WHERE trip_id=ANY($2::uuid[])) p`,[mergedId,[current.id,other.id]]);
       await recalculateTripMetrics(client,mergedId);
       for(const src of [current,other]){

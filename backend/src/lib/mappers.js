@@ -115,6 +115,8 @@ export function mapTrackPoint(row) {
         ? null
         : Number(row.bearing_degrees),
     recordedAt: row.recorded_at,
+    // gps = gemessen, manual = im Editor gesetzt, routed = vom Routing-Dienst erzeugt
+    source: row.point_source ?? "gps",
   };
 }
 
