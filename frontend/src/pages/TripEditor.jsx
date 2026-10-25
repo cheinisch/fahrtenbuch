@@ -717,7 +717,11 @@ export default function TripEditor() {
 
         {/* Karte */}
         <main className="relative min-w-0 flex-1 overflow-hidden bg-[#1a1f24]">
-          <div ref={containerRef} className="absolute inset-0" aria-label={t("tripEditor.mapLabel")} />
+          {/* Eigener Rahmen: MapLibre setzt den Karten-Container auf position: relative,
+              ein absolute inset-0 direkt darauf hätte keine Höhe */}
+          <div className="absolute inset-0">
+            <div ref={containerRef} className="h-full w-full" aria-label={t("tripEditor.mapLabel")} />
+          </div>
 
           <div className="absolute left-1/2 top-4 z-10 hidden -translate-x-1/2 md:block">
             <MapToolbar tool={tool} onTool={setTool} canUndo={history.undo.length > 0} canRedo={history.redo.length > 0}
