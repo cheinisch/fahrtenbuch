@@ -1,6 +1,6 @@
 {
   "name": "@fahrtenbuch/backend",
-  "version": "0.6.7-dev.203",
+  "version": "0.6.8",
   "private": true,
   "type": "module",
   "engines": {
