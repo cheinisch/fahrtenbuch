@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Fahrtenbuch API
-  version: 0.6.5
+  version: 0.6.6
   description: |
     REST API for the self-hosted Fahrtenbuch application. It covers
     authentication, MFA, passkeys, app pairing, device management,
