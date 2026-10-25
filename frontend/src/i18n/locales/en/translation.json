@@ -317,6 +317,7 @@
     "unsavedOne": "1 unsaved change",
     "cancelConfirm": "Discard unsaved changes and leave the editor?",
     "save": "Save",
+    "saved": "Saved",
     "startEndTitle": "Start & destination",
     "startDate": "Start",
     "endDate": "Arrival",

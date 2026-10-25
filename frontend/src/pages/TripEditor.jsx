@@ -163,6 +163,10 @@ export default function TripEditor() {
   const [nearby, setNearby] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [saveNotice, setSaveNotice] = useState("");
+  // Nach dem Speichern im Editor bleiben: Fahrt neu laden, Kartenausschnitt behalten
+  const [reloadKey, setReloadKey] = useState(0);
+  const keepViewRef = useRef(false);
 
   useEffect(() => { pointsRef.current = points; }, [points]);
   useEffect(() => { toolRef.current = tool; setGhost(null); }, [tool]);
@@ -213,19 +217,24 @@ export default function TripEditor() {
         setEndPlace({ address: initial.endAddress, coordinate: null });
         setHistory({ undo: [], redo: [] });
         setSelected(null);
-        fittedRef.current = false;
-        setLoad({
+        if (!keepViewRef.current) fittedRef.current = false;
+        keepViewRef.current = false;
+        const nextMapSettings = { ...mapSettings, userStyle: personal?.settings?.mapStyle || "osm" };
+        setLoad((current) => ({
           loading: false,
           error: "",
           trip: loaded,
           initial,
           matched: (matched?.coordinates || []).map(([lat, lon]) => ({ lat: Number(lat), lon: Number(lon) })),
-          mapSettings: { ...mapSettings, userStyle: personal?.settings?.mapStyle || "osm" },
-        });
+          // Gleiche Kartenvorgaben behalten das Objekt, damit die Karte nicht neu aufgebaut wird
+          mapSettings: current.mapSettings && JSON.stringify(current.mapSettings) === JSON.stringify(nextMapSettings)
+            ? current.mapSettings
+            : nextMapSettings,
+        }));
       })
       .catch((error) => { if (active) setLoad((current) => ({ ...current, loading: false, error: error.message })); });
     return () => { active = false; };
-  }, [accessToken, id, browserZone]);
+  }, [accessToken, id, browserZone, reloadKey]);
 
   useEffect(() => {
     let active = true;
@@ -283,6 +292,12 @@ export default function TripEditor() {
     historyRef.current = next;
     setHistory(next);
   }, [snapshot]);
+
+  useEffect(() => {
+    if (!saveNotice) return undefined;
+    const timer = setTimeout(() => setSaveNotice(""), 4000);
+    return () => clearTimeout(timer);
+  }, [saveNotice]);
 
   const change = useCallback((updater) => {
     const before = pointsRef.current;
@@ -796,9 +811,14 @@ export default function TripEditor() {
         endAddress: endPlace.address.trim() || null,
         points: payloadPoints,
       });
-      navigate(`/?trip=${encodeURIComponent(id)}`);
+      // Im Editor bleiben (Zwischenspeichern): gespeicherten Stand neu laden, Verlauf beginnt neu
+      keepViewRef.current = true;
+      setReloadKey((value) => value + 1);
+      setSaveNotice(t("tripEditor.saved"));
+      setDawarich((d) => ({ ...d, notice: "" }));
     } catch (error) {
       setSaveError(error.message);
+    } finally {
       setSaving(false);
     }
   }
@@ -888,8 +908,13 @@ export default function TripEditor() {
           <div className="text-[13px] text-fb-muted">{subtitle}</div>
         </div>
         {unsavedBadge}
+        {saveNotice && !changeCount && (
+          <span role="status" className="inline-flex items-center gap-1.5 rounded-full bg-[#052e16] px-2.5 py-1 text-xs font-semibold text-[#86efac]">
+            <span className="size-[7px] rounded-full bg-[#86efac]" />{saveNotice}
+          </span>
+        )}
         <div className="ml-auto flex flex-wrap gap-2">
-          <button type="button" onClick={() => cancel()} disabled={saving} className="min-h-11 rounded-[10px] border border-fb-border px-4 font-semibold disabled:opacity-50">{t("common.cancel")}</button>
+          <button type="button" onClick={() => cancel()} disabled={saving} className="min-h-11 rounded-[10px] border border-fb-border px-4 font-semibold disabled:opacity-50">{dirty ? t("common.cancel") : t("common.close")}</button>
           <button type="button" onClick={save} disabled={!canSave} className="min-h-11 rounded-[10px] bg-[#0369a1] px-5 font-semibold text-white disabled:opacity-50">
             {saving ? t("common.saving") : t("tripEditor.save")}
           </button>
@@ -988,6 +1013,7 @@ export default function TripEditor() {
             </Link>
             <div className="flex h-11 min-w-0 flex-1 flex-col justify-center rounded-xl border border-fb-border bg-fb-main px-3">
               <div className="text-sm font-semibold">{t("tripEditor.title")}</div>
+              {saveNotice && !changeCount && <div role="status" className="text-[11px] text-[#86efac]">{saveNotice}</div>}
               {changeCount > 0 && <div className="text-[11px] text-fb-warn">{t(changeCount === 1 ? "tripEditor.unsavedOne" : "tripEditor.unsaved", { count: changeCount })}</div>}
             </div>
           </div>
@@ -1014,7 +1040,7 @@ export default function TripEditor() {
               )}
               {saveError && <p role="alert" className="text-sm text-fb-danger">{saveError}</p>}
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
-                <button type="button" onClick={() => cancel()} disabled={saving} className="min-h-12 rounded-xl border border-fb-border font-semibold disabled:opacity-50">{t("common.cancel")}</button>
+                <button type="button" onClick={() => cancel()} disabled={saving} className="min-h-12 rounded-xl border border-fb-border font-semibold disabled:opacity-50">{dirty ? t("common.cancel") : t("common.close")}</button>
                 <button type="button" onClick={save} disabled={!canSave} className="min-h-12 rounded-xl bg-[#0369a1] font-semibold text-white disabled:opacity-50">
                   {saving ? t("common.saving") : t("tripEditor.save")}
                 </button>
