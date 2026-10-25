@@ -840,6 +840,38 @@ paths:
         '404': { description: TRIP_NOT_FOUND }
         '409': { description: TRIP_PERIOD_LOCKED – die Fahrt liegt in einem abgeschlossenen Zeitraum }
 
+  /trips/{id}/dawarich-import:
+    post:
+      tags: [Trips]
+      summary: Fill gaps of a trip with points from Dawarich
+      description: |
+        Füllt Lücken einer abgeschlossenen Fahrt (Fahrtbeginn bis erster Punkt, Abstände
+        zwischen Punkten, letzter Punkt bis Fahrtende – jeweils ab 60 Sekunden) mit
+        Standortpunkten aus der verbundenen Dawarich-Instanz des Benutzers
+        (siehe `/users/me/dawarich`). Vorhandene Punkte bleiben unverändert; Dawarich-Punkte
+        mit mehr als 200 m Ungenauigkeit werden übersprungen. Distanz und Dauer werden neu
+        berechnet, Map-Matching wird neu eingereiht. Verschieben sich Start oder Ziel um mehr
+        als 150 m, wird die jeweilige Adresse neu ermittelt. In der Fahrthistorie steht
+        `POINTS_IMPORTED`.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Ergebnis des Imports
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [importedCount, gapCount, trip]
+                properties:
+                  importedCount: { type: integer, description: Anzahl übernommener Punkte }
+                  gapCount: { type: integer, description: Anzahl gefundener Lücken }
+                  trip: { $ref: '#/components/schemas/Trip' }
+        '400': { description: "TRIP_NOT_COMPLETED oder DAWARICH_UNAUTHORIZED" }
+        '404': { description: "TRIP_NOT_FOUND oder DAWARICH_NOT_CONNECTED" }
+        '409': { description: TRIP_PERIOD_LOCKED – die Fahrt liegt in einem abgeschlossenen Zeitraum }
+        '503': { description: "DAWARICH_UNREACHABLE oder DAWARICH_ERROR" }
+
   /trips/{id}/classify:
     put:
       tags: [Trips]
@@ -2402,6 +2434,70 @@ paths:
         '401':
           description: Authentication required
 
+  /users/me/dawarich:
+    get:
+      tags: [Users]
+      summary: Get the user's Dawarich connection
+      responses:
+        '200':
+          description: Verbindungsstatus (der API-Key wird nie zurückgegeben)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DawarichConnection' }
+        '401':
+          description: Authentication required
+    put:
+      tags: [Users]
+      summary: Connect or update the Dawarich connection
+      description: |
+        Prüft die Zugangsdaten über `GET /api/v1/users/me` der Dawarich-Instanz und speichert
+        sie nur bei Erfolg. Der API-Key steht in Dawarich unter Account → API-Key und wird
+        verschlüsselt gespeichert. Ohne `apiKey` bleibt ein bereits gespeicherter Schlüssel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseUrl]
+              properties:
+                baseUrl: { type: string, example: "https://dawarich.example.com" }
+                apiKey: { type: string, nullable: true }
+      responses:
+        '200':
+          description: Gespeicherte Verbindung
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DawarichConnection' }
+        '400': { description: "VALIDATION_ERROR oder DAWARICH_UNAUTHORIZED" }
+        '401':
+          description: Authentication required
+        '503': { description: "DAWARICH_UNREACHABLE oder DAWARICH_ERROR" }
+    delete:
+      tags: [Users]
+      summary: Remove the Dawarich connection
+      responses:
+        '204':
+          description: Verbindung entfernt
+        '401':
+          description: Authentication required
+
+  /users/me/dawarich/test:
+    post:
+      tags: [Users]
+      summary: Test the stored Dawarich connection
+      responses:
+        '200':
+          description: Verbindung funktioniert
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DawarichConnection' }
+        '400': { description: DAWARICH_UNAUTHORIZED }
+        '401':
+          description: Authentication required
+        '404': { description: DAWARICH_NOT_CONNECTED }
+        '503': { description: "DAWARICH_UNREACHABLE oder DAWARICH_ERROR" }
+
   /trips/archive:
     get:
       tags: [Trips]
@@ -2780,6 +2876,18 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
   schemas:
+    DawarichConnection:
+      type: object
+      required: [connected]
+      properties:
+        connected: { type: boolean }
+        baseUrl: { type: string }
+        apiKeyHint: { type: string, nullable: true, description: Letzte vier Zeichen des API-Keys }
+        email: { type: string, nullable: true, description: E-Mail des Dawarich-Kontos }
+        version: { type: string, nullable: true, description: Version der Dawarich-Instanz }
+        verifiedAt: { type: string, format: date-time, nullable: true }
+        lastError: { type: string, nullable: true }
+        updatedAt: { type: string, format: date-time }
     OAuthAuthorizationResponse:
       type: object
       required: [authorizationUrl]

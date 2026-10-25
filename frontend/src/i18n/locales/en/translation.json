@@ -182,6 +182,13 @@
       "removeLast": "Remove last point",
       "save": "Save route"
     },
+    "dawarich": {
+      "action": "Fill gaps from Dawarich",
+      "hint": "Fills periods without GPS points with the location data from your Dawarich instance. Existing points are kept.",
+      "imported": "Added {count} points from Dawarich ({gaps} gaps).",
+      "nothingFound": "Dawarich has no matching points for the {gaps} gaps.",
+      "noGaps": "This trip has no gaps."
+    },
     "pointRemoval": {
       "action": "Remove single points",
       "hint": "Click the points on the map that are wrong (e.g. jumps caused by poor GPS reception). Click again to deselect. The line shows the route without the marked points.",
@@ -238,6 +245,7 @@
       "driverAssigned": "Driver changed",
       "routeCorrected": "Route manually corrected",
       "pointsRemoved": "Single GPS points removed",
+      "pointsImported": "GPS points added from Dawarich",
       "autoClassified": "Automatically classified",
       "baseline": "History enabled"
     },
@@ -931,6 +939,26 @@
       "sending": "Sending …",
       "saved": "The monthly report setting has been saved.",
       "sent": "The monthly report was sent to {email}."
+    },
+    "dawarich": {
+      "title": "Dawarich",
+      "description": "Connect your Dawarich instance to fill gaps in trips (e.g. when the system stopped the app) with your location data.",
+      "url": "Dawarich instance address",
+      "apiKey": "API key",
+      "apiKeyKeep": "Stored (…{hint}) – leave empty to keep it",
+      "hint": "You can find the API key in Dawarich under Account. It is stored encrypted and checked before saving.",
+      "connect": "Connect",
+      "test": "Test connection",
+      "testing": "Testing …",
+      "testOk": "The connection to Dawarich works.",
+      "saved": "Dawarich connection saved.",
+      "disconnect": "Disconnect",
+      "disconnectConfirm": "Really disconnect Dawarich? Points already added are kept.",
+      "disconnected": "Dawarich connection removed.",
+      "statusConnected": "Connected",
+      "statusError": "Last test failed",
+      "version": "Version {version}",
+      "verifiedAt": "checked {date}"
     },
     "mapMatching": {
       "title": "Map matching",

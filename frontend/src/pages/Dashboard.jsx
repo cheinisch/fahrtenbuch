@@ -19,6 +19,8 @@ import {
   getTripSuggestions,
   correctTripRoute,
   removeTripPoints,
+  getDawarichConnection,
+  importTripPointsFromDawarich,
   getAssignableTripDrivers,
   assignTripDriver,
   archiveTrip,
@@ -403,6 +405,9 @@ export default function Dashboard() {
   const [routeDraft, setRouteDraft] = useState([]);
   // Einzelne GPS-Punkte entfernen: geladene Punkte und die zum Löschen markierten IDs
   const [pointRemoval, setPointRemoval] = useState({ points: [], selected: [] });
+  // Dawarich verbunden? Dann lassen sich Lücken einer Fahrt von dort füllen
+  const [dawarichConnected, setDawarichConnected] = useState(false);
+  const [dawarichNotice, setDawarichNotice] = useState("");
   const [gpsReload, setGpsReload] = useState(0);
   const [driverAssignment, setDriverAssignment] = useState({ loading: false, drivers: [], selected: "", reason: "" });
 
@@ -429,6 +434,14 @@ export default function Dashboard() {
   const selectedTrip = data.trips.find((trip) => trip.id === selectedTripId) || null;
 
   useEffect(() => { selectedTripIdRef.current = selectedTripId; }, [selectedTripId]);
+  useEffect(() => { setDawarichNotice(""); }, [selectedTripId]);
+  useEffect(() => {
+    let active = true;
+    getDawarichConnection(accessToken)
+      .then((value) => { if (active) setDawarichConnected(value?.connected === true); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [accessToken]);
   // Markierte Punkte gehören zu einer Fahrt: beim Wechsel verwerfen
   useEffect(() => {
     setPointRemoval({ points: [], selected: [] });
@@ -1368,6 +1381,27 @@ export default function Dashboard() {
     }
   }
 
+  async function fillFromDawarich() {
+    if (!selectedTripId) return;
+    setDawarichNotice("");
+    setTripAction((state) => ({ ...state, busy: true, error: "" }));
+    try {
+      const result = await importTripPointsFromDawarich(accessToken, selectedTripId);
+      if (result.importedCount > 0) {
+        setData(await getDashboard(accessToken, filters));
+        setGpsReload((value) => value + 1);
+      }
+      setDawarichNotice(result.gapCount === 0
+        ? t("dashboard.dawarich.noGaps")
+        : result.importedCount === 0
+          ? t("dashboard.dawarich.nothingFound", { gaps: result.gapCount })
+          : t("dashboard.dawarich.imported", { count: result.importedCount, gaps: result.gapCount }));
+      setTripAction({ busy: false, error: "", splitPoints: null });
+    } catch (error) {
+      setTripAction((state) => ({ ...state, busy: false, error: error.message }));
+    }
+  }
+
   async function saveRouteCorrection() {
     if (!selectedTripId || routeDraft.length < 2) return;
     setTripAction((state) => ({ ...state, busy: true, error: "" }));
@@ -1858,7 +1892,14 @@ export default function Dashboard() {
                     <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "points"} onClick={() => (mapMode === "points" ? cancelPointRemoval() : beginPointRemoval())} className={`${secondaryButton} col-span-2`}>
                       {t("dashboard.pointRemoval.action")}
                     </button>
+                    {dawarichConnected && selectedTrip.status === "completed" && (
+                      <button type="button" disabled={tripAction.busy} onClick={fillFromDawarich} title={t("dashboard.dawarich.hint")} className={`${secondaryButton} col-span-2`}>
+                        {t("dashboard.dawarich.action")}
+                      </button>
+                    )}
                   </div>
+
+                  {dawarichNotice && <p role="status" className="text-xs text-fb-muted">{dawarichNotice}</p>}
 
                   {mapMode === "points" && (() => {
                     const selected = new Set(pointRemoval.selected);

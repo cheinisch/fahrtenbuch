@@ -183,6 +183,13 @@
       "removeLast": "Letzten Punkt entfernen",
       "save": "Route speichern"
     },
+    "dawarich": {
+      "action": "Lücken aus Dawarich füllen",
+      "hint": "Ergänzt Zeiträume ohne GPS-Punkte mit den Standortdaten aus deiner Dawarich-Instanz. Vorhandene Punkte bleiben erhalten.",
+      "imported": "{count} Punkte aus Dawarich ergänzt ({gaps} Lücken).",
+      "nothingFound": "Dawarich hat für die {gaps} Lücken keine passenden Punkte.",
+      "noGaps": "Diese Fahrt hat keine Lücken."
+    },
     "pointRemoval": {
       "action": "Einzelne Punkte entfernen",
       "hint": "Klicke auf der Karte die Punkte an, die nicht stimmen (z. B. Sprünge durch schlechten GPS-Empfang). Erneutes Klicken hebt die Auswahl auf. Die Linie zeigt die Route ohne die markierten Punkte.",
@@ -239,6 +246,7 @@
       "driverAssigned": "Fahrer geändert",
       "routeCorrected": "Route manuell korrigiert",
       "pointsRemoved": "Einzelne GPS-Punkte entfernt",
+      "pointsImported": "GPS-Punkte aus Dawarich ergänzt",
       "autoClassified": "Automatisch klassifiziert",
       "baseline": "Historie aktiviert"
     },
@@ -932,6 +940,26 @@
       "sending": "Wird gesendet …",
       "saved": "Die Einstellung zum Monatsbericht wurde gespeichert.",
       "sent": "Der Monatsbericht wurde an {email} gesendet."
+    },
+    "dawarich": {
+      "title": "Dawarich",
+      "description": "Verbinde deine Dawarich-Instanz, um Lücken in Fahrten (z. B. wenn die App vom System beendet wurde) mit deinen Standortdaten zu füllen.",
+      "url": "Adresse der Dawarich-Instanz",
+      "apiKey": "API-Key",
+      "apiKeyKeep": "Gespeichert (…{hint}) – leer lassen, um ihn zu behalten",
+      "hint": "Den API-Key findest du in Dawarich unter Account. Er wird verschlüsselt gespeichert und vor dem Speichern geprüft.",
+      "connect": "Verbinden",
+      "test": "Verbindung testen",
+      "testing": "Teste …",
+      "testOk": "Die Verbindung zu Dawarich funktioniert.",
+      "saved": "Dawarich-Verbindung gespeichert.",
+      "disconnect": "Trennen",
+      "disconnectConfirm": "Dawarich-Verbindung wirklich trennen? Bereits ergänzte Punkte bleiben erhalten.",
+      "disconnected": "Dawarich-Verbindung getrennt.",
+      "statusConnected": "Verbunden",
+      "statusError": "Letzter Test fehlgeschlagen",
+      "version": "Version {version}",
+      "verifiedAt": "geprüft {date}"
     },
     "mapMatching": {
       "title": "Map-Matching",

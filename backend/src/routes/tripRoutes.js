@@ -32,6 +32,7 @@ import {
   TRIP_WITH_TAGS_SELECT,
 } from "../services/tripService.js";
 import { getLocationSuggestions } from "../services/tripSuggestionService.js";
+import { importTripPointsFromDawarich } from "../services/dawarichService.js";
 
 export const tripRoutes = Router();
 
@@ -923,6 +924,16 @@ tripRoutes.post(
     } finally {
       client.release();
     }
+  }),
+);
+
+// Lücken (z. B. App vom System beendet) mit Standortpunkten aus der Dawarich-Instanz
+// des Benutzers füllen; vorhandene Punkte bleiben unverändert.
+tripRoutes.post(
+  "/:id/dawarich-import",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    response.json(await importTripPointsFromDawarich(request.auth.userId, tripId));
   }),
 );
 

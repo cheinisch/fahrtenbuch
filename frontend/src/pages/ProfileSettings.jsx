@@ -47,6 +47,7 @@ import { useAuth } from "../auth/AuthProvider.jsx";
 import { createPasskey } from "../lib/webauthn.js";
 import AddNewDeviceModal from "../components/addNewDeviceModal.jsx";
 import UserDataTransfer from "../components/UserDataTransfer.jsx";
+import DawarichConnectionSection from "../components/users/DawarichConnectionSection.jsx";
 import { DEFAULT_ROUTE_COLORS } from "../lib/routeColors.js";
 import PageHeader from "../components/PageHeader.jsx";
 import { GRAVATAR_SETTING_EVENT } from "../lib/gravatar.js";
@@ -66,7 +67,7 @@ const SETTINGS_GROUPS = [
 const SECTION_GROUP = {
   profile: "profile", language: "profile", country: "profile",
   home: "home", work: "home", recognition: "home", places: "home",
-  tracking: "tracking", mapMatching: "tracking",
+  tracking: "tracking", mapMatching: "tracking", dawarich: "tracking",
   notifications: "notifications",
   credentials: "credentials", security: "credentials",
   devices: "devices",
@@ -2087,6 +2088,8 @@ export default function ProfileSettings() {
           </div>
         </Section>
       </form>
+
+      <DawarichConnectionSection accessToken={accessToken} onSuccess={showSuccess} onError={showError} />
 
       <form onSubmit={saveMonthlyReport}>
         <Section id="notifications" title={t("profile.monthlyReport.title")} description={t("profile.monthlyReport.description")}>

@@ -30,6 +30,12 @@ import {
   getUserSettings,
   updateUserSettings,
 } from "../services/userSettingsService.js";
+import {
+  deleteDawarichConnection,
+  getDawarichConnection,
+  saveDawarichConnection,
+  testDawarichConnection,
+} from "../services/dawarichService.js";
 import { USER_PUBLIC_COLUMNS } from "../users/userMapper.js";
 
 export const userRoutes = Router();
@@ -609,5 +615,39 @@ userRoutes.delete(
     );
 
     response.status(204).end();
+  }),
+);
+
+// Persönliche Dawarich-Verbindung: Standortdaten von dort füllen Lücken in Fahrten.
+// Der API-Key wird nie zurückgegeben, nur seine letzten vier Zeichen.
+userRoutes.get(
+  "/me/dawarich",
+  asyncHandler(async (request, response) => {
+    response.json(await getDawarichConnection(request.auth.userId));
+  }),
+);
+
+userRoutes.put(
+  "/me/dawarich",
+  asyncHandler(async (request, response) => {
+    const body = objectBody(request.body);
+    const baseUrl = stringField(body, "baseUrl", { required: true, minimum: 1, maximum: 500 });
+    const apiKey = stringField(body, "apiKey", { nullable: true, maximum: 500 });
+    response.json(await saveDawarichConnection(request.auth.userId, { baseUrl, apiKey }));
+  }),
+);
+
+userRoutes.delete(
+  "/me/dawarich",
+  asyncHandler(async (request, response) => {
+    await deleteDawarichConnection(request.auth.userId);
+    response.status(204).end();
+  }),
+);
+
+userRoutes.post(
+  "/me/dawarich/test",
+  asyncHandler(async (request, response) => {
+    response.json(await testDawarichConnection(request.auth.userId));
   }),
 );
