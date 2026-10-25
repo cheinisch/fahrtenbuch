@@ -13,6 +13,7 @@ import SetupWizard from "./pages/SetupWizard.jsx";
 import OnboardingWizard from "./pages/OnboardingWizard.jsx";
 import AppShell from "./components/AppShell.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import TripRoute from "./pages/TripRoute.jsx";
 import Compliance from "./pages/Compliance.jsx";
 import Costs from "./pages/Costs.jsx";
 import { useFeatures } from "./lib/features.jsx";
@@ -74,6 +75,11 @@ export default function App() {
           <Route
             index
             element={<Dashboard />}
+          />
+
+          <Route
+            path="/trip/:id"
+            element={<TripRoute />}
           />
 
           <Route

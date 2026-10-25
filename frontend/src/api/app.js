@@ -913,3 +913,7 @@ export const searchAddresses = (token, query, lang) =>
 // Straßenstrecke zwischen zwei Koordinaten (Routing-Dienst des Servers)
 export const estimateRoute = (token, from, to) =>
   apiRequest(token, `/api/v1/geocoding/route?fromLat=${from.lat}&fromLon=${from.lon}&toLat=${to.lat}&toLon=${to.lon}`);
+
+// Einzelne Fahrt und Kartenvorgaben für die Fahrtseite (/trip/:id)
+export const getTrip = (token, tripId) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(tripId)}`);
+export const getMapSettings = (token) => apiRequest(token, "/api/v1/map/settings");

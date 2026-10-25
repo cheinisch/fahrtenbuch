@@ -301,6 +301,26 @@
       "distance": "The distance is invalid."
     }
   },
+  "tripRoute": {
+    "back": "Back to trip",
+    "title": "Correct route",
+    "mapLabel": "Trip map",
+    "loading": "Loading trip …",
+    "start": "Start",
+    "end": "Destination",
+    "distance": "Distance",
+    "gpsPoints": "{count} GPS points",
+    "legendGps": "GPS track",
+    "legendMatched": "Road route",
+    "legendDraft": "New route",
+    "notCompleted": "Only completed trips can be corrected.",
+    "hint": "Click the route on the map from start to destination. Clicking a placed point removes it. You can also take over the existing track and extend it.",
+    "prefillGps": "Use GPS track",
+    "prefillMatched": "Use road route",
+    "draftInfo": "{points} points · {km} km",
+    "clear": "Start over",
+    "confirmSave": "Replace the trip's GPS track with the new route of {points} points? Distance and duration will be recalculated."
+  },
   "tripArchive": {
     "open": "Archive",
     "close": "Close",

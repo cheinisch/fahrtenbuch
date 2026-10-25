@@ -1,6 +1,5 @@
 
 import maplibregl from "maplibre-gl";
-import { layers, namedFlavor } from "@protomaps/basemaps";
 import {
   useCallback,
   useEffect,
@@ -17,7 +16,6 @@ import {
   mergeTrips,
   splitTrip,
   getTripSuggestions,
-  correctTripRoute,
   removeTripPoints,
   getDawarichConnection,
   importTripPointsFromDawarich,
@@ -33,82 +31,13 @@ import {
 } from "../api/app.js";
 import { normalizePoints, routeLengthMeters, suggestOutliers } from "../lib/gpsOutliers.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useI18n } from "../i18n/I18nProvider.jsx";
-import { codeKey, translate } from "../i18n/translate.js";
+import { codeKey } from "../i18n/translate.js";
 import { routeColor } from "../lib/routeColors.js";
 import ManualTripModal from "../components/trips/ManualTripModal.jsx";
-
-const OSM_MAP_STYLE = {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: [
-        "/api/v1/map/osm/{z}/{x}/{y}.png",
-      ],
-      tileSize: 256,
-      attribution: `© ${translate("dashboard.osmContributors")}`,
-    },
-  },
-  layers: [
-    {
-      id: "osm",
-      type: "raster",
-      source: "osm",
-    },
-  ],
-};
-
-function resolveProtomapsFlavor(value) {
-  if (value && value !== "auto") {
-    return value;
-  }
-
-  // Kontoeinstellung (data-theme) vor der Systemeinstellung berücksichtigen.
-  const forcedTheme = document.documentElement.dataset.theme;
-  if (forcedTheme === "dark" || forcedTheme === "light") {
-    return forcedTheme;
-  }
-
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
-function createMapStyle(settings) {
-  if (settings?.provider !== "protomaps") {
-    return OSM_MAP_STYLE;
-  }
-
-  const flavorName = resolveProtomapsFlavor(
-    settings.protomapsFlavor,
-  );
-
-  return {
-    version: 8,
-    glyphs:
-      "/api/v1/map/protomaps/fonts/{fontstack}/{range}.pbf",
-    sprite:
-      `/api/v1/map/protomaps/sprites/v4/${flavorName}`,
-    sources: {
-      protomaps: {
-        type: "vector",
-        url: "/api/v1/map/protomaps/tilejson",
-        attribution:
-          `Protomaps © ${translate("dashboard.osmContributors")}`,
-      },
-    },
-    layers: layers(
-      "protomaps",
-      namedFlavor(flavorName),
-      // Beschriftungssprache der Karte folgt der Oberflächensprache (vom I18nProvider in <html lang> gesetzt).
-      { lang: document.documentElement.lang || "de" },
-    ),
-  };
-}
-
+import { createMapStyle } from "../lib/mapStyle.js";
 
 function tripTypeLabel(t, type) {
   return t(`dashboard.tripTypes.${type}`) || type;
@@ -323,6 +252,7 @@ function pointCoordinates(point) {
 
 export default function Dashboard() {
   const { accessToken } = useAuth();
+  const navigate = useNavigate();
   const { t, locale } = useI18n();
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archivedTrips, setArchivedTrips] = useState([]);
@@ -403,7 +333,6 @@ export default function Dashboard() {
   const [mapMode, setMapMode] = useState(null);
   const [hoveredSplitPointId, setHoveredSplitPointId] = useState(null);
   const [selectedSplitPointId, setSelectedSplitPointId] = useState(null);
-  const [routeDraft, setRouteDraft] = useState([]);
   // Einzelne GPS-Punkte entfernen: geladene Punkte und die zum Löschen markierten IDs
   const [pointRemoval, setPointRemoval] = useState({ points: [], selected: [] });
   // Dawarich verbunden? Dann lassen sich Lücken einer Fahrt von dort füllen
@@ -885,18 +814,6 @@ export default function Dashboard() {
         },
       });
 
-      map.addSource("route-draft", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      map.addLayer({
-        id: "route-draft",
-        type: "line",
-        source: "route-draft",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": accent, "line-width": 6, "line-dasharray": [2, 2] },
-      });
-
       map.addLayer({
         id: "trip-endpoints",
         type: "circle",
@@ -997,8 +914,6 @@ export default function Dashboard() {
                 : [...state.selected, nearest.id],
             }));
           }
-        } else if (activeMode === "correct") {
-          setRouteDraft((current) => [...current, { longitude: event.lngLat.lng, latitude: event.lngLat.lat }]);
         }
       });
       mapLoadedRef.current = true;
@@ -1300,17 +1215,6 @@ export default function Dashboard() {
     );
   }
 
-  useEffect(() => {
-    const source = mapRef.current?.getSource("route-draft");
-    source?.setData({
-      type: "FeatureCollection",
-      features: routeDraft.length >= 2 ? [{
-        type: "Feature", properties: {},
-        geometry: { type: "LineString", coordinates: routeDraft.map((p) => [p.longitude, p.latitude]) },
-      }] : [],
-    });
-  }, [routeDraft]);
-
   const removalSuggestions = useMemo(
     () => (mapMode === "points" ? suggestOutliers(pointRemoval.points) : []),
     [mapMode, pointRemoval.points],
@@ -1404,19 +1308,6 @@ export default function Dashboard() {
     }
   }
 
-  async function saveRouteCorrection() {
-    if (!selectedTripId || routeDraft.length < 2) return;
-    setTripAction((state) => ({ ...state, busy: true, error: "" }));
-    try {
-      await correctTripRoute(accessToken, selectedTripId, routeDraft);
-      const result = await getDashboard(accessToken, filters);
-      setData(result);
-      setMapMode(null); setRouteDraft([]);
-      setTripAction({ busy: false, error: "", splitPoints: null });
-    } catch (error) {
-      setTripAction((state) => ({ ...state, busy: false, error: error.message }));
-    }
-  }
 
   useEffect(() => {
     if (!selectedTripId || gpsMode === "route") return;
@@ -1901,7 +1792,7 @@ export default function Dashboard() {
                     <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "split"} onClick={beginSplit} className={secondaryButton}>
                       {t("dashboard.split.action")}
                     </button>
-                    <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "correct"} onClick={() => { cancelSplit(); setPointRemoval({ points: [], selected: [] }); setMapMode("correct"); setRouteDraft([]); }} className={secondaryButton}>
+                    <button type="button" disabled={tripAction.busy} onClick={() => navigate(`/trip/${encodeURIComponent(selectedTrip.id)}`)} className={secondaryButton}>
                       {t("dashboard.routeCorrection.action")}
                     </button>
                     <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "points"} onClick={() => (mapMode === "points" ? cancelPointRemoval() : beginPointRemoval())} className={`${secondaryButton} col-span-2`}>
@@ -1991,17 +1882,6 @@ export default function Dashboard() {
                         <button type="button" disabled={tripAction.busy} onClick={cancelSplit} className="min-h-9 rounded-lg border border-fb-border px-3 text-xs font-semibold">
                           {t("common.cancel")}
                         </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {mapMode === "correct" && (
-                    <div className="rounded-lg border border-fb-border bg-fb-surface p-3">
-                      <p className="text-xs text-fb-muted">{t("dashboard.routeCorrection.hint")}</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <button type="button" disabled={routeDraft.length === 0} onClick={() => setRouteDraft((points) => points.slice(0, -1))} className="min-h-9 rounded-lg border border-fb-border bg-fb-main px-3 text-xs disabled:opacity-50">{t("dashboard.routeCorrection.removeLast")}</button>
-                        <button type="button" disabled={routeDraft.length < 2 || tripAction.busy} onClick={saveRouteCorrection} className="min-h-9 rounded-lg bg-fb-accent px-3 text-xs font-semibold text-fb-accent-text disabled:opacity-50">{t("dashboard.routeCorrection.save")}</button>
-                        <button type="button" onClick={() => { setMapMode(null); setRouteDraft([]); }} className="min-h-9 rounded-lg px-2 text-xs font-semibold text-fb-muted hover:text-fb-accent">{t("common.cancel")}</button>
                       </div>
                     </div>
                   )}

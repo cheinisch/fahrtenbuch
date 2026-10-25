@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { pool } from "../database/pool.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 export const mapRoutes = Router();
 
@@ -544,5 +545,21 @@ mapRoutes.get(
         ? "application/json"
         : "image/png",
     );
+  }),
+);
+
+// Kartenvorgaben (Anbieter, Startausschnitt) für Seiten ohne Dashboard-Daten,
+// z. B. die Routenkorrektur einer einzelnen Fahrt. Gleiche Werte wie im Dashboard.
+mapRoutes.get(
+  "/settings",
+  requireAuth,
+  asyncHandler(async (_request, response) => {
+    response.json({
+      defaultLatitude: 50.1109,
+      defaultLongitude: 8.6821,
+      defaultZoom: 6,
+      protomapsFlavor: "auto",
+      ...(await getMapDefaults()),
+    });
   }),
 );

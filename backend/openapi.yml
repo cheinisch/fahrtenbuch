@@ -1543,6 +1543,29 @@ paths:
       responses:
         '200': { description: Adresse beziehungsweise Ort }
 
+  /map/settings:
+    get:
+      tags: [Services]
+      summary: Map defaults for the web map
+      description: Anbieter (osm/protomaps), Startausschnitt und Protomaps-Einstellungen – dieselben Werte wie `map.settings` im Dashboard.
+      responses:
+        '200':
+          description: Kartenvorgaben
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider: { type: string, example: osm }
+                  defaultLatitude: { type: number }
+                  defaultLongitude: { type: number }
+                  defaultZoom: { type: number }
+                  protomapsFlavor: { type: string }
+                  protomapsTileServerUrl: { type: string }
+                  protomapsAssetsUrl: { type: string }
+        '401':
+          description: Authentication required
+
   /geocoding/route:
     get:
       tags: [Geocoding]

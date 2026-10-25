@@ -302,6 +302,26 @@
       "distance": "Die Strecke ist ungültig."
     }
   },
+  "tripRoute": {
+    "back": "Zurück zur Fahrt",
+    "title": "Route korrigieren",
+    "mapLabel": "Karte der Fahrt",
+    "loading": "Fahrt wird geladen …",
+    "start": "Start",
+    "end": "Ziel",
+    "distance": "Strecke",
+    "gpsPoints": "{count} GPS-Punkte",
+    "legendGps": "GPS-Spur",
+    "legendMatched": "Straßenroute",
+    "legendDraft": "Neue Route",
+    "notCompleted": "Nur abgeschlossene Fahrten können korrigiert werden.",
+    "hint": "Klicke auf der Karte die Route vom Start bis zum Ziel nach. Ein Klick auf einen gesetzten Punkt entfernt ihn. Du kannst auch die vorhandene Spur übernehmen und ergänzen.",
+    "prefillGps": "GPS-Spur übernehmen",
+    "prefillMatched": "Straßenroute übernehmen",
+    "draftInfo": "{points} Punkte · {km} km",
+    "clear": "Neu beginnen",
+    "confirmSave": "Die GPS-Spur der Fahrt durch die neue Route mit {points} Punkten ersetzen? Distanz und Dauer werden neu berechnet."
+  },
   "tripArchive": {
     "open": "Archiv",
     "close": "Schließen",

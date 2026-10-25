@@ -29,6 +29,7 @@ commits are not listed.
 - `api/openapi.yml` is a single valid document again: a truncated entry had split it so that about 50 paths sat inside `components` and a second `components` block followed. It now passes a strict YAML parser and redocly lint.
 
 ### Changed
+- **Route correction has its own page** (`/trip/<id>`): "Correct route" in the trip details opens a full-size map with the GPS track, the road route and the start/end points. Click the new route point by point, click a point again to remove it, or start from the GPS track or road route and extend it; the panel shows points and length of the new route. Saving returns to the trip in the dashboard. New `GET /map/settings` provides the map defaults for pages outside the dashboard.
 - **Gravatar** is switched in the administration now; `GRAVATAR_ENABLED` remains the default until it has been saved there. SMTP stays in `.env`.
 - `GET /config/services` additionally returns `setup`, `mail` and `gravatar`; the user object has `onboardingCompleted`.
 
