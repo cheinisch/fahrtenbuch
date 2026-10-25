@@ -144,7 +144,6 @@ export default function TripEditor() {
   const fittedRef = useRef(false);
   const nearbyCache = useRef(new Map());
 
-  const [reloadKey, setReloadKey] = useState(0);
   const [load, setLoad] = useState({ loading: true, error: "", trip: null, initial: null, matched: [], mapSettings: null });
   const [points, setPoints] = useState([]);
   const [history, setHistory] = useState({ undo: [], redo: [] });
@@ -226,7 +225,7 @@ export default function TripEditor() {
       })
       .catch((error) => { if (active) setLoad((current) => ({ ...current, loading: false, error: error.message })); });
     return () => { active = false; };
-  }, [accessToken, id, reloadKey, browserZone]);
+  }, [accessToken, id, browserZone]);
 
   useEffect(() => {
     let active = true;
@@ -700,7 +699,6 @@ export default function TripEditor() {
   }
 
   // Ungespeichert ist jeder Schritt in der Rückgängig-Liste; zurück bis zum Anfang = unverändert
-  const initial = load.initial;
   const changeCount = history.undo.length;
   const dirty = changeCount > 0;
   const backTo = `/?trip=${encodeURIComponent(id)}`;

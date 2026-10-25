@@ -1096,7 +1096,6 @@ export default function Dashboard() {
       .then((drivers) => setDriverAssignment({ loading: false, drivers, selected: "", reason: "" }))
       .catch(() => setDriverAssignment({ loading: false, drivers: [], selected: "", reason: "" }));
     setMapMode(null);
-    setRouteDraft([]);
     getTripSuggestions(accessToken, trip.id)
       .then((result) => setSuggestions(result.suggestions || []))
       .catch(() => setSuggestions([]));
@@ -1156,7 +1155,6 @@ export default function Dashboard() {
       splitPointsRef.current = splitPoints;
       setHoveredSplitPointId(null);
       setSelectedSplitPointId(null);
-      setRouteDraft([]);
       setPointRemoval({ points: [], selected: [] });
       setMapMode("split");
       setTripAction({ busy: false, error: "", splitPoints });
@@ -1256,7 +1254,6 @@ export default function Dashboard() {
   async function beginPointRemoval() {
     if (!selectedTripId) return;
     cancelSplit();
-    setRouteDraft([]);
     setTripAction({ busy: true, error: "", splitPoints: null });
     try {
       const points = normalizePoints(await getTripPoints(accessToken, selectedTripId));
@@ -1419,7 +1416,6 @@ export default function Dashboard() {
     setSelectedTripId(null);
     setMobileDetailsExpanded(false);
     setMapMode(null);
-    setRouteDraft([]);
     setPointRemoval({ points: [], selected: [] });
     setTripAction({ busy: false, error: "", splitPoints: null });
   }
