@@ -110,6 +110,8 @@ export default function AppShell() {
   const { t } = useI18n();
 
   const dashboardIsOpen = location.pathname === "/";
+  // Kartenseiten (Dashboard, Fahrt-Editor) nutzen die volle Fläche ohne Rand
+  const fullBleed = dashboardIsOpen || location.pathname.startsWith("/trip-editor/");
   const displayName = user?.displayName || user?.username || t("shell.user");
   // Bei 404 (kein Gravatar) oder Ladefehler bleiben die Initialen stehen
   const [avatarUrl, clearAvatar] = useGravatar(accessToken, user?.email);
@@ -205,7 +207,7 @@ export default function AppShell() {
       <MonthlyOdometerPrompt />
 
       <main>
-        <div className={dashboardIsOpen ? "w-full" : "mx-auto max-w-[1248px] px-6 pb-14 pt-9"}>
+        <div className={fullBleed ? "w-full" : "mx-auto max-w-[1248px] px-6 pb-14 pt-9"}>
           <Outlet />
         </div>
       </main>

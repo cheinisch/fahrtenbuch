@@ -923,3 +923,7 @@ export const routeTripPath = (token, points) =>
   apiRequest(token, "/api/v1/geocoding/route-path", { method: "POST", body: JSON.stringify({ points }) });
 export const saveTripRoute = (token, tripId, payload) =>
   apiRequest(token, `/api/v1/trips/${encodeURIComponent(tripId)}/route`, { method: "PUT", body: JSON.stringify(payload) });
+
+// Rückwärts-Geocoding über den eingerichteten Photon-Dienst (z. B. „Nähe“ im Fahrt-Editor)
+export const reverseGeocode = (token, lat, lon, lang) =>
+  apiRequest(token, `/api/v1/geocoding/reverse?lat=${lat}&lon=${lon}&lang=${encodeURIComponent(lang || "de")}`);

@@ -10,7 +10,7 @@ const defaultFieldClass =
  * Adressfeld mit Vorschlägen: gespeicherte Orte sofort, Photon-Treffer nach kurzer Pause.
  * Freitext ist erlaubt – dann fehlen nur die Koordinaten (keine Streckenberechnung).
  */
-export default function AddressField({ id, label, value, onChange, savedPlaces, accessToken, geocodingEnabled, fieldClass = defaultFieldClass, hideStatus = false }) {
+export default function AddressField({ id, label, value, onChange, savedPlaces, accessToken, geocodingEnabled, fieldClass = defaultFieldClass, hideStatus = false, labelClass = "text-sm font-medium" }) {
   const { t, language } = useI18n();
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState([]);
@@ -61,7 +61,7 @@ export default function AddressField({ id, label, value, onChange, savedPlaces, 
 
   return (
     <div className="relative">
-      <label htmlFor={id} className="text-sm font-medium">{label}</label>
+      <label htmlFor={id} className={labelClass}>{label}</label>
       <input
         id={id}
         type="text"
@@ -85,7 +85,7 @@ export default function AddressField({ id, label, value, onChange, savedPlaces, 
               <button
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => { onChange({ address: option.address, coordinate: option.coordinate }); setOpen(false); }}
+                onClick={() => { onChange({ address: option.address, coordinate: option.coordinate, saved: option.key.startsWith("saved-") }); setOpen(false); }}
                 className="block w-full px-3 py-2 text-left text-sm hover:bg-fb-surface"
               >
                 <span className="font-medium">{option.title}</span>
