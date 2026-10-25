@@ -241,6 +241,8 @@ export default function TripEditor() {
   const startPlaceRef = useRef(startPlace);
   const endPlaceRef = useRef(endPlace);
   const routedRef = useRef(routed);
+  const followRoadsRef = useRef(followRoads);
+  useEffect(() => { followRoadsRef.current = followRoads; }, [followRoads]);
   useEffect(() => { timesRef.current = times; }, [times]);
   useEffect(() => { startPlaceRef.current = startPlace; }, [startPlace]);
   useEffect(() => { endPlaceRef.current = endPlace; }, [endPlace]);
@@ -255,6 +257,7 @@ export default function TripEditor() {
     startPlace: startPlaceRef.current,
     endPlace: endPlaceRef.current,
     routing: { result: routedRef.current.result, forPoints: routedRef.current.forPoints },
+    followRoads: followRoadsRef.current,
   }), []);
 
   const restore = useCallback((snap) => {
@@ -264,6 +267,8 @@ export default function TripEditor() {
     setStartPlace(snap.startPlace);
     setEndPlace(snap.endPlace);
     setRouted({ busy: false, error: "", result: snap.routing.result, forPoints: snap.routing.forPoints });
+    followRoadsRef.current = snap.followRoads;
+    setFollowRoads(snap.followRoads);
   }, []);
 
   /**
@@ -356,6 +361,32 @@ export default function TripEditor() {
     forceRouteRef.current = true;
     setFollowRoads(true);
     setRecalcKey((value) => value + 1);
+  }, [record]);
+
+  // Erzeugte Route verwerfen: Punkte werden wieder direkt verbunden, bis neu berechnet wird
+  const resetRoute = useCallback(() => {
+    record();
+    followRoadsRef.current = false;
+    setFollowRoads(false);
+    setRouted({ busy: false, error: "", result: null, forPoints: null });
+  }, [record]);
+
+  // Alles zurücksetzen: erzeugte Route und alle gesetzten Punkte entfernen. Bleiben weniger als
+  // zwei gemessene Punkte übrig, bleiben der erste und letzte gesetzte Punkt als Start und Ziel.
+  const resetAll = useCallback(() => {
+    const current = pointsRef.current;
+    let next = current.filter((point) => point.origin !== "set");
+    if (next.length < 2) {
+      const own = current.filter((point) => point.origin === "set");
+      if (own.length >= 2) next = [own[0], ...next, own.at(-1)];
+    }
+    record();
+    followRoadsRef.current = false;
+    setFollowRoads(false);
+    setRouted({ busy: false, error: "", result: null, forPoints: null });
+    pointsRef.current = next;
+    setPoints(next);
+    setSelected(null);
   }, [record]);
 
   // Eigene (gesetzte) Punkte untereinander tauschen; gemessene Punkte behalten ihre Reihenfolge
@@ -837,6 +868,13 @@ export default function TripEditor() {
       {t(changeCount === 1 ? "tripEditor.unsavedOne" : "tripEditor.unsaved", { count: changeCount })}
     </span>
   );
+  const routeButton = "min-h-10 rounded-lg border border-fb-border px-3 text-[13px] font-semibold hover:border-fb-accent disabled:opacity-50";
+  // Schalter Straßenführung als rückgängig machbarer Schritt
+  const toggleRoads = (value) => {
+    record();
+    followRoadsRef.current = value;
+    setFollowRoads(value);
+  };
   const kbd = "rounded border border-fb-border px-1.5 py-px font-[inherit]";
 
   return (
@@ -876,12 +914,21 @@ export default function TripEditor() {
               )}
               <section aria-labelledby="editor-roads" className="flex flex-col gap-2.5">
                 <h2 id="editor-roads" className="text-xs font-semibold uppercase tracking-[0.06em] text-fb-muted">{t("tripEditor.routePlanning")}</h2>
-                <RoadToggle checked={followRoads && routingEnabled} disabled={!routingEnabled || !editable} onChange={setFollowRoads} status={roadStatus} />
-                {routingEnabled && editable && (
-                  <button type="button" onClick={recalculateRoute} disabled={routed.busy || points.length < 2}
-                    className="min-h-10 self-start rounded-lg border border-fb-border px-3 text-[13px] font-semibold hover:border-fb-accent disabled:opacity-50">
-                    {routed.busy ? t("tripEditor.routing") : t("tripEditor.recalculate")}
-                  </button>
+                <RoadToggle checked={followRoads && routingEnabled} disabled={!routingEnabled || !editable} onChange={toggleRoads} status={roadStatus} />
+                {editable && (
+                  <div className="flex flex-wrap gap-2">
+                    {routingEnabled && (
+                      <button type="button" onClick={recalculateRoute} disabled={routed.busy || points.length < 2} className={routeButton}>
+                        {routed.busy ? t("tripEditor.routing") : t("tripEditor.recalculate")}
+                      </button>
+                    )}
+                    <button type="button" onClick={resetRoute} disabled={!routed.result} title={t("tripEditor.resetRouteHint")} className={routeButton}>
+                      {t("tripEditor.resetRoute")}
+                    </button>
+                    <button type="button" onClick={resetAll} disabled={!setCount && !routed.result} title={t("tripEditor.resetAllHint")} className={`${routeButton} border-[#5f2320] text-[#ff9b94] hover:border-[#ff9b94]`}>
+                      {t("tripEditor.resetAll")}
+                    </button>
+                  </div>
                 )}
               </section>
               <OwnPointsList points={points} times={pointTimes} selected={selected} editable={editable} formatTime={formatTime}
@@ -957,12 +1004,15 @@ export default function TripEditor() {
               {selectedCardProps && <SelectedPointCard {...selectedCardProps} compact />}
               <StatCards compact distanceMeters={distanceMeters} previousMeters={previousMeters} durationSeconds={durationSeconds} gpsCount={gpsCount} setCount={setCount} />
               <StartEndCompact {...startEndProps} />
-              <RoadToggle framed={false} checked={followRoads && routingEnabled} disabled={!routingEnabled || !editable} onChange={setFollowRoads} status={roadStatus} />
-              {routingEnabled && editable && (
-                <button type="button" onClick={recalculateRoute} disabled={routed.busy || points.length < 2}
-                  className="min-h-10 rounded-lg border border-fb-border px-3 text-[13px] font-semibold disabled:opacity-50">
-                  {routed.busy ? t("tripEditor.routing") : t("tripEditor.recalculate")}
-                </button>
+              <RoadToggle framed={false} checked={followRoads && routingEnabled} disabled={!routingEnabled || !editable} onChange={toggleRoads} status={roadStatus} />
+              {editable && (
+                <div className="grid grid-cols-3 gap-2">
+                  <button type="button" onClick={recalculateRoute} disabled={!routingEnabled || routed.busy || points.length < 2} className={routeButton}>
+                    {routed.busy ? t("tripEditor.routing") : t("tripEditor.recalculateShort")}
+                  </button>
+                  <button type="button" onClick={resetRoute} disabled={!routed.result} className={routeButton}>{t("tripEditor.resetRoute")}</button>
+                  <button type="button" onClick={resetAll} disabled={!setCount && !routed.result} className={`${routeButton} border-[#5f2320] text-[#ff9b94]`}>{t("tripEditor.resetAll")}</button>
+                </div>
               )}
               {saveError && <p role="alert" className="text-sm text-fb-danger">{saveError}</p>}
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
