@@ -17,6 +17,7 @@ import {
   photonSearch,
 } from "../services/geocodingService.js";
 import { getPublicServiceConfiguration } from "../services/serviceSettingsService.js";
+import { routeBetween } from "../services/routingService.js";
 import {
   getSetupState,
   isGravatarEnabled,
@@ -93,6 +94,18 @@ geocodingRoutes.get(
       result: result.result,
       responseTimeMs: result.responseTimeMs,
     });
+  }),
+);
+
+// Straßenstrecke zwischen zwei Orten, z. B. für manuell angelegte Fahrten
+geocodingRoutes.get(
+  "/route",
+  asyncHandler(async (request, response) => {
+    const coordinate = (prefix) => ({
+      lat: numberField(request.query, `${prefix}Lat`, { required: true, minimum: -90, maximum: 90 }),
+      lon: numberField(request.query, `${prefix}Lon`, { required: true, minimum: -180, maximum: 180 }),
+    });
+    response.json(await routeBetween(coordinate("from"), coordinate("to")));
   }),
 );
 

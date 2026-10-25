@@ -901,3 +901,15 @@ export const testDawarichConnection = (token) =>
 // Lücken einer Fahrt mit Punkten aus Dawarich füllen
 export const importTripPointsFromDawarich = (token, tripId) =>
   apiRequest(token, `/api/v1/trips/${encodeURIComponent(tripId)}/dawarich-import`, { method: "POST" });
+
+// Manuell angelegte Fahrt (POST /trips, source=manual)
+export const createTrip = (token, payload) =>
+  apiRequest(token, "/api/v1/trips", { method: "POST", body: JSON.stringify(payload) });
+
+// Adresssuche über den eingerichteten Photon-Dienst
+export const searchAddresses = (token, query, lang) =>
+  apiRequest(token, `/api/v1/geocoding/search?q=${encodeURIComponent(query)}&limit=6&lang=${encodeURIComponent(lang || "de")}`);
+
+// Straßenstrecke zwischen zwei Koordinaten (Routing-Dienst des Servers)
+export const estimateRoute = (token, from, to) =>
+  apiRequest(token, `/api/v1/geocoding/route?fromLat=${from.lat}&fromLon=${from.lon}&toLat=${to.lat}&toLon=${to.lon}`);

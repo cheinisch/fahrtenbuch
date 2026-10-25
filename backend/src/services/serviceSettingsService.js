@@ -171,6 +171,11 @@ export async function getPublicServiceConfiguration(client = pool) {
       searchEndpoint: "/api/v1/geocoding/search",
       reverseEndpoint: "/api/v1/geocoding/reverse",
     },
+    // Additiv: Strecke zwischen zwei Orten über den Map-Matching-Dienst berechnen
+    routing: {
+      enabled: resolveMapMatching(settings).enabled,
+      endpoint: "/api/v1/geocoding/route",
+    },
     overpass: {
       nearbyEndpoint: "/api/v1/geocoding/nearby",
       searchRadiusMeters: Number(settings.overpass.searchRadiusMeters || 2500),

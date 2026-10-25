@@ -38,6 +38,7 @@ import { useSearchParams } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider.jsx";
 import { codeKey, translate } from "../i18n/translate.js";
 import { routeColor } from "../lib/routeColors.js";
+import ManualTripModal from "../components/trips/ManualTripModal.jsx";
 
 const OSM_MAP_STYLE = {
   version: 8,
@@ -408,6 +409,7 @@ export default function Dashboard() {
   // Dawarich verbunden? Dann lassen sich Lücken einer Fahrt von dort füllen
   const [dawarichConnected, setDawarichConnected] = useState(false);
   const [dawarichNotice, setDawarichNotice] = useState("");
+  const [manualTripOpen, setManualTripOpen] = useState(false);
   const [gpsReload, setGpsReload] = useState(0);
   const [driverAssignment, setDriverAssignment] = useState({ loading: false, drivers: [], selected: "", reason: "" });
 
@@ -1513,6 +1515,16 @@ export default function Dashboard() {
 
   return (
     <div className="relative h-[calc(100dvh-4.5rem-1px)] min-h-[320px] overflow-hidden">
+      <ManualTripModal
+        open={manualTripOpen}
+        accessToken={accessToken}
+        onClose={() => setManualTripOpen(false)}
+        onCreated={async (trip) => {
+          setManualTripOpen(false);
+          try { setData(await getDashboard(accessToken, filters)); } catch { /* Liste lädt beim nächsten Mal */ }
+          setSelectedTripId(trip.id);
+        }}
+      />
       <nav aria-label={t("dashboard.mobileViewLabel")} className="absolute inset-x-3 top-3 z-30 flex gap-2 rounded-xl border border-fb-border bg-fb-main/95 p-1 shadow-lg backdrop-blur md:hidden">
         <button type="button" aria-pressed={mobilePanel === "map"} onClick={() => setMobilePanel("map")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "map" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>{t("dashboard.map")}</button>
         <button type="button" aria-pressed={mobilePanel === "trips"} onClick={() => setMobilePanel("trips")} className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${mobilePanel === "trips" ? "bg-fb-accent text-fb-accent-text" : "text-fb-muted"}`}>{t("dashboard.trips")} ({data.trips.length})</button>
@@ -1525,6 +1537,9 @@ export default function Dashboard() {
               <h1 className="text-xl font-bold">{t("dashboard.trips")}</h1>
               <p className="mt-0.5 text-sm text-fb-muted">{t("dashboard.results", { count: data.trips.length })}</p>
             </div>
+            <button type="button" onClick={() => setManualTripOpen(true)} className="min-h-9 rounded-lg bg-fb-accent px-3 text-xs font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary">
+              {t("manualTrip.open")}
+            </button>
             <div className="flex gap-1.5">
               <button type="button" onClick={resetFilters} className="min-h-9 rounded-lg border border-fb-border px-3 text-xs font-semibold text-fb-muted transition hover:border-fb-accent hover:text-fb-accent">
                 {t("dashboard.clearFilters")}

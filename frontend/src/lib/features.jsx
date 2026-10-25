@@ -6,7 +6,7 @@ import { useAuth } from "../auth/AuthProvider.jsx";
 // Serverseitige Feature-Flags (z. B. Kosten nur im dev-Image) plus Instanz-Status
 // (Ersteinrichtung abgeschlossen, SMTP vorhanden, Gravatar erlaubt).
 // Solange unbekannt, gelten Funktionen als aus – lieber kurz versteckt als kurz kaputt.
-const EMPTY = { loaded: false, features: {}, setupCompleted: null, mailEnabled: false, gravatarEnabled: false };
+const EMPTY = { loaded: false, features: {}, setupCompleted: null, mailEnabled: false, gravatarEnabled: false, geocodingEnabled: false, routingEnabled: false };
 const FeaturesContext = createContext({ ...EMPTY, reload: () => Promise.resolve() });
 
 function fromResponse(result) {
@@ -17,6 +17,9 @@ function fromResponse(result) {
     setupCompleted: result?.setup ? Boolean(result.setup.completed) : true,
     mailEnabled: Boolean(result?.mail?.enabled),
     gravatarEnabled: result?.gravatar ? Boolean(result.gravatar.enabled) : true,
+    // Adresssuche und Streckenberechnung (z. B. beim manuellen Anlegen einer Fahrt)
+    geocodingEnabled: result?.geocoding ? result.geocoding.enabled !== false : false,
+    routingEnabled: Boolean(result?.routing?.enabled),
   };
 }
 

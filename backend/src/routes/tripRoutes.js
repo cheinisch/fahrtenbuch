@@ -204,6 +204,28 @@ function parseTripInput(body) {
   };
 }
 
+/**
+ * Nur beim manuellen Anlegen: Koordinaten der gewählten Adressen und die Strecke.
+ * Breite und Länge gehören zusammen; ohne Strecke bleibt die Distanz leer.
+ */
+function parseManualTripExtras(body) {
+  const input = objectBody(body);
+  const coordinate = (prefix) => {
+    const lat = numberField(input, `${prefix}Lat`, { nullable: true, minimum: -90, maximum: 90 });
+    const lon = numberField(input, `${prefix}Lon`, { nullable: true, minimum: -180, maximum: 180 });
+    if ((lat == null) !== (lon == null)) {
+      throw badRequest("VALIDATION_ERROR", `${prefix}Lat und ${prefix}Lon müssen gemeinsam angegeben werden.`);
+    }
+    return lat == null ? null : { lat, lon };
+  };
+  const distanceKm = numberField(input, "distanceKm", { nullable: true, minimum: 0, maximum: 10_000 });
+  return {
+    start: coordinate("start"),
+    end: coordinate("end"),
+    distanceMeters: distanceKm == null ? null : Math.round(distanceKm * 1000),
+  };
+}
+
 tripRoutes.get(
   "/",
   asyncHandler(async (request, response) => {
@@ -310,6 +332,10 @@ tripRoutes.post(
     const input = parseTripInput(
       request.body,
     );
+    const extras = parseManualTripExtras(request.body);
+    if (extras.distanceMeters != null && !input.endedAt) {
+      throw badRequest("VALIDATION_ERROR", "Eine Strecke ist nur bei beendeten Fahrten möglich.");
+    }
 
     const client = await pool.connect();
 
@@ -364,7 +390,12 @@ tripRoutes.post(
             start_timezone,
             end_timezone,
             source,
-            completed_at
+            completed_at,
+            start_lat,
+            start_lon,
+            end_lat,
+            end_lon,
+            distance_meters
           )
           VALUES (
             $1, $2, $3, $4, $5, $6, $7,
@@ -375,7 +406,8 @@ tripRoutes.post(
               WHEN $5::trip_status = 'completed'
                 THEN now()
               ELSE NULL
-            END
+            END,
+            $16, $17, $18, $19, $20
           )
           RETURNING id
         `,
@@ -395,6 +427,11 @@ tripRoutes.post(
           durationSeconds,
           input.startTimeZone ?? null,
           input.endTimeZone ?? null,
+          extras.start?.lat ?? null,
+          extras.start?.lon ?? null,
+          extras.end?.lat ?? null,
+          extras.end?.lon ?? null,
+          extras.distanceMeters,
         ],
       );
 

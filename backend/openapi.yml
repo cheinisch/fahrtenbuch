@@ -1543,6 +1543,34 @@ paths:
       responses:
         '200': { description: Adresse beziehungsweise Ort }
 
+  /geocoding/route:
+    get:
+      tags: [Geocoding]
+      summary: Road distance between two places
+      description: |
+        Berechnet die Autostrecke zwischen zwei Koordinaten über den eingerichteten
+        Map-Matching-Dienst (Atlas, Valhalla oder OSRM), z. B. für manuell angelegte Fahrten.
+        Ob ein Dienst eingerichtet ist, steht in `GET /config/services` unter `routing.enabled`.
+      parameters:
+        - { name: fromLat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: fromLon, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
+        - { name: toLat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: toLon, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
+      responses:
+        '200':
+          description: Strecke
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [provider, distanceMeters]
+                properties:
+                  provider: { type: string, enum: [atlas, valhalla, osrm] }
+                  distanceMeters: { type: integer }
+                  durationSeconds: { type: [integer, 'null'] }
+        '400': { description: VALIDATION_ERROR }
+        '503': { description: "ROUTING_DISABLED, ROUTING_UNREACHABLE oder ROUTING_FAILED" }
+
   /geocoding/nearby:
     get:
       tags: [Geocoding]
@@ -3205,6 +3233,15 @@ components:
           minimum: 0
           maximum: 1000
           description: Reimbursement rate (EUR per km) for this trip. Omitted = keep (update) or vehicle default for business trips (create); null removes it.
+        startLat: { type: [number, 'null'], minimum: -90, maximum: 90, description: 'Nur beim Anlegen (POST /trips): Koordinate der Startadresse, zusammen mit startLon.' }
+        startLon: { type: [number, 'null'], minimum: -180, maximum: 180, description: Nur beim Anlegen, zusammen mit startLat. }
+        endLat: { type: [number, 'null'], minimum: -90, maximum: 90, description: 'Nur beim Anlegen: Koordinate der Zieladresse, zusammen mit endLon.' }
+        endLon: { type: [number, 'null'], minimum: -180, maximum: 180, description: Nur beim Anlegen, zusammen mit endLat. }
+        distanceKm:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 10000
+          description: 'Nur beim Anlegen einer beendeten Fahrt: gefahrene Strecke, z. B. vom Tacho oder aus GET /geocoding/route. Ohne Angabe bleibt die Distanz leer.'
     TrackPoint:
       type: object
       required: [lat, lon, recordedAt]
@@ -3250,6 +3287,12 @@ components:
             nearbyEndpoint: { type: string, example: /api/v1/geocoding/nearby }
             searchRadiusMeters: { type: integer, example: 2500 }
             maxResults: { type: integer, example: 50 }
+        routing:
+          type: object
+          description: Streckenberechnung zwischen zwei Orten (gleicher Dienst wie das Map-Matching)
+          properties:
+            enabled: { type: boolean }
+            endpoint: { type: string, example: /api/v1/geocoding/route }
         updatedAt: { type: string, format: date-time }
         features:
           type: object
