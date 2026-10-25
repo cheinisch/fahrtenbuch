@@ -1792,7 +1792,7 @@ export default function Dashboard() {
                     <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "split"} onClick={beginSplit} className={secondaryButton}>
                       {t("dashboard.split.action")}
                     </button>
-                    <button type="button" disabled={tripAction.busy} onClick={() => navigate(`/trip/${encodeURIComponent(selectedTrip.id)}`)} className={secondaryButton}>
+                    <button type="button" disabled={tripAction.busy} onClick={() => navigate(`/trip-editor/${encodeURIComponent(selectedTrip.id)}`)} className={secondaryButton}>
                       {t("dashboard.routeCorrection.action")}
                     </button>
                     <button type="button" disabled={tripAction.busy} aria-pressed={mapMode === "points"} onClick={() => (mapMode === "points" ? cancelPointRemoval() : beginPointRemoval())} className={`${secondaryButton} col-span-2`}>

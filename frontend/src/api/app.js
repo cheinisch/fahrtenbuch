@@ -917,3 +917,9 @@ export const estimateRoute = (token, from, to) =>
 // Einzelne Fahrt und Kartenvorgaben für die Fahrtseite (/trip/:id)
 export const getTrip = (token, tripId) => apiRequest(token, `/api/v1/trips/${encodeURIComponent(tripId)}`);
 export const getMapSettings = (token) => apiRequest(token, "/api/v1/map/settings");
+
+// Fahrt-Editor: Pfad mit über die Straße gefüllten Lücken und Speichern der Route
+export const routeTripPath = (token, points) =>
+  apiRequest(token, "/api/v1/geocoding/route-path", { method: "POST", body: JSON.stringify({ points }) });
+export const saveTripRoute = (token, tripId, payload) =>
+  apiRequest(token, `/api/v1/trips/${encodeURIComponent(tripId)}/route`, { method: "PUT", body: JSON.stringify(payload) });

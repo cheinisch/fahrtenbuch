@@ -840,6 +840,57 @@ paths:
         '404': { description: TRIP_NOT_FOUND }
         '409': { description: TRIP_PERIOD_LOCKED – die Fahrt liegt in einem abgeschlossenen Zeitraum }
 
+  /trips/{id}/route:
+    put:
+      tags: [Trips]
+      summary: Save a trip from the trip editor
+      description: |
+        Ersetzt alle GPS-Punkte einer abgeschlossenen Fahrt und setzt Start, Ende und Adressen.
+        Der erste Punkt erhält die Startzeit, der letzte die Endzeit; Punkte ohne `recordedAt`
+        (neu gesetzt oder über die Straße ergänzt) werden nach Strecke zeitlich verteilt.
+        Distanz und Dauer werden neu berechnet, Map-Matching neu eingereiht. Bleibt eine Adresse
+        unverändert, während sich der zugehörige Endpunkt um mehr als 150 m verschiebt, wird
+        sie neu ermittelt. Historie: `ROUTE_CORRECTED` mit `metadata.method = editor`.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startedAt, endedAt, points]
+              properties:
+                startedAt: { type: string, format: date-time }
+                endedAt: { type: string, format: date-time }
+                startAddress: { type: [string, 'null'], description: Fehlt das Feld, bleibt die Adresse. }
+                endAddress: { type: [string, 'null'], description: Fehlt das Feld, bleibt die Adresse. }
+                routedPointCount: { type: integer, description: Anzahl über die Straße ergänzter Punkte (nur für die Historie). }
+                points:
+                  type: array
+                  minItems: 2
+                  maxItems: 20000
+                  items:
+                    type: object
+                    required: [lat, lon]
+                    properties:
+                      lat: { type: number, minimum: -90, maximum: 90 }
+                      lon: { type: number, minimum: -180, maximum: 180 }
+                      recordedAt: { type: [string, 'null'], format: date-time }
+                      altitude: { type: [number, 'null'] }
+                      accuracy: { type: [number, 'null'] }
+                      speed: { type: [number, 'null'] }
+                      bearing: { type: [number, 'null'] }
+      responses:
+        '200':
+          description: Aktualisierte Fahrt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trip' }
+        '400': { description: "VALIDATION_ERROR oder TRIP_NOT_COMPLETED" }
+        '404': { description: TRIP_NOT_FOUND }
+        '409': { description: TRIP_PERIOD_LOCKED – die Fahrt liegt in einem abgeschlossenen Zeitraum }
+
   /trips/{id}/dawarich-import:
     post:
       tags: [Trips]
@@ -1542,6 +1593,59 @@ paths:
         - { name: lang, in: query, schema: { type: string, default: de } }
       responses:
         '200': { description: Adresse beziehungsweise Ort }
+
+  /geocoding/route-path:
+    post:
+      tags: [Geocoding]
+      summary: Path through points with road-routed gaps
+      description: |
+        Für den Fahrt-Editor: verbindet die Punkte in ihrer Reihenfolge. Abstände über `gapMeters`
+        (Standard 250 m) werden über den Routing-Dienst entlang der Straße gefüllt, höchstens 60
+        Lücken. Jeder zusätzliche Punkt lenkt die Route. Eine Lücke, die der Dienst nicht routen
+        kann, bleibt eine gerade Linie (`failedGaps`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points]
+              properties:
+                gapMeters: { type: number, minimum: 50, maximum: 100000 }
+                points:
+                  type: array
+                  minItems: 2
+                  maxItems: 20000
+                  items:
+                    type: object
+                    required: [lat, lon]
+                    properties:
+                      lat: { type: number }
+                      lon: { type: number }
+      responses:
+        '200':
+          description: Pfad
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider: { type: string, enum: [atlas, valhalla, osrm] }
+                  distanceMeters: { type: integer }
+                  gapCount: { type: integer }
+                  routedGaps: { type: integer }
+                  failedGaps: { type: integer }
+                  maxGaps: { type: integer }
+                  path:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        lat: { type: number }
+                        lon: { type: number }
+                        index: { type: [integer, 'null'], description: Index des Eingabepunkts, null für geroutete Ergänzungen }
+        '400': { description: "VALIDATION_ERROR oder TOO_MANY_GAPS" }
+        '503': { description: "ROUTING_DISABLED, ROUTING_UNREACHABLE oder ROUTING_FAILED" }
 
   /map/settings:
     get:

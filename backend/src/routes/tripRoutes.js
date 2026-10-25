@@ -33,6 +33,7 @@ import {
 } from "../services/tripService.js";
 import { getLocationSuggestions } from "../services/tripSuggestionService.js";
 import { importTripPointsFromDawarich } from "../services/dawarichService.js";
+import { saveTripRoute } from "../services/tripEditorService.js";
 
 export const tripRoutes = Router();
 
@@ -961,6 +962,15 @@ tripRoutes.post(
     } finally {
       client.release();
     }
+  }),
+);
+
+// Fahrt-Editor: Punkte, Start/Ende und Adressen in einem Schritt speichern
+tripRoutes.put(
+  "/:id/route",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    response.json(await saveTripRoute(request.auth.userId, tripId, objectBody(request.body)));
   }),
 );
 

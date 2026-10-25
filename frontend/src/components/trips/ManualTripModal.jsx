@@ -5,11 +5,12 @@ import {
   DialogTitle,
 } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useI18n } from "../../i18n/I18nProvider.jsx";
 import { useFeatures } from "../../lib/features.jsx";
-import { createTrip, estimateRoute, getSavedPlaces, getVehicles, searchAddresses } from "../../api/app.js";
+import { createTrip, estimateRoute, getSavedPlaces, getVehicles } from "../../api/app.js";
+import AddressField from "./AddressField.jsx";
 
 const TRIP_TYPES = ["unclassified", "business", "private", "commute"];
 
@@ -37,98 +38,6 @@ function initialState(vehicleId) {
     purpose: "",
     notes: "",
   };
-}
-
-/**
- * Adressfeld mit Vorschlägen: gespeicherte Orte sofort, Photon-Treffer nach kurzer Pause.
- * Freitext ist erlaubt – dann fehlen nur die Koordinaten (keine Streckenberechnung).
- */
-function AddressField({ id, label, value, onChange, savedPlaces, accessToken, geocodingEnabled }) {
-  const { t, language } = useI18n();
-  const [open, setOpen] = useState(false);
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const requestRef = useRef(0);
-
-  const query = value.address.trim();
-  const saved = savedPlaces
-    .filter((place) => !query || `${place.name} ${place.address || ""}`.toLowerCase().includes(query.toLowerCase()))
-    .slice(0, 5)
-    .map((place) => ({
-      key: `saved-${place.id}`,
-      title: place.name,
-      subtitle: place.address,
-      address: place.address ? `${place.name}, ${place.address}` : place.name,
-      coordinate: { lat: place.latitude, lon: place.longitude },
-    }));
-
-  useEffect(() => {
-    if (!open || !geocodingEnabled || query.length < 3 || value.coordinate) {
-      setResults([]);
-      return undefined;
-    }
-    const current = ++requestRef.current;
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const response = await searchAddresses(accessToken, query, language);
-        if (current === requestRef.current) {
-          setResults((response.results || []).map((result, index) => ({
-            key: result.id || `photon-${index}`,
-            title: result.name || result.address,
-            subtitle: result.name ? result.address : null,
-            address: result.address,
-            coordinate: { lat: result.latitude, lon: result.longitude },
-          })));
-        }
-      } catch {
-        if (current === requestRef.current) setResults([]);
-      } finally {
-        if (current === requestRef.current) setLoading(false);
-      }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [open, geocodingEnabled, query, value.coordinate, accessToken, language]);
-
-  const options = [...saved, ...results];
-
-  return (
-    <div className="relative">
-      <label htmlFor={id} className="text-sm font-medium">{label}</label>
-      <input
-        id={id}
-        type="text"
-        autoComplete="off"
-        className={fieldClass}
-        value={value.address}
-        placeholder={t("manualTrip.addressPlaceholder")}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        onChange={(event) => onChange({ address: event.target.value, coordinate: null })}
-      />
-      <p className="mt-1 text-xs text-fb-muted">
-        {value.coordinate ? t("manualTrip.addressLocated") : value.address ? t("manualTrip.addressNotLocated") : " "}
-      </p>
-      {open && (options.length > 0 || loading) && (
-        <ul role="listbox" className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-fb-border bg-fb-main shadow-xl">
-          {options.map((option) => (
-            <li key={option.key}>
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => { onChange({ address: option.address, coordinate: option.coordinate }); setOpen(false); }}
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-fb-surface"
-              >
-                <span className="font-medium">{option.title}</span>
-                {option.subtitle && <span className="block text-xs text-fb-muted">{option.subtitle}</span>}
-              </button>
-            </li>
-          ))}
-          {loading && <li className="px-3 py-2 text-xs text-fb-muted">{t("manualTrip.searching")}</li>}
-        </ul>
-      )}
-    </div>
-  );
 }
 
 export default function ManualTripModal({ open, accessToken, onClose, onCreated }) {

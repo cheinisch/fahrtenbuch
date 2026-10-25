@@ -17,7 +17,8 @@ import {
   photonSearch,
 } from "../services/geocodingService.js";
 import { getPublicServiceConfiguration } from "../services/serviceSettingsService.js";
-import { routeBetween } from "../services/routingService.js";
+import { MAX_ROUTED_GAPS, routeBetween, routePath } from "../services/routingService.js";
+import { MAX_EDITOR_POINTS } from "../services/tripEditorService.js";
 import {
   getSetupState,
   isGravatarEnabled,
@@ -106,6 +107,28 @@ geocodingRoutes.get(
       lon: numberField(request.query, `${prefix}Lon`, { required: true, minimum: -180, maximum: 180 }),
     });
     response.json(await routeBetween(coordinate("from"), coordinate("to")));
+  }),
+);
+
+// Pfad durch die Punkte des Fahrt-Editors; Lücken werden über die Straße geroutet
+geocodingRoutes.post(
+  "/route-path",
+  asyncHandler(async (request, response) => {
+    const body = request.body && typeof request.body === "object" ? request.body : {};
+    const points = Array.isArray(body.points) ? body.points : [];
+    if (points.length < 2 || points.length > MAX_EDITOR_POINTS) {
+      throw badRequest("VALIDATION_ERROR", `Es werden 2 bis ${MAX_EDITOR_POINTS} Punkte benötigt.`);
+    }
+    const normalized = points.map((point, index) => {
+      const lat = Number(point?.lat);
+      const lon = Number(point?.lon);
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+        throw badRequest("VALIDATION_ERROR", `Punkt ${index + 1} ist ungültig.`);
+      }
+      return { lat, lon };
+    });
+    const gapMeters = body.gapMeters == null ? undefined : numberField(body, "gapMeters", { minimum: 50, maximum: 100_000 });
+    response.json({ maxGaps: MAX_ROUTED_GAPS, ...(await routePath(normalized, { gapMeters })) });
   }),
 );
 

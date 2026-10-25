@@ -3,6 +3,7 @@ import {
   Route,
   Routes,
   useLocation,
+  useParams,
 } from "react-router-dom";
 
 import AdminRoute from "./auth/AdminRoute.jsx";
@@ -13,7 +14,12 @@ import SetupWizard from "./pages/SetupWizard.jsx";
 import OnboardingWizard from "./pages/OnboardingWizard.jsx";
 import AppShell from "./components/AppShell.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import TripRoute from "./pages/TripRoute.jsx";
+import TripEditor from "./pages/TripEditor.jsx";
+
+function LegacyTripRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/trip-editor/${encodeURIComponent(id)}`} replace />;
+}
 import Compliance from "./pages/Compliance.jsx";
 import Costs from "./pages/Costs.jsx";
 import { useFeatures } from "./lib/features.jsx";
@@ -78,8 +84,13 @@ export default function App() {
           />
 
           <Route
+            path="/trip-editor/:id"
+            element={<TripEditor />}
+          />
+          {/* Frühere Adresse der Routenkorrektur */}
+          <Route
             path="/trip/:id"
-            element={<TripRoute />}
+            element={<LegacyTripRedirect />}
           />
 
           <Route
