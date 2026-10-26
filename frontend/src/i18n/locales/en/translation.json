@@ -308,6 +308,24 @@
     }
   },
   "tripEditor": {
+    "plausibility": {
+      "check": "Check plausibility",
+      "hint": "Marks GPS points in red that make no sense – jumps, wrong times, inaccurate fixes and jitter while standing still.",
+      "found": "{count} suspicious points",
+      "foundOne": "1 suspicious point",
+      "none": "No suspicious points found",
+      "end": "End check",
+      "removeAll": "Remove all marked ({count})",
+      "note": "Only a suggestion: after tunnels or dead spots a real point can look suspicious too. Removing can be undone with Ctrl Z.",
+      "label": "Suspicious",
+      "reasons": {
+        "jump": "Jump",
+        "spike": "Spike",
+        "time": "Time inconsistent",
+        "inaccurate": "Inaccurate",
+        "stationary": "Jitter while stationary"
+      }
+    },
     "back": "To trip",
     "title": "Edit trip",
     "mapLabel": "Trip map",

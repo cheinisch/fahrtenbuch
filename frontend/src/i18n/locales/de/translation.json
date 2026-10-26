@@ -309,6 +309,24 @@
     }
   },
   "tripEditor": {
+    "plausibility": {
+      "check": "Plausibilität prüfen",
+      "hint": "Markiert GPS-Punkte rot, die keinen Sinn ergeben – Sprünge, falsche Zeiten, ungenaue Messungen und Zittern im Stand.",
+      "found": "{count} auffällige Punkte",
+      "foundOne": "1 auffälliger Punkt",
+      "none": "Keine auffälligen Punkte gefunden",
+      "end": "Prüfung beenden",
+      "removeAll": "Alle markierten entfernen ({count})",
+      "note": "Nur ein Vorschlag: Nach Tunneln oder Funklöchern kann auch ein echter Punkt auffallen. Entfernen lässt sich mit Strg Z rückgängig machen.",
+      "label": "Auffällig",
+      "reasons": {
+        "jump": "Sprung",
+        "spike": "Ausreißer",
+        "time": "Zeit unstimmig",
+        "inaccurate": "Ungenau",
+        "stationary": "Zittern im Stand"
+      }
+    },
     "back": "Zur Fahrt",
     "title": "Fahrt bearbeiten",
     "mapLabel": "Karte der Fahrt",

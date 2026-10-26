@@ -21,6 +21,7 @@ import { BackIcon } from "../components/tripEditor/icons.jsx";
 import LayersPanel from "../components/tripEditor/LayersPanel.jsx";
 import MapToolbar from "../components/tripEditor/MapToolbar.jsx";
 import OwnPointsList from "../components/tripEditor/OwnPointsList.jsx";
+import PlausibilityPanel from "../components/tripEditor/PlausibilityPanel.jsx";
 import RoadToggle from "../components/tripEditor/RoadToggle.jsx";
 import SelectedPointCard from "../components/tripEditor/SelectedPointCard.jsx";
 import StartEndCompact from "../components/tripEditor/StartEndCompact.jsx";
@@ -29,6 +30,7 @@ import StatCards from "../components/tripEditor/StatCards.jsx";
 import TripTimeline from "../components/tripEditor/TripTimeline.jsx";
 import { useI18n } from "../i18n/I18nProvider.jsx";
 import { useFeatures } from "../lib/features.jsx";
+import { checkPlausibility } from "../lib/gpsOutliers.js";
 import { createMapStyle } from "../lib/mapStyle.js";
 import { estimateTimes, gpsGaps, insertionIndex, pathLength } from "../lib/tripTimes.js";
 import { fromZonedInput, toZonedInput } from "../lib/zonedTime.js";
@@ -51,7 +53,7 @@ function lineCollection(points) {
     : EMPTY;
 }
 
-function pointCollection(points, selected) {
+function pointCollection(points, selected, flagged = new Map()) {
   const last = points.length - 1;
   return {
     type: "FeatureCollection",
@@ -61,6 +63,7 @@ function pointCollection(points, selected) {
         index,
         role: index === 0 ? "start" : index === last ? "end" : point.origin,
         selected: index === selected,
+        flagged: flagged.has(index),
       },
       geometry: { type: "Point", coordinates: [point.lon, point.lat] },
     })),
@@ -164,6 +167,8 @@ export default function TripEditor() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveNotice, setSaveNotice] = useState("");
+  // Plausibilitätsprüfung: einmal gestartet, läuft sie bei jeder Änderung mit
+  const [checkActive, setCheckActive] = useState(false);
   // Nach dem Speichern im Editor bleiben: Fahrt neu laden, Kartenausschnitt behalten
   const [reloadKey, setReloadKey] = useState(0);
   const keepViewRef = useRef(false);
@@ -342,6 +347,8 @@ export default function TripEditor() {
   const endMs = useMemo(() => fromZonedInput(times.endDate, times.endTime, endZone, trip?.endedAt)?.getTime() ?? NaN, [times.endDate, times.endTime, endZone, trip?.endedAt]);
   const pointTimes = useMemo(() => estimateTimes(points, startMs, endMs), [points, startMs, endMs]);
   const gaps = useMemo(() => gpsGaps(points, startMs, endMs), [points, startMs, endMs]);
+  const issues = useMemo(() => (checkActive ? checkPlausibility(points) : []), [checkActive, points]);
+  const issueMap = useMemo(() => new Map(issues.map((issue) => [issue.index, issue.reasons])), [issues]);
   const biggestGap = useMemo(() => gaps.reduce((best, gap) => (!best || gap.to - gap.from > best.to - best.from ? gap : best), null), [gaps]);
 
   // Straßenführung: Lücken über den Routing-Dienst füllen (verzögert). Eine gespeicherte oder
@@ -442,6 +449,7 @@ export default function TripEditor() {
       map.addLayer({ id: "matched", type: "line", source: "matched", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#2563eb", "line-width": 5, "line-opacity": 0.35 } });
       map.addLayer({ id: "raw", type: "line", source: "raw", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#9ca3af", "line-width": 2, "line-opacity": 0.7, "line-dasharray": [2, 2] } });
       map.addLayer({ id: "path", type: "line", source: "path", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ACCENT, "line-width": 5 } });
+      map.addLayer({ id: "points-flag", type: "circle", source: "points", filter: ["==", ["get", "flagged"], true], paint: { "circle-radius": 14, "circle-color": "#ef4444", "circle-opacity": 0.3 } });
       map.addLayer({ id: "points-halo", type: "circle", source: "points", filter: ["==", ["get", "selected"], true], paint: { "circle-radius": 16, "circle-color": ACCENT, "circle-opacity": 0.25 } });
       map.addLayer({
         id: "points",
@@ -454,8 +462,9 @@ export default function TripEditor() {
             8, ["case", ["get", "selected"], 9, ["match", ["get", "role"], ["start", "end"], 11, "set", 7, 3]],
             14, ["case", ["get", "selected"], 9, ["match", ["get", "role"], ["start", "end"], 11, "set", 7, 5]],
           ],
-          "circle-color": ["match", ["get", "role"], "start", "#16a34a", "end", "#dc2626", "set", ACCENT, "#ffffff"],
-          "circle-stroke-color": ["match", ["get", "role"], "gps", ACCENT, "#ffffff"],
+          // Auffällige Punkte der Plausibilitätsprüfung rot (Start/Ziel werden nie markiert)
+          "circle-color": ["case", ["get", "flagged"], "#ef4444", ["match", ["get", "role"], "start", "#16a34a", "end", "#dc2626", "set", ACCENT, "#ffffff"]],
+          "circle-stroke-color": ["case", ["get", "flagged"], "#7f1d1d", ["match", ["get", "role"], "gps", ACCENT, "#ffffff"]],
           "circle-stroke-width": ["case", ["get", "selected"], 3, ["match", ["get", "role"], ["start", "end"], 3, 2]],
         },
       });
@@ -604,8 +613,8 @@ export default function TripEditor() {
     map.getSource("matched")?.setData(layers.matched ? lineCollection(load.matched) : EMPTY);
     map.getSource("raw")?.setData(layers.raw ? lineCollection((load.initial?.points || []).filter((p) => p.origin === "gps")) : EMPTY);
     map.getSource("path")?.setData(layers.route ? lineCollection(displayPath) : EMPTY);
-    map.getSource("points")?.setData(pointCollection(points, selected));
-  }, [mapReady, layers, load.matched, load.initial, displayPath, points, selected]);
+    map.getSource("points")?.setData(pointCollection(points, selected, issueMap));
+  }, [mapReady, layers, load.matched, load.initial, displayPath, points, selected, issueMap]);
 
   const fitTo = useCallback((list, animate = true) => {
     const map = mapRef.current;
@@ -706,6 +715,18 @@ export default function TripEditor() {
       if (name === "startDate" && current.endDate === current.startDate) next.endDate = value;
       return next;
     });
+  }
+
+  // Alle markierten Punkte in einem (rückgängig machbaren) Schritt entfernen
+  function removeFlagged() {
+    if (!issueMap.size) return;
+    change((current) => current.filter((_, index) => !issueMap.has(index)));
+    setSelected(null);
+  }
+
+  function selectPoint(index) {
+    setSelected(index);
+    fitTo([points[index]]);
   }
 
   function makeStart(index) {
@@ -862,6 +883,9 @@ export default function TripEditor() {
     estimated: selectedEstimated,
     nearby,
     editable,
+    issueText: issueMap.has(selected)
+      ? issueMap.get(selected).map((reason) => t(`tripEditor.plausibility.reasons.${reason}`)).join(", ")
+      : "",
     onClose: () => setSelected(null),
     onRemove: () => removePoint(selected),
     onMakeStart: () => makeStart(selected),
@@ -892,6 +916,17 @@ export default function TripEditor() {
     record();
     followRoadsRef.current = value;
     setFollowRoads(value);
+  };
+  const plausibilityProps = {
+    active: checkActive,
+    issues,
+    times: pointTimes,
+    formatTime,
+    editable,
+    onCheck: () => setCheckActive(true),
+    onClose: () => setCheckActive(false),
+    onSelect: selectPoint,
+    onRemoveAll: removeFlagged,
   };
   const kbd = "rounded border border-fb-border px-1.5 py-px font-[inherit]";
 
@@ -954,6 +989,7 @@ export default function TripEditor() {
                   </div>
                 )}
               </section>
+              <PlausibilityPanel {...plausibilityProps} />
               <OwnPointsList points={points} times={pointTimes} selected={selected} editable={editable} formatTime={formatTime}
                 onSelect={(index) => { setSelected(index); fitTo([points[index]]); }} onMove={moveOwnPoint} />
               {selectedCardProps && <SelectedPointCard {...selectedCardProps} />}
@@ -1038,6 +1074,7 @@ export default function TripEditor() {
                   <button type="button" onClick={resetAll} disabled={!setCount && !routed.result} className={`${routeButton} border-[#5f2320] text-[#ff9b94]`}>{t("tripEditor.resetAll")}</button>
                 </div>
               )}
+              <PlausibilityPanel {...plausibilityProps} compact />
               {saveError && <p role="alert" className="text-sm text-fb-danger">{saveError}</p>}
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
                 <button type="button" onClick={() => cancel()} disabled={saving} className="min-h-12 rounded-xl border border-fb-border font-semibold disabled:opacity-50">{dirty ? t("common.cancel") : t("common.close")}</button>

@@ -2,7 +2,7 @@ import { useI18n } from "../../i18n/I18nProvider.jsx";
 import { CloseIcon } from "./icons.jsx";
 
 /** Ausgewählter Punkt: Herkunft, Zeit, Position, Nähe und Aktionen. */
-export default function SelectedPointCard({ index, total, point, timeText, estimated, nearby, editable, onClose, onRemove, onMakeStart, onMove, canMoveEarlier, canMoveLater, compact = false }) {
+export default function SelectedPointCard({ index, total, point, timeText, estimated, nearby, editable, issueText = "", onClose, onRemove, onMakeStart, onMove, canMoveEarlier, canMoveLater, compact = false }) {
   const { t } = useI18n();
   const title = t("tripEditor.pointTitle", {
     number: index + 1,
@@ -16,6 +16,7 @@ export default function SelectedPointCard({ index, total, point, timeText, estim
         <div className="min-w-0">
           <div className="font-semibold">{title}</div>
           <div className="truncate text-xs text-fb-muted">{estimated ? "≈ " : ""}{timeText}{nearby ? ` · ${nearby}` : ""}</div>
+          {issueText && <div className="truncate text-xs font-semibold text-[#ff9b94]">{issueText}</div>}
         </div>
         {editable && point.origin === "set" && (canMoveEarlier || canMoveLater) && (
           <span className="flex shrink-0 gap-1">
@@ -50,6 +51,12 @@ export default function SelectedPointCard({ index, total, point, timeText, estim
         <dd>{point.lat.toFixed(5)}, {point.lon.toFixed(5)}{point.accuracy != null ? ` · ±${Math.round(point.accuracy)} m` : ""}</dd>
         <dt className="text-fb-muted">{t("tripEditor.pointNearby")}</dt>
         <dd className="truncate">{nearby || "–"}</dd>
+        {issueText && (
+          <>
+            <dt className="text-fb-muted">{t("tripEditor.plausibility.label")}</dt>
+            <dd className="font-semibold text-[#ff9b94]">{issueText}</dd>
+          </>
+        )}
       </dl>
       {editable && (
         <div className="flex flex-wrap gap-2">
