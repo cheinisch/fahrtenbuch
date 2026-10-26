@@ -2136,6 +2136,63 @@ paths:
                   responseTimeMs: { type: [integer, 'null'] }
                   message: { type: string }
 
+  /admin/settings/ai:
+    get:
+      tags: [Admin]
+      summary: Get AI provider configuration
+      description: API-Schlüssel werden nie zurückgegeben, nur ob einer hinterlegt ist.
+      responses:
+        '200':
+          description: KI-Konfiguration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAiSettings' }
+    put:
+      tags: [Admin]
+      summary: Configure AI providers (Claude, OpenAI, Ollama)
+      description: Leeres oder fehlendes apiKey lässt den gespeicherten Schlüssel unverändert; clearApiKey entfernt ihn. Aktiviert werden kann nur ein vollständig eingerichteter Anbieter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminAiSettingsInput' }
+      responses:
+        '200':
+          description: KI-Konfiguration gespeichert
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAiSettings' }
+
+  /admin/settings/ai/test:
+    post:
+      tags: [Admin]
+      summary: Test an AI provider and list its models
+      description: Nicht gespeicherte Angaben in config werden mit der gespeicherten Konfiguration zusammengeführt.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider]
+              properties:
+                provider: { type: string, enum: [claude, openai, ollama] }
+                config: { $ref: '#/components/schemas/AiProviderInput' }
+      responses:
+        '200':
+          description: Testergebnis
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, models]
+                properties:
+                  success: { type: boolean }
+                  responseTimeMs: { type: [integer, 'null'] }
+                  message: { type: string }
+                  models: { type: array, items: { type: string } }
+                  modelAvailable: { type: [boolean, 'null'], description: Ob das eingetragene Modell beim Anbieter verfügbar ist }
+
   /admin/backup:
     post:
       tags: [Admin]
@@ -3702,6 +3759,45 @@ components:
         timeoutMs: { type: integer, minimum: 1000, default: 30000 }
         searchRadiusMeters: { type: integer, minimum: 1, default: 2500 }
         maxResults: { type: integer, minimum: 1, maximum: 500, default: 50 }
+    AiProviderSettings:
+      type: object
+      required: [baseUrl, model, apiKeySet]
+      properties:
+        baseUrl: { type: string, description: Leer = Standardadresse des Anbieters }
+        defaultBaseUrl: { type: [string, 'null'] }
+        model: { type: string }
+        apiKeySet: { type: boolean }
+        apiKeyHint: { type: [string, 'null'], description: Letzte vier Zeichen des Schlüssels }
+    AiProviderInput:
+      type: object
+      properties:
+        baseUrl: { type: [string, 'null'], maxLength: 2000 }
+        model: { type: [string, 'null'], maxLength: 200 }
+        apiKey: { type: [string, 'null'], maxLength: 500 }
+        clearApiKey: { type: boolean }
+    AdminAiSettings:
+      type: object
+      required: [activeProvider, timeoutMs, providers]
+      properties:
+        activeProvider: { type: string, enum: [disabled, claude, openai, ollama] }
+        timeoutMs: { type: integer }
+        providers:
+          type: object
+          properties:
+            claude: { $ref: '#/components/schemas/AiProviderSettings' }
+            openai: { $ref: '#/components/schemas/AiProviderSettings' }
+            ollama: { $ref: '#/components/schemas/AiProviderSettings' }
+    AdminAiSettingsInput:
+      type: object
+      properties:
+        activeProvider: { type: string, enum: [disabled, claude, openai, ollama] }
+        timeoutMs: { type: integer, minimum: 5000, maximum: 600000 }
+        providers:
+          type: object
+          properties:
+            claude: { $ref: '#/components/schemas/AiProviderInput' }
+            openai: { $ref: '#/components/schemas/AiProviderInput' }
+            ollama: { $ref: '#/components/schemas/AiProviderInput' }
     AdminServiceSettings:
       type: object
       required: [map, photon, overpass]

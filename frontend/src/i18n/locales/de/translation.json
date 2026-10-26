@@ -1446,6 +1446,7 @@
     "gravatarFromEnv": "Aktuell aus der .env (GRAVATAR_ENABLED) – beim Speichern wird der Wert in die Datenbank übernommen.",
     "tabUsers": "Benutzerverwaltung",
     "tabGeocoding": "Geocoding",
+    "tabAi": "AI",
     "tabJobs": "Hintergrundaufgaben",
     "tabBackup": "Backup & Restore",
     "users": "Benutzer",
@@ -1540,6 +1541,47 @@
     "insightOpen": "Redis Insight öffnen",
     "insightConfigured": "Redis Insight zeigt Warteschlangen und Speicherverbrauch direkt in Redis.",
     "insightLocal": "Redis Insight hat keine eigene Anmeldung und ist deshalb nur auf dem Docker-Host erreichbar (Port {port}). Von einem anderen Rechner: ssh -L {port}:127.0.0.1:{port} benutzer@server, dann den Link öffnen. Für einen festen Link REDIS_INSIGHT_URL setzen, z. B. hinter einem Reverse-Proxy mit Anmeldung."
+  },
+  "aiSettings": {
+    "title": "KI-Anbieter",
+    "subtitle": "Hinterlege Claude, OpenAI oder einen eigenen Ollama-Server. API-Schlüssel bleiben auf dem Server und werden nicht wieder angezeigt.",
+    "activeTitle": "Aktiver Anbieter",
+    "activeHint": "Nur ein vollständig eingerichteter Anbieter kann aktiviert werden.",
+    "disabled": "Deaktiviert",
+    "disabledHint": "Keine KI-Funktionen verwenden.",
+    "notReady": "Noch nicht vollständig eingerichtet",
+    "ready": "Einsatzbereit",
+    "providers": {
+      "claude": "Claude (Anthropic)",
+      "openai": "OpenAI",
+      "ollama": "Ollama"
+    },
+    "providerHints": {
+      "claude": "API-Schlüssel aus der Anthropic Console.",
+      "openai": "API-Schlüssel von OpenAI – oder ein OpenAI-kompatibler Server (LM Studio, vLLM, LiteLLM …).",
+      "ollama": "Eigener Ollama-Server, z. B. im Heimnetz."
+    },
+    "baseUrl": "Serveradresse",
+    "baseUrlDefault": "Leer lassen für {url}",
+    "baseUrlOllama": "z. B. http://ollama:11434",
+    "apiKey": "API-Schlüssel",
+    "apiKeyOptional": "API-Schlüssel (optional, z. B. hinter einem Reverse-Proxy)",
+    "apiKeyStored": "Gespeichert ({hint}) – leer lassen, um ihn zu behalten",
+    "apiKeyNew": "Schlüssel eingeben",
+    "apiKeyRemove": "Schlüssel entfernen",
+    "apiKeyWillRemove": "Wird beim Speichern entfernt",
+    "model": "Modell",
+    "modelPlaceholder": "Modell eingeben oder nach dem Test auswählen",
+    "modelsFound": "{count} Modelle verfügbar",
+    "test": "Verbindung testen",
+    "testing": "Teste …",
+    "timeout": "Zeitlimit für Anfragen (Sekunden)",
+    "save": "Speichern",
+    "saved": "KI-Einstellungen gespeichert.",
+    "loadFailed": "Die KI-Einstellungen konnten nicht geladen werden.",
+    "saveFailed": "Die KI-Einstellungen konnten nicht gespeichert werden.",
+    "testFailed": "Der Test ist fehlgeschlagen.",
+    "privacyHint": "Hinweis: Sobald KI-Funktionen genutzt werden, gehen die jeweiligen Daten an den gewählten Anbieter. Mit Ollama bleiben sie auf deinem eigenen Server."
   },
   "geocoding": {
     "modules": {

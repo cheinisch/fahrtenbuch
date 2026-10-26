@@ -1445,6 +1445,7 @@
     "gravatarFromEnv": "Currently taken from .env (GRAVATAR_ENABLED) – saving stores the value in the database.",
     "tabUsers": "User management",
     "tabGeocoding": "Geocoding",
+    "tabAi": "AI",
     "tabJobs": "Background jobs",
     "tabBackup": "Backup & restore",
     "users": "Users",
@@ -1539,6 +1540,47 @@
     "insightOpen": "Open Redis Insight",
     "insightConfigured": "Redis Insight shows queues and memory usage directly in Redis.",
     "insightLocal": "Redis Insight has no login of its own, so it is only reachable on the Docker host (port {port}). From another machine: ssh -L {port}:127.0.0.1:{port} user@server, then open the link. Set REDIS_INSIGHT_URL for a fixed link, e.g. behind a reverse proxy with authentication."
+  },
+  "aiSettings": {
+    "title": "AI providers",
+    "subtitle": "Configure Claude, OpenAI or your own Ollama server. API keys stay on the server and are never shown again.",
+    "activeTitle": "Active provider",
+    "activeHint": "Only a fully configured provider can be activated.",
+    "disabled": "Disabled",
+    "disabledHint": "Don't use any AI features.",
+    "notReady": "Not fully configured yet",
+    "ready": "Ready",
+    "providers": {
+      "claude": "Claude (Anthropic)",
+      "openai": "OpenAI",
+      "ollama": "Ollama"
+    },
+    "providerHints": {
+      "claude": "API key from the Anthropic Console.",
+      "openai": "API key from OpenAI – or an OpenAI-compatible server (LM Studio, vLLM, LiteLLM …).",
+      "ollama": "Your own Ollama server, e.g. on your home network."
+    },
+    "baseUrl": "Server address",
+    "baseUrlDefault": "Leave empty for {url}",
+    "baseUrlOllama": "e.g. http://ollama:11434",
+    "apiKey": "API key",
+    "apiKeyOptional": "API key (optional, e.g. behind a reverse proxy)",
+    "apiKeyStored": "Stored ({hint}) – leave empty to keep it",
+    "apiKeyNew": "Enter key",
+    "apiKeyRemove": "Remove key",
+    "apiKeyWillRemove": "Will be removed on save",
+    "model": "Model",
+    "modelPlaceholder": "Enter a model or pick one after testing",
+    "modelsFound": "{count} models available",
+    "test": "Test connection",
+    "testing": "Testing …",
+    "timeout": "Request timeout (seconds)",
+    "save": "Save",
+    "saved": "AI settings saved.",
+    "loadFailed": "The AI settings could not be loaded.",
+    "saveFailed": "The AI settings could not be saved.",
+    "testFailed": "The test failed.",
+    "privacyHint": "Note: once AI features are used, the relevant data is sent to the selected provider. With Ollama it stays on your own server."
   },
   "geocoding": {
     "modules": {

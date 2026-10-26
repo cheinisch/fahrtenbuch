@@ -46,6 +46,13 @@ import {
 } from "../services/serviceSettingsService.js";
 import { sendTestMail } from "../services/mailService.js";
 import {
+  AI_PROVIDERS,
+  publicAiSettings,
+  readAiSettings,
+  saveAiSettings,
+  testAiProvider,
+} from "../services/aiSettingsService.js";
+import {
   environmentStatus,
   getGravatarSetting,
   getMailStatus,
@@ -1402,6 +1409,34 @@ adminRoutes.post(
     });
     const candidateConfig = objectBody(body.config);
     response.json(await testService(category, candidateConfig));
+  }),
+);
+
+// KI-Anbieter (Claude, OpenAI, Ollama) – Reiter „AI“ in den Systemeinstellungen
+adminRoutes.get(
+  "/settings/ai",
+  asyncHandler(async (_request, response) => {
+    response.json(publicAiSettings(await readAiSettings()));
+  }),
+);
+
+adminRoutes.put(
+  "/settings/ai",
+  asyncHandler(async (request, response) => {
+    const result = await saveAiSettings(objectBody(request.body), request.auth.userId);
+    await writeAdminAudit(pool, request, "admin.settings.ai.updated", request.auth.userId, {
+      activeProvider: result.activeProvider,
+    });
+    response.json(result);
+  }),
+);
+
+adminRoutes.post(
+  "/settings/ai/test",
+  asyncHandler(async (request, response) => {
+    const body = objectBody(request.body);
+    const provider = enumField(body, "provider", AI_PROVIDERS, { required: true });
+    response.json(await testAiProvider(provider, objectBody(body.config ?? {})));
   }),
 );
 

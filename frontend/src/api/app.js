@@ -863,6 +863,18 @@ export const runAdminServiceCheck = (token, module) =>
       (module ? "?module=" + encodeURIComponent(module) : ""),
   );
 
+// KI-Anbieter (Claude, OpenAI, Ollama) – Reiter „AI“ in den Systemeinstellungen
+export const getAdminAiSettings = (token) => apiRequest(token, "/api/v1/admin/settings/ai");
+
+export const updateAdminAiSettings = (token, settings) =>
+  apiRequest(token, "/api/v1/admin/settings/ai", { method: "PUT", body: JSON.stringify(settings) });
+
+export const testAdminAiProvider = (token, provider, config) =>
+  apiRequest(token, "/api/v1/admin/settings/ai/test", {
+    method: "POST",
+    body: JSON.stringify({ provider, config }),
+  });
+
 // Ersteinrichtung des Servers (Admin) und Einrichtungsassistent für Benutzer
 export const getAdminSetup = (token) => apiRequest(token, "/api/v1/admin/setup");
 export const completeAdminSetup = (token) =>

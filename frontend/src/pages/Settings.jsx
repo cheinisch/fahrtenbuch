@@ -16,6 +16,7 @@ import AdminDataTransfer from "../components/admin/AdminDataTransfer.jsx";
 import UserManagement from "../components/users/UserManagement.jsx";
 import JobManagement from "../components/admin/JobManagement.jsx";
 import GeocodingSettings from "../components/admin/GeocodingSettings.jsx";
+import AiSettings from "../components/admin/AiSettings.jsx";
 import MailStatusPanel from "../components/admin/MailStatusPanel.jsx";
 
 const fieldClass =
@@ -239,6 +240,10 @@ export default function Settings() {
 
         <TabButton active={activeTab === "geocoding"} onClick={() => setActiveTab("geocoding")}>
           {t("admin.tabGeocoding")}
+        </TabButton>
+
+        <TabButton active={activeTab === "ai"} onClick={() => setActiveTab("ai")}>
+          {t("admin.tabAi")}
         </TabButton>
 
         <TabButton active={activeTab === "jobs"} onClick={() => setActiveTab("jobs")}>
@@ -639,6 +644,8 @@ export default function Settings() {
         </section>
       ) : activeTab === "geocoding" ? (
         <GeocodingSettings />
+      ) : activeTab === "ai" ? (
+        <AiSettings />
       ) : activeTab === "jobs" ? (
         <JobManagement />
       ) : (
