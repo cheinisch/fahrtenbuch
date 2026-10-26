@@ -1679,6 +1679,8 @@ paths:
                   gapCount: { type: integer }
                   routedGaps: { type: integer }
                   failedGaps: { type: integer }
+                  uTurnGaps: { type: integer, description: Abschnitte, auf denen der Router hin und zurück fuhr (z. B. Punkt auf der Gegenfahrbahn) }
+                  correctedGaps: { type: integer, description: Davon per Map-Matching korrigiert }
                   maxGaps: { type: integer }
                   path:
                     type: array

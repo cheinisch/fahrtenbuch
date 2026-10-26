@@ -43,6 +43,8 @@ const NOTICE_GAP_MS = 10 * 60_000;
 // Abstand (Pixel) zur Linie, ab dem „hier einfügen“ erscheint
 const GHOST_RADIUS_PX = 10;
 const ACCENT = "#0ea5e9";
+// Ausgewählte Punkte (Karte und Zeitachse)
+const SELECTED = "#22c55e";
 
 let nextKey = 1;
 const withKey = (point) => ({ ...point, key: nextKey++ });
@@ -53,7 +55,7 @@ function lineCollection(points) {
     : EMPTY;
 }
 
-function pointCollection(points, selected, flagged = new Map()) {
+function pointCollection(points, selected, flagged = new Map(), selection = new Set()) {
   const last = points.length - 1;
   return {
     type: "FeatureCollection",
@@ -62,7 +64,8 @@ function pointCollection(points, selected, flagged = new Map()) {
       properties: {
         index,
         role: index === 0 ? "start" : index === last ? "end" : point.origin,
-        selected: index === selected,
+        selected: selection.has(index),
+        primary: index === selected,
         flagged: flagged.has(index),
       },
       geometry: { type: "Point", coordinates: [point.lon, point.lat] },
@@ -169,12 +172,26 @@ export default function TripEditor() {
   const [saveNotice, setSaveNotice] = useState("");
   // Plausibilitätsprüfung: einmal gestartet, läuft sie bei jeder Änderung mit
   const [checkActive, setCheckActive] = useState(false);
+  // Mehrfachauswahl über die Zeitachse: weitere Punkte neben dem Hauptpunkt `selected`
+  const [extra, setExtra] = useState([]);
+  const keepExtraRef = useRef(false);
+  const anchorRef = useRef(null);
   // Nach dem Speichern im Editor bleiben: Fahrt neu laden, Kartenausschnitt behalten
   const [reloadKey, setReloadKey] = useState(0);
   const keepViewRef = useRef(false);
 
   useEffect(() => { pointsRef.current = points; }, [points]);
   useEffect(() => { toolRef.current = tool; setGhost(null); }, [tool]);
+  // Andere Auswahl (Karte, Liste) oder geänderte Punkte heben die Mehrfachauswahl auf
+  useEffect(() => {
+    if (keepExtraRef.current) keepExtraRef.current = false;
+    else { setExtra([]); anchorRef.current = selected; }
+  }, [selected]);
+  useEffect(() => { setExtra([]); }, [points]);
+  const selection = useMemo(
+    () => new Set([...extra, selected].filter((index) => index != null && index < points.length)),
+    [extra, selected, points.length],
+  );
 
   const trip = load.trip;
   const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -445,12 +462,14 @@ export default function TripEditor() {
     mapRef.current = map;
 
     map.on("load", () => {
-      for (const source of ["matched", "raw", "path", "points"]) map.addSource(source, { type: "geojson", data: EMPTY });
+      for (const source of ["matched", "raw", "path", "selection", "points"]) map.addSource(source, { type: "geojson", data: EMPTY });
       map.addLayer({ id: "matched", type: "line", source: "matched", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#2563eb", "line-width": 5, "line-opacity": 0.35 } });
       map.addLayer({ id: "raw", type: "line", source: "raw", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#9ca3af", "line-width": 2, "line-opacity": 0.7, "line-dasharray": [2, 2] } });
       map.addLayer({ id: "path", type: "line", source: "path", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ACCENT, "line-width": 5 } });
+      // Verbindung der ausgewählten Punkte in Reihenfolge: zeigt, wo es hin und her springt
+      map.addLayer({ id: "selection", type: "line", source: "selection", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": SELECTED, "line-width": 3 } });
       map.addLayer({ id: "points-flag", type: "circle", source: "points", filter: ["==", ["get", "flagged"], true], paint: { "circle-radius": 14, "circle-color": "#ef4444", "circle-opacity": 0.3 } });
-      map.addLayer({ id: "points-halo", type: "circle", source: "points", filter: ["==", ["get", "selected"], true], paint: { "circle-radius": 16, "circle-color": ACCENT, "circle-opacity": 0.25 } });
+      map.addLayer({ id: "points-halo", type: "circle", source: "points", filter: ["==", ["get", "primary"], true], paint: { "circle-radius": 16, "circle-color": SELECTED, "circle-opacity": 0.3 } });
       map.addLayer({
         id: "points",
         type: "circle",
@@ -459,13 +478,14 @@ export default function TripEditor() {
           // MapLibre erlaubt "zoom" nur im obersten interpolate: Größen je Rolle an beiden Stützstellen
           "circle-radius": [
             "interpolate", ["linear"], ["zoom"],
-            8, ["case", ["get", "selected"], 9, ["match", ["get", "role"], ["start", "end"], 11, "set", 7, 3]],
-            14, ["case", ["get", "selected"], 9, ["match", ["get", "role"], ["start", "end"], 11, "set", 7, 5]],
+            8, ["case", ["get", "primary"], 9, ["get", "selected"], 6, ["match", ["get", "role"], ["start", "end"], 11, "set", 7, 3]],
+            14, ["case", ["get", "primary"], 9, ["get", "selected"], 7, ["match", ["get", "role"], ["start", "end"], 11, "set", 7, 5]],
           ],
           // Auffällige Punkte der Plausibilitätsprüfung rot (Start/Ziel werden nie markiert)
-          "circle-color": ["case", ["get", "flagged"], "#ef4444", ["match", ["get", "role"], "start", "#16a34a", "end", "#dc2626", "set", ACCENT, "#ffffff"]],
-          "circle-stroke-color": ["case", ["get", "flagged"], "#7f1d1d", ["match", ["get", "role"], "gps", ACCENT, "#ffffff"]],
-          "circle-stroke-width": ["case", ["get", "selected"], 3, ["match", ["get", "role"], ["start", "end"], 3, 2]],
+          // Ausgewählt grün, sonst auffällige Punkte der Plausibilitätsprüfung rot
+          "circle-color": ["case", ["get", "selected"], SELECTED, ["get", "flagged"], "#ef4444", ["match", ["get", "role"], "start", "#16a34a", "end", "#dc2626", "set", ACCENT, "#ffffff"]],
+          "circle-stroke-color": ["case", ["get", "selected"], "#ffffff", ["get", "flagged"], "#7f1d1d", ["match", ["get", "role"], "gps", ACCENT, "#ffffff"]],
+          "circle-stroke-width": ["case", ["get", "primary"], 3, ["match", ["get", "role"], ["start", "end"], 3, 2]],
         },
       });
       setMapReady(true);
@@ -613,8 +633,9 @@ export default function TripEditor() {
     map.getSource("matched")?.setData(layers.matched ? lineCollection(load.matched) : EMPTY);
     map.getSource("raw")?.setData(layers.raw ? lineCollection((load.initial?.points || []).filter((p) => p.origin === "gps")) : EMPTY);
     map.getSource("path")?.setData(layers.route ? lineCollection(displayPath) : EMPTY);
-    map.getSource("points")?.setData(pointCollection(points, selected, issueMap));
-  }, [mapReady, layers, load.matched, load.initial, displayPath, points, selected, issueMap]);
+    map.getSource("points")?.setData(pointCollection(points, selected, issueMap, selection));
+    map.getSource("selection")?.setData(selection.size > 1 ? lineCollection([...selection].sort((a, b) => a - b).map((index) => points[index])) : EMPTY);
+  }, [mapReady, layers, load.matched, load.initial, displayPath, points, selected, issueMap, selection]);
 
   const fitTo = useCallback((list, animate = true) => {
     const map = mapRef.current;
@@ -668,28 +689,6 @@ export default function TripEditor() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [selected, points, geocodingEnabled, accessToken, language]);
 
-  // Tastatur: Entf löscht, Strg+Z / Strg+Y bzw. Strg+Umschalt+Z
-  useEffect(() => {
-    const onKey = (event) => {
-      const tag = event.target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      const key = event.key.toLowerCase();
-      if ((event.key === "Delete" || event.key === "Backspace") && selected != null && editable) {
-        event.preventDefault();
-        removePoint(selected);
-      } else if ((event.ctrlKey || event.metaKey) && (key === "y" || (key === "z" && event.shiftKey))) {
-        event.preventDefault();
-        redo();
-      } else if ((event.ctrlKey || event.metaKey) && key === "z") {
-        event.preventDefault();
-        undo();
-      } else if (event.key === "Escape") {
-        setSelected(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [selected, editable, removePoint, undo, redo]);
 
   // Adressvorschlag gewählt: ersten bzw. letzten Punkt dorthin setzen
   function placeEndpoint(which, value) {
@@ -728,6 +727,83 @@ export default function TripEditor() {
     setSelected(index);
     fitTo([points[index]]);
   }
+
+  // Karte nur verschieben (Zoom bleiben), wenn die Punkte nicht sichtbar sind; mehrere einpassen
+  const showPoints = useCallback((list) => {
+    const map = mapRef.current;
+    if (!map || !list.length) return;
+    if (list.length > 1) { fitTo(list); return; }
+    const bounds = map.getBounds();
+    if (!bounds.contains([list[0].lon, list[0].lat])) map.easeTo({ center: [list[0].lon, list[0].lat], duration: 300 });
+  }, [fitTo]);
+
+  /** Auswahl über Zeitachse und Pfeiltasten: einzeln, Bereich (Umschalt) oder ergänzen (Strg). */
+  const selectFromTimeline = useCallback((index, { range = false, toggle = false } = {}) => {
+    const list = pointsRef.current;
+    if (index < 0 || index >= list.length) return;
+    // Nur wenn sich der Hauptpunkt ändert, läuft der Effekt, der die Mehrfachauswahl sonst leert
+    keepExtraRef.current = index !== selected;
+    if (range && anchorRef.current != null) {
+      const from = Math.min(anchorRef.current, index);
+      const to = Math.max(anchorRef.current, index);
+      const indices = Array.from({ length: to - from + 1 }, (_, k) => from + k);
+      setExtra(indices.filter((value) => value !== index));
+      setSelected(index);
+      showPoints(indices.map((value) => list[value]));
+      return;
+    }
+    if (toggle) {
+      setExtra((current) => {
+        const all = new Set([...current, selected].filter((value) => value != null));
+        if (all.has(index)) all.delete(index);
+        else all.add(index);
+        return [...all].filter((value) => value !== index);
+      });
+      setSelected(index);
+      anchorRef.current = index;
+      showPoints([list[index]]);
+      return;
+    }
+    setExtra([]);
+    setSelected(index);
+    anchorRef.current = index;
+    showPoints([list[index]]);
+  }, [selected, showPoints]);
+
+  // Alle ausgewählten Punkte in einem (rückgängig machbaren) Schritt entfernen
+  const removeSelection = useCallback(() => {
+    if (!selection.size) return;
+    change((current) => current.filter((_, index) => !selection.has(index)));
+    setSelected(null);
+  }, [selection, change]);
+
+  // Tastatur: Entf löscht, Strg+Z / Strg+Y bzw. Strg+Umschalt+Z
+  useEffect(() => {
+    const onKey = (event) => {
+      const tag = event.target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const key = event.key.toLowerCase();
+      if ((event.key === "Delete" || event.key === "Backspace") && selected != null && editable) {
+        event.preventDefault();
+        if (selection.size > 1) removeSelection();
+        else removePoint(selected);
+      } else if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && selected != null && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        // Punkt für Punkt durchgehen; mit Umschalt den Bereich erweitern
+        event.preventDefault();
+        selectFromTimeline(selected + (event.key === "ArrowRight" ? 1 : -1), { range: event.shiftKey });
+      } else if ((event.ctrlKey || event.metaKey) && (key === "y" || (key === "z" && event.shiftKey))) {
+        event.preventDefault();
+        redo();
+      } else if ((event.ctrlKey || event.metaKey) && key === "z") {
+        event.preventDefault();
+        undo();
+      } else if (event.key === "Escape") {
+        setSelected(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected, editable, removePoint, undo, redo, selection, removeSelection, selectFromTimeline]);
 
   function makeStart(index) {
     change((current) => current.slice(index));
@@ -872,7 +948,8 @@ export default function TripEditor() {
             : routedCurrent
             ? (routedCurrent.gapCount === 0
               ? t("tripEditor.noRoadGaps")
-              : t("tripEditor.routedInfo", { routed: routedCurrent.routedGaps, gaps: routedCurrent.gapCount, provider: { atlas: "Atlas", valhalla: "Valhalla", osrm: "OSRM" }[routedCurrent.provider] || routedCurrent.provider }))
+              : t("tripEditor.routedInfo", { routed: routedCurrent.routedGaps, gaps: routedCurrent.gapCount, provider: { atlas: "Atlas", valhalla: "Valhalla", osrm: "OSRM" }[routedCurrent.provider] || routedCurrent.provider })
+                + (routedCurrent.correctedGaps ? ` ${t("tripEditor.uTurnsFixed", { count: routedCurrent.correctedGaps })}` : ""))
             : t("tripEditor.followRoadsHint");
   const canSave = editable && dirty && points.length >= 2 && !routed.busy && !saving;
   const selectedCardProps = selectedPoint && {
@@ -992,6 +1069,22 @@ export default function TripEditor() {
               <PlausibilityPanel {...plausibilityProps} />
               <OwnPointsList points={points} times={pointTimes} selected={selected} editable={editable} formatTime={formatTime}
                 onSelect={(index) => { setSelected(index); fitTo([points[index]]); }} onMove={moveOwnPoint} />
+              {selection.size > 1 && (
+                <section className="flex flex-col gap-2 rounded-xl border border-[#166534] bg-[#052e16] p-3.5">
+                  <h2 className="text-sm font-semibold text-[#86efac]">{t("tripEditor.selection.title", { count: selection.size })}</h2>
+                  <p className="text-xs text-fb-muted">{t("tripEditor.selection.hint")}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {editable && (
+                      <button type="button" onClick={removeSelection} className="min-h-9 rounded-lg border border-[#5f2320] bg-[#2a1312] px-3 text-[13px] font-semibold text-[#ff9b94]">
+                        {t("tripEditor.selection.remove", { count: selection.size })}
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setExtra([])} className="min-h-9 rounded-lg border border-fb-border px-3 text-[13px] font-semibold hover:border-fb-accent">
+                      {t("tripEditor.selection.clear")}
+                    </button>
+                  </div>
+                </section>
+              )}
               {selectedCardProps && <SelectedPointCard {...selectedCardProps} />}
               {dawarich.notice && <p role="status" className="text-sm text-fb-muted">{dawarich.notice}</p>}
               {saveError && <p role="alert" className="text-sm text-fb-danger">{saveError}</p>}
@@ -1038,7 +1131,7 @@ export default function TripEditor() {
           {trip && (
             <div className="absolute inset-x-4 bottom-4 z-10 hidden md:block">
               <TripTimeline points={points} times={pointTimes} startMs={startMs} endMs={endMs} gaps={gaps} selected={selected}
-                onSelect={(index) => { setSelected(index); fitTo([points[index]]); }} formatTime={formatTime} />
+                selection={selection} onSelect={selectFromTimeline} formatTime={formatTime} />
             </div>
           )}
 

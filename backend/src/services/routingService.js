@@ -1,6 +1,7 @@
 import { badRequest, serviceUnavailable } from "../lib/errors.js";
 import { haversineDistance } from "../lib/geo.js";
 import { decodePolyline6 } from "../lib/trace.js";
+import { matchShape } from "./mapMatchingService.js";
 import { getAdminServiceSettings, resolveAtlas, resolveMapMatching } from "./serviceSettingsService.js";
 
 const TIMEOUT_MS = 20_000;
@@ -128,6 +129,63 @@ export async function routeBetween(from, to, client) {
 export const DEFAULT_GAP_METERS = 250;
 export const MAX_ROUTED_GAPS = 60;
 const PARALLEL_REQUESTS = 4;
+// Kehrtwende: Strecke kommt bis auf so viele Meter an eine frühere Stelle zurück …
+const DOUBLE_BACK_NEAR = 40;
+// … nachdem sie dazwischen mindestens so weit gefahren ist (Kreisverkehre bleiben darunter)
+const DOUBLE_BACK_MIN_PATH = 300;
+// Annahme für Zeitstempel beim Nach-Matchen (Punkte ohne eigene Zeit)
+const ASSUMED_SPEED_MPS = 14;
+
+/**
+ * Fährt die Strecke hin und wieder zurück? Typisch, wenn ein GPS-Punkt auf der Gegenfahrbahn
+ * einer getrennten Fahrbahn liegt: der Router fährt vorbei, wendet und kommt zurück.
+ * coordinates: [[lat, lon], …]
+ */
+export function doublesBack(coordinates) {
+  // Lange Geometrien ausdünnen, damit die Prüfung quadratisch bleibt, aber schnell
+  const step = Math.max(1, Math.ceil(coordinates.length / 800));
+  const pts = coordinates.filter((_, i) => i % step === 0 || i === coordinates.length - 1).map(([lat, lon]) => ({ lat, lon }));
+  const along = [0];
+  for (let i = 1; i < pts.length; i++) along.push(along[i - 1] + haversineDistance(pts[i - 1], pts[i]));
+  for (let a = 0; a < pts.length; a++) {
+    for (let b = a + 2; b < pts.length; b++) {
+      if (along[b] - along[a] < DOUBLE_BACK_MIN_PATH) continue;
+      if (haversineDistance(pts[a], pts[b]) < DOUBLE_BACK_NEAR) return true;
+    }
+  }
+  return false;
+}
+
+function nearestIndex(coordinates, point, from = 0) {
+  let best = -1;
+  let bestDistance = Infinity;
+  for (let i = from; i < coordinates.length; i++) {
+    const distance = haversineDistance({ lat: coordinates[i][0], lon: coordinates[i][1] }, point);
+    if (distance < bestDistance) { best = i; bestDistance = distance; }
+  }
+  return best;
+}
+
+/**
+ * Abschnitt mit Kehrtwende neu legen: die Nachbarpunkte per Map-Matching gemeinsam auf die
+ * Straße bringen. Map-Matching wählt eine durchgehend befahrbare Spur und setzt den Punkt so auf
+ * die Fahrbahn in Fahrtrichtung. Liefert die Geometrie zwischen Punkt i und i+1 oder null.
+ */
+async function rematchLeg(points, i, client) {
+  const window = points.slice(Math.max(0, i - 1), Math.min(points.length, i + 3));
+  let time = Date.UTC(2000, 0, 1);
+  const shape = window.map((point, k) => {
+    if (k > 0) time += Math.max(1000, (haversineDistance(window[k - 1], point) / ASSUMED_SPEED_MPS) * 1000);
+    return { lat: point.lat, lon: point.lon, time };
+  });
+  const route = await matchShape(shape, client).catch(() => null);
+  if (!route) return null;
+  const from = nearestIndex(route, points[i]);
+  const to = nearestIndex(route, points[i + 1], from + 1);
+  if (from < 0 || to <= from) return null;
+  const leg = route.slice(from, to + 1);
+  return leg.length >= 2 && !doublesBack(leg) ? leg : null;
+}
 
 /** Indizes i, bei denen zwischen Punkt i und i+1 eine Lücke über gapMeters liegt. */
 export function findPathGaps(points, gapMeters = DEFAULT_GAP_METERS) {
@@ -163,6 +221,17 @@ export async function routePath(points, { gapMeters = DEFAULT_GAP_METERS, client
     });
   }
 
+  // Abschnitte mit Kehrtwende per Map-Matching nachbessern (sonst bleibt die Router-Strecke)
+  const doubled = [...fills.entries()].filter(([, coordinates]) => doublesBack(coordinates)).map(([i]) => i);
+  let corrected = 0;
+  for (let start = 0; start < doubled.length; start += PARALLEL_REQUESTS) {
+    const batch = doubled.slice(start, start + PARALLEL_REQUESTS);
+    const legs = await Promise.all(batch.map((i) => rematchLeg(points, i, client)));
+    legs.forEach((leg, offset) => {
+      if (leg) { fills.set(batch[offset], leg); corrected += 1; }
+    });
+  }
+
   const path = [];
   points.forEach((point, index) => {
     path.push({ lat: point.lat, lon: point.lon, index });
@@ -180,6 +249,9 @@ export async function routePath(points, { gapMeters = DEFAULT_GAP_METERS, client
     gapCount: gaps.length,
     routedGaps: fills.size,
     failedGaps: failed.length,
+    // Additiv: Abschnitte mit Kehrtwende, davon per Map-Matching korrigiert
+    uTurnGaps: doubled.length,
+    correctedGaps: corrected,
     path,
   };
 }

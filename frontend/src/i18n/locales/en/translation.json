@@ -308,6 +308,19 @@
     }
   },
   "tripEditor": {
+    "selection": {
+      "title": "{count} points selected",
+      "hint": "The green line connects the selected points in their order – so you can see where it jumps back and forth.",
+      "remove": "Remove selected ({count})",
+      "clear": "Clear selection"
+    },
+    "timelineZoomIn": "Zoom in timeline",
+    "timelineZoomOut": "Zoom out timeline",
+    "timelineZoomReset": "Whole trip",
+    "timelineSelected": "{count} selected",
+    "legendSelected": "Selected",
+    "timelineHint": "Scroll wheel zooms, drag pans · Shift+click selects a range, Ctrl+click adds · ← → step point by point",
+    "uTurnsFixed": "{count} U-turn(s) corrected via map matching.",
     "plausibility": {
       "check": "Check plausibility",
       "hint": "Marks GPS points in red that make no sense – jumps, wrong times, inaccurate fixes and jitter while standing still.",

@@ -190,6 +190,17 @@ async function matchWithOsrm(matching, points) {
 
 const MATCHERS = { atlas: matchWithAtlas, valhalla: matchWithValhalla, osrm: matchWithOsrm };
 
+/**
+ * Kurze Punktfolge mit dem eingestellten Map-Matching-Dienst auf die Straße legen (ohne Fahrt,
+ * ohne Speichern). Punkte brauchen lat, lon und time (ms). Liefert [[lat, lon], …] oder null.
+ */
+export async function matchShape(points, client) {
+  const matching = resolveMapMatching(await getAdminServiceSettings(client));
+  if (!matching.enabled || points.length < 2) return null;
+  const result = await MATCHERS[matching.provider](matching, points);
+  return result.route?.length >= 2 ? result.route : null;
+}
+
 async function saveResult(client, tripId, userId, provider, values) {
   await client.query(
     `INSERT INTO trip_map_matches (

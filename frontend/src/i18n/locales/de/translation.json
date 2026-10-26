@@ -309,6 +309,19 @@
     }
   },
   "tripEditor": {
+    "selection": {
+      "title": "{count} Punkte ausgewählt",
+      "hint": "Die grüne Linie verbindet die ausgewählten Punkte in ihrer Reihenfolge – so siehst du, wo es hin und her springt.",
+      "remove": "Ausgewählte entfernen ({count})",
+      "clear": "Auswahl aufheben"
+    },
+    "timelineZoomIn": "Zeitachse vergrößern",
+    "timelineZoomOut": "Zeitachse verkleinern",
+    "timelineZoomReset": "Ganze Fahrt",
+    "timelineSelected": "{count} ausgewählt",
+    "legendSelected": "Ausgewählt",
+    "timelineHint": "Mausrad zoomt, ziehen verschiebt · Umschalt+Klick wählt einen Bereich, Strg+Klick ergänzt · ← → gehen Punkt für Punkt",
+    "uTurnsFixed": "{count} Kehrtwende(n) per Map-Matching korrigiert.",
     "plausibility": {
       "check": "Plausibilität prüfen",
       "hint": "Markiert GPS-Punkte rot, die keinen Sinn ergeben – Sprünge, falsche Zeiten, ungenaue Messungen und Zittern im Stand.",
