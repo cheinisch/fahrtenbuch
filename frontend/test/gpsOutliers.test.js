@@ -35,10 +35,31 @@ test("rückwärts laufende Zeit wird markiert", () => {
   assert.ok(reasonsOf(points)[5].includes("time"));
 });
 
-test("ungenauer Punkt wird markiert", () => {
+test("ungenauer Punkt wird nur markiert, wenn er neben der Strecke liegt", () => {
+  const onLine = straight();
+  onLine[3] = { ...onLine[3], accuracy: 180 };
+  assert.deepEqual(checkPlausibility(onLine), []);
+
+  const offLine = straight();
+  offLine[3] = { ...offLine[3], accuracy: 180, lat: 50.0012 }; // ~130 m daneben
+  assert.deepEqual(reasonsOf(offLine), { 3: ["inaccurate"] });
+});
+
+test("Kurve aus lauter ungenauen Punkten (Funkloch, Dawarich) bleibt unauffällig", () => {
+  const start = Date.parse("2026-10-26T08:00:00Z");
+  // Bogen wie im Screenshot: erst nach Westen, dann zurück
+  const bend = [0, -0.0004, -0.0009, -0.0011, -0.0011, -0.0007, -0.0002, 0];
+  const points = bend.map((offset, i) => ({
+    id: `b${i}`, lat: 50.0 + i * 0.0012, lon: 8.0 + offset,
+    recordedAt: new Date(start + i * 12_000).toISOString(), accuracy: 190, origin: "gps",
+  }));
+  assert.deepEqual(checkPlausibility(points), []);
+});
+
+test("minimale Uhrabweichung gilt nicht als rückwärts", () => {
   const points = straight();
-  points[3] = { ...points[3], accuracy: 400 };
-  assert.deepEqual(reasonsOf(points), { 3: ["inaccurate"] });
+  points[5] = { ...points[5], recordedAt: new Date(Date.parse(points[4].recordedAt) - 1_000).toISOString(), lon: points[4].lon + 0.0001 };
+  assert.equal(reasonsOf(points)[5]?.includes("time") ?? false, false);
 });
 
 test("Zittern im Stand: innere Punkte der Wolke werden markiert, nicht Start/Ende", () => {

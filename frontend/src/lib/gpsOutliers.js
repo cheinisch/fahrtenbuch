@@ -25,6 +25,10 @@ export function routeLengthMeters(points) {
 
 const MAX_PLAUSIBLE_SPEED = 70; // m/s ≈ 250 km/h
 const POOR_ACCURACY = 150; // m
+// Ungenaue Punkte erst markieren, wenn sie so weit neben der Linie ihrer Nachbarn liegen
+const OFF_LINE = 75; // m
+// Uhren von App und Dawarich weichen minimal ab – erst darüber gilt die Zeit als rückwärts
+const TIME_TOLERANCE_MS = 2_000;
 // Stillstand: so eng beieinander liegende Punkte gelten als „stehen“
 const STATIONARY_RADIUS = 35; // m
 const STATIONARY_MIN_POINTS = 4;
@@ -39,6 +43,19 @@ function isMeasured(point) {
   return point.origin !== "set" && (point.source == null || point.source === "gps");
 }
 
+/** Abstand eines Punkts zur Strecke a→b in Metern (lokal eben gerechnet, reicht für kurze Abstände). */
+export function offLineMeters(point, a, b) {
+  const scale = Math.cos((point.lat * Math.PI) / 180);
+  const toXY = (p) => ({ x: (p.lon - point.lon) * scale * 111_320, y: (p.lat - point.lat) * 111_320 });
+  const pa = toXY(a);
+  const pb = toXY(b);
+  const dx = pb.x - pa.x;
+  const dy = pb.y - pa.y;
+  const length = dx * dx + dy * dy;
+  const t = length ? Math.max(0, Math.min(1, (-pa.x * dx - pa.y * dy) / length)) : 0;
+  return Math.hypot(pa.x + t * dx, pa.y + t * dy);
+}
+
 function timeMs(point) {
   const value = point.recordedAt ? Date.parse(point.recordedAt) : NaN;
   return Number.isFinite(value) ? value : null;
@@ -50,7 +67,8 @@ function timeMs(point) {
  * - jump: Umweg über den Punkt viel länger als die direkte Verbindung, dafür > 250 km/h nötig
  * - spike: weit weg und fast an derselben Stelle zurück
  * - time: Zeitstempel läuft rückwärts oder ist doppelt bei anderer Position
- * - inaccurate: das Gerät meldet selbst mehr als 150 m Ungenauigkeit
+ * - inaccurate: das Gerät meldet mehr als 150 m Ungenauigkeit und der Punkt liegt über 75 m
+ *   neben der Linie seiner Nachbarn
  * - stationary: GPS-Zittern im Stand (Punkte einer Stillstands-Wolke außer erstem und letztem)
  * Nur Vorschläge; Start- und Endpunkt der Fahrt werden nie markiert.
  */
@@ -68,15 +86,19 @@ export function checkPlausibility(points) {
 
   for (let i = 0; i < measured.length; i += 1) {
     const { point: current, index } = measured[i];
-    if (Number(current.accuracy) > POOR_ACCURACY) flag(index, "inaccurate");
-
     const previous = measured[i - 1]?.point;
     const next = measured[i + 1]?.point;
+
+    // Schlechte Genauigkeit allein reicht nicht: Punkte vor/nach Funklöchern sind fast immer
+    // ungenau, liegen aber oft sauber auf der Strecke. Nur markieren, wenn er daneben liegt.
+    if (Number(current.accuracy) > POOR_ACCURACY && previous && next && offLineMeters(current, previous, next) > OFF_LINE) {
+      flag(index, "inaccurate");
+    }
 
     if (previous) {
       const before = timeMs(previous);
       const now = timeMs(current);
-      if (before != null && now != null && (now < before || (now === before && distanceMeters(previous, current) > 20))) {
+      if (before != null && now != null && (now < before - TIME_TOLERANCE_MS || (now === before && distanceMeters(previous, current) > 20))) {
         flag(index, "time");
       }
     }
