@@ -44,7 +44,8 @@ const NOTICE_GAP_MS = 10 * 60_000;
 const GHOST_RADIUS_PX = 10;
 const ACCENT = "#0ea5e9";
 // Ausgewählte Punkte (Karte und Zeitachse)
-const SELECTED = "#22c55e";
+// Lila: grün ist schon der Startpunkt
+const SELECTED = "#a855f7";
 
 let nextKey = 1;
 const withKey = (point) => ({ ...point, key: nextKey++ });
@@ -1070,8 +1071,8 @@ export default function TripEditor() {
               <OwnPointsList points={points} times={pointTimes} selected={selected} editable={editable} formatTime={formatTime}
                 onSelect={(index) => { setSelected(index); fitTo([points[index]]); }} onMove={moveOwnPoint} />
               {selection.size > 1 && (
-                <section className="flex flex-col gap-2 rounded-xl border border-[#166534] bg-[#052e16] p-3.5">
-                  <h2 className="text-sm font-semibold text-[#86efac]">{t("tripEditor.selection.title", { count: selection.size })}</h2>
+                <section className="flex flex-col gap-2 rounded-xl border border-[#6b21a8] bg-[#2e1065] p-3.5">
+                  <h2 className="text-sm font-semibold text-[#d8b4fe]">{t("tripEditor.selection.title", { count: selection.size })}</h2>
                   <p className="text-xs text-fb-muted">{t("tripEditor.selection.hint")}</p>
                   <div className="flex flex-wrap gap-2">
                     {editable && (

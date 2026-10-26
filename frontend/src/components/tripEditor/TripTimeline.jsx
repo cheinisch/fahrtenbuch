@@ -8,7 +8,8 @@ const ZOOM_STEP = 2;
 const TICK_SPACING_PX = 110;
 // Unterhalb dieser sichtbaren Spanne zeigen die Marken Sekunden
 const SECONDS_BELOW_MS = 15 * 60_000;
-const SELECTED = "#22c55e";
+// Lila: grün ist schon der Startpunkt
+const SELECTED = "#a855f7";
 
 /**
  * Zeitachse der Fahrt: wann welche Punkte liegen (gesetzte mit geschätzter Zeit) und wo GPS
@@ -115,7 +116,7 @@ export default function TripTimeline({ points, times, startMs, endMs, gaps, sele
             {zoom > 1 && <span className="ml-1 text-xs text-fb-muted">{Math.round(zoom * 10) / 10}×</span>}
           </span>
           {selection.size > 1 && (
-            <span className="text-xs font-semibold text-[#86efac]">{t("tripEditor.timelineSelected", { count: selection.size })}</span>
+            <span className="text-xs font-semibold text-[#d8b4fe]">{t("tripEditor.timelineSelected", { count: selection.size })}</span>
           )}
         </span>
         <span className="flex flex-wrap gap-4 text-xs text-fb-muted">
@@ -138,7 +139,7 @@ export default function TripTimeline({ points, times, startMs, endMs, gaps, sele
           <div className="relative mx-2 h-[34px]">
             <div className="absolute inset-x-0 top-3.5 h-1.5 rounded-[3px] bg-[#2c2c2c]" />
             {rangeFrom != null && (
-              <div className="absolute top-3 h-2.5 rounded-[3px]" style={{ left: `${percent(rangeFrom)}%`, width: `${Math.max(0.2, percent(rangeTo) - percent(rangeFrom))}%`, background: "rgba(34,197,94,0.35)" }} />
+              <div className="absolute top-3 h-2.5 rounded-[3px]" style={{ left: `${percent(rangeFrom)}%`, width: `${Math.max(0.2, percent(rangeTo) - percent(rangeFrom))}%`, background: "rgba(168,85,247,0.35)" }} />
             )}
             {gaps.map((gap) => (
               <div key={gap.from} className="absolute top-3 h-2.5 rounded-[3px] bg-[repeating-linear-gradient(135deg,rgba(251,191,36,0.55)_0_4px,transparent_4px_8px)]"
@@ -161,7 +162,7 @@ export default function TripTimeline({ points, times, startMs, endMs, gaps, sele
                   aria-pressed={isSelected}
                   title={`#${index + 1} · ${formatTime(times[index], true)}`}
                   onClick={(event) => onSelect(index, { range: event.shiftKey, toggle: event.ctrlKey || event.metaKey })}
-                  className={`absolute rounded-full ${isPrimary ? "border-[3px] shadow-[0_0_0_4px_rgba(34,197,94,0.4)]" : "border-2"} ${color}`}
+                  className={`absolute rounded-full ${isPrimary ? "border-[3px] shadow-[0_0_0_4px_rgba(168,85,247,0.45)]" : "border-2"} ${color}`}
                   style={{
                     left: `calc(${percent(times[index])}% - ${size / 2}px)`,
                     top: `${17 - size / 2}px`,

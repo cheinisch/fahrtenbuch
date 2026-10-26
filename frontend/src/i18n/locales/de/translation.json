@@ -311,7 +311,7 @@
   "tripEditor": {
     "selection": {
       "title": "{count} Punkte ausgewählt",
-      "hint": "Die grüne Linie verbindet die ausgewählten Punkte in ihrer Reihenfolge – so siehst du, wo es hin und her springt.",
+      "hint": "Die lila Linie verbindet die ausgewählten Punkte in ihrer Reihenfolge – so siehst du, wo es hin und her springt.",
       "remove": "Ausgewählte entfernen ({count})",
       "clear": "Auswahl aufheben"
     },

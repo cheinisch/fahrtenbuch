@@ -310,7 +310,7 @@
   "tripEditor": {
     "selection": {
       "title": "{count} points selected",
-      "hint": "The green line connects the selected points in their order – so you can see where it jumps back and forth.",
+      "hint": "The purple line connects the selected points in their order – so you can see where it jumps back and forth.",
       "remove": "Remove selected ({count})",
       "clear": "Clear selection"
     },
