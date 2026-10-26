@@ -1276,6 +1276,30 @@ tripRoutes.put(
   }),
 );
 
+// Archived trips remain recoverable for 90 days.
+// Muss vor GET /:id stehen, sonst wird „archive“ als Fahrt-ID gelesen.
+tripRoutes.get(
+  "/archive",
+  asyncHandler(async (request, response) => {
+    const result = await pool.query(
+      `SELECT ${TRIP_WITH_TAGS_SELECT}
+       FROM trips t
+       INNER JOIN vehicles v ON v.id = t.vehicle_id
+       LEFT JOIN trip_tags tt ON tt.trip_id = t.id AND tt.user_id = t.user_id
+       LEFT JOIN tags tag ON tag.id = tt.tag_id AND tag.user_id = t.user_id
+       WHERE t.user_id = $1 AND t.archived_at IS NOT NULL
+       GROUP BY t.id, v.id
+       ORDER BY t.archived_at DESC`,
+      [request.auth.userId],
+    );
+    response.json(result.rows.map((row) => ({
+      ...mapTrip(row),
+      archivedAt: row.archived_at,
+      purgeAt: new Date(new Date(row.archived_at).getTime() + 90 * 86400000).toISOString(),
+    })));
+  }),
+);
+
 tripRoutes.get(
   "/:id",
   asyncHandler(async (request, response) => {
@@ -1440,28 +1464,6 @@ tripRoutes.put(
   }),
 );
 
-// Archived trips remain recoverable for 90 days.
-tripRoutes.get(
-  "/archive",
-  asyncHandler(async (request, response) => {
-    const result = await pool.query(
-      `SELECT ${TRIP_WITH_TAGS_SELECT}
-       FROM trips t
-       INNER JOIN vehicles v ON v.id = t.vehicle_id
-       LEFT JOIN trip_tags tt ON tt.trip_id = t.id AND tt.user_id = t.user_id
-       LEFT JOIN tags tag ON tag.id = tt.tag_id AND tag.user_id = t.user_id
-       WHERE t.user_id = $1 AND t.archived_at IS NOT NULL
-       GROUP BY t.id, v.id
-       ORDER BY t.archived_at DESC`,
-      [request.auth.userId],
-    );
-    response.json(result.rows.map((row) => ({
-      ...mapTrip(row),
-      archivedAt: row.archived_at,
-      purgeAt: new Date(new Date(row.archived_at).getTime() + 90 * 86400000).toISOString(),
-    })));
-  }),
-);
 
 tripRoutes.post(
   "/:id/restore",
