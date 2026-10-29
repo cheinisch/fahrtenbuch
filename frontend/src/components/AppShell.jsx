@@ -26,6 +26,7 @@ import { useI18n } from "../i18n/I18nProvider.jsx";
 import { useFeatures } from "../lib/features.jsx";
 import { GRAVATAR_SETTING_EVENT, gravatarUrl } from "../lib/gravatar.js";
 import MonthlyOdometerPrompt from "./MonthlyOdometerPrompt.jsx";
+import { withBasePath } from "../lib/basePath.js";
 
 const NAV_ITEMS = [
   { to: "/", key: "nav.dashboard", end: true },
@@ -126,7 +127,7 @@ export default function AppShell() {
       <Disclosure as="header" className="relative z-40 border-b border-fb-border bg-fb-main">
         <div className="flex h-[4.5rem] items-center gap-7 px-4 sm:px-6">
           <NavLink to="/" className="flex shrink-0 items-center gap-2.5 text-[17px] font-bold text-fb-text" aria-label={`Fahrtenbuch ${t("nav.dashboard")}`}>
-            <img src="/fahrtenbuch-logo.svg" alt="" className="size-[34px] rounded-[9px] object-cover" />
+            <img src={withBasePath("/fahrtenbuch-logo.svg")} alt="" className="size-[34px] rounded-[9px] object-cover" />
             Fahrtenbuch
           </NavLink>
 

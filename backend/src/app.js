@@ -46,6 +46,7 @@ import {
   notFoundHandler,
 } from "./middleware/errorHandler.js";
 import { requestContext } from "./middleware/requestContext.js";
+import { injectBaseHref, stripBasePath } from "./lib/basePath.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const backendDirectory = path.resolve(currentDirectory, "..");
@@ -64,6 +65,8 @@ if (config.trustProxy) {
   app.set("trust proxy", 1);
 }
 
+// Muss vor allen Routen laufen: Requests unter dem Unterpfad werden auf "/" umgeschrieben
+app.use(stripBasePath(config.basePath));
 app.use(requestContext);
 app.use(
   helmet({
@@ -242,7 +245,7 @@ if (showApiUi && openApiPath) {
   <script>
     window.onload = function () {
       SwaggerUIBundle({
-        url: "/api/v1/openapi.yml",
+        url: "${config.basePath}/api/v1/openapi.yml",
         dom_id: "#swagger-ui",
         deepLinking: true,
         displayRequestDuration: true,
@@ -275,9 +278,18 @@ if (fs.existsSync(config.staticDirectory)) {
     }),
   );
 
-  app.get("/{*splat}", (_request, response) => {
+  // index.html bekommt <base href> mit dem Unterpfad; einmal gelesen reicht, die Datei ändert sich zur Laufzeit nicht.
+  const indexPath = path.join(config.staticDirectory, "index.html");
+  let indexHtml = null;
+
+  app.get("/{*splat}", (_request, response, next) => {
+    try {
+      indexHtml ??= injectBaseHref(fs.readFileSync(indexPath, "utf8"), config.basePath);
+    } catch (error) {
+      return next(error);
+    }
     response.setHeader("Cache-Control", "no-cache");
-    response.sendFile(path.join(config.staticDirectory, "index.html"));
+    response.type("html").send(indexHtml);
   });
 } else {
   app.get("/", (_request, response) => {

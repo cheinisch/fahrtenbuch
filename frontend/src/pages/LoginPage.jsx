@@ -16,9 +16,10 @@ import { useAuth } from "../auth/AuthProvider.jsx";
 import AuthLayout, { authInputClass, authPrimaryButtonClass } from "../components/AuthLayout.jsx";
 import { useI18n } from "../i18n/I18nProvider.jsx";
 import { codeKey } from "../i18n/translate.js";
+import { scopedStorageKey } from "../lib/basePath.js";
 
 // Überlebt die Weiterleitung zum Anbieter und zurück
-const OAUTH_PENDING_KEY = "fahrtenbuch.oauthPending";
+const OAUTH_PENDING_KEY = scopedStorageKey("fahrtenbuch.oauthPending");
 
 function readOAuthPending() {
   try {

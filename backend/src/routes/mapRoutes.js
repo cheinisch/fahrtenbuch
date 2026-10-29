@@ -2,6 +2,7 @@ import { Router } from "express";
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { config } from "../config.js";
 import { pool } from "../database/pool.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
@@ -430,7 +431,7 @@ mapRoutes.get(
       ...tileJson,
       tiles: tileJson.tiles.map(
         (_template, index) =>
-          `/api/v1/map/protomaps/tiles/${index}/{z}/{x}/{y}`,
+          `${config.basePath}/api/v1/map/protomaps/tiles/${index}/{z}/{x}/{y}`,
       ),
     });
   }),
