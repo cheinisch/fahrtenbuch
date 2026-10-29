@@ -1,6 +1,8 @@
 import { pool } from "../database/pool.js";
 import { badRequest } from "../lib/errors.js";
 import { isGravatarEnabled, isMailConfigured } from "./systemSettingsService.js";
+import { config } from "../config.js";
+import { readAiSettings, resolveAi } from "./aiSettingsService.js";
 import { getAdminServiceSettings, resolveMapMatching } from "./serviceSettingsService.js";
 
 const DEFAULT_USER_SETTINGS = Object.freeze({
@@ -83,6 +85,11 @@ export function mapUserSettings(row) {
     // Dienst eingerichtet hat – wird in withAvailability ergänzt.
     mapMatchingEnabled: mapMatchingSetting(customSettings),
     mapMatchingAvailable: false,
+    // Fahrtart per KI vorschlagen (Standard: aus – Adressen und Zeiten gehen an den KI-Anbieter).
+    // Verfügbar nur mit Feature-Flag und eingerichtetem Anbieter – wird in withAvailability ergänzt.
+    aiClassificationEnabled: customSettings.aiClassificationEnabled === true,
+    aiClassificationAvailable: false,
+    aiClassificationProvider: null,
 
     customSettings,
 
@@ -113,7 +120,20 @@ async function withAvailability(settings, client = pool) {
   } catch (error) {
     console.warn("Map-Matching-Verfügbarkeit nicht ermittelbar:", error.message);
   }
-  return { ...settings, mapMatchingAvailable: available };
+  let ai = { enabled: false, provider: null };
+  if (config.features.aiClassification) {
+    try {
+      ai = resolveAi(await readAiSettings(client));
+    } catch (error) {
+      console.warn("KI-Verfügbarkeit nicht ermittelbar:", error.message);
+    }
+  }
+  return {
+    ...settings,
+    mapMatchingAvailable: available,
+    aiClassificationAvailable: ai.enabled,
+    aiClassificationProvider: ai.enabled ? ai.provider : null,
+  };
 }
 
 export async function getUserSettings(
@@ -152,6 +172,10 @@ export async function updateUserSettings(
     throw badRequest("VALIDATION_ERROR", "mapMatchingEnabled muss true oder false sein.");
   }
 
+  if (input.aiClassificationEnabled !== undefined && typeof input.aiClassificationEnabled !== "boolean") {
+    throw badRequest("VALIDATION_ERROR", "aiClassificationEnabled muss true oder false sein.");
+  }
+
   if (input.mapStyle !== undefined && !MAP_STYLES.includes(input.mapStyle)) {
     throw badRequest("VALIDATION_ERROR", `mapStyle muss einer der Werte ${MAP_STYLES.join(", ")} sein.`);
   }
@@ -169,6 +193,8 @@ export async function updateUserSettings(
     "gravatarAvailable",
     "monthlyReportAvailable",
     "mapMatchingAvailable",
+    "aiClassificationAvailable",
+    "aiClassificationProvider",
   ]);
 
   const customInput = isObject(

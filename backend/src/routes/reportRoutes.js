@@ -7,6 +7,7 @@ import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { deliverMonthlyReport } from "../services/monthlyReportDelivery.js";
 import { buildMonthlyReport } from "../services/monthlyReportService.js";
+import { bestSuggestions } from "../services/tripClassificationService.js";
 import { isMailConfigured } from "../services/systemSettingsService.js";
 
 export const reportRoutes = Router();
@@ -17,7 +18,13 @@ reportRoutes.use(requireAuth);
 reportRoutes.get(
   "/monthly",
   asyncHandler(async (request, response) => {
-    response.json(await buildMonthlyReport(request.auth.userId, request.query.month));
+    const report = await buildMonthlyReport(request.auth.userId, request.query.month);
+    // Nur in der Web-App: Vorschlag je offener Fahrt (bekannte Orte, Historie, KI) – die Mail bleibt gleich
+    if (config.features.aiClassification && report.openTrips?.length) {
+      const suggestions = await bestSuggestions(request.auth.userId, report.openTrips.map((trip) => trip.id));
+      report.openTrips = report.openTrips.map((trip) => ({ ...trip, suggestion: suggestions[trip.id] || null }));
+    }
+    response.json(report);
   }),
 );
 

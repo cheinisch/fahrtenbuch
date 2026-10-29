@@ -16,6 +16,8 @@ import {
   mergeTrips,
   splitTrip,
   getTripSuggestions,
+  requestAiTripSuggestion,
+  dismissAiTripSuggestion,
   removeTripPoints,
   getDawarichConnection,
   importTripPointsFromDawarich,
@@ -32,7 +34,7 @@ import {
 } from "../api/app.js";
 import { normalizePoints, routeLengthMeters, suggestOutliers } from "../lib/gpsOutliers.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { useI18n } from "../i18n/I18nProvider.jsx";
 import { codeKey } from "../i18n/translate.js";
@@ -338,6 +340,8 @@ export default function Dashboard() {
   const [mobileDetailsExpanded, setMobileDetailsExpanded] = useState(false);
   const [tripAction, setTripAction] = useState({ busy: false, error: "", splitPoints: null });
   const [suggestions, setSuggestions] = useState([]);
+  // KI-Status der gewählten Fahrt: verfügbar, im Profil eingeschaltet, none|suggested|uncertain|dismissed
+  const [aiSuggest, setAiSuggest] = useState({ available: false, enabled: false, status: "none", busy: false, error: "" });
   const [mapMode, setMapMode] = useState(null);
   const [hoveredSplitPointId, setHoveredSplitPointId] = useState(null);
   const [selectedSplitPointId, setSelectedSplitPointId] = useState(null);
@@ -1096,8 +1100,9 @@ export default function Dashboard() {
       .then((drivers) => setDriverAssignment({ loading: false, drivers, selected: "", reason: "" }))
       .catch(() => setDriverAssignment({ loading: false, drivers: [], selected: "", reason: "" }));
     setMapMode(null);
+    setAiSuggest({ available: false, enabled: false, status: "none", busy: false, error: "" });
     getTripSuggestions(accessToken, trip.id)
-      .then((result) => setSuggestions(result.suggestions || []))
+      .then(applySuggestionResult)
       .catch(() => setSuggestions([]));
 
     const coordinates = trip.route.map(
@@ -1355,6 +1360,30 @@ export default function Dashboard() {
       selectedTrip.vehicle?.businessReimbursementRateEur != null
     ) {
       setEditRate(String(selectedTrip.vehicle.businessReimbursementRateEur));
+    }
+  }
+
+  function applySuggestionResult(result) {
+    setSuggestions(result?.suggestions || []);
+    setAiSuggest((current) => ({ ...current, ...(result?.ai || { available: false, enabled: false, status: "none" }), busy: false }));
+  }
+
+  async function askAiForTrip() {
+    if (!selectedTrip) return;
+    setAiSuggest((current) => ({ ...current, busy: true, error: "" }));
+    try {
+      applySuggestionResult(await requestAiTripSuggestion(accessToken, selectedTrip.id));
+    } catch (error) {
+      setAiSuggest((current) => ({ ...current, busy: false, error: error.message }));
+    }
+  }
+
+  async function dismissAiForTrip() {
+    if (!selectedTrip) return;
+    try {
+      applySuggestionResult(await dismissAiTripSuggestion(accessToken, selectedTrip.id));
+    } catch (error) {
+      setAiSuggest((current) => ({ ...current, error: error.message }));
     }
   }
 
@@ -1781,20 +1810,61 @@ export default function Dashboard() {
                   </div>
                 </fieldset>
 
-                {suggestions.slice(0, 3).map((suggestion, index) => (
-                  <div key={index} className="flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-fb-accent-soft">
-                    <svg aria-hidden="true" viewBox="0 0 24 24" className="mt-0.5 size-[18px] shrink-0 text-fb-accent-strong" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8 9.5 8z" /></svg>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-fb-accent-strong">{t("dashboard.suggestionTitle")}: {tripTypeLabel(t, suggestion.type)}</div>
-                      <div className="mt-0.5 text-fb-muted">{suggestion.reason}</div>
+                {suggestions.slice(0, 3).map((suggestion, index) => {
+                  const source = suggestion.source || "places";
+                  const reason = source === "history"
+                    ? t("dashboard.suggestion.historyReason", { count: suggestion.historyCount, total: suggestion.historyTotal, type: tripTypeLabel(t, suggestion.type) })
+                    : suggestion.reason;
+                  return (
+                    <div key={index} className="flex items-start gap-2.5 rounded-lg border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-fb-accent-soft">
+                      <svg aria-hidden="true" viewBox="0 0 24 24" className="mt-0.5 size-[18px] shrink-0 text-fb-accent-strong" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8 9.5 8z" /></svg>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-fb-accent-strong">{t("dashboard.suggestionTitle")}: {tripTypeLabel(t, suggestion.type)}</div>
+                        <div className="mt-0.5 text-fb-muted">{reason}</div>
+                        <div className="mt-1 text-xs text-fb-muted">
+                          {source === "ai"
+                            ? t("dashboard.suggestion.sourceAi", { provider: t(`aiSettings.providers.${suggestion.provider}`) })
+                            : t(`dashboard.suggestion.source${source === "history" ? "History" : "Places"}`)}
+                          {suggestion.confidence != null && ` · ${t("dashboard.suggestion.confidence", { percent: Math.round(suggestion.confidence * 100) })}`}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {editCategory !== suggestion.type && (
+                          <button type="button" onClick={() => changeEditCategory(suggestion.type)} className="text-xs font-semibold text-fb-accent-strong hover:underline">
+                            {t("dashboard.applySuggestion")}
+                          </button>
+                        )}
+                        {source === "ai" && (
+                          <button type="button" onClick={dismissAiForTrip} className="text-xs text-fb-muted hover:underline">
+                            {t("dashboard.suggestion.dismiss")}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    {editCategory !== suggestion.type && (
-                      <button type="button" onClick={() => changeEditCategory(suggestion.type)} className="shrink-0 text-xs font-semibold text-fb-accent-strong hover:underline">
-                        {t("dashboard.applySuggestion")}
+                  );
+                })}
+
+                {aiSuggest.available && selectedTrip.status === "completed" && !suggestions.some((suggestion) => suggestion.source === "ai") && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-fb-border p-3">
+                    <span className="min-w-0 flex-1 text-xs text-fb-muted">
+                      {!aiSuggest.enabled
+                        ? t("dashboard.suggestion.aiOff")
+                        : aiSuggest.status === "uncertain"
+                          ? t("dashboard.suggestion.aiUncertain")
+                          : aiSuggest.status === "dismissed"
+                            ? t("dashboard.suggestion.aiDismissed")
+                            : t("dashboard.suggestion.aiNone")}
+                    </span>
+                    {aiSuggest.enabled ? (
+                      <button type="button" disabled={aiSuggest.busy} onClick={askAiForTrip} className="min-h-9 rounded-lg border border-fb-border px-3 text-xs font-semibold hover:border-fb-accent disabled:opacity-60">
+                        {aiSuggest.busy ? t("dashboard.suggestion.aiAsking") : t("dashboard.suggestion.aiAsk")}
                       </button>
+                    ) : (
+                      <Link to="/profilesettings#aiClassification" className="text-xs font-semibold text-fb-accent-strong hover:underline">{t("dashboard.suggestion.aiEnable")}</Link>
                     )}
+                    {aiSuggest.error && <p role="alert" className="w-full text-xs text-fb-danger">{aiSuggest.error}</p>}
                   </div>
-                ))}
+                )}
 
                 {editError && <p role="alert" className="text-fb-danger">{editError}</p>}
                 <button type="button" disabled={editBusy} onClick={saveTripDetails} className={`${primaryButton} w-full`}>

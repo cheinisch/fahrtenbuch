@@ -10,10 +10,8 @@ function haversineMeters(aLat, aLon, bLat, bLon) {
   return 2 * r * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-export async function getLocationSuggestions(userId, trip) {
-  if (trip.start_lat == null || trip.start_lon == null || trip.end_lat == null || trip.end_lon == null) {
-    return [];
-  }
+/** Zuhause, Arbeitsort und gespeicherte Orte des Nutzers mit Erkennungsradius. */
+export async function loadKnownLocations(userId) {
   const [settingsResult, placesResult] = await Promise.all([
     pool.query(`SELECT settings FROM user_settings WHERE user_id=$1`, [userId]),
     pool.query(`SELECT * FROM saved_places WHERE user_id=$1 ORDER BY lower(name)`, [userId]),
@@ -30,10 +28,24 @@ export async function getLocationSuggestions(userId, trip) {
       suggested_type: p.suggested_type, purpose: p.purpose, contact: p.contact,
     });
   }
-  const near = (lat, lon, location) =>
-    haversineMeters(Number(lat), Number(lon), Number(location.latitude), Number(location.longitude)) <= Number(location.radius_meters || defaultRadius);
-  const start = locations.filter((p) => near(trip.start_lat, trip.start_lon, p));
-  const end = locations.filter((p) => near(trip.end_lat, trip.end_lon, p));
+  return { locations, defaultRadius };
+}
+
+/** Bekannte Orte, in deren Radius die Koordinate liegt. */
+export function locationsNear(lat, lon, { locations, defaultRadius }) {
+  if (lat == null || lon == null) return [];
+  return locations.filter((location) =>
+    haversineMeters(Number(lat), Number(lon), Number(location.latitude), Number(location.longitude))
+      <= Number(location.radius_meters || defaultRadius));
+}
+
+export async function getLocationSuggestions(userId, trip) {
+  if (trip.start_lat == null || trip.start_lon == null || trip.end_lat == null || trip.end_lon == null) {
+    return [];
+  }
+  const known = await loadKnownLocations(userId);
+  const start = locationsNear(trip.start_lat, trip.start_lon, known);
+  const end = locationsNear(trip.end_lat, trip.end_lon, known);
   const suggestions = [];
   for (const s of start) for (const e of end) {
     let type = e.suggested_type || null;
@@ -42,6 +54,8 @@ export async function getLocationSuggestions(userId, trip) {
     if (type) suggestions.push({
       type, reason, startPlace: s, endPlace: e,
       purpose: e.purpose || null, contact: e.contact || null,
+      // Additiv: Herkunft des Vorschlags (places | history | ai)
+      source: "places",
     });
   }
   return suggestions;

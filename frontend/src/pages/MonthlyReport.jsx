@@ -315,6 +315,16 @@ export default function MonthlyReport() {
                       <span className="block text-xs text-fb-muted">
                         {trip.vehicleName} · {trip.localStart.slice(11, 16)}–{trip.localEnd ? trip.localEnd.slice(11, 16) : ""} · {format.distance(trip.distanceKm, 1)}
                       </span>
+                      {trip.suggestion && (
+                        <span className="mt-0.5 block text-xs text-fb-accent-strong">
+                          {t("monthlyReport.open.suggestion", { type: t(`monthlyReport.categories.${trip.suggestion.type}`) })}
+                          {" – "}
+                          {trip.suggestion.source === "history"
+                            ? t("dashboard.suggestion.historyReason", { count: trip.suggestion.historyCount, total: trip.suggestion.historyTotal, type: t(`monthlyReport.categories.${trip.suggestion.type}`) })
+                            : trip.suggestion.reason}
+                          {trip.suggestion.source === "ai" && ` (${t("dashboard.suggestion.sourceAi", { provider: t(`aiSettings.providers.${trip.suggestion.provider}`) })})`}
+                        </span>
+                      )}
                     </span>
                     <span className="flex gap-1.5">
                       {["business", "private", "commute"].map((category) => (
@@ -323,7 +333,8 @@ export default function MonthlyReport() {
                           type="button"
                           disabled={busyTrip === trip.id}
                           onClick={() => assign(trip, category)}
-                          className="min-h-9 rounded-lg border border-fb-border px-2.5 text-xs font-semibold hover:border-fb-accent disabled:opacity-50"
+                          // Vorgeschlagene Kategorie hervorheben – zugeordnet wird erst per Klick
+                          className={`min-h-9 rounded-lg border px-2.5 text-xs font-semibold hover:border-fb-accent disabled:opacity-50 ${trip.suggestion?.type === category ? "border-fb-accent bg-fb-accent-soft text-fb-accent-strong" : "border-fb-border"}`}
                         >
                           {t(`monthlyReport.categories.${category}`)}
                         </button>

@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { timeZoneField } from "../lib/timezone.js";
 
+import { config } from "../config.js";
 import { pool } from "../database/pool.js";
 import {
   badRequest,
   notFound,
+  serviceUnavailable,
 } from "../lib/errors.js";
 import {
   mapTrackPoint,
@@ -31,7 +33,11 @@ import {
   replaceTripTags,
   TRIP_WITH_TAGS_SELECT,
 } from "../services/tripService.js";
-import { getLocationSuggestions } from "../services/tripSuggestionService.js";
+import {
+  dismissAiSuggestion,
+  generateAiSuggestion,
+  getTripSuggestions,
+} from "../services/tripClassificationService.js";
 import { importTripPointsFromDawarich } from "../services/dawarichService.js";
 import { recalculateTripRoute, saveTripRoute } from "../services/tripEditorService.js";
 
@@ -842,7 +848,47 @@ tripRoutes.get(
     const tripId = uuidValue(request.params.id);
     const trip = await getOwnedTrip(pool, request.auth.userId, tripId, { includeTags: false });
     if (!trip) throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
-    response.json({ suggestions: await getLocationSuggestions(request.auth.userId, trip) });
+    response.json(await getTripSuggestions(request.auth.userId, trip));
+  }),
+);
+
+// KI-Vorschlag zur Fahrtart jetzt anfordern (z. B. für ältere Fahrten) – nur ein Vorschlag
+tripRoutes.post(
+  "/:id/suggestions/ai",
+  asyncHandler(async (request, response) => {
+    if (!config.features.aiClassification) {
+      throw notFound("FEATURE_DISABLED", "KI-Vorschläge sind auf diesem Server nicht aktiviert.");
+    }
+    const tripId = uuidValue(request.params.id);
+    const trip = await getOwnedTrip(pool, request.auth.userId, tripId, { includeTags: false });
+    if (!trip) throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+    let result;
+    try {
+      result = await generateAiSuggestion(request.auth.userId, tripId, { force: true });
+    } catch (error) {
+      throw serviceUnavailable("AI_FAILED", error.message || "Die KI konnte keinen Vorschlag machen.");
+    }
+    if (result.status === "unavailable") {
+      throw badRequest("AI_NOT_CONFIGURED", "Es ist kein KI-Anbieter eingerichtet.");
+    }
+    if (result.status === "disabledByUser") {
+      throw badRequest("AI_DISABLED_BY_USER", "KI-Vorschläge sind in deinem Profil ausgeschaltet.");
+    }
+    if (result.status === "skipped") {
+      throw badRequest("TRIP_NOT_COMPLETED", "Nur abgeschlossene Fahrten lassen sich einordnen.");
+    }
+    response.json(await getTripSuggestions(request.auth.userId, trip));
+  }),
+);
+
+tripRoutes.post(
+  "/:id/suggestions/ai/dismiss",
+  asyncHandler(async (request, response) => {
+    const tripId = uuidValue(request.params.id);
+    const trip = await getOwnedTrip(pool, request.auth.userId, tripId, { includeTags: false });
+    if (!trip) throw notFound("TRIP_NOT_FOUND", "Die Fahrt wurde nicht gefunden.");
+    await dismissAiSuggestion(request.auth.userId, tripId);
+    response.json(await getTripSuggestions(request.auth.userId, trip));
   }),
 );
 

@@ -3084,11 +3084,52 @@ paths:
   /trips/{id}/suggestions:
     get:
       tags: [Trips]
-      summary: Get location-based classification suggestions
+      summary: Get classification suggestions
+      description: >-
+        Vorschläge zur Fahrtart. source places = bekannte Orte (Zuhause, Arbeitsort, gespeicherte Orte),
+        history = gleiche Strecke wurde schon mehrfach gleich eingeordnet, ai = gespeicherter KI-Vorschlag.
+        Nur Vorschläge – eingeordnet wird über PUT /trips/{id}/classify. history und ai nur mit Feature aiClassification.
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: Vorschläge }
+        '200':
+          description: Vorschläge
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripSuggestions' }
+
+  /trips/{id}/suggestions/ai:
+    post:
+      tags: [Trips]
+      summary: Ask the configured AI provider for a classification suggestion now
+      description: >-
+        Fragt den KI-Anbieter (Claude, OpenAI oder Ollama) sofort, auch erneut. Sendet Adressen, Zeiten,
+        bekannte Orte und die letzten eingeordneten Fahrten – keine GPS-Spur. Erfordert Feature aiClassification,
+        einen eingerichteten Anbieter und aiClassificationEnabled in den Nutzereinstellungen.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Aktualisierte Vorschläge
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripSuggestions' }
+        '400': { description: AI_NOT_CONFIGURED, AI_DISABLED_BY_USER oder TRIP_NOT_COMPLETED }
+        '404': { description: FEATURE_DISABLED oder TRIP_NOT_FOUND }
+        '503': { description: AI_FAILED – der Anbieter war nicht erreichbar oder antwortete unbrauchbar }
+
+  /trips/{id}/suggestions/ai/dismiss:
+    post:
+      tags: [Trips]
+      summary: Dismiss the AI classification suggestion of a trip
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Aktualisierte Vorschläge
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripSuggestions' }
 
   /trips/{id}/route-correction:
     post:
@@ -3662,6 +3703,21 @@ components:
           type: boolean
           readOnly: true
           description: True when an administrator has set up a map matching service (Valhalla, OSRM or Dawarich Atlas).
+        aiClassificationEnabled:
+          type: boolean
+          default: false
+          description: >-
+            Let the AI provider suggest the trip type (business/private/commute). Opt-in, because addresses,
+            times and recent classifications are sent to the provider. Can be changed via PATCH.
+        aiClassificationAvailable:
+          type: boolean
+          readOnly: true
+          description: True when the feature aiClassification is on and an administrator has set up an AI provider.
+        aiClassificationProvider:
+          type: [string, 'null']
+          readOnly: true
+          enum: [claude, openai, ollama, null]
+          description: Active AI provider, shown so users know where their data goes.
       additionalProperties: true
     MonthlyReport:
       type: object
@@ -3717,6 +3773,13 @@ components:
               startAddress: { type: [string, 'null'] }
               endAddress: { type: [string, 'null'] }
               distanceKm: { type: number }
+              suggestion:
+                description: >-
+                  Nur GET /reports/monthly mit Feature aiClassification: bester Vorschlag zur Fahrtart
+                  (bekannte Orte vor Historie vor KI), sonst null.
+                oneOf:
+                  - { $ref: '#/components/schemas/TripSuggestion' }
+                  - { type: 'null' }
         olderOpenTripCount: { type: integer, description: Offene Fahrten aus früheren Monaten }
         newPlaces:
           type: array
@@ -3800,6 +3863,35 @@ components:
             claude: { $ref: '#/components/schemas/AiProviderInput' }
             openai: { $ref: '#/components/schemas/AiProviderInput' }
             ollama: { $ref: '#/components/schemas/AiProviderInput' }
+    TripSuggestion:
+      type: object
+      required: [type, reason]
+      properties:
+        type: { type: string, enum: [business, private, commute] }
+        reason: { type: string }
+        source: { type: string, enum: [places, history, ai] }
+        confidence: { type: [number, 'null'], minimum: 0, maximum: 1 }
+        historyCount: { type: integer, description: 'source history: so viele gleiche Strecken hatten diesen Typ' }
+        historyTotal: { type: integer, description: 'source history: gleiche Strecken insgesamt' }
+        provider: { type: string, description: 'source ai: claude, openai oder ollama' }
+        purpose: { type: [string, 'null'] }
+        contact: { type: [string, 'null'] }
+        startPlace: { type: object, additionalProperties: true }
+        endPlace: { type: object, additionalProperties: true }
+    TripSuggestions:
+      type: object
+      required: [suggestions]
+      properties:
+        suggestions:
+          type: array
+          items: { $ref: '#/components/schemas/TripSuggestion' }
+        ai:
+          type: object
+          description: Nur mit Feature aiClassification.
+          properties:
+            available: { type: boolean }
+            enabled: { type: boolean }
+            status: { type: string, enum: [none, suggested, uncertain, dismissed] }
     AdminServiceSettings:
       type: object
       required: [map, photon, overpass]

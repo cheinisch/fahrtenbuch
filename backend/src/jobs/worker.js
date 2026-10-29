@@ -1,6 +1,8 @@
 import { pool } from "../database/pool.js";
 import { resolveTripEndpointAddresses } from "../services/tripAddressService.js";
 import { matchTrip } from "../services/mapMatchingService.js";
+import { config } from "../config.js";
+import { generateAiSuggestion } from "../services/tripClassificationService.js";
 import { runMonthlyReportJob, scheduleDueMonthlyReports } from "../services/monthlyReportDelivery.js";
 import { enqueueJob, reserveJob, acknowledgeJob, retryJob, failJob, recoverAndPromote, promoteDueJobs } from "./queue.js";
 import { redisCommand } from "./redisClient.js";
@@ -9,6 +11,12 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const handlers = {
   "trip.reverseGeocode": async ({ tripId, userId }) => {
     await resolveTripEndpointAddresses(tripId, userId);
+    // Erst mit Adressen lohnt der KI-Vorschlag; der Job prüft selbst, ob er nötig ist
+    if (config.features.aiClassification) await enqueueJob("trip.aiClassify", { tripId, userId });
+  },
+  "trip.aiClassify": async ({ tripId, userId }) => {
+    const result = await generateAiSuggestion(userId, tripId);
+    if (["created", "uncertain"].includes(result.status)) console.info("KI-Vorschlag", tripId, result.status);
   },
   "trip.mapMatch": async ({ tripId, userId }) => {
     try {

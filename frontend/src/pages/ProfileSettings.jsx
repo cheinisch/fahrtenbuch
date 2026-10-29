@@ -67,7 +67,7 @@ const SETTINGS_GROUPS = [
 const SECTION_GROUP = {
   profile: "profile", language: "profile", country: "profile",
   home: "home", work: "home", recognition: "home", places: "home",
-  tracking: "tracking", mapMatching: "tracking", dawarich: "tracking",
+  tracking: "tracking", mapMatching: "tracking", aiClassification: "tracking", dawarich: "tracking",
   notifications: "notifications",
   credentials: "credentials", security: "credentials",
   devices: "devices",
@@ -214,6 +214,7 @@ export default function ProfileSettings() {
   const [monthlyReportAvailable, setMonthlyReportAvailable] = useState(false);
   const [mapMatchingEnabled, setMapMatchingEnabled] = useState(true);
   const [mapMatchingAvailable, setMapMatchingAvailable] = useState(false);
+  const [aiClassification, setAiClassification] = useState({ enabled: false, available: false, provider: null });
   const [speedUnit, setSpeedUnit] = useState("kmh");
 
   const [tracking, setTracking] = useState({
@@ -349,6 +350,11 @@ export default function ProfileSettings() {
       setMonthlyReportAvailable(settingsResult.settings.monthlyReportAvailable === true);
       setMapMatchingEnabled(settingsResult.settings.mapMatchingEnabled !== false);
       setMapMatchingAvailable(settingsResult.settings.mapMatchingAvailable === true);
+      setAiClassification({
+        enabled: settingsResult.settings.aiClassificationEnabled === true,
+        available: settingsResult.settings.aiClassificationAvailable === true,
+        provider: settingsResult.settings.aiClassificationProvider || null,
+      });
       setSpeedUnit(settingsResult.settings.speedUnit === "mph" ? "mph" : "kmh");
 
       setTracking({
@@ -848,6 +854,24 @@ export default function ProfileSettings() {
       setMapMatchingEnabled(updated.mapMatchingEnabled !== false);
       setMapMatchingAvailable(updated.mapMatchingAvailable === true);
       showSuccess(t("profile.mapMatching.saved"));
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function saveAiClassification(event) {
+    event.preventDefault();
+    setSaving("ai-classification");
+    try {
+      const updated = await updatePersonalSettings(accessToken, { aiClassificationEnabled: aiClassification.enabled });
+      setAiClassification({
+        enabled: updated.aiClassificationEnabled === true,
+        available: updated.aiClassificationAvailable === true,
+        provider: updated.aiClassificationProvider || null,
+      });
+      showSuccess(t("profile.aiClassification.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -2083,6 +2107,36 @@ export default function ProfileSettings() {
           </div>
         </Section>
       </form>
+
+      {features.aiClassification && (
+        <form onSubmit={saveAiClassification}>
+          <Section id="aiClassification" title={t("profile.aiClassification.title")} description={t("profile.aiClassification.description")}>
+            <label className={labelClass} htmlFor="profile-ai-classification">{t("profile.aiClassification.label")}</label>
+            <select
+              id="profile-ai-classification"
+              className={fieldClass}
+              value={aiClassification.enabled ? "on" : "off"}
+              disabled={!aiClassification.available}
+              aria-describedby="profile-ai-classification-hint"
+              onChange={(event) => setAiClassification((current) => ({ ...current, enabled: event.target.value === "on" }))}
+            >
+              <option value="on">{t("profile.aiClassification.on")}</option>
+              <option value="off">{t("profile.aiClassification.off")}</option>
+            </select>
+            <p id="profile-ai-classification-hint" className="mt-2 text-sm text-fb-muted">
+              {aiClassification.available
+                ? t(aiClassification.provider === "ollama" ? "profile.aiClassification.hintLocal" : "profile.aiClassification.hintCloud", {
+                  provider: t(`aiSettings.providers.${aiClassification.provider}`),
+                })
+                : t("profile.aiClassification.unavailable")}
+            </p>
+            <p className="mt-2 text-sm text-fb-muted">{t("profile.aiClassification.history")}</p>
+            <div className="mt-6 flex justify-end">
+              <button type="submit" disabled={!aiClassification.available || saving === "ai-classification"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "ai-classification" ? t("common.saving") : t("common.save")}</button>
+            </div>
+          </Section>
+        </form>
+      )}
 
       <DawarichConnectionSection accessToken={accessToken} onSuccess={showSuccess} onError={showError} />
 

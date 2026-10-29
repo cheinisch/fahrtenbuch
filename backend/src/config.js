@@ -205,6 +205,8 @@ export const config = Object.freeze({
     expenses: booleanValue("FEATURE_EXPENSES", appChannel === "dev"),
     // Monatsbericht sofort per Mail anfordern – zum Testen und Debuggen, nur im dev-Kanal
     monthlyReportSendNow: booleanValue("FEATURE_MONTHLY_REPORT_SEND_NOW", appChannel === "dev"),
+    // Vorschläge zur Fahrtart aus eigener Historie und per KI (Reiter „AI“ der Administration)
+    aiClassification: booleanValue("FEATURE_AI_CLASSIFICATION", appChannel === "dev"),
   },
 
   publicBaseUrl,

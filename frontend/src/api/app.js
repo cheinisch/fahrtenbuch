@@ -734,6 +734,12 @@ export function assignTripDriver(accessToken, tripId, userId, reason = "") {
 export function getTripSuggestions(accessToken, tripId) {
   return apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/suggestions`);
 }
+
+// KI-Vorschlag zur Fahrtart sofort anfordern bzw. verwerfen (Feature aiClassification)
+export const requestAiTripSuggestion = (accessToken, tripId) =>
+  apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/suggestions/ai`, { method: "POST" });
+export const dismissAiTripSuggestion = (accessToken, tripId) =>
+  apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/suggestions/ai/dismiss`, { method: "POST" });
 export function correctTripRoute(accessToken, tripId, points) {
   return apiRequest(accessToken, `/api/v1/trips/${encodeURIComponent(tripId)}/route-correction`, {
     method: "POST", body: JSON.stringify({ points }),

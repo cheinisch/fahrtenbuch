@@ -110,6 +110,21 @@
 
   // ===== Dashboard with trip archive and trip details =====
   "dashboard": {
+    "suggestion": {
+      "historyReason": "You classified {count} of {total} trips on this route as “{type}”.",
+      "sourcePlaces": "Known places",
+      "sourceHistory": "Your previous trips",
+      "sourceAi": "AI suggestion ({provider})",
+      "confidence": "Confidence {percent} %",
+      "dismiss": "Dismiss",
+      "aiNone": "No AI suggestion for this trip yet.",
+      "aiUncertain": "The AI was not sure enough about this trip.",
+      "aiDismissed": "You dismissed the AI suggestion.",
+      "aiOff": "AI suggestions for the trip type are turned off in your profile.",
+      "aiAsk": "Ask AI",
+      "aiAsking": "Asking AI …",
+      "aiEnable": "Turn on in profile"
+    },
     "applySuggestion": "Apply",
     "editSection": "Edit",
     "mapInitFailed": "MapLibre could not be started: {message}",
@@ -967,6 +982,7 @@
     "trips": "Trips",
     "unknown": "Unknown",
     "open": {
+      "suggestion": "Suggestion: {type}",
       "titleOne": "1 trip is waiting for a category",
       "title": "{count} trips are waiting for a category",
       "text": "{km} in total. While they are open, they are missing from the business share and the month cannot be closed.",
@@ -1100,6 +1116,18 @@
 
   // ===== Profile and personal settings =====
   "profile": {
+    "aiClassification": {
+      "title": "AI suggestions for the trip type",
+      "description": "For new trips the AI suggests whether it was a business trip, a private trip or a commute – with a short reason. The trip is only classified when you accept the suggestion.",
+      "label": "Use AI suggestions",
+      "on": "Enabled",
+      "off": "Disabled",
+      "hintCloud": "Start and destination address, time, duration, distance, your saved places and your most recently classified trips are sent to {provider}. The GPS track is not sent.",
+      "hintLocal": "The AI runs on this installation's Ollama server – addresses and times do not leave the server. The GPS track is not sent.",
+      "unavailable": "No AI provider is set up on this server. An administrator can add one under Administration → AI.",
+      "history": "Independently of this, the app suggests a trip type when you have classified the same route the same way several times – no data is shared for that.",
+      "saved": "The AI suggestion setting was saved."
+    },
     "monthlyReport": {
       "title": "Monthly report",
       "description": "An e-mail on the first of each month with all vehicles, open trips and new places of the previous month.",

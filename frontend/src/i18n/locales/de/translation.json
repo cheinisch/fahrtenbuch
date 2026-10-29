@@ -111,6 +111,21 @@
 
   // ===== Dashboard mit Fahrtenarchiv und Fahrtdetails =====
   "dashboard": {
+    "suggestion": {
+      "historyReason": "{count} von {total} Fahrten auf dieser Strecke hast du als „{type}“ eingeordnet.",
+      "sourcePlaces": "Bekannte Orte",
+      "sourceHistory": "Deine bisherigen Fahrten",
+      "sourceAi": "KI-Vorschlag ({provider})",
+      "confidence": "Sicherheit {percent} %",
+      "dismiss": "Verwerfen",
+      "aiNone": "Noch kein KI-Vorschlag für diese Fahrt.",
+      "aiUncertain": "Die KI war sich bei dieser Fahrt nicht sicher genug.",
+      "aiDismissed": "Den KI-Vorschlag hast du verworfen.",
+      "aiOff": "KI-Vorschläge zur Fahrtart sind in deinem Profil ausgeschaltet.",
+      "aiAsk": "KI fragen",
+      "aiAsking": "Frage KI …",
+      "aiEnable": "Im Profil einschalten"
+    },
     "applySuggestion": "Übernehmen",
     "editSection": "Bearbeiten",
     "mapInitFailed": "MapLibre konnte nicht gestartet werden: {message}",
@@ -968,6 +983,7 @@
     "trips": "Fahrten",
     "unknown": "Unbekannt",
     "open": {
+      "suggestion": "Vorschlag: {type}",
       "titleOne": "1 Fahrt wartet auf eine Kategorie",
       "title": "{count} Fahrten warten auf eine Kategorie",
       "text": "Zusammen {km}. Solange sie offen sind, fehlen sie im dienstlichen Anteil und der Monat lässt sich nicht abschließen.",
@@ -1101,6 +1117,18 @@
 
   // ===== Profil und persönliche Einstellungen =====
   "profile": {
+    "aiClassification": {
+      "title": "KI-Vorschläge zur Fahrtart",
+      "description": "Für neue Fahrten schlägt die KI vor, ob es eine Dienstfahrt, Privatfahrt oder ein Arbeitsweg war – mit kurzer Begründung. Eingeordnet wird erst, wenn du den Vorschlag übernimmst.",
+      "label": "KI-Vorschläge verwenden",
+      "on": "Aktiviert",
+      "off": "Deaktiviert",
+      "hintCloud": "Dafür gehen Start- und Zieladresse, Uhrzeit, Dauer, Strecke, deine gespeicherten Orte und deine letzten eingeordneten Fahrten an {provider}. Die GPS-Spur wird nicht übertragen.",
+      "hintLocal": "Die KI läuft auf dem Ollama-Server dieser Installation – Adressen und Zeiten verlassen den Server nicht. Die GPS-Spur wird nicht übertragen.",
+      "unavailable": "Auf diesem Server ist kein KI-Anbieter eingerichtet. Ein Administrator kann ihn unter Administration → AI hinterlegen.",
+      "history": "Unabhängig davon schlägt die App eine Fahrtart vor, wenn du dieselbe Strecke schon mehrfach gleich eingeordnet hast – dafür werden keine Daten weitergegeben.",
+      "saved": "Die Einstellung zu KI-Vorschlägen wurde gespeichert."
+    },
     "monthlyReport": {
       "title": "Monatsbericht",
       "description": "Am Monatsersten eine E-Mail mit allen Fahrzeugen, offenen Fahrten und neuen Orten des Vormonats.",
