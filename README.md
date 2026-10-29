@@ -53,6 +53,8 @@ The server can be served from a subpath such as `https://example.com/fahrtenbuch
 
 `DEMO_STATUS_URL` is only for the public demo (demo.fahrtenbuch.app): a path such as `/api/session/<id>` on the same origin. The web app then shows a countdown with a one-time extension button, served by the demo spawner.
 
+`DEMO_EXPIRES_AT` (ISO date or Unix seconds) sets a fixed expiry time for an instance; the web app counts down to it, even without a spawner.
+
 > **Data safety:** `docker compose down` keeps the volumes, but `docker compose down -v` removes Compose-managed volumes and can permanently delete database and backup data. Back up your data before removing volumes.
 
 Start the services:

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   injectBaseHref,
   injectDemoMeta,
+  normalizeDemoExpiresAt,
   normalizeDemoStatusUrl,
   normalizeBasePath,
   resolveBasePath,
@@ -66,4 +67,14 @@ test("Demo-Statusadresse wird geprüft und als Meta-Tag eingesetzt", () => {
   const html = "<html><head></head></html>";
   assert.equal(injectDemoMeta(html, null), html);
   assert.match(injectDemoMeta(html, "/api/session/abc"), /<meta name="fahrtenbuch-demo" content="\/api\/session\/abc" \/>/);
+});
+
+test("Fester Ablaufzeitpunkt für den Demo-Countdown", () => {
+  assert.equal(normalizeDemoExpiresAt(""), null);
+  assert.equal(normalizeDemoExpiresAt("1793288000"), 1793288000);
+  assert.equal(normalizeDemoExpiresAt("2026-10-29T16:00:00Z"), 1793289600);
+  assert.throws(() => normalizeDemoExpiresAt("bald"));
+  const html = "<html><head></head></html>";
+  assert.match(injectDemoMeta(html, null, 1793288000), /<meta name="fahrtenbuch-demo" content="" data-expires="1793288000" \/>/);
+  assert.match(injectDemoMeta(html, "/api/session/abc", 5), /content="\/api\/session\/abc" data-expires="5"/);
 });

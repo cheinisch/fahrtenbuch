@@ -63,7 +63,22 @@ export function normalizeDemoStatusUrl(value) {
   return trimmed;
 }
 
-export function injectDemoMeta(html, statusUrl) {
-  if (!statusUrl) return html;
-  return html.replace(/<head([^>]*)>/i, `<head$1>\n    <meta name="fahrtenbuch-demo" content="${statusUrl}" />`);
+// DEMO_EXPIRES_AT: fester Ablaufzeitpunkt (ISO-8601 oder Unix-Sekunden), falls kein Spawner Auskunft gibt.
+export function normalizeDemoExpiresAt(value) {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return null;
+  const seconds = /^\d+$/.test(trimmed) ? Number(trimmed) : Date.parse(trimmed) / 1000;
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    throw new Error(`DEMO_EXPIRES_AT "${value}" ist ungültig (ISO-Datum oder Unix-Sekunden).`);
+  }
+  return Math.floor(seconds);
+}
+
+export function injectDemoMeta(html, statusUrl, expiresAt = null) {
+  if (!statusUrl && !expiresAt) return html;
+  const attributes = [
+    `content="${statusUrl || ""}"`,
+    ...(expiresAt ? [`data-expires="${expiresAt}"`] : []),
+  ].join(" ");
+  return html.replace(/<head([^>]*)>/i, `<head$1>\n    <meta name="fahrtenbuch-demo" ${attributes} />`);
 }
