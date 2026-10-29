@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { resolveBasePath } from "./lib/basePath.js";
+import { normalizeDemoStatusUrl, resolveBasePath } from "./lib/basePath.js";
 
 function rawValue(...names) {
   for (const name of names) {
@@ -222,6 +222,9 @@ export const config = Object.freeze({
   publicBaseUrl,
 
   basePath,
+
+  // Nur für die öffentliche Demo: Statusadresse des Spawners (Countdown/Verlängerung im Frontend)
+  demoStatusUrl: normalizeDemoStatusUrl(process.env.DEMO_STATUS_URL),
 
   trustProxy: booleanValue(
     "TRUST_PROXY",

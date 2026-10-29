@@ -49,3 +49,21 @@ export function injectBaseHref(html, basePath) {
   }
   return html.replace(/<head([^>]*)>/i, `<head$1>\n    ${tag}`);
 }
+
+// Demo-Betrieb: Statusadresse des Demo-Spawners (verbleibende Zeit, Verlängerung) als Meta-Tag,
+// damit das Frontend schon vor dem Login einen Countdown zeigen kann.
+const SAFE_URL_PATH = /^\/[A-Za-z0-9._~\/-]*$/;
+
+export function normalizeDemoStatusUrl(value) {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return null;
+  if (!SAFE_URL_PATH.test(trimmed)) {
+    throw new Error(`DEMO_STATUS_URL "${value}" ist ungültig (nur ein Pfad wie /api/session/abc).`);
+  }
+  return trimmed;
+}
+
+export function injectDemoMeta(html, statusUrl) {
+  if (!statusUrl) return html;
+  return html.replace(/<head([^>]*)>/i, `<head$1>\n    <meta name="fahrtenbuch-demo" content="${statusUrl}" />`);
+}
