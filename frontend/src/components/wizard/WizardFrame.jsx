@@ -2,6 +2,7 @@ import { CheckIcon } from "@heroicons/react/20/solid";
 import { ArrowLeftIcon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 
 import { useI18n } from "../../i18n/I18nProvider.jsx";
+import { withBasePath } from "../../lib/basePath.js";
 
 // Gemeinsamer Rahmen der Einrichtungsassistenten: Kopfzeile mit Fortschritt,
 // Schrittliste (links bzw. oben auf dem Handy), Karte mit Inhalt und Fußleiste.
@@ -146,7 +147,7 @@ export default function WizardFrame({
       <header className="border-b border-fb-border bg-fb-main">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
           <div className="flex items-center gap-2.5">
-            <img src="/fahrtenbuch-logo.svg" alt="" className="size-[34px] rounded-[9px] object-cover" />
+            <img src={withBasePath("/fahrtenbuch-logo.svg")} alt="" className="size-[34px] rounded-[9px] object-cover" />
             <div className="leading-tight">
               <div className="text-[17px] font-bold">Fahrtenbuch</div>
               <div className="text-xs text-fb-muted">{title}</div>

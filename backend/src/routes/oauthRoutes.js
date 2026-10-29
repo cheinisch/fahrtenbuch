@@ -39,7 +39,8 @@ export const oauthRoutes = Router();
 const STATE_LIFETIME_MINUTES = 10;
 const TICKET_LIFETIME_MINUTES = 5;
 const BINDING_COOKIE = "fb_oauth";
-const COOKIE_PATH = "/api/v1/auth/oauth";
+// Der Browser sieht den Pfad inklusive Unterpfad
+const COOKIE_PATH = `${config.basePath}/api/v1/auth/oauth`;
 
 function readCookie(request, name) {
   const header = request.get("cookie") || "";
@@ -91,7 +92,8 @@ function requireProvider(providerId) {
 }
 
 function frontendUrl(pathname, { query = {}, hash = "" } = {}) {
-  const url = new URL(pathname, `${config.publicBaseUrl}/`);
+  // Ohne führenden Slash, sonst würde ein Unterpfad in PUBLIC_BASE_URL verworfen
+  const url = new URL(pathname.replace(/^\/+/, ""), `${config.publicBaseUrl}/`);
 
   for (const [key, value] of Object.entries(query)) {
     url.searchParams.set(key, value);

@@ -14,8 +14,9 @@ import {
   refresh as refreshRequest,
 } from "../api/auth.js";
 import { configureApiAuth } from "../api/app.js";
+import { scopedStorageKey } from "../lib/basePath.js";
 
-const STORAGE_KEY = "fahrtenbuch.auth";
+const STORAGE_KEY = scopedStorageKey("fahrtenbuch.auth");
 const AuthContext = createContext(null);
 
 function clearStoredAuth() {

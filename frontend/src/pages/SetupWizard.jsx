@@ -38,6 +38,7 @@ import {
 } from "../components/wizard/wizardParts.jsx";
 import { useI18n } from "../i18n/I18nProvider.jsx";
 import { useFeatures } from "../lib/features.jsx";
+import { currentAppUrl } from "../lib/basePath.js";
 
 const STEP_IDS = ["welcome", "account", "server", "mail", "geocoding", "login", "vehicle", "done"];
 const OPTIONAL_STEPS = ["vehicle"];
@@ -85,7 +86,7 @@ export default function SetupWizard() {
 
   const env = setup?.environment;
   const passwordRequired = Boolean(user?.forcePasswordChange);
-  const originMatches = env ? env.publicBaseUrl.replace(/\/+$/, "") === window.location.origin : true;
+  const originMatches = env ? env.publicBaseUrl.replace(/\/+$/, "") === currentAppUrl() : true;
   const rpIdMatches = env ? env.passkeys.rpId === window.location.hostname : true;
 
   async function saveStep(stepId) {
@@ -247,7 +248,7 @@ export default function SetupWizard() {
           )}
           {env && (!env.publicBaseUrlConfigured || !originMatches) && (
             <WizardNotice tone="warn" icon={ExclamationTriangleIcon}>
-              {t("setup.server.originMismatch", { configured: env.publicBaseUrl, current: window.location.origin })}
+              {t("setup.server.originMismatch", { configured: env.publicBaseUrl, current: currentAppUrl() })}
             </WizardNotice>
           )}
           <WizardNotice icon={InformationCircleIcon}>{t("setup.server.envHint")}</WizardNotice>

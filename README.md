@@ -47,6 +47,10 @@ Edit `.env` before starting the application. At minimum, configure:
 
 Docker Compose automatically creates the required named volumes on first startup, including the PostgreSQL data, OSM tile cache, and backups volumes. Existing volumes with the same names are reused, so no manual `docker volume create` commands are necessary.
 
+### Running under a subpath
+
+The server can be served from a subpath such as `https://example.com/fahrtenbuch`. Put the path into `PUBLIC_BASE_URL` (or set `BASE_PATH=/fahrtenbuch` explicitly). The server injects a matching `<base href>` into the web app, and the reverse proxy may forward the path with or without stripping the prefix. Several instances under one domain keep separate logins, because the browser storage keys include the subpath. `WEBAUTHN_ORIGIN` stays the plain origin without the path.
+
 > **Data safety:** `docker compose down` keeps the volumes, but `docker compose down -v` removes Compose-managed volumes and can permanently delete database and backup data. Back up your data before removing volumes.
 
 Start the services:

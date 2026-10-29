@@ -1,4 +1,5 @@
 import { useI18n } from "../i18n/I18nProvider.jsx";
+import { withBasePath } from "../lib/basePath.js";
 
 // Gemeinsames Layout für Anmeldung und Passwort-Reset: Markenfläche links,
 // Formular rechts; auf schmalen Bildschirmen untereinander.
@@ -22,7 +23,7 @@ export default function AuthLayout({ children }) {
         </svg>
 
         <div className="relative flex items-center gap-3 text-xl font-bold">
-          <img src="/fahrtenbuch-logo.svg" alt="" className="size-10 rounded-xl object-cover" />
+          <img src={withBasePath("/fahrtenbuch-logo.svg")} alt="" className="size-10 rounded-xl object-cover" />
           Fahrtenbuch
         </div>
 

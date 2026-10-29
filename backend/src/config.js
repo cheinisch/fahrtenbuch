@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { resolveBasePath } from "./lib/basePath.js";
 
 function rawValue(...names) {
   for (const name of names) {
@@ -148,7 +149,7 @@ const jwtSecret = required([
   "JWT_ACCESS_SECRET",
 ]);
 
-const publicBaseUrl = normalizedUrl(
+const configuredPublicBaseUrl = normalizedUrl(
   stringValue(
     "PUBLIC_BASE_URL",
     `${stringValue(
@@ -160,6 +161,15 @@ const publicBaseUrl = normalizedUrl(
     )}`,
   ),
 );
+
+// Unterpfad, unter dem die Instanz läuft (z. B. "/abc123"); aus BASE_PATH oder dem Pfad von PUBLIC_BASE_URL
+const basePath = resolveBasePath(process.env.BASE_PATH, configuredPublicBaseUrl);
+
+// Links in Mails, OAuth-Callbacks usw. brauchen den Unterpfad; steht er nur in BASE_PATH, wird er ergänzt.
+const publicBaseUrl =
+  basePath && !configuredPublicBaseUrl.endsWith(basePath)
+    ? `${configuredPublicBaseUrl}${basePath}`
+    : configuredPublicBaseUrl;
 
 const appChannel = String(process.env.APP_CHANNEL || "dev").trim().toLowerCase() === "release" ? "release" : "dev";
 
@@ -210,6 +220,8 @@ export const config = Object.freeze({
   },
 
   publicBaseUrl,
+
+  basePath,
 
   trustProxy: booleanValue(
     "TRUST_PROXY",

@@ -7,12 +7,13 @@ import { AuthProvider } from "./auth/AuthProvider.jsx";
 import { I18nProvider } from "./i18n/I18nProvider.jsx";
 import { FeaturesProvider } from "./lib/features.jsx";
 import "./index.css";
+import { BASE_PATH } from "./lib/basePath.js";
 
 ReactDOM.createRoot(
   document.getElementById("root"),
 ).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={BASE_PATH || undefined}>
       <AuthProvider>
         <I18nProvider><FeaturesProvider><App /></FeaturesProvider></I18nProvider>
       </AuthProvider>
