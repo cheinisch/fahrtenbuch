@@ -4,9 +4,15 @@ import { useI18n } from "../i18n/I18nProvider.jsx";
 
 // Nur in der öffentlichen Demo: Der Server setzt <meta name="fahrtenbuch-demo"> mit der
 // Statusadresse des Demo-Spawners (DEMO_STATUS_URL). Ohne Meta-Tag rendert nichts.
-function demoStatusUrl() {
-  if (typeof document === "undefined") return null;
-  return document.querySelector('meta[name="fahrtenbuch-demo"]')?.getAttribute("content") || null;
+// Optional data-expires (DEMO_EXPIRES_AT): fester Ablaufzeitpunkt, falls kein Spawner antwortet.
+function demoMeta() {
+  if (typeof document === "undefined") return { statusUrl: null, expires: null };
+  const meta = document.querySelector('meta[name="fahrtenbuch-demo"]');
+  const expires = Number(meta?.getAttribute("data-expires"));
+  return {
+    statusUrl: meta?.getAttribute("content") || null,
+    expires: Number.isFinite(expires) && expires > 0 ? expires : null,
+  };
 }
 
 function formatRemaining(seconds) {
@@ -16,8 +22,8 @@ function formatRemaining(seconds) {
 
 export default function DemoBanner() {
   const { t } = useI18n();
-  const [statusUrl] = useState(demoStatusUrl);
-  const [status, setStatus] = useState(null);
+  const [{ statusUrl, expires: fixedExpires }] = useState(demoMeta);
+  const [status, setStatus] = useState(() => (fixedExpires ? { expires: fixedExpires } : null));
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
 
@@ -32,14 +38,18 @@ export default function DemoBanner() {
   }, [statusUrl]);
 
   useEffect(() => {
-    if (!statusUrl) return undefined;
-    load();
-    const poll = setInterval(load, 30000);
+    if (!statusUrl && !fixedExpires) return undefined;
+    // Countdown läuft auch ohne Spawner, nur die Statusabfrage braucht die Adresse
     const tick = setInterval(() => setNow(Date.now()), 1000);
-    return () => { clearInterval(poll); clearInterval(tick); };
-  }, [statusUrl, load]);
+    let poll = null;
+    if (statusUrl) {
+      load();
+      poll = setInterval(load, 30000);
+    }
+    return () => { clearInterval(tick); if (poll) clearInterval(poll); };
+  }, [statusUrl, fixedExpires, load]);
 
-  if (!statusUrl || !status?.expires) return null;
+  if (!status?.expires) return null;
 
   const remaining = status.expires - now / 1000;
   const expired = remaining <= 0;
@@ -67,7 +77,7 @@ export default function DemoBanner() {
           <>
             <span className="font-semibold">{t("demo.expired")}</span>
             {/* Ohne Unterpfad: die Startseite des Spawners liegt im Wurzelverzeichnis */}
-            <a href="/" className="font-semibold text-fb-accent-strong hover:underline">{t("demo.newDemo")}</a>
+            {statusUrl && <a href="/" className="font-semibold text-fb-accent-strong hover:underline">{t("demo.newDemo")}</a>}
           </>
         ) : (
           <>

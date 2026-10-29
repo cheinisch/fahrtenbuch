@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { normalizeDemoStatusUrl, resolveBasePath } from "./lib/basePath.js";
+import { normalizeDemoExpiresAt, normalizeDemoStatusUrl, resolveBasePath } from "./lib/basePath.js";
 
 function rawValue(...names) {
   for (const name of names) {
@@ -225,6 +225,8 @@ export const config = Object.freeze({
 
   // Nur für die öffentliche Demo: Statusadresse des Spawners (Countdown/Verlängerung im Frontend)
   demoStatusUrl: normalizeDemoStatusUrl(process.env.DEMO_STATUS_URL),
+  // Fester Ablaufzeitpunkt der Instanz: das Frontend zählt bis dahin herunter (auch ohne Spawner)
+  demoExpiresAt: normalizeDemoExpiresAt(process.env.DEMO_EXPIRES_AT),
 
   trustProxy: booleanValue(
     "TRUST_PROXY",

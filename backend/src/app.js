@@ -287,6 +287,7 @@ if (fs.existsSync(config.staticDirectory)) {
       indexHtml ??= injectDemoMeta(
         injectBaseHref(fs.readFileSync(indexPath, "utf8"), config.basePath),
         config.demoStatusUrl,
+        config.demoExpiresAt,
       );
     } catch (error) {
       return next(error);
