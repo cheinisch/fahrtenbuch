@@ -15,7 +15,7 @@ async function directoryExists(directory) {
   }
 }
 
-async function resolveMigrationsDirectory() {
+export async function resolveMigrationsDirectory() {
   const candidates = [
     process.env.MIGRATIONS_DIR,
     path.resolve(currentDirectory, "migrations"),

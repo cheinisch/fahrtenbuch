@@ -91,7 +91,42 @@ docker compose pull
 docker compose up -d
 ```
 
-Keep the database and backup volumes intact. Back up your data before upgrading, especially when database migrations are involved.
+Keep the database and backup volumes intact. Back up your data before upgrading, especially when database migrations are involved:
+
+```bash
+docker exec fahrtenbuch-app fahrtenbuch backup --label before-update
+```
+
+## Backup and restore
+
+The app container includes a command line tool for full database backups (`pg_dump`, custom format). A backup contains all data – users, vehicles, trips, GPS points, settings – plus the migration state, and can be restored 1:1.
+
+```bash
+# Create a backup in the backups volume (/data/backups)
+docker exec fahrtenbuch-app fahrtenbuch backup
+docker exec fahrtenbuch-app fahrtenbuch backup --label before-update
+
+# List backups
+docker exec fahrtenbuch-app fahrtenbuch backups
+
+# Restore (replaces ALL data, asks for confirmation)
+docker exec -it fahrtenbuch-app fahrtenbuch restore latest
+docker exec -it fahrtenbuch-app fahrtenbuch restore fahrtenbuch-db-2026-10-29T10-46-06Z.dump
+
+# Stream to / from the host, e.g. for an off-site backup or a move to another server
+docker exec fahrtenbuch-app fahrtenbuch backup --stdout > fahrtenbuch.dump
+docker exec -i fahrtenbuch-app fahrtenbuch restore - --yes < fahrtenbuch.dump
+
+# Afterwards
+docker compose restart app worker
+```
+
+- Before restoring, the current state is backed up automatically (`…-vor-restore.dump`); skip this with `--no-safety-backup`.
+- The restore runs in a single transaction: if anything fails, the database stays unchanged.
+- Backups from an older version are migrated to the current schema right after the restore. Backups from a newer version are refused (update the image first, or force with `--force`).
+- Without a terminal (cron, scripts) `restore` needs `--yes`.
+- Backup files are only readable by the container user. Copy them off the server regularly, e.g. `docker cp fahrtenbuch-app:/data/backups ./backups` or with the `--stdout` variant in a cron job.
+- Redis only holds the job queue and is not part of the backup.
 
 ## Local development
 

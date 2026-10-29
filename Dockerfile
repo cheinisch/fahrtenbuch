@@ -51,6 +51,14 @@ ENV NODE_ENV=production \
 # Dateien übernehmen
 COPY --from=builder /app .
 
+# PostgreSQL-Werkzeuge für `fahrtenbuch backup/restore`. Mehrere
+# Hauptversionen, damit pg_dump zur Serverversion passt (16 = Compose-Standard,
+# 17/18 für eigene neuere Datenbankserver).
+RUN apk add --no-cache postgresql16-client \
+    && (apk add --no-cache postgresql17-client postgresql18-client || true) \
+    && chmod +x /app/backend/src/cli/fahrtenbuch.js \
+    && ln -s /app/backend/src/cli/fahrtenbuch.js /usr/local/bin/fahrtenbuch
+
 # Upload-Verzeichnis
 RUN mkdir -p /data/uploads /data/backups /data/osm-tile-cache \
     && chown -R node:node /data
