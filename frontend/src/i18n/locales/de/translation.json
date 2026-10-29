@@ -34,6 +34,14 @@
     "openUserMenu": "Benutzermenü öffnen",
     "user": "Benutzer"
   },
+  "demo": {
+    "remaining": "Demo-Instanz · noch {time}",
+    "extend": "+{minutes} Min. verlängern",
+    "extending": "Wird verlängert …",
+    "extended": "Bereits verlängert",
+    "expired": "Die Demo ist abgelaufen.",
+    "newDemo": "Neue Demo starten"
+  },
   "language": {
     "globalTitle": "Standardsprache",
     "globalHint": "Diese Sprache wird verwendet, wenn ein Benutzer keine eigene Sprache gewählt hat.",

@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   injectBaseHref,
+  injectDemoMeta,
+  normalizeDemoStatusUrl,
   normalizeBasePath,
   resolveBasePath,
   stripBasePath,
@@ -54,4 +56,14 @@ test("injectBaseHref setzt den base-Tag in den head", () => {
   const twice = injectBaseHref(injectBaseHref(html, "/abc"), "/xyz");
   assert.equal(twice.match(/<base /g).length, 1);
   assert.match(twice, /href="\/xyz\/"/);
+});
+
+test("Demo-Statusadresse wird geprüft und als Meta-Tag eingesetzt", () => {
+  assert.equal(normalizeDemoStatusUrl(""), null);
+  assert.equal(normalizeDemoStatusUrl("/api/session/abc123"), "/api/session/abc123");
+  assert.throws(() => normalizeDemoStatusUrl("https://evil.example/x"));
+  assert.throws(() => normalizeDemoStatusUrl('/x"><script>'));
+  const html = "<html><head></head></html>";
+  assert.equal(injectDemoMeta(html, null), html);
+  assert.match(injectDemoMeta(html, "/api/session/abc"), /<meta name="fahrtenbuch-demo" content="\/api\/session\/abc" \/>/);
 });

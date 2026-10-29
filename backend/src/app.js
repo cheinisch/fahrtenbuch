@@ -46,7 +46,7 @@ import {
   notFoundHandler,
 } from "./middleware/errorHandler.js";
 import { requestContext } from "./middleware/requestContext.js";
-import { injectBaseHref, stripBasePath } from "./lib/basePath.js";
+import { injectBaseHref, injectDemoMeta, stripBasePath } from "./lib/basePath.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const backendDirectory = path.resolve(currentDirectory, "..");
@@ -284,7 +284,10 @@ if (fs.existsSync(config.staticDirectory)) {
 
   app.get("/{*splat}", (_request, response, next) => {
     try {
-      indexHtml ??= injectBaseHref(fs.readFileSync(indexPath, "utf8"), config.basePath);
+      indexHtml ??= injectDemoMeta(
+        injectBaseHref(fs.readFileSync(indexPath, "utf8"), config.basePath),
+        config.demoStatusUrl,
+      );
     } catch (error) {
       return next(error);
     }

@@ -51,6 +51,8 @@ Docker Compose automatically creates the required named volumes on first startup
 
 The server can be served from a subpath such as `https://example.com/fahrtenbuch`. Put the path into `PUBLIC_BASE_URL` (or set `BASE_PATH=/fahrtenbuch` explicitly). The server injects a matching `<base href>` into the web app, and the reverse proxy may forward the path with or without stripping the prefix. Several instances under one domain keep separate logins, because the browser storage keys include the subpath. `WEBAUTHN_ORIGIN` stays the plain origin without the path.
 
+`DEMO_STATUS_URL` is only for the public demo (demo.fahrtenbuch.app): a path such as `/api/session/<id>` on the same origin. The web app then shows a countdown with a one-time extension button, served by the demo spawner.
+
 > **Data safety:** `docker compose down` keeps the volumes, but `docker compose down -v` removes Compose-managed volumes and can permanently delete database and backup data. Back up your data before removing volumes.
 
 Start the services:
