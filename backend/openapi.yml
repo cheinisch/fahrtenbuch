@@ -1203,10 +1203,10 @@ paths:
                 type: object
                 required: [defaultLanguage, supportedLanguages]
                 properties:
-                  defaultLanguage: { type: string, enum: [de, en] }
+                  defaultLanguage: { type: string, enum: [de, en, da, es, fi, fr, it, nb, nl, pl, pt, sv] }
                   supportedLanguages:
                     type: array
-                    items: { type: string, enum: [de, en] }
+                    items: { type: string, enum: [de, en, da, es, fi, fr, it, nb, nl, pl, pt, sv] }
 
   /vehicles/{id}/shared-trip-activity:
     get:

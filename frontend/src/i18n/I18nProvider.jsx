@@ -1,5 +1,6 @@
 import { createContext,useContext,useEffect,useMemo,useState } from "react";
 import { dictionaries,setActiveLanguage,translateIn } from "./translate.js";
+import { languageLocale } from "./languages.js";
 import { getPersonalSettings,getPublicLanguageSettings } from "../api/app.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 
@@ -15,7 +16,7 @@ export function I18nProvider({children}){
  }catch{if(active)setLanguage("de");}})();return()=>{active=false};},[accessToken,isAuthenticated]);
  useEffect(()=>{document.documentElement.lang=language;},[language]);
  setActiveLanguage(language);
- const locale=language==="en"?"en-US":"de-DE";
+ const locale=languageLocale(language);
  const value=useMemo(()=>({
    language,locale,setLanguage,
    t:(key,paramsOrFallback,fallback)=>translateIn(language,key,paramsOrFallback,fallback),

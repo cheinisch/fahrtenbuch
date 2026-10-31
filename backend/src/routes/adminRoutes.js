@@ -1681,7 +1681,7 @@ adminRoutes.patch(
   asyncHandler(async (request, response) => {
     const body = objectBody(request.body);
 
-    if (body.defaultLanguage !== undefined && !["de","en"].includes(body.defaultLanguage)) {
+    if (body.defaultLanguage !== undefined && !["de","en","da","es","fi","fr","it","nb","nl","pl","pt","sv"].includes(body.defaultLanguage)) {
       throw badRequest("VALIDATION_ERROR", "Die Standardsprache ist ungültig.");
     }
 

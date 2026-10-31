@@ -58,8 +58,9 @@ Default format for all translations: **one JSON file per language** with nested 
 
 ```
 frontend/src/i18n/locales/
-├── de/translation.json
-└── en/translation.json
+├── de/translation.json   # reference + fallback
+├── en/translation.json
+└── …                    # da, es, fi, fr, it, nb, nl, pl, pt, sv (same languages as the Android app)
 ```
 
 ```json
@@ -81,7 +82,7 @@ frontend/src/i18n/locales/
 - Reuse generic keys (e.g. `buttons.*`) instead of duplicating identical texts.
 - React components use `const { t, locale } = useI18n()`; code outside React (`api/`, `lib/`, module-level helpers) uses `translate()` from `src/i18n/translate.js`.
 - No hardcoded UI texts and no hardcoded `"de-DE"` for numbers/dates – use `locale` (or `document.documentElement.lang` in helpers without the hook). Exception: values that must keep a fixed format (e.g. `<input type="time">`). Server error messages are passed through as they come.
-- New languages: add `<code>/translation.json` and register it in `src/i18n/translate.js`.
+- New languages: add `<code>/translation.json`, register it in `src/i18n/translate.js` and `src/i18n/languages.js` (name + locale for the language pickers), and add the code to the allowed values in `backend/src/app.js`, `userRoutes.js`, `adminRoutes.js` and `api/openapi.yml`.
 - Files are split into **sections per page/area**, each introduced by a comment `// ===== <Page> =====` (German titles in `de`, English in `en`, same order in every language). Put new keys into the matching section; a new page gets a new section.
 
 ## Git

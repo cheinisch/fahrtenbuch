@@ -176,7 +176,7 @@ app.get("/.well-known/assetlinks.json", (_request, response) => {
 app.get("/api/v1/language", async (_request,response,next) => {
   try {
     const result=await pool.query(`SELECT value FROM app_settings WHERE key='ui.defaultLanguage' LIMIT 1`);
-    response.json({defaultLanguage:result.rows[0]?.value || "de",supportedLanguages:["de","en"]});
+    response.json({defaultLanguage:result.rows[0]?.value || "de",supportedLanguages:["de","en","da","es","fi","fr","it","nb","nl","pl","pt","sv"]});
   } catch(error){ next(error); }
 });
 app.use("/api/v1/health", healthRoutes);

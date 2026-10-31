@@ -1,3 +1,4 @@
+import { LANGUAGES, languageName } from "../../i18n/languages.js";
 import {
   Dialog,
   DialogBackdrop,
@@ -448,12 +449,7 @@ export default function UserEditorModal({
                         }
                         className={fieldClass}
                       >
-                        <option value="de">
-                          Deutsch
-                        </option>
-                        <option value="en">
-                          English
-                        </option>
+                        {LANGUAGES.map((l)=><option key={l.code} value={l.code}>{l.name}</option>)}
                       </select>
                     </label>
 

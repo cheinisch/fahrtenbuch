@@ -426,7 +426,7 @@ userRoutes.patch(
       throw badRequest("VALIDATION_ERROR", "Die Entfernungseinheit muss km oder mi sein.");
     }
 
-    if (body.language !== undefined && !["de","en",null].includes(body.language)) {
+    if (body.language !== undefined && !["de","en","da","es","fi","fr","it","nb","nl","pl","pt","sv",null].includes(body.language)) {
       throw badRequest("VALIDATION_ERROR", "Die Spracheinstellung ist ungültig.");
     }
 

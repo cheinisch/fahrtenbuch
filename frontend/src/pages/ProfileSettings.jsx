@@ -1,3 +1,4 @@
+import { LANGUAGES, languageName } from "../i18n/languages.js";
 import { useI18n } from "../i18n/I18nProvider.jsx";
 import { codeKey } from "../i18n/translate.js";
 import {
@@ -1283,8 +1284,7 @@ export default function ProfileSettings() {
                 }
                 className={fieldClass}
               >
-                <option value="de">{t("profile.language.german")}</option>
-                <option value="en">English</option>
+                {LANGUAGES.map((l)=><option key={l.code} value={l.code}>{l.name}</option>)}
               </select>
             </label>
 
@@ -1345,7 +1345,7 @@ export default function ProfileSettings() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className={labelClass}>{t("profile.language.label")}
               <select value={personalLanguage} onChange={(e)=>setPersonalLanguage(e.target.value)} className={fieldClass}>
-                <option value="">{t("profile.language.systemDefault")}</option><option value="de">{t("profile.language.german")}</option><option value="en">English</option>
+                <option value="">{t("profile.language.systemDefault")}</option>{LANGUAGES.map((l)=><option key={l.code} value={l.code}>{l.name}</option>)}
               </select>
             </label>
             <button disabled={saving==="language"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-50">{t("profile.language.save")}</button>

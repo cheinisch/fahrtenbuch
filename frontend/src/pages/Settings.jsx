@@ -1,3 +1,4 @@
+import { LANGUAGES, languageName } from "../i18n/languages.js";
 import PageHeader from "../components/PageHeader.jsx";
 import {
   useCallback,
@@ -331,7 +332,7 @@ export default function Settings() {
                 <label className="block text-sm font-medium">
                   {t("language.globalTitle")}
                   <select value={settings.defaultLanguage || "de"} onChange={(event)=>setSettings((current)=>({...current,defaultLanguage:event.target.value}))} className={fieldClass}>
-                    <option value="de">Deutsch</option><option value="en">English</option>
+                    {LANGUAGES.map((l)=><option key={l.code} value={l.code}>{l.name}</option>)}
                   </select>
                   <span className="mt-1 block text-xs text-fb-muted">{t("language.globalHint")}</span>
                 </label>

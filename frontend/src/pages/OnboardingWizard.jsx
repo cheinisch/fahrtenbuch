@@ -1,3 +1,4 @@
+import { LANGUAGES, languageName } from "../i18n/languages.js";
 import { CheckCircleIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
@@ -279,7 +280,7 @@ function OnboardingFlow({ initial }) {
             label={t("common.language")}
             value={selectedLanguage}
             onChange={(value) => { setSelectedLanguage(value); setLanguage(value); }}
-            options={[{ value: "de", label: "Deutsch" }, { value: "en", label: "English" }]}
+            options={LANGUAGES.map((l)=>({ value: l.code, label: l.name }))}
           />
           {gravatarAllowed && (
             <div className="flex items-center justify-between gap-4 rounded-xl border border-fb-border p-4">
@@ -339,7 +340,7 @@ function OnboardingFlow({ initial }) {
               <SummaryList
                 rows={[
                   ...(needsPassword ? [{ label: t("onboarding.done.password"), value: t("onboarding.done.passwordOk"), ok: true }] : []),
-                  { label: t("common.language"), value: selectedLanguage === "en" ? "English" : "Deutsch", ok: true },
+                  { label: t("common.language"), value: languageName(selectedLanguage), ok: true },
                   ...(enabledProviders.length ? [{
                     label: t("onboarding.done.accounts"),
                     value: linkedNames.length ? linkedNames.join(" · ") : t("onboarding.done.noAccounts"),

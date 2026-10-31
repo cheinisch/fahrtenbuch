@@ -1,3 +1,4 @@
+import { LANGUAGES, languageName } from "../i18n/languages.js";
 import {
   ExclamationTriangleIcon,
   InformationCircleIcon,
@@ -180,7 +181,7 @@ export default function SetupWizard() {
             label={t("setup.welcome.language")}
             value={selectedLanguage}
             onChange={(value) => { setSelectedLanguage(value); setLanguage(value); }}
-            options={[{ value: "de", label: "Deutsch" }, { value: "en", label: "English" }]}
+            options={LANGUAGES.map((l)=>({ value: l.code, label: l.name }))}
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-fb-border p-4">
