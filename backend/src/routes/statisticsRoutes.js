@@ -33,6 +33,8 @@ function buildConditions(request, timeZone) {
   const conditions = [
     "t.user_id = $1",
     "t.archived_at IS NULL",
+    // Zusammengeführte/doppelte Geräteaufzeichnungen nur über die kanonische Fahrt zählen
+    "COALESCE(t.reconciliation_status, 'canonical') = 'canonical'",
     "t.status = 'completed'",
   ];
 
@@ -168,7 +170,7 @@ statisticsRoutes.get(
           ON date_trunc('month', ${tripLocalStartSql("t", "$3")}) = months.month
           AND t.user_id = $1
           AND t.status = 'completed'
-          AND t.archived_at IS NULL
+          AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical'
         GROUP BY months.month
         ORDER BY months.month
       `,
@@ -215,7 +217,7 @@ statisticsRoutes.get(
         LEFT JOIN trips t
           ON t.vehicle_id = v.id
           AND t.user_id = v.user_id
-          AND t.archived_at IS NULL
+          AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical'
         WHERE v.user_id = $1
           AND v.archived_at IS NULL
         GROUP BY v.id
@@ -285,7 +287,7 @@ statisticsRoutes.get(
       FROM intervals i
       LEFT JOIN trips t
         ON ${vehicleTripScopeSql("t", "$1")} AND t.vehicle_id=i.vehicle_id
-       AND t.archived_at IS NULL AND t.status='completed'
+       AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical' AND t.status='completed'
        AND ${tripLocalStartSql("t", "$5")}::date >= greatest(i.reading_date, $3::date)
        AND ${tripLocalStartSql("t", "$5")}::date <= least(i.next_date, $4::date)
       GROUP BY i.id, i.next_id, i.reading_date, i.next_date, i.odometer_meters, i.next_meter
@@ -333,7 +335,7 @@ statisticsRoutes.get(
         SELECT greatest(
           date_trunc('month', now() AT TIME ZONE $3::text)::date,
           coalesce((SELECT date_trunc('month', max(${tripLocalStartSql("t", "$3")}))::date
-                    FROM trips t WHERE t.user_id = $1 AND t.archived_at IS NULL AND t.status = 'completed'),
+                    FROM trips t WHERE t.user_id = $1 AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical' AND t.status = 'completed'),
                    date_trunc('month', now() AT TIME ZONE $3::text)::date)
         ) AS last_month
       ),
@@ -356,7 +358,7 @@ statisticsRoutes.get(
             OR EXISTS (
               SELECT 1 FROM trips own
               WHERE own.vehicle_id = v.id AND own.user_id = $1
-                AND own.archived_at IS NULL AND own.status = 'completed'
+                AND own.archived_at IS NULL AND COALESCE(own.reconciliation_status, 'canonical') = 'canonical' AND own.status = 'completed'
             )
           )
       ),
@@ -371,7 +373,7 @@ statisticsRoutes.get(
           coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id = $1 AND t.type = 'unclassified'), 0)::bigint AS unclassified_meters,
           coalesce(sum(t.distance_meters) FILTER (WHERE t.user_id <> $1), 0)::bigint AS other_drivers_meters
         FROM trips t
-        WHERE t.archived_at IS NULL AND t.status = 'completed'
+        WHERE t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical' AND t.status = 'completed'
           AND ${vehicleTripScopeSql("t", "$1")}
         GROUP BY t.vehicle_id, date_trunc('month', ${tripLocalStartSql("t", "$3")})
       )
@@ -448,7 +450,7 @@ statisticsRoutes.get("/monthly-trips", asyncHandler(async (request, response) =>
             t.reimbursement_rate_eur
      FROM trips t
      WHERE t.user_id = $1 AND t.vehicle_id = $2 AND t.status = 'completed'
-       AND t.archived_at IS NULL AND t.type = $4::trip_type
+       AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical' AND t.type = $4::trip_type
        AND to_char(${tripLocalStartSql("t", "$5")}, 'YYYY-MM') = $3
      ORDER BY t.started_at DESC`,
     [request.auth.userId, vehicleId, month, type, await userTimeZone(pool, request.auth.userId)],
@@ -479,7 +481,7 @@ statisticsRoutes.get("/leasing-live-km", asyncHandler(async (request, response) 
       MAX(t.ended_at) AS last_trip_at
     FROM last_reading r
     LEFT JOIN trips t ON t.vehicle_id = $2 AND t.status = 'completed'
-      AND t.archived_at IS NULL
+      AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical'
       -- For legacy date-only readings the clock time is unknown: exclude that day
       -- (day boundary in the user's time zone).
       AND t.started_at >= COALESCE(r.reading_at, (r.reading_date + interval '1 day') AT TIME ZONE $3::text)

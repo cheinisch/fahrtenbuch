@@ -71,7 +71,7 @@ async function loadVehicles(client, userId, month, timeZone) {
     `
     WITH month_trips AS (
       SELECT t.* FROM trips t
-      WHERE t.archived_at IS NULL AND t.status = 'completed'
+      WHERE t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical' AND t.status = 'completed'
         AND ${local}::date >= $2::date AND ${local}::date < $3::date
     ),
     vm AS (
@@ -165,7 +165,7 @@ async function loadOpenTrips(client, userId, month, timeZone) {
       count(*) OVER () AS total
     FROM trips t
     JOIN vehicles v ON v.id = t.vehicle_id
-    WHERE t.user_id = $1 AND t.archived_at IS NULL AND t.status = 'completed' AND t.type = 'unclassified'
+    WHERE t.user_id = $1 AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical' AND t.status = 'completed' AND t.type = 'unclassified'
       AND ${local}::date >= $2::date AND ${local}::date < $3::date
     ORDER BY t.started_at
     LIMIT ${MAX_OPEN_TRIPS}
@@ -175,7 +175,7 @@ async function loadOpenTrips(client, userId, month, timeZone) {
   const older = await client.query(
     `
     SELECT count(*)::int AS count FROM trips t
-    WHERE t.user_id = $1 AND t.archived_at IS NULL AND t.status = 'completed' AND t.type = 'unclassified'
+    WHERE t.user_id = $1 AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical' AND t.status = 'completed' AND t.type = 'unclassified'
       AND ${tripLocalStartSql("t", "$3")}::date < $2::date
     `,
     [userId, start, timeZone],
@@ -235,7 +235,7 @@ async function loadNewPlaces(client, userId, month, timeZone) {
       SELECT t.id, t.type, t.purpose, t.distance_meters, t.start_lat, t.start_lon, t.end_lat, t.end_lon,
         t.end_address, t.started_at, to_char(${local}, 'YYYY-MM-DD') AS local_date
       FROM trips t
-      WHERE t.user_id = $1 AND t.archived_at IS NULL AND t.status = 'completed'
+      WHERE t.user_id = $1 AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical' AND t.status = 'completed'
         AND ${local}::date >= $2::date AND ${local}::date < $3::date
       ORDER BY t.started_at
       `,
@@ -260,7 +260,7 @@ async function loadNewPlaces(client, userId, month, timeZone) {
     FROM unnest($2::float8[], $3::float8[], $4::int[]) AS c(lat, lon, idx)
     WHERE EXISTS (
       SELECT 1 FROM trips t
-      WHERE t.user_id = $1 AND t.archived_at IS NULL AND t.status = 'completed'
+      WHERE t.user_id = $1 AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical' AND t.status = 'completed'
         AND ${tripLocalStartSql("t", "$7")}::date < $6::date
         AND (
           (t.end_lat BETWEEN c.lat - $5 / 111320.0 AND c.lat + $5 / 111320.0
