@@ -6,6 +6,9 @@ import { userTimeZone } from "../lib/timezone.js";
 import { uuidValue } from "../lib/validation.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import {
+  acknowledgeOdometerReminder, getReminderSettings, pendingOdometerReminders, saveReminderSettings,
+} from "../services/odometerReminderService.js";
 
 export const odometerRoutes = Router();
 odometerRoutes.use(requireAuth);
@@ -106,6 +109,37 @@ odometerRoutes.get(
       recordedAt: row.recorded_at,
       readingAt: row.reading_at,
     })));
+  }),
+);
+
+// Erinnerung an den Kilometerstand. Diese Routen stehen vor "/:vehicleId/:month",
+// weil sich "/reminder-settings/<id>" sonst damit überschneidet.
+odometerRoutes.get(
+  "/reminders",
+  asyncHandler(async (request, response) => {
+    response.json(await pendingOdometerReminders(request.auth.userId));
+  }),
+);
+
+odometerRoutes.post(
+  "/reminders/:id/ack",
+  asyncHandler(async (request, response) => {
+    await acknowledgeOdometerReminder(request.auth.userId, uuidValue(request.params.id));
+    response.status(204).end();
+  }),
+);
+
+odometerRoutes.get(
+  "/reminder-settings/:vehicleId",
+  asyncHandler(async (request, response) => {
+    response.json(await getReminderSettings(request.auth.userId, uuidValue(request.params.vehicleId)));
+  }),
+);
+
+odometerRoutes.put(
+  "/reminder-settings/:vehicleId",
+  asyncHandler(async (request, response) => {
+    response.json(await saveReminderSettings(request.auth.userId, uuidValue(request.params.vehicleId), request.body));
   }),
 );
 

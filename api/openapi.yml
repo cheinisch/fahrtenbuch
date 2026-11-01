@@ -1532,6 +1532,71 @@ paths:
       responses:
         '200': { description: Fehlende Messwerte }
 
+  /odometer/reminders:
+    get:
+      tags: [Vehicles]
+      summary: Get open odometer reminders
+      description: >
+        Offene Erinnerungen, den Kilometerstand einzutragen. Die Apps fragen sie regelmäßig ab und zeigen
+        eine Benachrichtigung. Eine Erinnerung entfällt, sobald ab ihrem Fälligkeitstag ein Stand eingetragen ist.
+      responses:
+        '200':
+          description: Offene Erinnerungen
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OdometerReminder' }
+
+  /odometer/reminders/{id}/ack:
+    post:
+      tags: [Vehicles]
+      summary: Mark an odometer reminder as handled
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204': { description: Erinnerung erledigt }
+        '404': { description: REMINDER_NOT_FOUND }
+
+  /odometer/reminder-settings/{vehicleId}:
+    get:
+      tags: [Vehicles]
+      summary: Get the odometer reminder settings of a vehicle
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Einstellungen (ohne gespeicherte Werte die Standardwerte, enabled=false)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OdometerReminderSettings' }
+        '404': { description: VEHICLE_NOT_FOUND }
+    put:
+      tags: [Vehicles]
+      summary: Save the odometer reminder settings of a vehicle
+      description: Fehlende Felder behalten ihren bisherigen Wert.
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OdometerReminderSettings' }
+      responses:
+        '200':
+          description: Gespeicherte Einstellungen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OdometerReminderSettings' }
+        '400': { description: VALIDATION_ERROR }
+        '404': { description: VEHICLE_NOT_FOUND }
+
   /odometer/{vehicleId}/{month}:
     put:
       tags: [Vehicles]
@@ -3179,6 +3244,27 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
   schemas:
+    OdometerReminderSettings:
+      type: object
+      properties:
+        enabled: { type: boolean, default: false }
+        frequency:
+          type: string
+          enum: [weekly, monthly, month_end]
+          default: monthly
+          description: wöchentlich, monatlich an einem Tag oder am Monatsende (Ortszeit des Kontos)
+        weekday: { type: integer, minimum: 1, maximum: 7, default: 1, description: 1 = Montag … 7 = Sonntag, nur bei weekly }
+        dayOfMonth: { type: integer, minimum: 1, maximum: 28, default: 1, description: Nur bei monthly }
+        hour: { type: integer, minimum: 0, maximum: 23, default: 18, description: Ab dieser Stunde (Ortszeit) ist die Erinnerung fällig }
+    OdometerReminder:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        vehicleId: { type: string, format: uuid }
+        vehicleName: { type: string }
+        licensePlate: { type: [string, 'null'] }
+        dueDate: { type: string, format: date, description: Fälligkeitstag in der Ortszeit des Kontos }
+        lastOdometerKm: { type: [number, 'null'], description: Zuletzt eingetragener Stand }
     DawarichConnection:
       type: object
       required: [connected]
