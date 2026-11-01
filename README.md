@@ -179,6 +179,12 @@ Other available scripts include `npm run lint` and `npm test`.
 
 The complete [OpenAPI specification (YAML)](api/openapi.yml) documents the API endpoints, request and response schemas, and authentication requirements. For a guided introduction, see the [English API documentation](README_API.md). The optional Swagger interface can be enabled with `SHOW_API_UI=true`; when enabled, it is available at `/api` and `/api/docs`.
 
+## Support
+
+Fahrtenbuch is free and open source. If it helps you and you'd like to give something back, you can support the project on Ko-fi – it goes toward hosting, domains and new features.
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/cheinisch)
+
 ## License
 
 This project is licensed under **AGPL-3.0-only**, as declared in `package.json`.
