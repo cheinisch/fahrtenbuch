@@ -68,7 +68,7 @@ const SETTINGS_GROUPS = [
 const SECTION_GROUP = {
   profile: "profile", language: "profile", country: "profile",
   home: "home", work: "home", recognition: "home", places: "home",
-  tracking: "tracking", mapMatching: "tracking", aiClassification: "tracking", dawarich: "tracking",
+  tracking: "tracking", mapMatching: "tracking", tripMerge: "tracking", aiClassification: "tracking", dawarich: "tracking",
   notifications: "notifications",
   credentials: "credentials", security: "credentials",
   devices: "devices",
@@ -215,6 +215,7 @@ export default function ProfileSettings() {
   const [monthlyReportAvailable, setMonthlyReportAvailable] = useState(false);
   const [mapMatchingEnabled, setMapMatchingEnabled] = useState(true);
   const [mapMatchingAvailable, setMapMatchingAvailable] = useState(false);
+  const [tripMergeGap, setTripMergeGap] = useState("120");
   const [aiClassification, setAiClassification] = useState({ enabled: false, available: false, provider: null });
   const [speedUnit, setSpeedUnit] = useState("kmh");
 
@@ -351,6 +352,7 @@ export default function ProfileSettings() {
       setMonthlyReportAvailable(settingsResult.settings.monthlyReportAvailable === true);
       setMapMatchingEnabled(settingsResult.settings.mapMatchingEnabled !== false);
       setMapMatchingAvailable(settingsResult.settings.mapMatchingAvailable === true);
+      setTripMergeGap(String(settingsResult.settings.tripMergeGapSeconds ?? 120));
       setAiClassification({
         enabled: settingsResult.settings.aiClassificationEnabled === true,
         available: settingsResult.settings.aiClassificationAvailable === true,
@@ -855,6 +857,25 @@ export default function ProfileSettings() {
       setMapMatchingEnabled(updated.mapMatchingEnabled !== false);
       setMapMatchingAvailable(updated.mapMatchingAvailable === true);
       showSuccess(t("profile.mapMatching.saved"));
+    } catch (saveError) {
+      showError(saveError);
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function saveTripMerge(event) {
+    event.preventDefault();
+    const seconds = Number(tripMergeGap);
+    if (tripMergeGap.trim() === "" || !Number.isInteger(seconds) || seconds < 0 || seconds > 900) {
+      showError(new Error(t("profile.tripMerge.invalid")));
+      return;
+    }
+    setSaving("trip-merge");
+    try {
+      const updated = await updatePersonalSettings(accessToken, { tripMergeGapSeconds: seconds });
+      setTripMergeGap(String(updated.tripMergeGapSeconds ?? seconds));
+      showSuccess(t("profile.tripMerge.saved"));
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -2104,6 +2125,28 @@ export default function ProfileSettings() {
           </p>
           <div className="mt-6 flex justify-end">
             <button type="submit" disabled={!mapMatchingAvailable || saving === "map-matching"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "map-matching" ? t("common.saving") : t("common.save")}</button>
+          </div>
+        </Section>
+      </form>
+
+      <form onSubmit={saveTripMerge}>
+        <Section id="tripMerge" title={t("profile.tripMerge.title")} description={t("profile.tripMerge.description")}>
+          <label className={labelClass} htmlFor="profile-trip-merge">{t("profile.tripMerge.label")}</label>
+          <input
+            id="profile-trip-merge"
+            type="number"
+            inputMode="numeric"
+            min="0"
+            max="900"
+            step="1"
+            className={fieldClass}
+            value={tripMergeGap}
+            aria-describedby="profile-trip-merge-hint"
+            onChange={(event) => setTripMergeGap(event.target.value)}
+          />
+          <p id="profile-trip-merge-hint" className="mt-2 text-sm text-fb-muted">{t("profile.tripMerge.hint")}</p>
+          <div className="mt-6 flex justify-end">
+            <button type="submit" disabled={saving === "trip-merge"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-60">{saving === "trip-merge" ? t("common.saving") : t("common.save")}</button>
           </div>
         </Section>
       </form>

@@ -1171,6 +1171,14 @@
       "unavailable": "Map matching nie jest skonfigurowany na tym serwerze. Administrator może go włączyć w Administracja → Geokodowanie.",
       "saved": "Zapisano ustawienie map matchingu."
     },
+    "tripMerge": {
+      "title": "Łączenie przejazdów",
+      "description": "Gdy dwa urządzenia nagrywają ten sam przejazd, serwer łączy je w jeden. Tutaj ustawiasz najdłuższą dozwoloną przerwę między dwoma nagraniami.",
+      "label": "Maksymalna przerwa w sekundach",
+      "hint": "Wartość od 0 do 900. Przy 0 łączone są tylko nagrania nakładające się w czasie. Domyślnie: 120 sekund. Przejazdy z tego samego urządzenia nigdy nie są łączone.",
+      "saved": "Zapisano ustawienie łączenia przejazdów.",
+      "invalid": "Wpisz liczbę całkowitą od 0 do 900."
+    },
     "page": {
       "title": "Ustawienia profilu",
       "heading": "Ustawienia osobiste",

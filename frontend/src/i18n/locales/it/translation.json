@@ -1171,6 +1171,14 @@
       "unavailable": "Il map matching non è configurato su questo server. Un amministratore può attivarlo in Amministrazione → Geocodifica.",
       "saved": "L’impostazione del map matching è stata salvata."
     },
+    "tripMerge": {
+      "title": "Unione dei viaggi",
+      "description": "Quando due dispositivi registrano lo stesso viaggio, il server li unisce in un solo viaggio. Qui imposti la pausa massima consentita tra due registrazioni.",
+      "label": "Pausa massima in secondi",
+      "hint": "Un valore da 0 a 900. Con 0 vengono unite solo le registrazioni che si sovrappongono nel tempo. Predefinito: 120 secondi. I viaggi dello stesso dispositivo non vengono mai uniti.",
+      "saved": "L’impostazione per l’unione dei viaggi è stata salvata.",
+      "invalid": "Inserisci un numero intero da 0 a 900."
+    },
     "page": {
       "title": "Impostazioni del profilo",
       "heading": "Impostazioni personali",

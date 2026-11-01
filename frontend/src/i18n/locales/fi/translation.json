@@ -1171,6 +1171,14 @@
       "unavailable": "Map matchingia ei ole määritetty tällä palvelimella. Ylläpitäjä voi ottaa sen käyttöön kohdassa Hallinta → Geokoodaus.",
       "saved": "Map matching -asetus tallennettiin."
     },
+    "tripMerge": {
+      "title": "Matkojen yhdistäminen",
+      "description": "Kun kaksi laitetta tallentaa saman matkan, palvelin yhdistää ne yhdeksi matkaksi. Tässä määrität pisimmän sallitun tauon kahden tallennuksen välillä.",
+      "label": "Pisin tauko sekunteina",
+      "hint": "Arvo väliltä 0–900. Arvolla 0 yhdistetään vain ajallisesti päällekkäiset tallennukset. Oletus: 120 sekuntia. Saman laitteen matkoja ei koskaan yhdistetä.",
+      "saved": "Yhdistämisasetus tallennettiin.",
+      "invalid": "Anna kokonaisluku väliltä 0–900."
+    },
     "page": {
       "title": "Profiilin asetukset",
       "heading": "Henkilökohtaiset asetukset",

@@ -1171,6 +1171,14 @@
       "unavailable": "Map matching er ikke konfigurert på denne serveren. En administrator kan aktivere det under Administrasjon → Geokoding.",
       "saved": "Innstillingen for map matching er lagret."
     },
+    "tripMerge": {
+      "title": "Sammenslåing av turer",
+      "description": "Når to enheter registrerer samme tur, slår serveren dem sammen til én tur. Her angir du lengste tillatte pause mellom to registreringer.",
+      "label": "Maksimal pause i sekunder",
+      "hint": "En verdi fra 0 til 900. 0 slår bare sammen registreringer som overlapper i tid. Standard: 120 sekunder. Turer fra samme enhet slås aldri sammen.",
+      "saved": "Innstillingen for sammenslåing er lagret.",
+      "invalid": "Skriv inn et heltall fra 0 til 900."
+    },
     "page": {
       "title": "Profilinnstillinger",
       "heading": "Personlige innstillinger",

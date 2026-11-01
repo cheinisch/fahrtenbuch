@@ -1171,6 +1171,14 @@
       "unavailable": "Map matching is not set up on this server. An administrator can enable it under Administration → Geocoding.",
       "saved": "The map matching setting was saved."
     },
+    "tripMerge": {
+      "title": "Merging trips",
+      "description": "When two devices record the same drive, the server merges them into one trip. Here you set the longest pause allowed between two recordings.",
+      "label": "Maximum pause in seconds",
+      "hint": "A value from 0 to 900. 0 only merges recordings that overlap in time. Default: 120 seconds. Trips from the same device are never merged.",
+      "saved": "The merge setting was saved.",
+      "invalid": "Please enter a whole number from 0 to 900."
+    },
     "page": {
       "title": "Profile settings",
       "heading": "Personal settings",
