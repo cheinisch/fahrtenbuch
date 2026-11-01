@@ -20,6 +20,17 @@ const DEFAULT_USER_SETTINGS = Object.freeze({
 
 export const MAP_STYLES = ["osm", "light", "dark", "auto"];
 
+// Pause (Sekunden) zwischen zwei Fahrten desselben Fahrzeugs, bis zu der der Server sie
+// als eine Fahrt zusammenführt (Mehrgeräte-Abgleich). 0 = nur zeitlich überlappende Fahrten.
+export const TRIP_MERGE_GAP_DEFAULT = 120;
+export const TRIP_MERGE_GAP_MAX = 900;
+
+export function normalizeTripMergeGap(value) {
+  const n = Number(value);
+  if (value === null || value === undefined || value === "" || !Number.isInteger(n)) return TRIP_MERGE_GAP_DEFAULT;
+  return Math.min(Math.max(n, 0), TRIP_MERGE_GAP_MAX);
+}
+
 function isObject(value) {
   return (
     value !== null &&
@@ -77,6 +88,7 @@ export function mapUserSettings(row) {
     // Persönliche Wahl (Standard: an) und ob die Instanz Gravatar überhaupt erlaubt
     gravatarEnabled: customSettings.gravatarEnabled !== false,
     gravatarAvailable: isGravatarEnabled(),
+    tripMergeGapSeconds: normalizeTripMergeGap(customSettings.tripMergeGapSeconds),
     // Monatsbericht per E-Mail (Standard: an); nur wählbar, wenn SMTP eingerichtet ist
     monthlyReportEnabled: customSettings.monthlyReportEnabled !== false,
     monthlyReportAvailable: isMailConfigured(),
@@ -174,6 +186,13 @@ export async function updateUserSettings(
 
   if (input.aiClassificationEnabled !== undefined && typeof input.aiClassificationEnabled !== "boolean") {
     throw badRequest("VALIDATION_ERROR", "aiClassificationEnabled muss true oder false sein.");
+  }
+
+  if (
+    input.tripMergeGapSeconds !== undefined &&
+    (!Number.isInteger(input.tripMergeGapSeconds) || input.tripMergeGapSeconds < 0 || input.tripMergeGapSeconds > TRIP_MERGE_GAP_MAX)
+  ) {
+    throw badRequest("VALIDATION_ERROR", `tripMergeGapSeconds muss eine ganze Zahl von 0 bis ${TRIP_MERGE_GAP_MAX} sein.`);
   }
 
   if (input.mapStyle !== undefined && !MAP_STYLES.includes(input.mapStyle)) {

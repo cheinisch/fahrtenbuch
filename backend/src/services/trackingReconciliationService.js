@@ -1,7 +1,7 @@
 import { appendTripHistory, recalculateTripMetrics } from "./tripService.js";
+import { normalizeTripMergeGap } from "./userSettingsService.js";
 
 const SAME_START_MS = 90_000;
-const MAX_JOIN_GAP_MS = 120_000;
 const CLOSE_METERS = 250;
 
 function haversine(a, b) {
@@ -21,18 +21,23 @@ function motionStart(trip, pts) {
   const moving=pts.find((p,i)=>i>0 && haversine(pts[Math.max(0,i-1)],p)>=8);
   return moving ? time(moving.recordedAt) : time(trip.started_at);
 }
+// Dasselbe Gerät kann keine Doppelaufzeichnung liefern: zwei Fahrten mit derselben device_id
+// (z. B. kurzer Stopp beim Bäcker) sind echte Einzelfahrten und werden nie zusammengeführt.
+export function sameRecordingDevice(a,b){
+  return Boolean(a.device_id) && Boolean(b.device_id) && String(a.device_id)===String(b.device_id);
+}
 function overlap(a,b){return Math.min(time(a.ended_at),time(b.ended_at))-Math.max(time(a.started_at),time(b.started_at));}
 function endpointsClose(a,b){
   if(!a.length||!b.length)return false;
   const pairs=[[a[0],b[0]],[a[a.length-1],b[b.length-1]]];
   return pairs.every(([x,y])=>haversine(x,y)<=CLOSE_METERS);
 }
-function chainRelated(a,b,ap,bp){
+function chainRelated(a,b,ap,bp,maxJoinGapMs){
   if(overlap(a,b)>0) return true;
   const first=time(a.started_at)<=time(b.started_at)?{t:a,p:ap}:{t:b,p:bp};
   const second=first.t===a?{t:b,p:bp}:{t:a,p:ap};
   const gap=time(second.t.started_at)-time(first.t.ended_at);
-  if(gap<0||gap>MAX_JOIN_GAP_MS||!first.p.length||!second.p.length)return false;
+  if(gap<0||gap>maxJoinGapMs||!first.p.length||!second.p.length)return false;
   return haversine(first.p[first.p.length-1],second.p[0])<=CLOSE_METERS;
 }
 
@@ -41,6 +46,10 @@ export async function reconcileCompletedTracking(client, tripId) {
   if(!currentResult.rowCount) return null;
   const current=currentResult.rows[0];
   if(current.status!=="completed"||current.source!=="android") return {action:"none",tripId};
+
+  // Zeitfenster stellt der Nutzer im Profil ein (tripMergeGapSeconds); 0 = nur überlappende Fahrten
+  const gapSetting=await client.query(`SELECT settings->>'tripMergeGapSeconds' AS v FROM user_settings WHERE user_id=$1`,[current.user_id]);
+  const maxJoinGapMs=normalizeTripMergeGap(gapSetting.rows[0]?.v==null?null:Number(gapSetting.rows[0].v))*1000;
 
   const candidates=await client.query(`
     SELECT t.*, EXISTS (
@@ -52,10 +61,10 @@ export async function reconcileCompletedTracking(client, tripId) {
     WHERE t.vehicle_id=$1 AND t.id<>$2 AND t.source='android'
       AND t.status='completed' AND t.archived_at IS NULL
       AND t.reconciliation_status='canonical'
-      AND t.started_at <= $4::timestamptz + interval '2 minutes'
-      AND t.ended_at >= $3::timestamptz - interval '2 minutes'
+      AND t.started_at <= $4::timestamptz + make_interval(secs => $5::double precision / 1000)
+      AND t.ended_at >= $3::timestamptz - make_interval(secs => $5::double precision / 1000)
     ORDER BY t.started_at
-    FOR UPDATE`,[current.vehicle_id,current.id,current.started_at,current.ended_at]);
+    FOR UPDATE`,[current.vehicle_id,current.id,current.started_at,current.ended_at,maxJoinGapMs]);
   if(!candidates.rowCount) return {action:"none",tripId};
 
   const cp=await points(client,current.id);
@@ -63,8 +72,9 @@ export async function reconcileCompletedTracking(client, tripId) {
     WHERE p.vehicle_id=$1 AND p.user_id=$2 AND $3::timestamptz>=p.valid_from AND (p.valid_to IS NULL OR $3::timestamptz<p.valid_to)) AS yes`,
     [current.vehicle_id,current.user_id,current.started_at]);
   for(const other of candidates.rows){
+    if(sameRecordingDevice(current,other)) continue;
     const op=await points(client,other.id);
-    if(!chainRelated(current,other,cp,op)) continue;
+    if(!chainRelated(current,other,cp,op,maxJoinGapMs)) continue;
     const cm=motionStart(current,cp), om=motionStart(other,op);
     const sameStart=Math.abs(cm-om)<=SAME_START_MS;
     const sameRoute=endpointsClose(cp,op);

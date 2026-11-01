@@ -1171,6 +1171,14 @@
       "unavailable": "Map matching är inte konfigurerat på denna server. En administratör kan aktivera det under Administration → Geokodning.",
       "saved": "Inställningen för map matching har sparats."
     },
+    "tripMerge": {
+      "title": "Sammanslagning av resor",
+      "description": "När två enheter spelar in samma resa slår servern ihop dem till en resa. Här anger du den längsta tillåtna pausen mellan två inspelningar.",
+      "label": "Längsta paus i sekunder",
+      "hint": "Ett värde från 0 till 900. Med 0 slås bara inspelningar ihop som överlappar i tid. Standard: 120 sekunder. Resor från samma enhet slås aldrig ihop.",
+      "saved": "Inställningen för sammanslagning har sparats.",
+      "invalid": "Ange ett heltal från 0 till 900."
+    },
     "page": {
       "title": "Profilinställningar",
       "heading": "Personliga inställningar",

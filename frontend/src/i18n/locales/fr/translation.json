@@ -1171,6 +1171,14 @@
       "unavailable": "Le map matching n’est pas configuré sur ce serveur. Un administrateur peut l’activer sous Administration → Géocodage.",
       "saved": "Le paramètre de map matching a été enregistré."
     },
+    "tripMerge": {
+      "title": "Fusion des trajets",
+      "description": "Lorsque deux appareils enregistrent le même trajet, le serveur les fusionne en un seul. Vous définissez ici la pause maximale autorisée entre deux enregistrements.",
+      "label": "Pause maximale en secondes",
+      "hint": "Une valeur de 0 à 900. Avec 0, seuls les enregistrements qui se chevauchent dans le temps sont fusionnés. Par défaut : 120 secondes. Les trajets d’un même appareil ne sont jamais fusionnés.",
+      "saved": "Le paramètre de fusion a été enregistré.",
+      "invalid": "Veuillez saisir un nombre entier de 0 à 900."
+    },
     "page": {
       "title": "Paramètres du profil",
       "heading": "Paramètres personnels",

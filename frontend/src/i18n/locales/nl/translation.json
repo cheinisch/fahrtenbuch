@@ -1171,6 +1171,14 @@
       "unavailable": "Map matching is niet ingesteld op deze server. Een beheerder kan het inschakelen onder Beheer → Geocoding.",
       "saved": "De instelling voor map matching is opgeslagen."
     },
+    "tripMerge": {
+      "title": "Ritten samenvoegen",
+      "description": "Als twee apparaten dezelfde rit opnemen, voegt de server ze samen tot één rit. Hier stel je de langst toegestane pauze tussen twee opnamen in.",
+      "label": "Maximale pauze in seconden",
+      "hint": "Een waarde van 0 tot 900. Met 0 worden alleen opnamen samengevoegd die in de tijd overlappen. Standaard: 120 seconden. Ritten van hetzelfde apparaat worden nooit samengevoegd.",
+      "saved": "De instelling voor samenvoegen is opgeslagen.",
+      "invalid": "Voer een geheel getal van 0 tot 900 in."
+    },
     "page": {
       "title": "Profielinstellingen",
       "heading": "Persoonlijke instellingen",

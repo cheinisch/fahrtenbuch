@@ -1172,6 +1172,14 @@
       "unavailable": "Auf diesem Server ist kein Map-Matching eingerichtet. Ein Administrator kann es unter Administration → Geocoding aktivieren.",
       "saved": "Die Einstellung zum Map-Matching wurde gespeichert."
     },
+    "tripMerge": {
+      "title": "Fahrten zusammenführen",
+      "description": "Wenn zwei Geräte dieselbe Fahrt aufzeichnen, führt der Server sie zu einer Fahrt zusammen. Hier legst du fest, wie lang die Pause zwischen zwei Aufzeichnungen höchstens sein darf.",
+      "label": "Maximale Pause in Sekunden",
+      "hint": "Wert von 0 bis 900. 0 führt nur Aufzeichnungen zusammen, die sich zeitlich überschneiden. Standard: 120 Sekunden. Fahrten desselben Geräts werden nie zusammengeführt.",
+      "saved": "Die Einstellung zum Zusammenführen wurde gespeichert.",
+      "invalid": "Bitte eine ganze Zahl von 0 bis 900 eingeben."
+    },
     "page": {
       "title": "Profileinstellungen",
       "heading": "Persönliche Einstellungen",

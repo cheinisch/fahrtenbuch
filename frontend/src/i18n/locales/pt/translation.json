@@ -1171,6 +1171,14 @@
       "unavailable": "O map matching não está configurado neste servidor. Um administrador pode ativá-lo em Administração → Geocodificação.",
       "saved": "A definição de map matching foi guardada."
     },
+    "tripMerge": {
+      "title": "Unir viagens",
+      "description": "Quando dois dispositivos gravam o mesmo percurso, o servidor une-os numa só viagem. Aqui define a pausa máxima permitida entre duas gravações.",
+      "label": "Pausa máxima em segundos",
+      "hint": "Um valor de 0 a 900. Com 0 só são unidas as gravações que se sobrepõem no tempo. Predefinição: 120 segundos. As viagens do mesmo dispositivo nunca são unidas.",
+      "saved": "A definição de unir viagens foi guardada.",
+      "invalid": "Introduza um número inteiro de 0 a 900."
+    },
     "page": {
       "title": "Definições do perfil",
       "heading": "Definições pessoais",
