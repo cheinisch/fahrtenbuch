@@ -3,7 +3,6 @@
 [![Release](https://img.shields.io/github/v/release/cheinisch/fahrtenbuch?label=release&sort=semver)](https://github.com/cheinisch/fahrtenbuch/releases/latest)
 [![Release date](https://img.shields.io/github/release-date/cheinisch/fahrtenbuch?label=released)](https://github.com/cheinisch/fahrtenbuch/releases/latest)
 [![License](https://img.shields.io/github/license/cheinisch/fahrtenbuch)](LICENSE)
-[![Last commit](https://img.shields.io/github/last-commit/cheinisch/fahrtenbuch)](https://github.com/cheinisch/fahrtenbuch/commits/main)
 
 [![Release image](https://github.com/cheinisch/fahrtenbuch/actions/workflows/build-release-image.yml/badge.svg)](https://github.com/cheinisch/fahrtenbuch/actions/workflows/build-release-image.yml)
 [![Dev image](https://github.com/cheinisch/fahrtenbuch/actions/workflows/build-dev-image.yml/badge.svg)](https://github.com/cheinisch/fahrtenbuch/actions/workflows/build-dev-image.yml)
