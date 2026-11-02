@@ -1888,7 +1888,7 @@ paths:
   /export/summary:
     get:
       tags: [Import Export]
-      summary: Get export statistics and completeness notices
+      summary: Get export statistics and data notices
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -1930,7 +1930,7 @@ paths:
   /export/pdf:
     get:
       tags: [Import Export]
-      summary: Export tax-oriented trip and statistics PDF report
+      summary: Export trip and statistics PDF report
       parameters:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
@@ -2863,18 +2863,6 @@ paths:
         in: path
         required: true
         schema: { type: string }
-      responses:
-        '200':
-          description: Successful response
-        '400':
-          description: Invalid request
-        '401':
-          description: Authentication required
-
-  /export/countries:
-    get:
-      tags: [Import Export]
-      summary: List countries available for export
       responses:
         '200':
           description: Successful response

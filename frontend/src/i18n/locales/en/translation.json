@@ -1048,16 +1048,14 @@
   // ===== Export =====
   "exportPage": {
     "title": "Export statistics and logbook",
-    "subtitle": "The PDF layout is chosen automatically based on your home country.",
+    "subtitle": "Exports trips, odometer readings and a summary as PDF or CSV.",
     "presetYtd": "Year to date",
     "presetLastMonth": "Last month",
     "presetLastQuarter": "Last quarter",
     "configFailed": "The export configuration could not be loaded.",
     "dataFailed": "The export data could not be loaded.",
     "failed": "The export failed.",
-    "countryProfile": "Country profile {code}",
     "distancesIn": "Distances in {unit}",
-    "changeCountry": "Change home country",
     "filtersTitle": "Period and filters",
     "from": "From",
     "to": "To",
@@ -1068,25 +1066,22 @@
     "calculating": "Calculating statistics …",
     "checkCompleteness": "Check completeness",
     "createTitle": "Create export",
-    "createHint": "The PDF contains the selected country profile, a summary, trips, odometer readings, changes and a requirements appendix.",
+    "createHint": "The PDF contains a summary, trips, odometer readings and the change history.",
+    "pdf": "Export PDF",
     "pdfCreating": "Creating PDF …",
-    "pdfFor": "PDF for {country}",
-    "homeCountry": "your home country",
     "csvCreating": "Creating CSV …",
-    "csv": "Export CSV",
-    "disclaimer": "The country profile structures the report. Acceptance depends on complete and timely recording as well as the tax rules that apply in each case.",
-    "requirements": "Details for this country profile"
+    "csv": "Export CSV"
   },
 
   // ===== Compliance and period closing =====
   "compliance": {
     "title": "Compliance and closing",
-    "subtitle": "Check trips for inconsistencies, verify the revision chain and close finished periods.",
+    "subtitle": "Check trips for inconsistencies, verify the change history and close finished periods.",
     "closeConfirm": "Permanently close the period {from} to {to}? Trips in it can no longer be changed afterwards.",
     "closed": "The period has been closed and locked against changes.",
     "errors": "Errors",
     "warnings": "Warnings",
-    "chain": "Revision chain",
+    "chain": "Change history",
     "chainValid": "Intact",
     "chainInvalid": "Broken",
     "noRevisions": "No revisions yet",

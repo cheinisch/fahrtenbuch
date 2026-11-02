@@ -1048,16 +1048,13 @@
   // ===== Export =====
   "exportPage": {
     "title": "Vie tilastot ja ajopäiväkirja",
-    "subtitle": "PDF:n asettelu valitaan automaattisesti asuinmaasi perusteella.",
     "presetYtd": "Vuoden alusta",
     "presetLastMonth": "Edellinen kuukausi",
     "presetLastQuarter": "Edellinen neljännes",
     "configFailed": "Viennin asetuksia ei voitu ladata.",
     "dataFailed": "Viennin tietoja ei voitu ladata.",
     "failed": "Vienti epäonnistui.",
-    "countryProfile": "Maaprofiili {code}",
     "distancesIn": "Matkat yksikössä {unit}",
-    "changeCountry": "Vaihda asuinmaata",
     "filtersTitle": "Jakso ja suodattimet",
     "from": "Mistä",
     "to": "Mihin",
@@ -1068,14 +1065,9 @@
     "calculating": "Lasketaan tilastoja …",
     "checkCompleteness": "Tarkista kattavuus",
     "createTitle": "Luo vienti",
-    "createHint": "PDF sisältää valitun maaprofiilin, yhteenvedon, ajot, matkamittarilukemat, muutokset ja vaatimusliitteen.",
     "pdfCreating": "Luodaan PDF:ää …",
-    "pdfFor": "PDF maalle {country}",
-    "homeCountry": "asuinmaasi",
     "csvCreating": "Luodaan CSV:tä …",
-    "csv": "Vie CSV",
-    "disclaimer": "Maaprofiili jäsentää raportin. Hyväksyntä riippuu täydellisestä ja oikea-aikaisesta kirjaamisesta sekä kulloinkin sovellettavista verosäännöistä.",
-    "requirements": "Tämän maaprofiilin tiedot"
+    "csv": "Vie CSV"
   },
 
   // ===== Compliance and period closing =====

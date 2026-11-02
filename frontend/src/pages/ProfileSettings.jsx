@@ -29,9 +29,6 @@ import {
   sendMonthlyReport,
 } from "../api/app.js";
 import {
-  getExportCountryOptions,
-} from "../api/countryExport.js";
-import {
   deletePasskey,
   getPasskeyRegistrationOptions,
   getPasskeys,
@@ -66,7 +63,7 @@ const SETTINGS_GROUPS = [
 ];
 
 const SECTION_GROUP = {
-  profile: "profile", language: "profile", country: "profile",
+  profile: "profile", language: "profile",
   home: "home", work: "home", recognition: "home", places: "home",
   tracking: "tracking", mapMatching: "tracking", tripMerge: "tracking", aiClassification: "tracking", dawarich: "tracking",
   notifications: "notifications",
@@ -195,16 +192,6 @@ export default function ProfileSettings() {
     themeMode: "system",
   });
 
-  const [
-    supportedCountries,
-    setSupportedCountries,
-  ] = useState([]);
-
-  const [
-    homeCountry,
-    setHomeCountry,
-  ] = useState("DE");
-
   const [personalLanguage, setPersonalLanguage] = useState("");
   const [distanceUnit, setDistanceUnit] = useState("km");
   const [dateFormat, setDateFormat] = useState("EU");
@@ -303,7 +290,6 @@ export default function ProfileSettings() {
       const [
         settingsResult,
         devicesResult,
-        countryResult,
         passkeysResult,
         placesResult,
         oauthProvidersResult,
@@ -312,10 +298,6 @@ export default function ProfileSettings() {
       ] = await Promise.all([
         getPersonalSettings(accessToken),
         getDevices(accessToken).catch(() => []),
-        getExportCountryOptions(accessToken).catch(() => ({
-          countries: [],
-          selectedCountry: null,
-        })),
         getPasskeys(accessToken).catch(() => []),
         getSavedPlaces(accessToken).catch(() => []),
         getOAuthProviders().catch(() => []),
@@ -378,19 +360,6 @@ export default function ProfileSettings() {
 
       setDevices(devicesResult);
       setPasskeys(passkeysResult);
-
-      setSupportedCountries(
-        countryResult.countries || [],
-      );
-
-      setHomeCountry(
-        String(
-          settingsResult.settings.homeCountry ||
-            countryResult.selectedCountry
-              ?.code ||
-            "DE",
-        ).toUpperCase(),
-      );
 
       const loadedHomeLocation =
         settingsResult.settings.homeLocation ||
@@ -775,36 +744,6 @@ export default function ProfileSettings() {
 
       updateUser(updated);
       showSuccess(t("profile.account.saved"));
-    } catch (saveError) {
-      showError(saveError);
-    } finally {
-      setSaving("");
-    }
-  }
-
-  async function saveHomeCountry(
-    event,
-  ) {
-    event.preventDefault();
-    setSaving("home-country");
-
-    try {
-      const updated =
-        await updatePersonalSettings(
-          accessToken,
-          {
-            homeCountry,
-          },
-        );
-
-      setHomeCountry(
-        updated.homeCountry ||
-          homeCountry,
-      );
-
-      showSuccess(
-        t("profile.country.saved"),
-      );
     } catch (saveError) {
       showError(saveError);
     } finally {
@@ -1370,99 +1309,6 @@ export default function ProfileSettings() {
               </select>
             </label>
             <button disabled={saving==="language"} className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text disabled:opacity-50">{t("profile.language.save")}</button>
-          </div>
-        </Section>
-      </form>
-
-      <form onSubmit={saveHomeCountry}>
-        <Section
-          id="country"
-          title={t("profile.country.title")}
-          description={t("profile.country.description")}
-        >
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-            <label className={labelClass}>
-              {t("profile.country.label")}
-              <select
-                value={homeCountry}
-                onChange={(event) =>
-                  setHomeCountry(
-                    event.target.value,
-                  )
-                }
-                className={fieldClass}
-              >
-                {supportedCountries.map(
-                  (country) => (
-                    <option
-                      key={country.code}
-                      value={country.code}
-                    >
-                      {country.name}
-                      {country.localName &&
-                      country.localName !==
-                        country.name
-                        ? ` (${country.localName})`
-                        : ""}
-                    </option>
-                  ),
-                )}
-              </select>
-            </label>
-
-            <div className="rounded-lg border border-fb-border bg-fb-surface p-4">
-              <div className="text-sm font-semibold text-fb-text">
-                {t("profile.country.activeProfile")}
-              </div>
-
-              {(() => {
-                const selected =
-                  supportedCountries.find(
-                    (country) =>
-                      country.code ===
-                      homeCountry,
-                  );
-
-                if (!selected) {
-                  return (
-                    <p className="mt-2 text-sm text-fb-muted">
-                      {t("profile.country.loading")}
-                    </p>
-                  );
-                }
-
-                return (
-                  <>
-                    <p className="mt-2 text-sm text-fb-text">
-                      {selected.reportTitle}
-                    </p>
-
-                    <p className="mt-1 text-xs text-fb-muted">
-                      {t("profile.country.period", { value: selected.taxYearLabel })}
-                      {" · "}
-                      {t("profile.country.unit", { value: selected.distanceUnit })}
-                      {" · "}
-                      {t("profile.country.currency", { value: selected.currency })}
-                    </p>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              type="submit"
-              disabled={
-                saving === "home-country" ||
-                supportedCountries.length === 0
-              }
-              className="rounded-lg bg-fb-accent px-4 py-2.5 text-sm font-semibold text-fb-accent-text transition hover:bg-fb-accent-secondary disabled:opacity-60"
-            >
-              {saving === "home-country"
-                ? t("profile.page.saving")
-                : t("profile.country.save")}
-            </button>
           </div>
         </Section>
       </form>

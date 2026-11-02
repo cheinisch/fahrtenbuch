@@ -1048,16 +1048,13 @@
   // ===== Export =====
   "exportPage": {
     "title": "Statistieken en rittenregistratie exporteren",
-    "subtitle": "De pdf-opmaak wordt automatisch gekozen op basis van je thuisland.",
     "presetYtd": "Dit jaar tot nu",
     "presetLastMonth": "Vorige maand",
     "presetLastQuarter": "Vorig kwartaal",
     "configFailed": "De exportconfiguratie kon niet worden geladen.",
     "dataFailed": "De exportgegevens konden niet worden geladen.",
     "failed": "De export is mislukt.",
-    "countryProfile": "Landprofiel {code}",
     "distancesIn": "Afstanden in {unit}",
-    "changeCountry": "Thuisland wijzigen",
     "filtersTitle": "Periode en filters",
     "from": "Van",
     "to": "Naar",
@@ -1068,14 +1065,9 @@
     "calculating": "Statistieken berekenen …",
     "checkCompleteness": "Volledigheid controleren",
     "createTitle": "Export maken",
-    "createHint": "De pdf bevat het gekozen landprofiel, een samenvatting, ritten, kilometerstanden, wijzigingen en een bijlage met vereisten.",
     "pdfCreating": "Pdf maken …",
-    "pdfFor": "Pdf voor {country}",
-    "homeCountry": "je thuisland",
     "csvCreating": "CSV maken …",
-    "csv": "CSV exporteren",
-    "disclaimer": "Het landprofiel structureert het rapport. Acceptatie hangt af van volledige en tijdige registratie en van de geldende belastingregels.",
-    "requirements": "Details voor dit landprofiel"
+    "csv": "CSV exporteren"
   },
 
   // ===== Compliance and period closing =====

@@ -1048,16 +1048,13 @@
   // ===== Export =====
   "exportPage": {
     "title": "Exportar estadísticas y libro de trayectos",
-    "subtitle": "El diseño del PDF se elige automáticamente según tu país de residencia.",
     "presetYtd": "En lo que va de año",
     "presetLastMonth": "Mes pasado",
     "presetLastQuarter": "Trimestre pasado",
     "configFailed": "No se ha podido cargar la configuración de exportación.",
     "dataFailed": "No se han podido cargar los datos de exportación.",
     "failed": "La exportación ha fallado.",
-    "countryProfile": "Perfil de país {code}",
     "distancesIn": "Distancias en {unit}",
-    "changeCountry": "Cambiar país de residencia",
     "filtersTitle": "Periodo y filtros",
     "from": "Desde",
     "to": "Hasta",
@@ -1068,14 +1065,9 @@
     "calculating": "Calculando estadísticas …",
     "checkCompleteness": "Comprobar integridad",
     "createTitle": "Crear exportación",
-    "createHint": "El PDF contiene el perfil de país seleccionado, un resumen, los trayectos, las lecturas del cuentakilómetros, los cambios y un anexo de requisitos.",
     "pdfCreating": "Creando PDF …",
-    "pdfFor": "PDF para {country}",
-    "homeCountry": "tu país de residencia",
     "csvCreating": "Creando CSV …",
-    "csv": "Exportar CSV",
-    "disclaimer": "El perfil de país estructura el informe. La aceptación depende de un registro completo y puntual, así como de las normas fiscales aplicables en cada caso.",
-    "requirements": "Detalles de este perfil de país"
+    "csv": "Exportar CSV"
   },
 
   // ===== Compliance and period closing =====

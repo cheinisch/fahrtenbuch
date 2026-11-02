@@ -8,16 +8,11 @@ import {
   useState,
 } from "react";
 import {
-  Link,
-} from "react-router-dom";
-
-import {
   getVehicles,
 } from "../api/app.js";
 import {
   downloadCountryExport,
   getCountryExportSummary,
-  getExportCountryOptions,
 } from "../api/countryExport.js";
 import {
   useAuth,
@@ -82,9 +77,6 @@ export default function ExportPage() {
       type: "",
     });
 
-  const [country, setCountry] =
-    useState(null);
-
   const [summary, setSummary] =
     useState(null);
 
@@ -114,33 +106,21 @@ export default function ExportPage() {
       setError("");
 
       try {
-        const [
-          vehicleResult,
-          countryResult,
-        ] = await Promise.all([
-          getVehicles(accessToken),
-          getExportCountryOptions(
-            accessToken,
-          ),
-        ]);
+        const vehicleResult =
+          await getVehicles(accessToken);
 
         if (cancelled) {
           return;
         }
 
         setVehicles(vehicleResult);
-        setCountry(
-          countryResult.selectedCountry,
-        );
 
+        // Standard: laufendes Kalenderjahr bis heute
+        const today = new Date();
         setFilters((current) => ({
           ...current,
-          from:
-            countryResult.defaultPeriod
-              ?.from || "",
-          to:
-            countryResult.defaultPeriod
-              ?.to || "",
+          from: localIsoDate(new Date(today.getFullYear(), 0, 1)),
+          to: localIsoDate(today),
         }));
 
         setInitialized(true);
@@ -184,9 +164,6 @@ export default function ExportPage() {
               );
 
             if (!cancelled) {
-              setCountry(
-                result.country,
-              );
               setSummary(
                 result.summary,
               );
@@ -266,45 +243,6 @@ export default function ExportPage() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         <div className="min-w-0 space-y-6">
-      {country && (
-        <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-3.5">
-            <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-fb-accent-soft text-[15px] font-bold text-fb-accent-strong">{country.code}</span>
-            <div>
-              <div className="text-[13px] font-semibold text-fb-accent-strong">
-                {t("exportPage.countryProfile", { code: country.code })}
-              </div>
-
-              <h2 className="mt-0.5 text-xl font-bold">
-                {country.reportTitle}
-              </h2>
-
-              <p className="mt-2 text-sm text-fb-muted">
-                {country.name}
-                {country.localName &&
-                country.localName !==
-                  country.name
-                  ? ` · ${country.localName}`
-                  : ""}
-                {" · "}
-                {country.taxYearLabel}
-                {" · "}
-                {t("exportPage.distancesIn", { unit: country.distanceUnit })}
-              </p>
-            </div>
-            </div>
-
-            <Link
-              to="/profilesettings"
-              className="text-sm font-semibold text-fb-accent-strong hover:underline"
-            >
-              {t("exportPage.changeCountry")}
-            </Link>
-          </div>
-        </section>
-      )}
-
       <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
         <h2 className="text-lg font-bold">
           {t("exportPage.filtersTitle")}
@@ -497,7 +435,7 @@ export default function ExportPage() {
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-fb-accent px-4 text-sm font-semibold text-fb-accent-text hover:bg-fb-accent-secondary disabled:opacity-60"
               >
                 <ArrowDownTrayIcon className="size-5" />
-                {downloading === "pdf" ? t("exportPage.pdfCreating") : t("exportPage.pdfFor", { country: country?.name || t("exportPage.homeCountry") })}
+                {downloading === "pdf" ? t("exportPage.pdfCreating") : t("exportPage.pdf")}
               </button>
               <button
                 type="button"
@@ -510,24 +448,7 @@ export default function ExportPage() {
               </button>
             </div>
 
-            <p className="mt-4 text-xs text-fb-muted">
-              {t("exportPage.disclaimer")}
-            </p>
           </section>
-
-          {country?.requirements?.length > 0 && (
-            <section className="rounded-xl border border-fb-border bg-fb-main p-[22px]">
-              <h2 className="text-base font-bold">{t("exportPage.requirements")}</h2>
-              <ul className="mt-3 space-y-2 text-sm text-fb-muted">
-                {country.requirements.map((requirement) => (
-                  <li key={requirement} className="flex gap-2">
-                    <span className="text-fb-accent">•</span>
-                    <span>{requirement}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </aside>
       </div>
     </div>

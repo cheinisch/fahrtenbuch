@@ -1048,16 +1048,13 @@
   // ===== Export =====
   "exportPage": {
     "title": "Eksportuj statystyki i ewidencję przebiegu",
-    "subtitle": "Układ PDF jest wybierany automatycznie na podstawie kraju zamieszkania.",
     "presetYtd": "Od początku roku",
     "presetLastMonth": "Poprzedni miesiąc",
     "presetLastQuarter": "Poprzedni kwartał",
     "configFailed": "Nie udało się załadować konfiguracji eksportu.",
     "dataFailed": "Nie udało się załadować danych eksportu.",
     "failed": "Eksport nie powiódł się.",
-    "countryProfile": "Profil kraju {code}",
     "distancesIn": "Dystanse w {unit}",
-    "changeCountry": "Zmień kraj zamieszkania",
     "filtersTitle": "Okres i filtry",
     "from": "Od",
     "to": "Do",
@@ -1068,14 +1065,9 @@
     "calculating": "Obliczanie statystyk …",
     "checkCompleteness": "Sprawdź kompletność",
     "createTitle": "Utwórz eksport",
-    "createHint": "PDF zawiera wybrany profil kraju, podsumowanie, przejazdy, stany licznika, zmiany i załącznik z wymaganiami.",
     "pdfCreating": "Tworzenie PDF …",
-    "pdfFor": "PDF dla {country}",
-    "homeCountry": "kraj zamieszkania",
     "csvCreating": "Tworzenie CSV …",
-    "csv": "Eksportuj CSV",
-    "disclaimer": "Profil kraju porządkuje raport. Akceptacja zależy od kompletnej i terminowej ewidencji oraz obowiązujących przepisów podatkowych.",
-    "requirements": "Szczegóły tego profilu kraju"
+    "csv": "Eksportuj CSV"
   },
 
   // ===== Compliance and period closing =====

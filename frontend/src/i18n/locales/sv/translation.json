@@ -1048,16 +1048,13 @@
   // ===== Export =====
   "exportPage": {
     "title": "Exportera statistik och körjournal",
-    "subtitle": "PDF-layouten väljs automatiskt utifrån ditt hemland.",
     "presetYtd": "Hittills i år",
     "presetLastMonth": "Förra månaden",
     "presetLastQuarter": "Förra kvartalet",
     "configFailed": "Exportkonfigurationen kunde inte laddas.",
     "dataFailed": "Exportdata kunde inte laddas.",
     "failed": "Exporten misslyckades.",
-    "countryProfile": "Landsprofil {code}",
     "distancesIn": "Sträckor i {unit}",
-    "changeCountry": "Byt hemland",
     "filtersTitle": "Period och filter",
     "from": "Från",
     "to": "Till",
@@ -1068,14 +1065,9 @@
     "calculating": "Beräknar statistik …",
     "checkCompleteness": "Kontrollera fullständighet",
     "createTitle": "Skapa export",
-    "createHint": "PDF:en innehåller vald landsprofil, en sammanfattning, resor, mätarställningar, ändringar och en bilaga med krav.",
     "pdfCreating": "Skapar PDF …",
-    "pdfFor": "PDF för {country}",
-    "homeCountry": "ditt hemland",
     "csvCreating": "Skapar CSV …",
-    "csv": "Exportera CSV",
-    "disclaimer": "Landsprofilen strukturerar rapporten. Godkännande beror på fullständig och snabb registrering samt de skatteregler som gäller i varje fall.",
-    "requirements": "Detaljer för denna landsprofil"
+    "csv": "Exportera CSV"
   },
 
   // ===== Compliance and period closing =====

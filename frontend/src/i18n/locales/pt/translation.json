@@ -1048,16 +1048,13 @@
   // ===== Export =====
   "exportPage": {
     "title": "Exportar estatísticas e registo de viagens",
-    "subtitle": "O layout do PDF é escolhido automaticamente com base no seu país de residência.",
     "presetYtd": "Desde o início do ano",
     "presetLastMonth": "Mês passado",
     "presetLastQuarter": "Trimestre passado",
     "configFailed": "Não foi possível carregar a configuração de exportação.",
     "dataFailed": "Não foi possível carregar os dados de exportação.",
     "failed": "A exportação falhou.",
-    "countryProfile": "Perfil de país {code}",
     "distancesIn": "Distâncias em {unit}",
-    "changeCountry": "Alterar país de residência",
     "filtersTitle": "Período e filtros",
     "from": "De",
     "to": "Para",
@@ -1068,14 +1065,9 @@
     "calculating": "A calcular estatísticas …",
     "checkCompleteness": "Verificar integridade",
     "createTitle": "Criar exportação",
-    "createHint": "O PDF contém o perfil de país selecionado, um resumo, as viagens, as leituras do conta-quilómetros, as alterações e um anexo de requisitos.",
     "pdfCreating": "A criar PDF …",
-    "pdfFor": "PDF para {country}",
-    "homeCountry": "o seu país de residência",
     "csvCreating": "A criar CSV …",
-    "csv": "Exportar CSV",
-    "disclaimer": "O perfil de país estrutura o relatório. A aceitação depende de um registo completo e atempado, bem como das regras fiscais aplicáveis em cada caso.",
-    "requirements": "Detalhes deste perfil de país"
+    "csv": "Exportar CSV"
   },
 
   // ===== Compliance and period closing =====

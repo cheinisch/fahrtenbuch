@@ -1048,16 +1048,13 @@
   // ===== Export =====
   "exportPage": {
     "title": "Eksporter statistikk og kjørebok",
-    "subtitle": "PDF-oppsettet velges automatisk ut fra hjemlandet ditt.",
     "presetYtd": "Hittil i år",
     "presetLastMonth": "Forrige måned",
     "presetLastQuarter": "Forrige kvartal",
     "configFailed": "Eksportkonfigurasjonen kunne ikke lastes.",
     "dataFailed": "Eksportdataene kunne ikke lastes.",
     "failed": "Eksporten mislyktes.",
-    "countryProfile": "Landprofil {code}",
     "distancesIn": "Distanser i {unit}",
-    "changeCountry": "Bytt hjemland",
     "filtersTitle": "Periode og filtre",
     "from": "Fra",
     "to": "Til",
@@ -1068,14 +1065,9 @@
     "calculating": "Beregner statistikk …",
     "checkCompleteness": "Kontroller fullstendighet",
     "createTitle": "Opprett eksport",
-    "createHint": "PDF-en inneholder valgt landprofil, et sammendrag, turer, kilometerstander, endringer og et vedlegg med krav.",
     "pdfCreating": "Oppretter PDF …",
-    "pdfFor": "PDF for {country}",
-    "homeCountry": "hjemlandet ditt",
     "csvCreating": "Oppretter CSV …",
-    "csv": "Eksporter CSV",
-    "disclaimer": "Landprofilen strukturerer rapporten. Godkjenning avhenger av fullstendig og rettidig registrering og de skattereglene som gjelder i hvert tilfelle.",
-    "requirements": "Detaljer for denne landprofilen"
+    "csv": "Eksporter CSV"
   },
 
   // ===== Compliance and period closing =====

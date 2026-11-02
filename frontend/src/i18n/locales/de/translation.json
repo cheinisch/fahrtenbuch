@@ -1049,16 +1049,14 @@
   // ===== Export =====
   "exportPage": {
     "title": "Statistik und Fahrtenbuch exportieren",
-    "subtitle": "Der PDF-Aufbau wird automatisch anhand deines Heimatlands gewählt.",
+    "subtitle": "Exportiert Fahrten, Kilometerstände und eine Zusammenfassung als PDF oder CSV.",
     "presetYtd": "Jahr bis heute",
     "presetLastMonth": "Letzter Monat",
     "presetLastQuarter": "Letztes Quartal",
     "configFailed": "Die Exportkonfiguration konnte nicht geladen werden.",
     "dataFailed": "Die Exportdaten konnten nicht geladen werden.",
     "failed": "Der Export ist fehlgeschlagen.",
-    "countryProfile": "Länderprofil {code}",
     "distancesIn": "Entfernungen in {unit}",
-    "changeCountry": "Heimatland ändern",
     "filtersTitle": "Zeitraum und Filter",
     "from": "Von",
     "to": "Bis",
@@ -1069,25 +1067,22 @@
     "calculating": "Statistik wird berechnet …",
     "checkCompleteness": "Vollständigkeit prüfen",
     "createTitle": "Export erstellen",
-    "createHint": "Das PDF enthält das ausgewählte Länderprofil, eine Zusammenfassung, Fahrten, Kilometerstände, Änderungen und einen Anforderungsanhang.",
+    "createHint": "Das PDF enthält eine Zusammenfassung, Fahrten, Kilometerstände und den Änderungsverlauf.",
+    "pdf": "PDF exportieren",
     "pdfCreating": "PDF wird erstellt …",
-    "pdfFor": "PDF für {country}",
-    "homeCountry": "das Heimatland",
     "csvCreating": "CSV wird erstellt …",
-    "csv": "CSV exportieren",
-    "disclaimer": "Das Länderprofil strukturiert den Bericht. Die Anerkennung hängt von der vollständigen und zeitnahen Erfassung sowie den im Einzelfall geltenden steuerlichen Regeln ab.",
-    "requirements": "Angaben für dieses Länderprofil"
+    "csv": "CSV exportieren"
   },
 
   // ===== Prüfung und Abschluss =====
   "compliance": {
     "title": "Prüfung und Abschluss",
-    "subtitle": "Fahrten auf Unstimmigkeiten prüfen, die Revisionskette kontrollieren und fertige Zeiträume abschließen.",
+    "subtitle": "Fahrten auf Unstimmigkeiten prüfen, den Änderungsverlauf kontrollieren und Zeiträume abschließen.",
     "closeConfirm": "Zeitraum {from} bis {to} endgültig abschließen? Fahrten darin können danach nicht mehr geändert werden.",
     "closed": "Der Zeitraum wurde abgeschlossen und gegen Änderungen gesperrt.",
     "errors": "Fehler",
     "warnings": "Warnungen",
-    "chain": "Revisionskette",
+    "chain": "Änderungsverlauf",
     "chainValid": "Integer",
     "chainInvalid": "Fehlerhaft",
     "noRevisions": "Noch keine Revisionen",

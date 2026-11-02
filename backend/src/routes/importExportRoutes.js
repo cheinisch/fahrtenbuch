@@ -25,33 +25,13 @@ import {
 } from "../lib/validation.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
-import { getUserSettings } from "../services/userSettingsService.js";
 import { queueAutoMapMatching } from "../services/mapMatchingService.js";
-import { getCountryExport, listCountryExports } from "../services/countryExports/index.js";
 
 export const exportRoutes = Router();
 export const importRoutes = Router();
 
 exportRoutes.use(requireAuth);
 importRoutes.use(requireAuth);
-
-exportRoutes.get(
-  "/countries",
-  asyncHandler(async (request, response) => {
-    const [countries, settings] = await Promise.all([
-      listCountryExports(),
-      getUserSettings(request.auth.userId),
-    ]);
-    const selectedCountry = await getCountryExport(
-      settings.homeCountry || "DE",
-    );
-
-    response.json({
-      countries,
-      selectedCountry: selectedCountry.toPublicDefinition(new Date()),
-    });
-  }),
-);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -360,7 +340,7 @@ async function loadExportIntegrity(userId, from, to) {
 
 function drawIntegrityCertificate(document, integrity, y) {
   const lock = integrity.periodLock;
-  const status = integrity.valid ? "Integrität geprüft: OK" : "Integritätsprüfung: FEHLER";
+  const status = integrity.valid ? "Änderungsverlauf geprüft: OK" : "Änderungsverlauf: Prüfung fehlgeschlagen";
   document
     .roundedRect(36, y, 770, lock ? 68 : 52, 4)
     .fillAndStroke(integrity.valid ? "#f2f7f2" : "#fff0e2", integrity.valid ? "#7aa37a" : "#f48120");
@@ -392,6 +372,10 @@ exportRoutes.get(
     const loaded = await loadExportTrips(request);
     const trips = await attachChangeCounts(loaded.trips);
 
+    const summary = summarizeTrips(trips);
+    const kmLabel = (meters) =>
+      `${(meters / 1000).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+
     response.json({
       filters: {
         from: loaded.from || null,
@@ -400,7 +384,32 @@ exportRoutes.get(
         type: request.query.type || null,
         specialCategory: request.query.specialCategory || null,
       },
-      summary: summarizeTrips(trips),
+      summary,
+      summaryItems: [
+        { label: "Fahrten", value: String(summary.tripCount) },
+        { label: "Gesamt", value: kmLabel(summary.distanceMeters) },
+        ...["business", "private", "commute"].map((type) => ({
+          label: TYPE_LABELS[type],
+          value: kmLabel(summary.byType.find((entry) => entry.type === type)?.distanceMeters || 0),
+        })),
+      ],
+      warnings: [
+        summary.missingOdometerCount > 0 && {
+          code: "MISSING_ODOMETER",
+          level: "warning",
+          message: `${summary.missingOdometerCount} Fahrt(en) ohne vollständigen Start- und Endkilometerstand.`,
+        },
+        summary.missingPurposeCount > 0 && {
+          code: "MISSING_BUSINESS_PURPOSE",
+          level: "warning",
+          message: `${summary.missingPurposeCount} dienstliche Fahrt(en) ohne Zweck oder Geschäftspartner.`,
+        },
+        summary.changedTripCount > 0 && {
+          code: "CHANGED_TRIPS",
+          level: "information",
+          message: `${summary.changedTripCount} Fahrt(en) enthalten Änderungen im Verlauf.`,
+        },
+      ].filter(Boolean),
     });
   }),
 );
@@ -739,10 +748,10 @@ exportRoutes.get(
       warnings.push(`${summary.changedTripCount} Fahrt(en) mit dokumentierten Änderungen`);
     }
     if (!integrity.valid) {
-      warnings.push("Integritätsprüfung der Revisionskette fehlgeschlagen");
+      warnings.push("Prüfung des Änderungsverlaufs fehlgeschlagen");
     }
     if (!integrity.periodLock) {
-      warnings.push("Exportzeitraum ist nicht abgeschlossen");
+      warnings.push("Zeitraum ist nicht als Periode abgeschlossen");
     }
 
     if (warnings.length > 0) {
@@ -753,7 +762,7 @@ exportRoutes.get(
         .font("Helvetica-Bold")
         .fontSize(8)
         .fillColor("#b42318")
-        .text("Hinweis zur Vollständigkeit: ", 44, y + 7, { continued: true })
+        .text("Hinweise zu den Daten: ", 44, y + 7, { continued: true })
         .font("Helvetica")
         .fillColor("#1d1d1d")
         .text(warnings.join("; "), { width: 746 });

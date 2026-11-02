@@ -1048,16 +1048,13 @@
   // ===== Export =====
   "exportPage": {
     "title": "Exporter les statistiques et le carnet de bord",
-    "subtitle": "La mise en page du PDF est choisie automatiquement selon votre pays de résidence.",
     "presetYtd": "Depuis le début de l’année",
     "presetLastMonth": "Mois dernier",
     "presetLastQuarter": "Trimestre dernier",
     "configFailed": "La configuration d’export n’a pas pu être chargée.",
     "dataFailed": "Les données d’export n’ont pas pu être chargées.",
     "failed": "L’export a échoué.",
-    "countryProfile": "Profil pays {code}",
     "distancesIn": "Distances en {unit}",
-    "changeCountry": "Changer de pays de résidence",
     "filtersTitle": "Période et filtres",
     "from": "De",
     "to": "À",
@@ -1068,14 +1065,9 @@
     "calculating": "Calcul des statistiques …",
     "checkCompleteness": "Vérifier l’exhaustivité",
     "createTitle": "Créer l’export",
-    "createHint": "Le PDF contient le profil pays choisi, un résumé, les trajets, les relevés du compteur, les modifications et une annexe sur les exigences.",
     "pdfCreating": "Création du PDF …",
-    "pdfFor": "PDF pour {country}",
-    "homeCountry": "votre pays de résidence",
     "csvCreating": "Création du CSV …",
-    "csv": "Exporter en CSV",
-    "disclaimer": "Le profil pays structure le rapport. L’acceptation dépend d’un enregistrement complet et dans les délais ainsi que des règles fiscales applicables.",
-    "requirements": "Détails de ce profil pays"
+    "csv": "Exporter en CSV"
   },
 
   // ===== Compliance and period closing =====
