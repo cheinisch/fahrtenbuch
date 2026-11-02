@@ -847,6 +847,9 @@
     // Key figure tiles at the top
     "yearSummary": "Kluczowe dane {year}",
     "drivenYear": "Przejechano w {year}",
+    "allYears": "Wszystkie lata",
+    "drivenTotal": "Łącznie przejechano",
+    "yearSummaryAll": "Kluczowe dane łącznie",
     "byReadings": "według odczytów",
     "tracked": "Z tego zarejestrowano",
     "coverage": "pokrycie {value}",

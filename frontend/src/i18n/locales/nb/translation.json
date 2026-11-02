@@ -847,6 +847,9 @@
     // Key figure tiles at the top
     "yearSummary": "Nøkkeltall {year}",
     "drivenYear": "Kjørt i {year}",
+    "allYears": "Alle år",
+    "drivenTotal": "Kjørt totalt",
+    "yearSummaryAll": "Nøkkeltall totalt",
     "byReadings": "ifølge avlesninger",
     "tracked": "Herav registrert",
     "coverage": "{value} dekning",

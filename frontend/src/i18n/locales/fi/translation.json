@@ -847,6 +847,9 @@
     // Key figure tiles at the top
     "yearSummary": "Tunnusluvut {year}",
     "drivenYear": "Ajettu vuonna {year}",
+    "allYears": "Kaikki vuodet",
+    "drivenTotal": "Ajettu yhteensä",
+    "yearSummaryAll": "Tunnusluvut yhteensä",
     "byReadings": "lukemien mukaan",
     "tracked": "Josta kirjattu",
     "coverage": "{value} kattavuus",

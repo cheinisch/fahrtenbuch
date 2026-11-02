@@ -847,6 +847,9 @@
     // Key figure tiles at the top
     "yearSummary": "Kerncijfers {year}",
     "drivenYear": "Gereden in {year}",
+    "allYears": "Alle jaren",
+    "drivenTotal": "Totaal gereden",
+    "yearSummaryAll": "Kerncijfers totaal",
     "byReadings": "volgens de standen",
     "tracked": "Waarvan geregistreerd",
     "coverage": "{value} dekking",

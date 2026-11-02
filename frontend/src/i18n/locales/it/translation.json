@@ -847,6 +847,9 @@
     // Key figure tiles at the top
     "yearSummary": "Dati chiave {year}",
     "drivenYear": "Percorsi nel {year}",
+    "allYears": "Tutti gli anni",
+    "drivenTotal": "Percorsi in totale",
+    "yearSummaryAll": "Dati chiave complessivi",
     "byReadings": "secondo le letture",
     "tracked": "Di cui registrati",
     "coverage": "{value} di copertura",

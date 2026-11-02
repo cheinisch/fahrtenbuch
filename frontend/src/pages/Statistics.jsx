@@ -248,6 +248,11 @@ export default function Statistics() {
   const { t, locale } = useI18n();
   const km = (value) => formatKm(value, locale);
   const monthLabel = (value) => formatMonth(value, locale);
+  const shortMonthLabel = (value) => {
+    const match = /^(\d{4})-(\d{2})/.exec(String(value || ""));
+    if (!match) return "–";
+    return new Intl.DateTimeFormat(locale, { month: "short", year: "2-digit" }).format(new Date(Number(match[1]), Number(match[2]) - 1, 1));
+  };
   const formatDay = (value) => new Intl.DateTimeFormat(locale).format(value);
   const categoryLabel = (key) => t(`statistics.categories.${key}`);
   const eur = (value) => new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(Number(value) || 0);
@@ -277,22 +282,13 @@ export default function Statistics() {
 
   async function loadData() {
     try {
-      const [result, readingRows, vehicleRows] = await Promise.all([
-        getMonthlyOdometerStatistics(accessToken, 18),
+      const [readingRows, vehicleRows] = await Promise.all([
         getOdometerReadings(accessToken),
         getVehicles(accessToken),
       ]);
-      setRows(result);
       setReadings(readingRows);
       setVehicleDetails(vehicleRows);
-      if (!vehicleId) {
-        const firstVehicleId = readingRows[0]?.vehicleId || result[0]?.vehicleId || "";
-        if (firstVehicleId) {
-          setVehicleId(firstVehicleId);
-          const newestMonth = result.find((row) => row.vehicleId === firstVehicleId)?.month;
-          if (newestMonth) setMonth(newestMonth);
-        }
-      }
+      if (!vehicleId && readingRows[0]?.vehicleId) setVehicleId(readingRows[0].vehicleId);
     } catch (loadError) {
       setError(loadError.message);
     }
@@ -302,8 +298,29 @@ export default function Statistics() {
     loadData();
   }, [accessToken]);
 
+  // Monatsstatistik für den gewählten Zeitraum: ein Kalenderjahr oder alle Monate.
+  // Wird neu geladen, wenn sich Jahr, Fahrzeug oder Ablesungen ändern.
   useEffect(() => {
-    if (!vehicleId) {
+    let cancelled = false;
+    const request = chartYear === "all"
+      ? getMonthlyOdometerStatistics(accessToken, 12, { all: true })
+      : getMonthlyOdometerStatistics(accessToken, 12, { from: `${chartYear}-01-01`, to: `${chartYear}-12-01` });
+    request
+      .then((result) => {
+        if (cancelled) return;
+        setRows(result);
+        const activeVehicleId = vehicleId || result[0]?.vehicleId || "";
+        if (!vehicleId && activeVehicleId) setVehicleId(activeVehicleId);
+        const vehicleMonths = result.filter((row) => row.vehicleId === activeVehicleId).map((row) => row.month).sort();
+        // Gewählten Monat behalten, sofern er im Zeitraum liegt; sonst den neuesten nehmen.
+        setMonth((current) => (vehicleMonths.includes(current) ? current : vehicleMonths.at(-1) || ""));
+      })
+      .catch((loadError) => { if (!cancelled) setError(loadError.message); });
+    return () => { cancelled = true; };
+  }, [accessToken, chartYear, vehicleId, readings]);
+
+  useEffect(() => {
+    if (!vehicleId || chartYear === "all") {
       setIntervals([]);
       return;
     }
@@ -391,7 +408,7 @@ export default function Statistics() {
   )).sort().reverse(), [readings, vehicleId]);
 
   useEffect(() => {
-    if (chartYears.length && !chartYears.includes(chartYear)) setChartYear(chartYears[0]);
+    if (chartYears.length && chartYear !== "all" && !chartYears.includes(chartYear)) setChartYear(chartYears[0]);
   }, [chartYears, chartYear]);
 
   const chartData = useMemo(() => {
@@ -413,7 +430,7 @@ export default function Statistics() {
 
   // Monatswerte für das gestapelte Diagramm aus der Monatsstatistik des Fahrzeugs.
   const stackedMonths = useMemo(() => rows
-    .filter((row) => row.vehicleId === vehicleId && String(row.month).startsWith(`${chartYear}-`))
+    .filter((row) => row.vehicleId === vehicleId && (chartYear === "all" || String(row.month).startsWith(`${chartYear}-`)))
     .sort((a, b) => String(a.month).localeCompare(String(b.month)))
     .map((row) => {
       const businessKm = Number(row.businessKm) || 0;
@@ -425,7 +442,8 @@ export default function Statistics() {
       const unexplainedKm = row.actualKm != null ? Math.max(0, Number(row.actualKm) - trackedKm) : 0;
       return {
         key: row.month,
-        label: monthLabel(row.month).replace(/\s+\d{4}$/, ""),
+        // Bei „alle Jahre“ mit Jahreszahl, sonst wären gleiche Monatsnamen nicht unterscheidbar.
+        label: chartYear === "all" ? shortMonthLabel(row.month) : monthLabel(row.month).replace(/\s+\d{4}$/, ""),
         businessKm, privateKm, commuteKm, unclassifiedKm, otherDriversKm, unexplainedKm,
         total: trackedKm + unexplainedKm,
       };
@@ -520,7 +538,7 @@ export default function Statistics() {
 
   // Jahreskennzahlen aus der Monatsstatistik (dieselbe Quelle wie das Diagramm).
   const yearSummary = useMemo(() => {
-    const yearRows = rows.filter((row) => row.vehicleId === vehicleId && String(row.month).startsWith(`${chartYear}-`));
+    const yearRows = rows.filter((row) => row.vehicleId === vehicleId && (chartYear === "all" || String(row.month).startsWith(`${chartYear}-`)));
     if (!yearRows.length) return null;
     const sum = (key) => yearRows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
     const businessKm = sum("businessKm");
@@ -589,17 +607,17 @@ export default function Statistics() {
         </div>
       )}
       {yearSummary && (
-        <section aria-label={t("statistics.yearSummary", { year: chartYear })} className={`grid gap-4 sm:grid-cols-2 ${isShared ? "xl:grid-cols-2" : "xl:grid-cols-4"}`}>
+        <section aria-label={chartYear === "all" ? t("statistics.yearSummaryAll") : t("statistics.yearSummary", { year: chartYear })} className={`grid gap-4 sm:grid-cols-2 ${isShared ? "xl:grid-cols-2" : "xl:grid-cols-4"}`}>
           {isShared ? (
             <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
-              <div className="text-[13px] text-fb-muted">{t("statistics.drivenYear", { year: chartYear })}</div>
+              <div className="text-[13px] text-fb-muted">{chartYear === "all" ? t("statistics.drivenTotal") : t("statistics.drivenYear", { year: chartYear })}</div>
               <div className="mt-1.5 text-[28px] font-bold leading-tight">{km(yearSummary.trackedKm)}</div>
               <div className="mt-1 text-xs text-fb-muted">{t("statistics.ownTrips")}</div>
             </div>
           ) : (
           <>
           <div className="rounded-xl border border-fb-border bg-fb-main p-[18px]">
-            <div className="text-[13px] text-fb-muted">{t("statistics.drivenYear", { year: chartYear })}</div>
+            <div className="text-[13px] text-fb-muted">{chartYear === "all" ? t("statistics.drivenTotal") : t("statistics.drivenYear", { year: chartYear })}</div>
             <div className="mt-1.5 text-[28px] font-bold leading-tight">{km(yearSummary.actualKm)}</div>
             <div className="mt-1 text-xs text-fb-muted">{t("statistics.byReadings")}</div>
           </div>
@@ -662,7 +680,7 @@ export default function Statistics() {
           <div><h2 className="text-lg font-bold">{t("statistics.chart.heading")}</h2><p className="mt-1 text-sm text-fb-muted">{isShared ? t("statistics.chart.hintShared") : t("statistics.chart.hint")}</p></div>
           <div className="flex flex-wrap items-center gap-4">
             {monthlyContractLimit != null && !isShared && <label className="flex cursor-pointer items-center gap-2 text-xs text-fb-muted"><input type="checkbox" checked={showMonthlyLimit} onChange={(event) => setShowMonthlyLimit(event.target.checked)} className="accent-[var(--color-accent)]" />{t("statistics.chart.showMonthlyLimit")}</label>}
-            <label className="sr-only" htmlFor="chart-year">{t("statistics.year")}</label><select id="chart-year" value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="h-10 rounded-lg border border-fb-border bg-fb-main px-3 text-sm">{chartYears.length === 0 && <option value={chartYear}>{chartYear}</option>}{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}</select>
+            <label className="sr-only" htmlFor="chart-year">{t("statistics.year")}</label><select id="chart-year" value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="h-10 rounded-lg border border-fb-border bg-fb-main px-3 text-sm">{chartYears.length === 0 && <option value={chartYear}>{chartYear}</option>}{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}<option value="all">{t("statistics.allYears")}</option></select>
           </div>
         </div>
         {stackedMonths.length > 0 ? (

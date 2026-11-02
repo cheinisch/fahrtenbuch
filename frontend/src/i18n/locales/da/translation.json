@@ -847,6 +847,9 @@
     // Key figure tiles at the top
     "yearSummary": "Nøgletal {year}",
     "drivenYear": "Kørt i {year}",
+    "allYears": "Alle år",
+    "drivenTotal": "Kørt i alt",
+    "yearSummaryAll": "Nøgletal i alt",
     "byReadings": "ifølge aflæsninger",
     "tracked": "Heraf registreret",
     "coverage": "{value} dækning",

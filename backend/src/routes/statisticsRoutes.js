@@ -327,6 +327,12 @@ statisticsRoutes.get(
     if (!Number.isInteger(months) || months < 1 || months > 120) {
       throw badRequest("VALIDATION_ERROR", "Der Parameter „months“ muss zwischen 1 und 120 liegen.");
     }
+    // Optionaler Zeitraum: from/to (YYYY-MM-DD, Monate werden voll genommen) oder
+    // all=true für alle Monate ab dem ersten Ereignis (Ablesung oder Fahrt).
+    // Ohne diese Parameter bleibt es bei den letzten „months“ Monaten.
+    const fromMonth = dateQuery(request.query.from, "from") || null;
+    const toMonth = dateQuery(request.query.to, "to") || null;
+    const allTime = request.query.all === "true" || request.query.all === "1";
 
     const timeZone = await userTimeZone(pool, request.auth.userId);
     const result = await pool.query(
@@ -339,10 +345,24 @@ statisticsRoutes.get(
                    date_trunc('month', now() AT TIME ZONE $3::text)::date)
         ) AS last_month
       ),
+      first_month AS (
+        SELECT LEAST(
+          (SELECT date_trunc('month', min(r.reading_date))::date FROM vehicle_odometer_readings r WHERE r.user_id = $1),
+          (SELECT date_trunc('month', min(${tripLocalStartSql("t", "$3")}))::date
+           FROM trips t WHERE t.user_id = $1 AND t.archived_at IS NULL AND COALESCE(t.reconciliation_status, 'canonical') = 'canonical' AND t.status = 'completed')
+        ) AS first_month
+      ),
       month_series AS (
         SELECT generate_series(
-          bounds.last_month - (($2 - 1) || ' months')::interval,
-          bounds.last_month,
+          CASE
+            WHEN $6::boolean THEN coalesce((SELECT first_month FROM first_month), bounds.last_month)
+            WHEN $4::date IS NOT NULL THEN date_trunc('month', $4::date)::date
+            ELSE bounds.last_month - (($2 - 1) || ' months')::interval
+          END,
+          CASE
+            WHEN $5::date IS NOT NULL THEN least(date_trunc('month', $5::date)::date, bounds.last_month)
+            ELSE bounds.last_month
+          END,
           interval '1 month'
         )::date AS month FROM bounds
       ),
@@ -404,7 +424,7 @@ statisticsRoutes.get(
       ) end_r ON true
       ORDER BY vm.month DESC, lower(vm.vehicle_name)
       `,
-      [request.auth.userId, months, timeZone],
+      [request.auth.userId, months, timeZone, fromMonth, toMonth, allTime],
     );
 
     response.json(result.rows.map((row) => {

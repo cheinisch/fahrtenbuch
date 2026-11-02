@@ -848,6 +848,9 @@
     // Kennzahlen-Kacheln oben
     "yearSummary": "Kennzahlen {year}",
     "drivenYear": "Gefahren {year}",
+    "allYears": "Alle Jahre",
+    "drivenTotal": "Gefahren gesamt",
+    "yearSummaryAll": "Kennzahlen gesamt",
     "byReadings": "laut Ablesungen",
     "tracked": "Davon erfasst",
     "coverage": "{value} Abdeckung",
