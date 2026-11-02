@@ -33,6 +33,14 @@
     "openUserMenu": "Åbn brugermenu",
     "user": "Bruger"
   },
+  "demo": {
+    "remaining": "Demoinstans · {time} tilbage",
+    "extend": "Forlæng med {minutes} min",
+    "extending": "Forlænger …",
+    "extended": "Allerede forlænget",
+    "expired": "Denne demo er udløbet.",
+    "newDemo": "Start en ny demo"
+  },
   "language": {
     "globalTitle": "Standardsprog",
     "globalHint": "Dette sprog bruges, når en bruger ikke har valgt et personligt sprog.",

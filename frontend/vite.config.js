@@ -2,7 +2,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // Relative Assets im Build: der Server setzt <base href> mit dem Unterpfad (BASE_PATH)
+  base: command === "build" ? "./" : "/",
   plugins: [react(), tailwindcss()],
   server: {
     host: "0.0.0.0",
@@ -18,4 +20,4 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
   },
-});
+}));

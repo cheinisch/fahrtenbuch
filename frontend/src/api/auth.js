@@ -1,4 +1,5 @@
 import { translate } from "../i18n/translate.js";
+import { withBasePath } from "../lib/basePath.js";
 export class ApiError extends Error {
   constructor(message, status, code) {
     super(message);
@@ -9,7 +10,7 @@ export class ApiError extends Error {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await fetch(withBasePath(path), {
     ...options,
     headers: {
       Accept: "application/json",

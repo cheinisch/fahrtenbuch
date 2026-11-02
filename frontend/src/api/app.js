@@ -1,5 +1,6 @@
 import { translate } from "../i18n/translate.js";
 import { ApiError } from "./auth.js";
+import { withBasePath } from "../lib/basePath.js";
 
 let refreshAccessTokenHandler = null;
 
@@ -15,7 +16,7 @@ export function configureApiAuth({ refreshAccessToken } = {}) {
 }
 
 export async function authenticatedFetch(accessToken, path, options = {}, allowRefresh = true) {
-  const response = await fetch(path, {
+  const response = await fetch(withBasePath(path), {
     ...options,
     headers: {
       Accept: "application/json",
@@ -139,7 +140,7 @@ export function getDashboard(
 }
 
 export async function getPublicLanguageSettings() {
-  const response = await fetch("/api/v1/language", { headers: { Accept: "application/json" } });
+  const response = await fetch(withBasePath("/api/v1/language"), { headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error("Language configuration could not be loaded.");
   return response.json();
 }

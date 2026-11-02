@@ -33,6 +33,14 @@
     "openUserMenu": "Öppna användarmenyn",
     "user": "Användare"
   },
+  "demo": {
+    "remaining": "Demoinstans · {time} kvar",
+    "extend": "Förläng med {minutes} min",
+    "extending": "Förlänger …",
+    "extended": "Redan förlängd",
+    "expired": "Den här demon har gått ut.",
+    "newDemo": "Starta en ny demo"
+  },
   "language": {
     "globalTitle": "Standardspråk",
     "globalHint": "Detta språk används när en användare inte har valt ett eget språk.",

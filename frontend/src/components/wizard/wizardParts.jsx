@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useI18n } from "../../i18n/I18nProvider.jsx";
 import AddNewDeviceModal from "../addNewDeviceModal.jsx";
 import { wizardFieldClass, wizardSecondaryButtonClass } from "./WizardFrame.jsx";
+import { currentAppUrl } from "../../lib/basePath.js";
 
 /**
  * Schrittsteuerung mit Merker in sessionStorage, damit ein Neuladen (oder die
@@ -110,7 +111,7 @@ export function ConnectAppCard() {
         <h2 className="text-base font-bold">{t("wizard.app.title")}</h2>
       </div>
       <p className="text-sm leading-relaxed text-fb-muted">{t("wizard.app.text")}</p>
-      <div className="rounded-lg bg-fb-surface px-3 py-2 font-mono text-sm break-all">{window.location.origin}</div>
+      <div className="rounded-lg bg-fb-surface px-3 py-2 font-mono text-sm break-all">{currentAppUrl()}</div>
       {paired ? (
         <p className="flex items-center gap-1.5 text-sm font-semibold text-fb-accent-strong">
           <CheckCircleIcon aria-hidden="true" className="size-5" />

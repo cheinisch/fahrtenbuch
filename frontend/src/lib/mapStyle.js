@@ -1,6 +1,7 @@
 import { layers, namedFlavor } from "@protomaps/basemaps";
 
 import { translate } from "../i18n/translate.js";
+import { BASE_PATH } from "./basePath.js";
 
 // Kartenstil aus den Kartenvorgaben des Servers (OSM-Raster oder Protomaps-Vektor);
 // gemeinsam genutzt von Dashboard und Fahrtseite.
@@ -10,7 +11,7 @@ export const OSM_MAP_STYLE = {
     osm: {
       type: "raster",
       tiles: [
-        "/api/v1/map/osm/{z}/{x}/{y}.png",
+        `${BASE_PATH}/api/v1/map/osm/{z}/{x}/{y}.png`,
       ],
       tileSize: 256,
       attribution: `© ${translate("dashboard.osmContributors")}`,
@@ -72,13 +73,13 @@ export function createMapStyle(settings, mapStyle = "osm") {
   return {
     version: 8,
     glyphs:
-      "/api/v1/map/protomaps/fonts/{fontstack}/{range}.pbf",
+      `${BASE_PATH}/api/v1/map/protomaps/fonts/{fontstack}/{range}.pbf`,
     sprite:
-      `/api/v1/map/protomaps/sprites/v4/${flavorName}`,
+      `${BASE_PATH}/api/v1/map/protomaps/sprites/v4/${flavorName}`,
     sources: {
       protomaps: {
         type: "vector",
-        url: "/api/v1/map/protomaps/tilejson",
+        url: `${BASE_PATH}/api/v1/map/protomaps/tilejson`,
         attribution:
           `Protomaps © ${translate("dashboard.osmContributors")}`,
       },

@@ -33,6 +33,14 @@
     "openUserMenu": "Gebruikersmenu openen",
     "user": "Gebruiker"
   },
+  "demo": {
+    "remaining": "Demo-instantie · nog {time}",
+    "extend": "Verlengen met {minutes} min",
+    "extending": "Verlengen …",
+    "extended": "Al verlengd",
+    "expired": "Deze demo is verlopen.",
+    "newDemo": "Nieuwe demo starten"
+  },
   "language": {
     "globalTitle": "Standaardtaal",
     "globalHint": "Deze taal wordt gebruikt als een gebruiker geen persoonlijke taal heeft gekozen.",

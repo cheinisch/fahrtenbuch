@@ -33,6 +33,14 @@
     "openUserMenu": "Abrir menú de usuario",
     "user": "Usuario"
   },
+  "demo": {
+    "remaining": "Instancia de demostración · quedan {time}",
+    "extend": "Ampliar {minutes} min",
+    "extending": "Ampliando …",
+    "extended": "Ya ampliada",
+    "expired": "Esta demostración ha caducado.",
+    "newDemo": "Iniciar una nueva demostración"
+  },
   "language": {
     "globalTitle": "Idioma predeterminado",
     "globalHint": "Este idioma se usa cuando un usuario no ha elegido un idioma personal.",
