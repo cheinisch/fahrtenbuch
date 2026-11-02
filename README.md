@@ -23,10 +23,29 @@ The application combines a **React** frontend, a **Node.js** backend, **PostgreS
 - **Personal map colors:** Configure optional route colors for private, business, commuting, and unclassified trips.
 - **Responsive dashboard:** Switch between the map and trip list on smaller screens.
 - **Data protection and history:** Support trip audit history and controlled vehicle sharing.
-- **Multilingual interface:** German, English, Danish, Spanish, Finnish, French, Italian, Norwegian (Bokmål), Dutch, Polish, Portuguese and Swedish – the same languages as the Android app.
+- **Multilingual interface:** Available in 12 languages – the same languages as the Android app. See [Languages & translations](#languages--translations) below.
 - **Authentication:** Account-based access with passwords, TOTP two-factor authentication, passkeys, and optional sign-in with a linked Google or Microsoft account.
 
 Some capabilities depend on the configured deployment and connected clients.
+
+## Languages & translations
+
+Fahrtenbuch currently includes the following languages:
+
+- 🇩🇪 German (`de`)
+- 🇬🇧 English (`en`)
+- 🇩🇰 Danish (`da`)
+- 🇪🇸 Spanish (`es`)
+- 🇫🇮 Finnish (`fi`)
+- 🇫🇷 French (`fr`)
+- 🇮🇹 Italian (`it`)
+- 🇳🇴 Norwegian – Bokmål (`nb`)
+- 🇳🇱 Dutch (`nl`)
+- 🇵🇱 Polish (`pl`)
+- 🇵🇹 Portuguese (`pt`)
+- 🇸🇪 Swedish (`sv`)
+
+Contributions are very welcome. If you would like to add another language, improve an existing translation, or report wording that sounds incorrect or unnatural, please open an issue or submit a pull request. Feedback from native speakers is especially appreciated and helps make the translations more accurate and natural.
 
 ## Requirements
 
