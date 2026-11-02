@@ -43,7 +43,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Ogni viaggio registrato. Ogni rimborso documentato.",
-    "brandText": "Tracciamento automatico con l’app Android, classificazione ordinata ed esportazione pronta per il fisco – self-hosted, i tuoi dati restano con te.",
+    "brandText": "Tracciamento automatico con l’app Android, classificazione ordinata ed esportazione dei tuoi viaggi – self-hosted, i tuoi dati restano con te.",
     "brandFooter": "Self-hosted · AGPL-3.0",
     "welcome": "Bentornato.",
     "forgotTitle": "Reimposta password",
@@ -1226,8 +1226,8 @@
       "savedShort": "Lingua salvata."
     },
     "country": {
-      "title": "Paese di residenza ed esportazione fiscale",
-      "description": "Il paese selezionato determina layout, lingua, unità e indicazioni dell’esportazione PDF.",
+      "title": "Paese di residenza",
+      "description": "Il paese è previsto per un futuro export a fini fiscali e al momento non ha effetti sull’esportazione.",
       "label": "Paese di residenza",
       "activeProfile": "Profilo di esportazione attivo",
       "loading": "Caricamento del profilo paese.",

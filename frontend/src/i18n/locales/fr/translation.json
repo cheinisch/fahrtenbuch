@@ -43,7 +43,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Chaque trajet enregistré. Chaque note de frais justifiée.",
-    "brandText": "Suivi automatique avec l’application Android, classement propre et export prêt pour les impôts – auto-hébergé, vos données restent chez vous.",
+    "brandText": "Suivi automatique avec l’application Android, classement propre et export de vos trajets – auto-hébergé, vos données restent chez vous.",
     "brandFooter": "Auto-hébergé · AGPL-3.0",
     "welcome": "Bon retour.",
     "forgotTitle": "Réinitialiser le mot de passe",
@@ -1226,8 +1226,8 @@
       "savedShort": "Langue enregistrée."
     },
     "country": {
-      "title": "Pays de résidence et export fiscal",
-      "description": "Le pays choisi détermine la mise en page, la langue, les unités et les indications de l’export PDF.",
+      "title": "Pays de résidence",
+      "description": "Le pays est prévu pour un futur export à des fins fiscales et n’a pour l’instant aucun effet sur l’export.",
       "label": "Pays de résidence",
       "activeProfile": "Profil d’export actif",
       "loading": "Chargement du profil pays.",

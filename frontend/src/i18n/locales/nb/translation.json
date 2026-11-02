@@ -43,7 +43,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Hver tur registrert. Hver godtgjørelse dokumentert.",
-    "brandText": "Automatisk registrering med Android-appen, ryddig klassifisering og en skatteklar eksport – selvdriftet, dataene dine blir hos deg.",
+    "brandText": "Automatisk registrering med Android-appen, ryddig klassifisering og en eksport av turene dine – selvdriftet, dataene dine blir hos deg.",
     "brandFooter": "Selvdriftet · AGPL-3.0",
     "welcome": "Velkommen tilbake.",
     "forgotTitle": "Tilbakestill passord",
@@ -1226,8 +1226,8 @@
       "savedShort": "Språk lagret."
     },
     "country": {
-      "title": "Hjemland og skatteeksport",
-      "description": "Valgt land bestemmer oppsett, språk, enheter og veiledning for PDF-eksporten.",
+      "title": "Hjemland",
+      "description": "Landet er planlagt for en senere skatterelatert eksport og har foreløpig ingen effekt på eksporten.",
       "label": "Hjemland",
       "activeProfile": "Aktiv eksportprofil",
       "loading": "Laster landprofil.",

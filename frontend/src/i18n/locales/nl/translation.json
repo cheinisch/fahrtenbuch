@@ -43,7 +43,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Elke rit vastgelegd. Elke declaratie onderbouwd.",
-    "brandText": "Automatisch registreren met de Android-app, nette classificatie en een export klaar voor de belasting – zelf gehost, je gegevens blijven bij jou.",
+    "brandText": "Automatisch registreren met de Android-app, nette classificatie en een export van je ritten – zelf gehost, je gegevens blijven bij jou.",
     "brandFooter": "Zelf gehost · AGPL-3.0",
     "welcome": "Welkom terug.",
     "forgotTitle": "Wachtwoord opnieuw instellen",
@@ -1226,8 +1226,8 @@
       "savedShort": "Taal opgeslagen."
     },
     "country": {
-      "title": "Thuisland en belastingexport",
-      "description": "Het gekozen land bepaalt opmaak, taal, eenheden en toelichting van de pdf-export.",
+      "title": "Thuisland",
+      "description": "Het land is gepland voor een latere belastinggerelateerde export en heeft momenteel geen invloed op de export.",
       "label": "Thuisland",
       "activeProfile": "Actief exportprofiel",
       "loading": "Landprofiel laden.",

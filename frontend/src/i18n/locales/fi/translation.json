@@ -43,7 +43,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Jokainen ajo kirjattu. Jokainen korvaus perusteltu.",
-    "brandText": "Automaattinen kirjaus Android-sovelluksella, selkeä luokittelu ja verotukseen valmis vienti – omalla palvelimella, tietosi pysyvät sinulla.",
+    "brandText": "Automaattinen kirjaus Android-sovelluksella, selkeä luokittelu ja matkojen vienti – omalla palvelimella, tietosi pysyvät sinulla.",
     "brandFooter": "Oma palvelin · AGPL-3.0",
     "welcome": "Tervetuloa takaisin.",
     "forgotTitle": "Nollaa salasana",
@@ -1226,8 +1226,8 @@
       "savedShort": "Kieli tallennettu."
     },
     "country": {
-      "title": "Asuinmaa ja verovienti",
-      "description": "Valittu maa määrittää PDF-viennin asettelun, kielen, yksiköt ja ohjeet.",
+      "title": "Asuinmaa",
+      "description": "Maa on suunniteltu myöhempää veroihin liittyvää vientiä varten, eikä sillä ole toistaiseksi vaikutusta vientiin.",
       "label": "Asuinmaa",
       "activeProfile": "Aktiivinen vientiprofiili",
       "loading": "Ladataan maaprofiilia.",

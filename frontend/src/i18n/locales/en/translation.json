@@ -43,7 +43,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Every trip recorded. Every claim backed up.",
-    "brandText": "Automatic tracking with the Android app, clean classification and a tax-ready export – self-hosted, your data stays with you.",
+    "brandText": "Automatic tracking with the Android app, clean classification and an export of your trips – self-hosted, your data stays with you.",
     "brandFooter": "Self-hosted · AGPL-3.0",
     "welcome": "Welcome back.",
     "forgotTitle": "Reset password",
@@ -1226,8 +1226,8 @@
       "savedShort": "Language saved."
     },
     "country": {
-      "title": "Home country and tax export",
-      "description": "The selected country determines the PDF export layout, language, units and guidance.",
+      "title": "Home country",
+      "description": "The country is planned for a future tax-related export and currently has no effect on the export.",
       "label": "Home country",
       "activeProfile": "Active export profile",
       "loading": "Loading country profile.",

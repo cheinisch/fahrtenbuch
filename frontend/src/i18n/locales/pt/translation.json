@@ -43,7 +43,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Cada viagem registada. Cada reembolso comprovado.",
-    "brandText": "Registo automático com a app Android, classificação organizada e exportação pronta para as Finanças – auto-alojado, os seus dados ficam consigo.",
+    "brandText": "Registo automático com a app Android, classificação organizada e exportação das suas viagens – auto-alojado, os seus dados ficam consigo.",
     "brandFooter": "Auto-alojado · AGPL-3.0",
     "welcome": "Bem-vindo de volta.",
     "forgotTitle": "Repor palavra-passe",
@@ -1226,8 +1226,8 @@
       "savedShort": "Idioma guardado."
     },
     "country": {
-      "title": "País de residência e exportação fiscal",
-      "description": "O país selecionado determina o layout, o idioma, as unidades e as indicações da exportação PDF.",
+      "title": "País de residência",
+      "description": "O país está previsto para uma futura exportação para fins fiscais e, por enquanto, não tem efeito na exportação.",
       "label": "País de residência",
       "activeProfile": "Perfil de exportação ativo",
       "loading": "A carregar perfil de país.",

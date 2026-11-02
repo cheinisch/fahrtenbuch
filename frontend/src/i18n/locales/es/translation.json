@@ -43,7 +43,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Cada trayecto registrado. Cada reclamación justificada.",
-    "brandText": "Seguimiento automático con la app de Android, clasificación limpia y exportación lista para Hacienda – autoalojado, tus datos se quedan contigo.",
+    "brandText": "Seguimiento automático con la app de Android, clasificación limpia y exportación de tus trayectos – autoalojado, tus datos se quedan contigo.",
     "brandFooter": "Autoalojado · AGPL-3.0",
     "welcome": "Bienvenido de nuevo.",
     "forgotTitle": "Restablecer contraseña",
@@ -1226,8 +1226,8 @@
       "savedShort": "Idioma guardado."
     },
     "country": {
-      "title": "País de residencia y exportación fiscal",
-      "description": "El país seleccionado determina el diseño, el idioma, las unidades y las indicaciones de la exportación PDF.",
+      "title": "País de residencia",
+      "description": "El país está previsto para una futura exportación con fines fiscales y, por ahora, no afecta a la exportación.",
       "label": "País de residencia",
       "activeProfile": "Perfil de exportación activo",
       "loading": "Cargando perfil de país.",
