@@ -52,7 +52,7 @@
   // ===== Anmeldung, Passwort zurücksetzen, OAuth =====
   "login": {
     "brandTitle": "Jede Fahrt erfasst. Jede Abrechnung belegbar.",
-    "brandText": "Automatisches Tracking über die Android-App, saubere Klassifizierung und ein Export deiner Fahrten – selbst gehostet, deine Daten bleiben bei dir.",
+    "brandText": "Automatisches Tracking über die Android-App, saubere Klassifizierung und ein Export deiner Fahrten - selbst gehostet, deine Daten bleiben bei dir.",
     "brandFooter": "Selbst gehostet · AGPL-3.0",
     "welcome": "Willkommen zurück.",
     "forgotTitle": "Passwort zurücksetzen",
