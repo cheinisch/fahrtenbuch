@@ -915,6 +915,8 @@
       "hint": "Chilometri registrati per categoria; la parte tratteggiata è stata percorsa secondo le letture ma non è associata ad alcun viaggio. Fai clic su un mese per i dettagli.",
       "hintShared": "I tuoi chilometri con questo veicolo per categoria. Fai clic su un mese per i dettagli.",
       "showMonthlyLimit": "Mostra limite mensile",
+      "yearlyLimit": "Limite annuo: {value}",
+      "showYearlyLimit": "Mostra limite annuo",
       "monthlyLimit": "Limite mensile contrattuale: {value}",
       "stackedAria": "Chilometri al mese per categoria",
       "barAria": "{month}: {value} – mostra dettagli",

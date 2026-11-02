@@ -915,6 +915,8 @@
       "hint": "Recorded kilometres by category; the hatched part was driven according to the readings but not matched to any trip. Click a month for details.",
       "hintShared": "Your kilometres with this vehicle by category. Click a month for details.",
       "showMonthlyLimit": "Show monthly limit",
+      "yearlyLimit": "Contractual yearly limit: {value}",
+      "showYearlyLimit": "Show yearly limit",
       "monthlyLimit": "Contractual monthly limit: {value}",
       "stackedAria": "Kilometres per month by category",
       "barAria": "{month}: {value} – show details",

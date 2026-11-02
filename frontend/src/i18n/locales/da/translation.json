@@ -915,6 +915,8 @@
       "hint": "Registrerede kilometer pr. kategori; den skraverede del er kørt ifølge aflæsningerne, men ikke knyttet til nogen tur. Klik på en måned for detaljer.",
       "hintShared": "Dine kilometer med dette køretøj pr. kategori. Klik på en måned for detaljer.",
       "showMonthlyLimit": "Vis månedsgrænse",
+      "yearlyLimit": "Årsgrænse: {value}",
+      "showYearlyLimit": "Vis årsgrænse",
       "monthlyLimit": "Kontraktlig månedsgrænse: {value}",
       "stackedAria": "Kilometer pr. måned og kategori",
       "barAria": "{month}: {value} – vis detaljer",

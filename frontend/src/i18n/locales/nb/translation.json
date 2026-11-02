@@ -915,6 +915,8 @@
       "hint": "Registrerte kilometer per kategori; den skraverte delen er kjørt ifølge avlesningene, men ikke knyttet til noen tur. Klikk på en måned for detaljer.",
       "hintShared": "Dine kilometer med dette kjøretøyet per kategori. Klikk på en måned for detaljer.",
       "showMonthlyLimit": "Vis månedsgrense",
+      "yearlyLimit": "Årsgrense: {value}",
+      "showYearlyLimit": "Vis årsgrense",
       "monthlyLimit": "Avtalt månedsgrense: {value}",
       "stackedAria": "Kilometer per måned og kategori",
       "barAria": "{month}: {value} – vis detaljer",

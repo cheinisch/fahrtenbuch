@@ -915,6 +915,8 @@
       "hint": "Geregistreerde kilometers per categorie; het gearceerde deel is volgens de standen gereden maar aan geen rit gekoppeld. Klik op een maand voor details.",
       "hintShared": "Je kilometers met dit voertuig per categorie. Klik op een maand voor details.",
       "showMonthlyLimit": "Maandlimiet tonen",
+      "yearlyLimit": "Jaarlimiet: {value}",
+      "showYearlyLimit": "Jaarlimiet tonen",
       "monthlyLimit": "Contractuele maandlimiet: {value}",
       "stackedAria": "Kilometers per maand per categorie",
       "barAria": "{month}: {value} – details tonen",

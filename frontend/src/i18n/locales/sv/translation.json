@@ -915,6 +915,8 @@
       "hint": "Registrerade kilometer per kategori; den skrafferade delen kördes enligt avläsningarna men är inte kopplad till någon resa. Klicka på en månad för detaljer.",
       "hintShared": "Dina kilometer med detta fordon per kategori. Klicka på en månad för detaljer.",
       "showMonthlyLimit": "Visa månadsgräns",
+      "yearlyLimit": "Årsgräns: {value}",
+      "showYearlyLimit": "Visa årsgräns",
       "monthlyLimit": "Avtalad månadsgräns: {value}",
       "stackedAria": "Kilometer per månad och kategori",
       "barAria": "{month}: {value} – visa detaljer",

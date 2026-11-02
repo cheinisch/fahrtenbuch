@@ -915,6 +915,8 @@
       "hint": "Zarejestrowane kilometry według kategorii; zakreskowana część została przejechana według odczytów, ale nie jest przypisana do żadnego przejazdu. Kliknij miesiąc, aby zobaczyć szczegóły.",
       "hintShared": "Twoje kilometry tym pojazdem według kategorii. Kliknij miesiąc, aby zobaczyć szczegóły.",
       "showMonthlyLimit": "Pokaż limit miesięczny",
+      "yearlyLimit": "Limit roczny: {value}",
+      "showYearlyLimit": "Pokaż limit roczny",
       "monthlyLimit": "Umowny limit miesięczny: {value}",
       "stackedAria": "Kilometry na miesiąc według kategorii",
       "barAria": "{month}: {value} – pokaż szczegóły",

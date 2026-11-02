@@ -916,6 +916,8 @@
       "hint": "Erfasste Kilometer nach Kategorie; schraffiert ist der Teil, der laut Ablesung gefahren, aber keiner Fahrt zugeordnet ist. Ein Klick auf einen Monat zeigt die Details.",
       "hintShared": "Deine Kilometer mit diesem Fahrzeug nach Kategorie. Ein Klick auf einen Monat zeigt die Details.",
       "showMonthlyLimit": "Monatslimit zeigen",
+      "yearlyLimit": "Vertragliches Jahreslimit: {value}",
+      "showYearlyLimit": "Jahreslimit zeigen",
       "monthlyLimit": "Vertragliches Monatslimit: {value}",
       "stackedAria": "Kilometer pro Monat nach Kategorie",
       "barAria": "{month}: {value} – Details anzeigen",

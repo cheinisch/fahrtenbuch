@@ -915,6 +915,8 @@
       "hint": "Kilómetros registrados por categoría; la parte rayada se recorrió según las lecturas pero no se asignó a ningún trayecto. Haz clic en un mes para ver detalles.",
       "hintShared": "Tus kilómetros con este vehículo por categoría. Haz clic en un mes para ver detalles.",
       "showMonthlyLimit": "Mostrar límite mensual",
+      "yearlyLimit": "Límite anual: {value}",
+      "showYearlyLimit": "Mostrar límite anual",
       "monthlyLimit": "Límite mensual contractual: {value}",
       "stackedAria": "Kilómetros por mes y categoría",
       "barAria": "{month}: {value} – mostrar detalles",

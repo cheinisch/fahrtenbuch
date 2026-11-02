@@ -70,7 +70,7 @@ function intervalMonthKey(endDate) {
 
 // Gestapelte Monatsbalken: erfasste Kilometer nach Kategorie plus der Teil, der
 // laut Ablesung gefahren, aber keiner Fahrt zugeordnet ist (schraffiert).
-function StackedMonthChart({ months, monthlyLimitKm = null, selectedMonth, onSelectMonth, labelFor }) {
+function StackedMonthChart({ months, monthlyLimitKm = null, limitKey = "statistics.chart.monthlyLimit", selectedMonth, onSelectMonth, labelFor }) {
   const { t, locale } = useI18n();
   const km = (value) => formatKm(value, locale);
   const [hovered, setHovered] = useState(null);
@@ -106,7 +106,7 @@ function StackedMonthChart({ months, monthlyLimitKm = null, selectedMonth, onSel
             {labelFor(segment.key)}
           </span>
         ))}
-        {monthlyLimitKm != null && <span className="flex items-center gap-2"><span className="w-5 border-t-2 border-dashed border-amber-500" />{t("statistics.chart.monthlyLimit", { value: km(monthlyLimitKm) })}</span>}
+        {monthlyLimitKm != null && <span className="flex items-center gap-2"><span className="w-5 border-t-2 border-dashed border-amber-500" />{t(limitKey, { value: km(monthlyLimitKm) })}</span>}
       </div>
       <div className="overflow-x-auto">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[640px]" role="img" aria-label={t("statistics.chart.stackedAria")}>
@@ -450,6 +450,19 @@ export default function Statistics() {
     })
     .filter((month) => month.total > 0), [rows, vehicleId, chartYear, locale]);
 
+  // Jahresübersicht („Alle Jahre“): je Kalenderjahr ein Balken, Summe der Monate.
+  const stackedYears = useMemo(() => {
+    const byYear = new Map();
+    stackedMonths.forEach((month) => {
+      const year = month.key.slice(0, 4);
+      const current = byYear.get(year) || { key: year, label: year, businessKm: 0, privateKm: 0, commuteKm: 0, unclassifiedKm: 0, otherDriversKm: 0, unexplainedKm: 0, total: 0 };
+      ["businessKm", "privateKm", "commuteKm", "unclassifiedKm", "otherDriversKm", "unexplainedKm", "total"].forEach((key) => { current[key] += month[key] || 0; });
+      byYear.set(year, current);
+    });
+    return [...byYear.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }, [stackedMonths]);
+  const chartBars = chartYear === "all" ? stackedYears : stackedMonths;
+
   const monthlyContractLimit = useMemo(() => {
     const vehicle = vehicleDetails.find((item) => item.id === vehicleId);
     if (!vehicle || !["leasing", "financing"].includes(vehicle.acquisitionType)
@@ -679,16 +692,23 @@ export default function Statistics() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div><h2 className="text-lg font-bold">{t("statistics.chart.heading")}</h2><p className="mt-1 text-sm text-fb-muted">{isShared ? t("statistics.chart.hintShared") : t("statistics.chart.hint")}</p></div>
           <div className="flex flex-wrap items-center gap-4">
-            {monthlyContractLimit != null && !isShared && <label className="flex cursor-pointer items-center gap-2 text-xs text-fb-muted"><input type="checkbox" checked={showMonthlyLimit} onChange={(event) => setShowMonthlyLimit(event.target.checked)} className="accent-[var(--color-accent)]" />{t("statistics.chart.showMonthlyLimit")}</label>}
+            {monthlyContractLimit != null && !isShared && <label className="flex cursor-pointer items-center gap-2 text-xs text-fb-muted"><input type="checkbox" checked={showMonthlyLimit} onChange={(event) => setShowMonthlyLimit(event.target.checked)} className="accent-[var(--color-accent)]" />{t(chartYear === "all" ? "statistics.chart.showYearlyLimit" : "statistics.chart.showMonthlyLimit")}</label>}
             <label className="sr-only" htmlFor="chart-year">{t("statistics.year")}</label><select id="chart-year" value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="h-10 rounded-lg border border-fb-border bg-fb-main px-3 text-sm">{chartYears.length === 0 && <option value={chartYear}>{chartYear}</option>}{chartYears.map((year) => <option key={year} value={year}>{year}</option>)}<option value="all">{t("statistics.allYears")}</option></select>
           </div>
         </div>
-        {stackedMonths.length > 0 ? (
+        {/* Jahresübersicht: je Jahr ein Balken; sonst Monatsbalken des gewählten Jahres. */}
+        {chartBars.length > 0 ? (
           <StackedMonthChart
-            months={stackedMonths}
-            monthlyLimitKm={showMonthlyLimit ? monthlyContractLimit : null}
-            selectedMonth={month}
+            months={chartBars}
+            monthlyLimitKm={showMonthlyLimit && monthlyContractLimit != null ? (chartYear === "all" ? monthlyContractLimit * 12 : monthlyContractLimit) : null}
+            limitKey={chartYear === "all" ? "statistics.chart.yearlyLimit" : "statistics.chart.monthlyLimit"}
+            selectedMonth={chartYear === "all" ? null : month}
             onSelectMonth={(key) => {
+              // In der Jahresübersicht öffnet ein Klick das Jahr mit seinen Monaten.
+              if (chartYear === "all") {
+                setChartYear(key);
+                return;
+              }
               setMonth(key);
               document.getElementById("statistics-month-details")?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}

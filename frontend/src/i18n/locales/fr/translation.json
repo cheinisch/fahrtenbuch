@@ -915,6 +915,8 @@
       "hint": "Kilomètres enregistrés par catégorie ; la partie hachurée a été parcourue selon les relevés mais n’est associée à aucun trajet. Cliquez sur un mois pour les détails.",
       "hintShared": "Vos kilomètres avec ce véhicule par catégorie. Cliquez sur un mois pour les détails.",
       "showMonthlyLimit": "Afficher la limite mensuelle",
+      "yearlyLimit": "Limite annuelle : {value}",
+      "showYearlyLimit": "Afficher la limite annuelle",
       "monthlyLimit": "Limite mensuelle contractuelle : {value}",
       "stackedAria": "Kilomètres par mois et par catégorie",
       "barAria": "{month} : {value} – afficher les détails",
