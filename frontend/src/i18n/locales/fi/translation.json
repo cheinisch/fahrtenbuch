@@ -51,7 +51,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Jokainen ajo kirjattu. Jokainen korvaus perusteltu.",
-    "brandText": "Automaattinen kirjaus Android-sovelluksella, selkeä luokittelu ja verotukseen valmis vienti – omalla palvelimella, tietosi pysyvät sinulla.",
+    "brandText": "Automaattinen kirjaus Android-sovelluksella, selkeä luokittelu ja matkojen vienti – omalla palvelimella, tietosi pysyvät sinulla.",
     "brandFooter": "Oma palvelin · AGPL-3.0",
     "welcome": "Tervetuloa takaisin.",
     "forgotTitle": "Nollaa salasana",
@@ -855,6 +855,9 @@
     // Key figure tiles at the top
     "yearSummary": "Tunnusluvut {year}",
     "drivenYear": "Ajettu vuonna {year}",
+    "allYears": "Kaikki vuodet",
+    "drivenTotal": "Ajettu yhteensä",
+    "yearSummaryAll": "Tunnusluvut yhteensä",
     "byReadings": "lukemien mukaan",
     "tracked": "Josta kirjattu",
     "coverage": "{value} kattavuus",
@@ -920,6 +923,8 @@
       "hint": "Kirjatut kilometrit luokittain; viivoitettu osa on ajettu lukemien mukaan, mutta sitä ei ole liitetty mihinkään ajoon. Napsauta kuukautta nähdäksesi tiedot.",
       "hintShared": "Kilometrisi tällä ajoneuvolla luokittain. Napsauta kuukautta nähdäksesi tiedot.",
       "showMonthlyLimit": "Näytä kuukausiraja",
+      "yearlyLimit": "Vuosiraja: {value}",
+      "showYearlyLimit": "Näytä vuosiraja",
       "monthlyLimit": "Sopimuksen kuukausiraja: {value}",
       "stackedAria": "Kilometrit kuukausittain ja luokittain",
       "barAria": "{month}: {value} – näytä tiedot",
@@ -1229,8 +1234,8 @@
       "savedShort": "Kieli tallennettu."
     },
     "country": {
-      "title": "Asuinmaa ja verovienti",
-      "description": "Valittu maa määrittää PDF-viennin asettelun, kielen, yksiköt ja ohjeet.",
+      "title": "Asuinmaa",
+      "description": "Maa on suunniteltu myöhempää veroihin liittyvää vientiä varten, eikä sillä ole toistaiseksi vaikutusta vientiin.",
       "label": "Asuinmaa",
       "activeProfile": "Aktiivinen vientiprofiili",
       "loading": "Ladataan maaprofiilia.",

@@ -51,7 +51,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Hver tur registreret. Hver godtgørelse dokumenteret.",
-    "brandText": "Automatisk registrering med Android-appen, overskuelig klassificering og en skatteklar eksport – selvhostet, dine data bliver hos dig.",
+    "brandText": "Automatisk registrering med Android-appen, overskuelig klassificering og en eksport af dine ture – selvhostet, dine data bliver hos dig.",
     "brandFooter": "Selvhostet · AGPL-3.0",
     "welcome": "Velkommen tilbage.",
     "forgotTitle": "Nulstil adgangskode",
@@ -855,6 +855,9 @@
     // Key figure tiles at the top
     "yearSummary": "Nøgletal {year}",
     "drivenYear": "Kørt i {year}",
+    "allYears": "Alle år",
+    "drivenTotal": "Kørt i alt",
+    "yearSummaryAll": "Nøgletal i alt",
     "byReadings": "ifølge aflæsninger",
     "tracked": "Heraf registreret",
     "coverage": "{value} dækning",
@@ -920,6 +923,8 @@
       "hint": "Registrerede kilometer pr. kategori; den skraverede del er kørt ifølge aflæsningerne, men ikke knyttet til nogen tur. Klik på en måned for detaljer.",
       "hintShared": "Dine kilometer med dette køretøj pr. kategori. Klik på en måned for detaljer.",
       "showMonthlyLimit": "Vis månedsgrænse",
+      "yearlyLimit": "Årsgrænse: {value}",
+      "showYearlyLimit": "Vis årsgrænse",
       "monthlyLimit": "Kontraktlig månedsgrænse: {value}",
       "stackedAria": "Kilometer pr. måned og kategori",
       "barAria": "{month}: {value} – vis detaljer",
@@ -1229,8 +1234,8 @@
       "savedShort": "Sprog gemt."
     },
     "country": {
-      "title": "Hjemland og skatteeksport",
-      "description": "Det valgte land bestemmer PDF-eksportens layout, sprog, enheder og vejledning.",
+      "title": "Hjemland",
+      "description": "Landet er planlagt til en senere skatterelateret eksport og har indtil videre ingen betydning for eksporten.",
       "label": "Hjemland",
       "activeProfile": "Aktiv eksportprofil",
       "loading": "Indlæser landeprofil.",

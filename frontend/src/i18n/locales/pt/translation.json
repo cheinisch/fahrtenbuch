@@ -51,7 +51,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Cada viagem registada. Cada reembolso comprovado.",
-    "brandText": "Registo automático com a app Android, classificação organizada e exportação pronta para as Finanças – auto-alojado, os seus dados ficam consigo.",
+    "brandText": "Registo automático com a app Android, classificação organizada e exportação das suas viagens – auto-alojado, os seus dados ficam consigo.",
     "brandFooter": "Auto-alojado · AGPL-3.0",
     "welcome": "Bem-vindo de volta.",
     "forgotTitle": "Repor palavra-passe",
@@ -855,6 +855,9 @@
     // Key figure tiles at the top
     "yearSummary": "Números-chave {year}",
     "drivenYear": "Percorrido em {year}",
+    "allYears": "Todos os anos",
+    "drivenTotal": "Percorrido no total",
+    "yearSummaryAll": "Dados-chave no total",
     "byReadings": "segundo as leituras",
     "tracked": "Dos quais registados",
     "coverage": "{value} de cobertura",
@@ -920,6 +923,8 @@
       "hint": "Quilómetros registados por categoria; a parte tracejada foi percorrida segundo as leituras mas não corresponde a nenhuma viagem. Clique num mês para ver detalhes.",
       "hintShared": "Os seus quilómetros com este veículo por categoria. Clique num mês para ver detalhes.",
       "showMonthlyLimit": "Mostrar limite mensal",
+      "yearlyLimit": "Limite anual: {value}",
+      "showYearlyLimit": "Mostrar limite anual",
       "monthlyLimit": "Limite mensal contratual: {value}",
       "stackedAria": "Quilómetros por mês e categoria",
       "barAria": "{month}: {value} – mostrar detalhes",
@@ -1229,8 +1234,8 @@
       "savedShort": "Idioma guardado."
     },
     "country": {
-      "title": "País de residência e exportação fiscal",
-      "description": "O país selecionado determina o layout, o idioma, as unidades e as indicações da exportação PDF.",
+      "title": "País de residência",
+      "description": "O país está previsto para uma futura exportação para fins fiscais e, por enquanto, não tem efeito na exportação.",
       "label": "País de residência",
       "activeProfile": "Perfil de exportação ativo",
       "loading": "A carregar perfil de país.",

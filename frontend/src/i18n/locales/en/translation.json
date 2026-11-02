@@ -51,7 +51,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Every trip recorded. Every claim backed up.",
-    "brandText": "Automatic tracking with the Android app, clean classification and a tax-ready export – self-hosted, your data stays with you.",
+    "brandText": "Automatic tracking with the Android app, clean classification and an export of your trips – self-hosted, your data stays with you.",
     "brandFooter": "Self-hosted · AGPL-3.0",
     "welcome": "Welcome back.",
     "forgotTitle": "Reset password",
@@ -855,6 +855,9 @@
     // Key figure tiles at the top
     "yearSummary": "Key figures {year}",
     "drivenYear": "Driven in {year}",
+    "allYears": "All years",
+    "drivenTotal": "Driven in total",
+    "yearSummaryAll": "Key figures total",
     "byReadings": "according to readings",
     "tracked": "Of which recorded",
     "coverage": "{value} coverage",
@@ -920,6 +923,8 @@
       "hint": "Recorded kilometres by category; the hatched part was driven according to the readings but not matched to any trip. Click a month for details.",
       "hintShared": "Your kilometres with this vehicle by category. Click a month for details.",
       "showMonthlyLimit": "Show monthly limit",
+      "yearlyLimit": "Contractual yearly limit: {value}",
+      "showYearlyLimit": "Show yearly limit",
       "monthlyLimit": "Contractual monthly limit: {value}",
       "stackedAria": "Kilometres per month by category",
       "barAria": "{month}: {value} – show details",
@@ -1229,8 +1234,8 @@
       "savedShort": "Language saved."
     },
     "country": {
-      "title": "Home country and tax export",
-      "description": "The selected country determines the PDF export layout, language, units and guidance.",
+      "title": "Home country",
+      "description": "The country is planned for a future tax-related export and currently has no effect on the export.",
       "label": "Home country",
       "activeProfile": "Active export profile",
       "loading": "Loading country profile.",

@@ -718,8 +718,13 @@ export function getOdometerIntervalStatistics(accessToken, vehicleId, from, to) 
   return apiRequest(accessToken, `/api/v1/statistics/odometer-intervals?${query.toString()}`);
 }
 
-export function getMonthlyOdometerStatistics(accessToken, months = 12) {
-  return apiRequest(accessToken, `/api/v1/statistics/monthly-odometer?months=${months}`);
+// range: { from, to } (YYYY-MM-DD) für einen Zeitraum oder { all: true } für alle Monate.
+export function getMonthlyOdometerStatistics(accessToken, months = 12, range = null) {
+  const params = new URLSearchParams({ months: String(months) });
+  if (range?.all) params.set("all", "true");
+  if (range?.from) params.set("from", range.from);
+  if (range?.to) params.set("to", range.to);
+  return apiRequest(accessToken, `/api/v1/statistics/monthly-odometer?${params}`);
 }
 
 

@@ -51,7 +51,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Każda trasa zapisana. Każde rozliczenie udokumentowane.",
-    "brandText": "Automatyczne rejestrowanie w aplikacji na Androida, przejrzysta klasyfikacja i eksport gotowy do rozliczeń podatkowych – na własnym serwerze, Twoje dane zostają u Ciebie.",
+    "brandText": "Automatyczne rejestrowanie w aplikacji na Androida, przejrzysta klasyfikacja i eksport przejazdów – na własnym serwerze, Twoje dane zostają u Ciebie.",
     "brandFooter": "Na własnym serwerze · AGPL-3.0",
     "welcome": "Witaj ponownie.",
     "forgotTitle": "Resetuj hasło",
@@ -855,6 +855,9 @@
     // Key figure tiles at the top
     "yearSummary": "Kluczowe dane {year}",
     "drivenYear": "Przejechano w {year}",
+    "allYears": "Wszystkie lata",
+    "drivenTotal": "Łącznie przejechano",
+    "yearSummaryAll": "Kluczowe dane łącznie",
     "byReadings": "według odczytów",
     "tracked": "Z tego zarejestrowano",
     "coverage": "pokrycie {value}",
@@ -920,6 +923,8 @@
       "hint": "Zarejestrowane kilometry według kategorii; zakreskowana część została przejechana według odczytów, ale nie jest przypisana do żadnego przejazdu. Kliknij miesiąc, aby zobaczyć szczegóły.",
       "hintShared": "Twoje kilometry tym pojazdem według kategorii. Kliknij miesiąc, aby zobaczyć szczegóły.",
       "showMonthlyLimit": "Pokaż limit miesięczny",
+      "yearlyLimit": "Limit roczny: {value}",
+      "showYearlyLimit": "Pokaż limit roczny",
       "monthlyLimit": "Umowny limit miesięczny: {value}",
       "stackedAria": "Kilometry na miesiąc według kategorii",
       "barAria": "{month}: {value} – pokaż szczegóły",
@@ -1229,8 +1234,8 @@
       "savedShort": "Język zapisany."
     },
     "country": {
-      "title": "Kraj zamieszkania i eksport podatkowy",
-      "description": "Wybrany kraj określa układ, język, jednostki i wskazówki eksportu PDF.",
+      "title": "Kraj zamieszkania",
+      "description": "Kraj jest przewidziany do przyszłego eksportu podatkowego i obecnie nie wpływa na eksport.",
       "label": "Kraj zamieszkania",
       "activeProfile": "Aktywny profil eksportu",
       "loading": "Ładowanie profilu kraju.",

@@ -52,7 +52,7 @@
   // ===== Anmeldung, Passwort zurücksetzen, OAuth =====
   "login": {
     "brandTitle": "Jede Fahrt erfasst. Jede Abrechnung belegbar.",
-    "brandText": "Automatisches Tracking über die Android-App, saubere Klassifizierung und ein finanzamtstauglicher Export – selbst gehostet, deine Daten bleiben bei dir.",
+    "brandText": "Automatisches Tracking über die Android-App, saubere Klassifizierung und ein Export deiner Fahrten – selbst gehostet, deine Daten bleiben bei dir.",
     "brandFooter": "Selbst gehostet · AGPL-3.0",
     "welcome": "Willkommen zurück.",
     "forgotTitle": "Passwort zurücksetzen",
@@ -856,6 +856,9 @@
     // Kennzahlen-Kacheln oben
     "yearSummary": "Kennzahlen {year}",
     "drivenYear": "Gefahren {year}",
+    "allYears": "Alle Jahre",
+    "drivenTotal": "Gefahren gesamt",
+    "yearSummaryAll": "Kennzahlen gesamt",
     "byReadings": "laut Ablesungen",
     "tracked": "Davon erfasst",
     "coverage": "{value} Abdeckung",
@@ -921,6 +924,8 @@
       "hint": "Erfasste Kilometer nach Kategorie; schraffiert ist der Teil, der laut Ablesung gefahren, aber keiner Fahrt zugeordnet ist. Ein Klick auf einen Monat zeigt die Details.",
       "hintShared": "Deine Kilometer mit diesem Fahrzeug nach Kategorie. Ein Klick auf einen Monat zeigt die Details.",
       "showMonthlyLimit": "Monatslimit zeigen",
+      "yearlyLimit": "Vertragliches Jahreslimit: {value}",
+      "showYearlyLimit": "Jahreslimit zeigen",
       "monthlyLimit": "Vertragliches Monatslimit: {value}",
       "stackedAria": "Kilometer pro Monat nach Kategorie",
       "barAria": "{month}: {value} – Details anzeigen",
@@ -1230,8 +1235,8 @@
       "savedShort": "Die Sprache wurde gespeichert."
     },
     "country": {
-      "title": "Heimatland und Steuerexport",
-      "description": "Das gewählte Land bestimmt Aufbau, Sprache, Einheit und Hinweise des PDF-Exports.",
+      "title": "Heimatland",
+      "description": "Das Land ist für einen späteren steuerlichen Export vorgesehen und hat derzeit keinen Einfluss auf den Export.",
       "label": "Heimatland",
       "activeProfile": "Aktives Exportprofil",
       "loading": "Das Länderprofil wird geladen.",

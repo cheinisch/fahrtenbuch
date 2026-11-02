@@ -51,7 +51,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Ogni viaggio registrato. Ogni rimborso documentato.",
-    "brandText": "Tracciamento automatico con l’app Android, classificazione ordinata ed esportazione pronta per il fisco – self-hosted, i tuoi dati restano con te.",
+    "brandText": "Tracciamento automatico con l’app Android, classificazione ordinata ed esportazione dei tuoi viaggi – self-hosted, i tuoi dati restano con te.",
     "brandFooter": "Self-hosted · AGPL-3.0",
     "welcome": "Bentornato.",
     "forgotTitle": "Reimposta password",
@@ -855,6 +855,9 @@
     // Key figure tiles at the top
     "yearSummary": "Dati chiave {year}",
     "drivenYear": "Percorsi nel {year}",
+    "allYears": "Tutti gli anni",
+    "drivenTotal": "Percorsi in totale",
+    "yearSummaryAll": "Dati chiave complessivi",
     "byReadings": "secondo le letture",
     "tracked": "Di cui registrati",
     "coverage": "{value} di copertura",
@@ -920,6 +923,8 @@
       "hint": "Chilometri registrati per categoria; la parte tratteggiata è stata percorsa secondo le letture ma non è associata ad alcun viaggio. Fai clic su un mese per i dettagli.",
       "hintShared": "I tuoi chilometri con questo veicolo per categoria. Fai clic su un mese per i dettagli.",
       "showMonthlyLimit": "Mostra limite mensile",
+      "yearlyLimit": "Limite annuo: {value}",
+      "showYearlyLimit": "Mostra limite annuo",
       "monthlyLimit": "Limite mensile contrattuale: {value}",
       "stackedAria": "Chilometri al mese per categoria",
       "barAria": "{month}: {value} – mostra dettagli",
@@ -1229,8 +1234,8 @@
       "savedShort": "Lingua salvata."
     },
     "country": {
-      "title": "Paese di residenza ed esportazione fiscale",
-      "description": "Il paese selezionato determina layout, lingua, unità e indicazioni dell’esportazione PDF.",
+      "title": "Paese di residenza",
+      "description": "Il paese è previsto per un futuro export a fini fiscali e al momento non ha effetti sull’esportazione.",
       "label": "Paese di residenza",
       "activeProfile": "Profilo di esportazione attivo",
       "loading": "Caricamento del profilo paese.",

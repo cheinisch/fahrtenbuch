@@ -51,7 +51,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Chaque trajet enregistré. Chaque note de frais justifiée.",
-    "brandText": "Suivi automatique avec l’application Android, classement propre et export prêt pour les impôts – auto-hébergé, vos données restent chez vous.",
+    "brandText": "Suivi automatique avec l’application Android, classement propre et export de vos trajets – auto-hébergé, vos données restent chez vous.",
     "brandFooter": "Auto-hébergé · AGPL-3.0",
     "welcome": "Bon retour.",
     "forgotTitle": "Réinitialiser le mot de passe",
@@ -855,6 +855,9 @@
     // Key figure tiles at the top
     "yearSummary": "Chiffres clés {year}",
     "drivenYear": "Parcouru en {year}",
+    "allYears": "Toutes les années",
+    "drivenTotal": "Parcouru au total",
+    "yearSummaryAll": "Chiffres clés au total",
     "byReadings": "selon les relevés",
     "tracked": "Dont enregistré",
     "coverage": "{value} de couverture",
@@ -920,6 +923,8 @@
       "hint": "Kilomètres enregistrés par catégorie ; la partie hachurée a été parcourue selon les relevés mais n’est associée à aucun trajet. Cliquez sur un mois pour les détails.",
       "hintShared": "Vos kilomètres avec ce véhicule par catégorie. Cliquez sur un mois pour les détails.",
       "showMonthlyLimit": "Afficher la limite mensuelle",
+      "yearlyLimit": "Limite annuelle : {value}",
+      "showYearlyLimit": "Afficher la limite annuelle",
       "monthlyLimit": "Limite mensuelle contractuelle : {value}",
       "stackedAria": "Kilomètres par mois et par catégorie",
       "barAria": "{month} : {value} – afficher les détails",
@@ -1229,8 +1234,8 @@
       "savedShort": "Langue enregistrée."
     },
     "country": {
-      "title": "Pays de résidence et export fiscal",
-      "description": "Le pays choisi détermine la mise en page, la langue, les unités et les indications de l’export PDF.",
+      "title": "Pays de résidence",
+      "description": "Le pays est prévu pour un futur export à des fins fiscales et n’a pour l’instant aucun effet sur l’export.",
       "label": "Pays de résidence",
       "activeProfile": "Profil d’export actif",
       "loading": "Chargement du profil pays.",

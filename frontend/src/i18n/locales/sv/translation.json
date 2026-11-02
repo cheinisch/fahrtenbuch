@@ -51,7 +51,7 @@
   // ===== Sign-in, password reset, OAuth =====
   "login": {
     "brandTitle": "Varje resa registrerad. Varje ersättning styrkt.",
-    "brandText": "Automatisk registrering med Android-appen, tydlig klassificering och en skatteklar export – egen server, dina data stannar hos dig.",
+    "brandText": "Automatisk registrering med Android-appen, tydlig klassificering och en export av dina resor – egen server, dina data stannar hos dig.",
     "brandFooter": "Egen server · AGPL-3.0",
     "welcome": "Välkommen tillbaka.",
     "forgotTitle": "Återställ lösenord",
@@ -855,6 +855,9 @@
     // Key figure tiles at the top
     "yearSummary": "Nyckeltal {year}",
     "drivenYear": "Kört {year}",
+    "allYears": "Alla år",
+    "drivenTotal": "Körda totalt",
+    "yearSummaryAll": "Nyckeltal totalt",
     "byReadings": "enligt avläsningar",
     "tracked": "Varav registrerat",
     "coverage": "{value} täckning",
@@ -920,6 +923,8 @@
       "hint": "Registrerade kilometer per kategori; den skrafferade delen kördes enligt avläsningarna men är inte kopplad till någon resa. Klicka på en månad för detaljer.",
       "hintShared": "Dina kilometer med detta fordon per kategori. Klicka på en månad för detaljer.",
       "showMonthlyLimit": "Visa månadsgräns",
+      "yearlyLimit": "Årsgräns: {value}",
+      "showYearlyLimit": "Visa årsgräns",
       "monthlyLimit": "Avtalad månadsgräns: {value}",
       "stackedAria": "Kilometer per månad och kategori",
       "barAria": "{month}: {value} – visa detaljer",
@@ -1229,8 +1234,8 @@
       "savedShort": "Språk sparat."
     },
     "country": {
-      "title": "Hemland och skatteexport",
-      "description": "Valt land avgör PDF-exportens layout, språk, enheter och vägledning.",
+      "title": "Hemland",
+      "description": "Landet är planerat för en framtida skatterelaterad export och påverkar för närvarande inte exporten.",
       "label": "Hemland",
       "activeProfile": "Aktiv exportprofil",
       "loading": "Laddar landsprofil.",
