@@ -1048,6 +1048,7 @@
   // ===== Export =====
   "exportPage": {
     "title": "Exportera statistik och körjournal",
+    "subtitle": "Exporterar resor, mätarställningar och en sammanfattning som PDF eller CSV.",
     "presetYtd": "Hittills i år",
     "presetLastMonth": "Förra månaden",
     "presetLastQuarter": "Förra kvartalet",
@@ -1065,6 +1066,8 @@
     "calculating": "Beräknar statistik …",
     "checkCompleteness": "Kontrollera fullständighet",
     "createTitle": "Skapa export",
+    "createHint": "PDF:en innehåller en sammanfattning, resor, mätarställningar och ändringshistoriken.",
+    "pdf": "Exportera PDF",
     "pdfCreating": "Skapar PDF …",
     "csvCreating": "Skapar CSV …",
     "csv": "Exportera CSV"

@@ -56,6 +56,15 @@ function buildQuery(filters = {}) {
     : "";
 }
 
+export function getExportCountryOptions(
+  accessToken,
+) {
+  return request(
+    accessToken,
+    "/api/v1/export/countries",
+  );
+}
+
 export function getCountryExportSummary(
   accessToken,
   filters,

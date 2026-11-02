@@ -2871,6 +2871,18 @@ paths:
         '401':
           description: Authentication required
 
+  /export/countries:
+    get:
+      tags: [Import Export]
+      summary: List countries available for export
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
   /export/data:
     get:
       tags: [Users]

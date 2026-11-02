@@ -1048,6 +1048,7 @@
   // ===== Export =====
   "exportPage": {
     "title": "Exportar estatísticas e registo de viagens",
+    "subtitle": "Exporta viagens, leituras do conta-quilómetros e um resumo em PDF ou CSV.",
     "presetYtd": "Desde o início do ano",
     "presetLastMonth": "Mês passado",
     "presetLastQuarter": "Trimestre passado",
@@ -1065,6 +1066,8 @@
     "calculating": "A calcular estatísticas …",
     "checkCompleteness": "Verificar integridade",
     "createTitle": "Criar exportação",
+    "createHint": "O PDF contém um resumo, as viagens, as leituras do conta-quilómetros e o histórico de alterações.",
+    "pdf": "Exportar PDF",
     "pdfCreating": "A criar PDF …",
     "csvCreating": "A criar CSV …",
     "csv": "Exportar CSV"

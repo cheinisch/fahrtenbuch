@@ -1048,6 +1048,7 @@
   // ===== Export =====
   "exportPage": {
     "title": "Exporter les statistiques et le carnet de bord",
+    "subtitle": "Exporte les trajets, les relevés de kilométrage et un résumé en PDF ou CSV.",
     "presetYtd": "Depuis le début de l’année",
     "presetLastMonth": "Mois dernier",
     "presetLastQuarter": "Trimestre dernier",
@@ -1065,6 +1066,8 @@
     "calculating": "Calcul des statistiques …",
     "checkCompleteness": "Vérifier l’exhaustivité",
     "createTitle": "Créer l’export",
+    "createHint": "Le PDF contient un résumé, les trajets, les relevés de kilométrage et l’historique des modifications.",
+    "pdf": "Exporter le PDF",
     "pdfCreating": "Création du PDF …",
     "csvCreating": "Création du CSV …",
     "csv": "Exporter en CSV"

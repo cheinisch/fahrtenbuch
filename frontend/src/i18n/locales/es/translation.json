@@ -1048,6 +1048,7 @@
   // ===== Export =====
   "exportPage": {
     "title": "Exportar estadísticas y libro de trayectos",
+    "subtitle": "Exporta viajes, kilometrajes y un resumen en PDF o CSV.",
     "presetYtd": "En lo que va de año",
     "presetLastMonth": "Mes pasado",
     "presetLastQuarter": "Trimestre pasado",
@@ -1065,6 +1066,8 @@
     "calculating": "Calculando estadísticas …",
     "checkCompleteness": "Comprobar integridad",
     "createTitle": "Crear exportación",
+    "createHint": "El PDF contiene un resumen, los viajes, los kilometrajes y el historial de cambios.",
+    "pdf": "Exportar PDF",
     "pdfCreating": "Creando PDF …",
     "csvCreating": "Creando CSV …",
     "csv": "Exportar CSV"

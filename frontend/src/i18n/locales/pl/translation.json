@@ -1048,6 +1048,7 @@
   // ===== Export =====
   "exportPage": {
     "title": "Eksportuj statystyki i ewidencję przebiegu",
+    "subtitle": "Eksportuje przejazdy, stany licznika i podsumowanie jako PDF lub CSV.",
     "presetYtd": "Od początku roku",
     "presetLastMonth": "Poprzedni miesiąc",
     "presetLastQuarter": "Poprzedni kwartał",
@@ -1065,6 +1066,8 @@
     "calculating": "Obliczanie statystyk …",
     "checkCompleteness": "Sprawdź kompletność",
     "createTitle": "Utwórz eksport",
+    "createHint": "PDF zawiera podsumowanie, przejazdy, stany licznika i historię zmian.",
+    "pdf": "Eksportuj PDF",
     "pdfCreating": "Tworzenie PDF …",
     "csvCreating": "Tworzenie CSV …",
     "csv": "Eksportuj CSV"

@@ -1048,6 +1048,7 @@
   // ===== Export =====
   "exportPage": {
     "title": "Statistieken en rittenregistratie exporteren",
+    "subtitle": "Exporteert ritten, kilometerstanden en een samenvatting als PDF of CSV.",
     "presetYtd": "Dit jaar tot nu",
     "presetLastMonth": "Vorige maand",
     "presetLastQuarter": "Vorig kwartaal",
@@ -1065,6 +1066,8 @@
     "calculating": "Statistieken berekenen …",
     "checkCompleteness": "Volledigheid controleren",
     "createTitle": "Export maken",
+    "createHint": "De PDF bevat een samenvatting, ritten, kilometerstanden en de wijzigingsgeschiedenis.",
+    "pdf": "PDF exporteren",
     "pdfCreating": "Pdf maken …",
     "csvCreating": "CSV maken …",
     "csv": "CSV exporteren"

@@ -1048,6 +1048,7 @@
   // ===== Export =====
   "exportPage": {
     "title": "Vie tilastot ja ajopäiväkirja",
+    "subtitle": "Vie matkat, mittarilukemat ja yhteenvedon PDF- tai CSV-muodossa.",
     "presetYtd": "Vuoden alusta",
     "presetLastMonth": "Edellinen kuukausi",
     "presetLastQuarter": "Edellinen neljännes",
@@ -1065,6 +1066,8 @@
     "calculating": "Lasketaan tilastoja …",
     "checkCompleteness": "Tarkista kattavuus",
     "createTitle": "Luo vienti",
+    "createHint": "PDF sisältää yhteenvedon, matkat, mittarilukemat ja muutoshistorian.",
+    "pdf": "Vie PDF",
     "pdfCreating": "Luodaan PDF:ää …",
     "csvCreating": "Luodaan CSV:tä …",
     "csv": "Vie CSV"

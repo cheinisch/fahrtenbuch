@@ -1048,6 +1048,7 @@
   // ===== Export =====
   "exportPage": {
     "title": "Eksporter statistikk og kjørebok",
+    "subtitle": "Eksporterer turer, kilometerstander og et sammendrag som PDF eller CSV.",
     "presetYtd": "Hittil i år",
     "presetLastMonth": "Forrige måned",
     "presetLastQuarter": "Forrige kvartal",
@@ -1065,6 +1066,8 @@
     "calculating": "Beregner statistikk …",
     "checkCompleteness": "Kontroller fullstendighet",
     "createTitle": "Opprett eksport",
+    "createHint": "PDF-en inneholder et sammendrag, turer, kilometerstander og endringshistorikken.",
+    "pdf": "Eksporter PDF",
     "pdfCreating": "Oppretter PDF …",
     "csvCreating": "Oppretter CSV …",
     "csv": "Eksporter CSV"

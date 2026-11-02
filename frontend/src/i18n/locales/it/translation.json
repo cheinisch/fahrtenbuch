@@ -1048,6 +1048,7 @@
   // ===== Export =====
   "exportPage": {
     "title": "Esporta statistiche e registro di viaggio",
+    "subtitle": "Esporta viaggi, letture del contachilometri e un riepilogo in PDF o CSV.",
     "presetYtd": "Da inizio anno",
     "presetLastMonth": "Mese scorso",
     "presetLastQuarter": "Trimestre scorso",
@@ -1065,6 +1066,8 @@
     "calculating": "Calcolo delle statistiche …",
     "checkCompleteness": "Verifica completezza",
     "createTitle": "Crea esportazione",
+    "createHint": "Il PDF contiene un riepilogo, i viaggi, le letture del contachilometri e la cronologia delle modifiche.",
+    "pdf": "Esporta PDF",
     "pdfCreating": "Creazione PDF …",
     "csvCreating": "Creazione CSV …",
     "csv": "Esporta CSV"
