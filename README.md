@@ -6,13 +6,6 @@
 
 [![Release image](https://github.com/cheinisch/fahrtenbuch/actions/workflows/build-release-image.yml/badge.svg)](https://github.com/cheinisch/fahrtenbuch/actions/workflows/build-release-image.yml)
 [![Dev image](https://github.com/cheinisch/fahrtenbuch/actions/workflows/build-dev-image.yml/badge.svg)](https://github.com/cheinisch/fahrtenbuch/actions/workflows/build-dev-image.yml)
-[![Create release](https://github.com/cheinisch/fahrtenbuch/actions/workflows/create-release.yml/badge.svg)](https://github.com/cheinisch/fahrtenbuch/actions/workflows/create-release.yml)
-[![Build number](https://github.com/cheinisch/fahrtenbuch/actions/workflows/increment-build.yml/badge.svg)](https://github.com/cheinisch/fahrtenbuch/actions/workflows/increment-build.yml)
-
-[![Downloads](https://img.shields.io/github/downloads/cheinisch/fahrtenbuch/total?label=downloads)](https://github.com/cheinisch/fahrtenbuch/releases)
-[![Downloads latest](https://img.shields.io/github/downloads/cheinisch/fahrtenbuch/latest/total?label=downloads%40latest)](https://github.com/cheinisch/fahrtenbuch/releases/latest)
-[![Android app downloads](https://img.shields.io/github/downloads/cheinisch/fahrtenbuch-android/total?label=android%20app%20downloads&logo=android)](https://github.com/cheinisch/fahrtenbuch-android/releases)
-[![Docker image](https://img.shields.io/badge/ghcr.io-cheinisch%2Ffahrtenbuch-2496ED?logo=docker&logoColor=white)](https://github.com/cheinisch/fahrtenbuch/pkgs/container/fahrtenbuch)
 
 A self-hosted vehicle trip log with a web dashboard, GPS trip tracking, odometer readings, vehicle management, and mileage statistics.
 
