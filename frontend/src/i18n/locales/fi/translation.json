@@ -33,6 +33,14 @@
     "openUserMenu": "Avaa käyttäjävalikko",
     "user": "Käyttäjä"
   },
+  "demo": {
+    "remaining": "Demoinstanssi · {time} jäljellä",
+    "extend": "Jatka {minutes} min",
+    "extending": "Jatketaan …",
+    "extended": "Jo jatkettu",
+    "expired": "Tämä demo on vanhentunut.",
+    "newDemo": "Aloita uusi demo"
+  },
   "language": {
     "globalTitle": "Oletuskieli",
     "globalHint": "Tätä kieltä käytetään, jos käyttäjä ei ole valinnut omaa kieltä.",
