@@ -22,8 +22,8 @@ export const MAP_STYLES = ["osm", "light", "dark", "auto"];
 
 // Pause (Sekunden) zwischen zwei Fahrten desselben Fahrzeugs, bis zu der der Server sie
 // als eine Fahrt zusammenführt (Mehrgeräte-Abgleich). 0 = nur zeitlich überlappende Fahrten.
-export const TRIP_MERGE_GAP_DEFAULT = 120;
-export const TRIP_MERGE_GAP_MAX = 900;
+export const TRIP_MERGE_GAP_DEFAULT = 0;
+export const TRIP_MERGE_GAP_MAX = 7200;
 
 export function normalizeTripMergeGap(value) {
   const n = Number(value);

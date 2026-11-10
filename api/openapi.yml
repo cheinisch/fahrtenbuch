@@ -3784,13 +3784,15 @@ components:
         tripMergeGapSeconds:
           type: integer
           minimum: 0
-          maximum: 900
-          default: 120
+          maximum: 7200
+          default: 0
           description: >-
-            Maximum pause in seconds between two trips of the same vehicle (close to each other) up to which
-            the server merges them into one trip when they were recorded by different devices (multi-device
-            reconciliation after POST /tracking/stop). 0 merges only trips that overlap in time. Trips recorded
-            by the same device are never merged. Can be changed via PATCH.
+            Pause in seconds (0-7200, i.e. up to 120 minutes). Used by the app as the time a trip keeps
+            running after a Bluetooth disconnect: a reconnect of the same vehicle within this time continues
+            the trip, otherwise it ends at the disconnect. 0 = pause detection off. The server also merges
+            trips of the same vehicle with a pause up to this length when they were recorded by different
+            devices (multi-device reconciliation after POST /tracking/stop); 0 merges only trips that overlap
+            in time. Trips recorded by the same device are never merged. Can be changed via PATCH.
         gravatarEnabled:
           type: boolean
           default: true

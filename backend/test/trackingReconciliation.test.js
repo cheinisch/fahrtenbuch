@@ -22,23 +22,25 @@ test("verschiedene oder unbekannte Geräte bleiben Merge-Kandidaten", () => {
 
 test("Zeitfenster zum Zusammenführen: Standard, Grenzen, ungültige Werte", () => {
   assert.equal(normalizeTripMergeGap(undefined), TRIP_MERGE_GAP_DEFAULT);
-  assert.equal(normalizeTripMergeGap(null), 120);
+  assert.equal(normalizeTripMergeGap(null), 0);
   assert.equal(normalizeTripMergeGap(0), 0);
   assert.equal(normalizeTripMergeGap(300), 300);
-  assert.equal(normalizeTripMergeGap(5000), 900);
+  assert.equal(normalizeTripMergeGap(5000), 5000);
+  assert.equal(normalizeTripMergeGap(9000), 7200);
   assert.equal(normalizeTripMergeGap(-5), 0);
-  assert.equal(normalizeTripMergeGap(1.5), 120);
-  assert.equal(normalizeTripMergeGap("abc"), 120);
+  assert.equal(normalizeTripMergeGap(1.5), 0);
+  assert.equal(normalizeTripMergeGap("abc"), 0);
 });
 
 test("Profil liefert tripMergeGapSeconds", () => {
-  assert.equal(mapUserSettings({ settings: {} }).tripMergeGapSeconds, 120);
+  assert.equal(mapUserSettings({ settings: {} }).tripMergeGapSeconds, 0);
   assert.equal(mapUserSettings({ settings: { tripMergeGapSeconds: 0 } }).tripMergeGapSeconds, 0);
   assert.equal(mapUserSettings({ settings: { tripMergeGapSeconds: 600 } }).tripMergeGapSeconds, 600);
+  assert.equal(mapUserSettings({ settings: { tripMergeGapSeconds: 7200 } }).tripMergeGapSeconds, 7200);
 });
 
 test("PATCH lehnt ungültiges Zeitfenster ab", async () => {
-  for (const bad of [-1, 901, 1.5, "60", null]) {
+  for (const bad of [-1, 7201, 1.5, "60", null]) {
     await assert.rejects(() => updateUserSettings("u", { tripMergeGapSeconds: bad }, { query: async () => ({ rows: [{}] }) }), (e) => e.code === "VALIDATION_ERROR" || e.status === 400 || /tripMergeGapSeconds/.test(e.message));
   }
 });
