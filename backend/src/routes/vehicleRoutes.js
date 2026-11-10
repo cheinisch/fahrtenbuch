@@ -5,6 +5,7 @@ import { pool } from "../database/pool.js";
 import {
   badRequest,
   conflict,
+  forbidden,
   notFound,
 } from "../lib/errors.js";
 import { mapVehicle } from "../lib/mappers.js";
@@ -140,6 +141,59 @@ async function loadVehicle(userId, vehicleId) {
   return result.rows[0] || null;
 }
 
+// Zugriff auf ein Fahrzeug: eigenes oder mit mir geteiltes (aktiv, nicht archiviert).
+async function loadAccessibleVehicle(userId, vehicleId) {
+  const result = await pool.query(
+    `
+      SELECT v.*, owner.display_name AS owner_display_name, owner.username AS owner_username
+      FROM vehicles v
+      INNER JOIN users owner ON owner.id = v.user_id
+      WHERE v.id = $1
+        AND v.archived_at IS NULL
+        AND (
+          v.user_id = $2
+          OR EXISTS (
+            SELECT 1 FROM vehicle_shares vs
+            WHERE vs.vehicle_id = v.id AND vs.user_id = $2
+          )
+        )
+      LIMIT 1
+    `,
+    [vehicleId, userId],
+  );
+  return result.rows[0] || null;
+}
+
+// Ändern, abmelden, übertragen und Freigaben verwalten darf nur der Besitzer.
+async function requireOwnedVehicle(userId, vehicleId) {
+  const vehicle = await loadAccessibleVehicle(userId, vehicleId);
+  if (!vehicle) throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+  if (vehicle.user_id !== userId) {
+    throw forbidden("VEHICLE_NOT_OWNER", "Nur der Besitzer kann dieses Fahrzeug ändern.");
+  }
+  return vehicle;
+}
+
+// Mitbenutzer sehen nur dieselben Stammdaten wie in der Fahrzeugliste.
+function vehicleForUser(row, userId) {
+  const mapped = mapVehicle(row);
+  if (row.user_id === userId) return { ...mapped, isOwner: true, accessType: "owner" };
+  return {
+    id: mapped.id,
+    name: mapped.name,
+    manufacturer: mapped.manufacturer,
+    model: mapped.model,
+    licensePlate: mapped.licensePlate,
+    color: mapped.color,
+    isDefault: false,
+    isOwner: false,
+    accessType: "shared",
+    ownerDisplayName: row.owner_display_name,
+    ownerUsername: row.owner_username,
+    isDeregistered: mapped.isDeregistered,
+  };
+}
+
 async function assertBluetoothTrackingAvailable(client, userId, bluetoothMac, excludeVehicleId = null) {
   if (!bluetoothMac) return;
   const result = await client.query(
@@ -233,7 +287,7 @@ vehicleRoutes.get(
   "/:id/shared-trip-activity",
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.id);
-    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
+    const vehicle = await loadAccessibleVehicle(request.auth.userId, vehicleId);
     if (!vehicle) {
       throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
     }
@@ -271,10 +325,7 @@ vehicleRoutes.get(
   "/:id/shares",
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.id);
-    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
-    if (!vehicle) {
-      throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
-    }
+    await requireOwnedVehicle(request.auth.userId, vehicleId);
 
     const result = await pool.query(
       `
@@ -301,8 +352,7 @@ vehicleRoutes.post(
   "/:id/shares",
   asyncHandler(async (request, response) => {
     const vehicleId=uuidValue(request.params.id);
-    const vehicle=await loadVehicle(request.auth.userId,vehicleId);
-    if(!vehicle) throw notFound("VEHICLE_NOT_FOUND","Das Fahrzeug wurde nicht gefunden.");
+    const vehicle=await requireOwnedVehicle(request.auth.userId,vehicleId);
     const email=stringField(objectBody(request.body),"email",{required:true,minimum:3,maximum:320}).trim().toLowerCase();
     const userResult=await pool.query(
       `SELECT id,email FROM users WHERE deleted_at IS NULL AND status='active' AND lower(email)=lower($1) LIMIT 1`,[email]);
@@ -430,8 +480,7 @@ vehicleRoutes.post(
   "/:id/share-link",
   asyncHandler(async(request,response)=>{
     const vehicleId=uuidValue(request.params.id);
-    const vehicle=await loadVehicle(request.auth.userId,vehicleId);
-    if(!vehicle) throw notFound("VEHICLE_NOT_FOUND","Das Fahrzeug wurde nicht gefunden.");
+    await requireOwnedVehicle(request.auth.userId,vehicleId);
     const token=crypto.randomBytes(32).toString("base64url");
     const hash=crypto.createHash("sha256").update(token).digest("hex");
     const expiresAt=new Date(Date.now()+24*60*60*1000);
@@ -449,10 +498,7 @@ vehicleRoutes.delete(
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.id);
     const sharedUserId = uuidValue(request.params.userId, "userId");
-    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
-    if (!vehicle) {
-      throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
-    }
+    await requireOwnedVehicle(request.auth.userId, vehicleId);
 
     const result = await pool.query(
       `
@@ -623,13 +669,13 @@ vehicleRoutes.get(
   "/:id",
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.id);
-    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
+    const vehicle = await loadAccessibleVehicle(request.auth.userId, vehicleId);
 
     if (!vehicle) {
       throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
     }
 
-    response.json(mapVehicle(vehicle));
+    response.json(vehicleForUser(vehicle, request.auth.userId));
   }),
 );
 
@@ -637,6 +683,7 @@ vehicleRoutes.put(
   "/:id",
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.id);
+    await requireOwnedVehicle(request.auth.userId, vehicleId);
     const input = parseVehicleInput(request.body);
 
     const client = await pool.connect();
@@ -745,6 +792,7 @@ vehicleRoutes.delete(
   "/:id",
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.id);
+    const userId = request.auth.userId;
 
     const activeTrip = await pool.query(
       `
@@ -756,7 +804,7 @@ vehicleRoutes.delete(
           AND archived_at IS NULL
         LIMIT 1
       `,
-      [vehicleId, request.auth.userId],
+      [vehicleId, userId],
     );
 
     if (activeTrip.rowCount > 0) {
@@ -764,6 +812,21 @@ vehicleRoutes.delete(
         "VEHICLE_HAS_ACTIVE_TRIP",
         "Das Fahrzeug kann während einer aktiven Aufzeichnung nicht gelöscht werden.",
       );
+    }
+
+    const vehicle = await loadAccessibleVehicle(userId, vehicleId);
+    if (!vehicle) {
+      throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    }
+
+    if (vehicle.user_id !== userId) {
+      // Geteiltes Fahrzeug: nur meine Freigabe entfernen, das Fahrzeug des Besitzers bleibt.
+      await pool.query(
+        `DELETE FROM vehicle_shares WHERE vehicle_id = $1 AND user_id = $2`,
+        [vehicleId, userId],
+      );
+      response.status(204).end();
+      return;
     }
 
     const result = await pool.query(
@@ -778,7 +841,7 @@ vehicleRoutes.delete(
           AND archived_at IS NULL
         RETURNING id
       `,
-      [vehicleId, request.auth.userId],
+      [vehicleId, userId],
     );
 
     if (result.rowCount === 0) {
@@ -798,8 +861,7 @@ vehicleRoutes.post(
     if (!confirmed) {
       throw badRequest("DEREGISTRATION_CONFIRMATION_REQUIRED", "Die Abmeldung muss ausdrücklich bestätigt werden.");
     }
-    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
-    if (!vehicle) throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    await requireOwnedVehicle(request.auth.userId, vehicleId);
     const at = new Date();
     const client = await pool.connect();
     try {
@@ -827,8 +889,7 @@ vehicleRoutes.post(
   "/:id/register",
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.id);
-    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
-    if (!vehicle) throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    const vehicle = await requireOwnedVehicle(request.auth.userId, vehicleId);
     if (!vehicle.deregistered_at) {
       throw conflict("VEHICLE_ALREADY_REGISTERED", "Das Fahrzeug ist bereits angemeldet.");
     }
@@ -887,8 +948,7 @@ vehicleRoutes.post(
     const effectiveAtRaw = stringField(body, "effectiveAt", { required: true, maximum: 40 });
     const effectiveAt = new Date(effectiveAtRaw);
     if (Number.isNaN(effectiveAt.getTime())) throw badRequest("INVALID_TRANSFER_DATE", "Der Übergabezeitpunkt ist ungültig.");
-    const vehicle = await loadVehicle(request.auth.userId, vehicleId);
-    if (!vehicle) throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
+    const vehicle = await requireOwnedVehicle(request.auth.userId, vehicleId);
     if (vehicle.deregistered_at) throw conflict("VEHICLE_DEREGISTERED", "Ein abgemeldetes Fahrzeug kann nicht übertragen werden.");
     const targetResult = await pool.query(
       `SELECT id, username, display_name, email FROM users
@@ -994,23 +1054,27 @@ vehicleRoutes.put(
   "/:id/bluetooth",
   asyncHandler(async (request, response) => {
     const vehicleId = uuidValue(request.params.id);
+    const userId = request.auth.userId;
     const body = objectBody(request.body);
     const bluetoothMac = bluetoothValue(body, true);
+
+    // Besitzer und Mitbenutzer dürfen die MAC setzen; die Spalte gehört zum Fahrzeug.
+    const access = await loadAccessibleVehicle(userId, vehicleId);
+    if (!access) throw notFound("VEHICLE_NOT_FOUND", "Das Fahrzeug wurde nicht gefunden.");
 
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-      await assertBluetoothTrackingAvailable(client, request.auth.userId, bluetoothMac, vehicleId);
+      await assertBluetoothTrackingAvailable(client, userId, bluetoothMac, vehicleId);
       const result = await client.query(
         `
           UPDATE vehicles
-          SET bluetooth_identifier = $3
+          SET bluetooth_identifier = $2
           WHERE id = $1
-            AND user_id = $2
             AND archived_at IS NULL
           RETURNING *
         `,
-        [vehicleId, request.auth.userId, bluetoothMac],
+        [vehicleId, bluetoothMac],
       );
 
       if (result.rowCount === 0) {
@@ -1018,7 +1082,11 @@ vehicleRoutes.put(
       }
 
       await client.query("COMMIT");
-      response.json(mapVehicle(result.rows[0]));
+      response.json(vehicleForUser({
+        ...result.rows[0],
+        owner_display_name: access.owner_display_name,
+        owner_username: access.owner_username,
+      }, userId));
     } catch (error) {
       await client.query("ROLLBACK");
       if (
