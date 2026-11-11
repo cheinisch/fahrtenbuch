@@ -185,6 +185,8 @@ function vehicleForUser(row, userId) {
     model: mapped.model,
     licensePlate: mapped.licensePlate,
     color: mapped.color,
+    // Die MAC gehört zum Fahrzeug; ohne sie erkennt das Gerät des Mitbenutzers das Auto nicht.
+    bluetoothMac: mapped.bluetoothMac,
     isDefault: false,
     isOwner: false,
     accessType: "shared",
@@ -276,6 +278,8 @@ vehicleRoutes.get(
       return {
         id:mapped.id,name:mapped.name,manufacturer:mapped.manufacturer,model:mapped.model,
         licensePlate:mapped.licensePlate,color:mapped.color,isDefault:false,
+        // Die MAC gehört zum Fahrzeug; ohne sie erkennt das Gerät des Mitbenutzers das Auto nicht.
+        bluetoothMac:mapped.bluetoothMac,
         isOwner:false,accessType:"shared",ownerDisplayName:row.owner_display_name,
         ownerUsername:row.owner_username,isDeregistered:mapped.isDeregistered,
       };
